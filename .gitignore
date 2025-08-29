@@ -1,0 +1,164 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of Thoth and is released under the MIT License.
+
+# === Environment Files ===
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+!.env.template
+!.env.docker
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+*.cover
+.cache
+nosetests.xml
+coverage.xml
+*.log
+
+# === Node.js ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.npm
+.yarn-integrity
+.next/
+out/
+dist/
+.cache/
+.parcel-cache/
+.nuxt/
+.vuepress/dist
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.env.production.local
+.env.development.local
+.env.test.local
+.vercel
+
+# === Django ===
+*.sqlite3
+*.sqlite3-journal
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+local_settings.py
+
+# === IDEs ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+.directory
+
+# === Docker ===
+docker-compose.override.yml
+.docker/
+
+# === Application Specific ===
+exports/*
+!exports/.gitkeep
+logs/*
+!logs/.gitkeep
+data/*
+!data/.gitkeep
+qdrant_storage/
+postgres_data/
+.pypi-token
+
+# === Backups ===
+*.backup
+*.bak
+*.old
+*.orig
+*_backup*
+*_old*
+
+# === Testing ===
+test-results/
+playwright-report/
+playwright/.cache/
+cypress/videos/
+cypress/screenshots/
+
+# === Build Artifacts ===
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.webassets-cache
+
+# === OS Files ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# === Temporary Files ===
+*.tmp
+*.temp
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# === Keep Original Directories (temporary) ===
+# Remove these when migration is complete
+# thoth_be/
+# thoth_ui/
+
+# === Submodules (temporary - will be managed as submodules) ===
+backend/
+frontend/
+thoth_be/
+thoth_docs/
+thoth_sqldb2/
+thoth_ui/
+thoth_vdb3/

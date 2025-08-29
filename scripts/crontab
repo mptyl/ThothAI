@@ -1,0 +1,13 @@
+# ThothAI Cron Jobs
+# Copyright (c) 2025 Marco Pancotti
+
+# Cleanup old logs daily at 2 AM
+0 2 * * * /app/.venv/bin/python /app/manage.py cleanup_logs >> /var/log/cron.log 2>&1
+
+# Update vector embeddings every 6 hours
+0 */6 * * * /app/.venv/bin/python /app/manage.py update_embeddings >> /var/log/cron.log 2>&1
+
+# Generate reports weekly on Sunday at 3 AM
+0 3 * * 0 /app/.venv/bin/python /app/manage.py generate_reports >> /var/log/cron.log 2>&1
+
+# Empty line required at the end

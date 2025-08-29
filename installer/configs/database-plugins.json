@@ -1,0 +1,87 @@
+{
+  "database_managers": {
+    "postgresql": {
+      "display_name": "PostgreSQL",
+      "description": "PostgreSQL database support with comprehensive features",
+      "manager_profile": "postgresql",
+      "dependencies": [
+        "psycopg2-binary>=2.9.10"
+      ],
+      "conflicts": [],
+      "default": true
+    },
+    "mysql": {
+      "display_name": "MySQL",
+      "description": "MySQL database support with optimized performance",
+      "manager_profile": "mysql",
+      "dependencies": [
+        "PyMySQL>=1.1.0"
+      ],
+      "conflicts": [],
+      "default": false
+    },
+    "sqlite": {
+      "display_name": "SQLite",
+      "description": "SQLite database support (included with Python, great for development)",
+      "manager_profile": "sqlite",
+      "dependencies": [],
+      "conflicts": [],
+      "default": true
+    },
+    "oracle": {
+      "display_name": "Oracle Database",
+      "description": "Oracle database support for enterprise environments",
+      "manager_profile": "oracle",
+      "dependencies": [
+        "oracledb>=2.0.0"
+      ],
+      "conflicts": [],
+      "default": false
+    },
+    "sqlserver": {
+      "display_name": "SQL Server",
+      "description": "Microsoft SQL Server support",
+      "manager_profile": "sqlserver",
+      "dependencies": [
+        "pyodbc>=5.0.0"
+      ],
+      "conflicts": [],
+      "default": false
+    },
+    "mariadb": {
+      "display_name": "MariaDB",
+      "description": "MariaDB database support (MySQL-compatible)",
+      "manager_profile": "mariadb",
+      "dependencies": [
+        "PyMySQL>=1.1.0"
+      ],
+      "conflicts": [],
+      "default": false
+    },
+    "supabase": {
+      "display_name": "Supabase",
+      "description": "Supabase cloud database support (PostgreSQL-based)",
+      "manager_profile": "supabase",
+      "dependencies": [
+        "psycopg2-binary>=2.9.10",
+        "supabase>=2.0.0"
+      ],
+      "conflicts": [],
+      "default": false
+    }
+  },
+  "core_database_dependencies": [
+    "SQLAlchemy>=2.0.40",
+    "sqlparse>=0.5.3",
+    "pandas>=2.2.3",
+    "datasketch>=1.6.5"
+  ],
+  "plugin_groups": {
+    "relational": ["postgresql", "mysql", "sqlite", "oracle", "sqlserver", "mariadb", "supabase"],
+    "lightweight": ["sqlite"],
+    "enterprise": ["postgresql", "oracle", "sqlserver"],
+    "opensource": ["postgresql", "mysql", "sqlite", "mariadb"],
+    "cloud": ["supabase"],
+    "development": ["sqlite", "postgresql"]
+  }
+}
