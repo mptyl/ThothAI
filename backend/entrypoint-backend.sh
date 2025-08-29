@@ -5,51 +5,18 @@
 
 set -e
 
-# Ensure secrets directory exists
-mkdir -p /secrets
-
-# Generate or load Django SECRET_KEY from shared secrets volume
-if [ -f "/secrets/django_secret_key" ]; then
-    export SECRET_KEY=$(cat /secrets/django_secret_key)
-    echo "Django SECRET_KEY loaded from secrets volume"
-else
-    echo "Generating new Django SECRET_KEY..."
-    # Generate a secure Django secret key
-    SECRET_KEY=$(python3 -c "import secrets; import string; chars = string.ascii_letters + string.digits + '!@#$%^&*(-_=+)'; print(''.join(secrets.choice(chars) for _ in range(50)))")
-    echo "${SECRET_KEY}" > /secrets/django_secret_key
-    chmod 640 /secrets/django_secret_key
-    export SECRET_KEY="${SECRET_KEY}"
-    echo "Django SECRET_KEY generated and saved to /secrets/django_secret_key"
+# Verify secrets volume is mounted and contains required files
+if [ ! -f "/secrets/django_secret_key" ]; then
+    echo "ERROR: Django SECRET_KEY not found at /secrets/django_secret_key"
+    exit 1
 fi
 
-# Path to the local secrets volume for API key
-SECRETS_DIR="/vol/secrets"
-API_KEY_FILE="${SECRETS_DIR}/django_api_key"
-
-# Create secrets directory if it doesn't exist
-mkdir -p "${SECRETS_DIR}"
-
-# Generate or load API key
-if [ -f "${API_KEY_FILE}" ]; then
-    echo "Loading existing API key from ${API_KEY_FILE}"
-    export DJANGO_API_KEY=$(cat "${API_KEY_FILE}")
-else
-    echo "Generating new API key..."
-    # Generate a secure random API key
-    API_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
-    
-    # Save to file
-    echo "${API_KEY}" > "${API_KEY_FILE}"
-    chmod 600 "${API_KEY_FILE}"
-    
-    echo "API key generated and saved to ${API_KEY_FILE}"
-    export DJANGO_API_KEY="${API_KEY}"
+if [ ! -f "/secrets/django_api_key" ]; then
+    echo "ERROR: Django API_KEY not found at /secrets/django_api_key"
+    exit 1
 fi
 
-echo "API key loaded: ${DJANGO_API_KEY:0:10}..."
+echo "Secrets volume verified - keys are available"
 
-# Make sure Django can read the API key
-export DJANGO_API_KEY="${DJANGO_API_KEY}"
-
-# Run the original entrypoint
+# Run the original entrypoint (start.sh will load the secrets)
 exec /start.sh

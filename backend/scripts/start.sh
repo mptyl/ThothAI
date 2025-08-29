@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2025 Marco Pancotti
 # This file is part of Thoth and is released under the Apache License 2.0.
@@ -7,6 +7,17 @@
 set -e
 
 echo "=== Starting Thoth Application ==="
+
+# Load secrets from Docker volume if available
+if [ -f "/secrets/django_secret_key" ]; then
+    export SECRET_KEY=$(cat /secrets/django_secret_key)
+    echo "SECRET_KEY loaded from Docker secrets volume"
+fi
+
+if [ -f "/secrets/django_api_key" ]; then
+    export DJANGO_API_KEY=$(cat /secrets/django_api_key)
+    echo "DJANGO_API_KEY loaded from Docker secrets volume"
+fi
 
 # Generate or load secrets if in Docker with auto-generation enabled
 if [ "$AUTO_GENERATE_SECRETS" = "true" ] && [ -f "/app/scripts/generate-secrets.sh" ]; then
@@ -72,4 +83,12 @@ echo "Startup script completed successfully."
 
 # Start Django server
 echo "Starting Django server..."
+echo "DEBUG: DJANGO_API_KEY value is: ${DJANGO_API_KEY:0:20}..."
+echo "DEBUG: SECRET_KEY value is: ${SECRET_KEY:0:20}..."
+
+# Ensure variables are exported to the environment
+export DJANGO_API_KEY
+export SECRET_KEY
+
+# Start Django with environment variables available
 exec python manage.py runserver 0.0.0.0:8000
