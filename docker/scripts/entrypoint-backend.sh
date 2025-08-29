@@ -5,7 +5,16 @@
 
 set -e
 
-# Path to the secrets volume
+# Read Django SECRET_KEY from shared secrets volume
+if [ -f "/secrets/django_secret_key" ]; then
+    export SECRET_KEY=$(cat /secrets/django_secret_key)
+    echo "Django SECRET_KEY loaded from secrets volume"
+else
+    echo "ERROR: Django SECRET_KEY not found at /secrets/django_secret_key"
+    exit 1
+fi
+
+# Path to the local secrets volume for API key
 SECRETS_DIR="/vol/secrets"
 API_KEY_FILE="${SECRETS_DIR}/django_api_key"
 

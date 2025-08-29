@@ -13,10 +13,8 @@ if [ -z "${DJANGO_API_KEY}" ]; then
     exit 1
 fi
 
-if [ -z "${NEXTAUTH_SECRET}" ]; then
-    echo "ERROR: NEXTAUTH_SECRET not set in environment"
-    exit 1
-fi
+# RIMOSSO: Check per NEXTAUTH_SECRET (non utilizzata)
+# L'app usa un sistema di auth custom, non NextAuth.js
 
 echo "Environment variables loaded successfully"
 
