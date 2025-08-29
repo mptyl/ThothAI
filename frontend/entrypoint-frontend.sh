@@ -18,5 +18,5 @@ else
     exit 1
 fi
 
-# Run the Next.js application with environment variables
-exec env DJANGO_API_KEY="$DJANGO_API_KEY" NEXT_PUBLIC_DJANGO_API_KEY="$NEXT_PUBLIC_DJANGO_API_KEY" npm run start
+# Run the Next.js application with all environment variables
+exec npm run start

@@ -54,16 +54,26 @@ cleanup_sql_generator() {
     sleep 1
 }
 
+# Load environment variables from .env.local if it exists
+if [ -f .env.local ]; then
+    export $(grep -v '^#' .env.local | xargs)
+fi
+
+# Set default ports if not configured
+FRONTEND_LOCAL_PORT=${PORT:-${FRONTEND_LOCAL_PORT:-3200}}
+SQL_GEN_LOCAL_PORT=${SQL_GENERATOR_LOCAL_PORT:-8180}
+BACKEND_LOCAL_PORT=${BACKEND_LOCAL_PORT:-8200}
+
 # Check required services first
 echo "Checking required services..."
 
-# Check if Django backend is running on port 8200
-if lsof -Pi :8200 -sTCP:LISTEN -t >/dev/null ; then
-    echo "Django backend is running on port 8200"
+# Check if Django backend is running on configured port
+if lsof -Pi :$BACKEND_LOCAL_PORT -sTCP:LISTEN -t >/dev/null ; then
+    echo "Django backend is running on port $BACKEND_LOCAL_PORT"
 else
-    echo "Django backend is NOT running on port 8200"
+    echo "Django backend is NOT running on port $BACKEND_LOCAL_PORT"
     echo "   Please start the Django backend first:"
-    echo "   cd ../thoth_be && python manage.py runserver 8200"
+    echo "   cd ../backend && python manage.py runserver $BACKEND_LOCAL_PORT"
     exit 1
 fi
 
@@ -84,30 +94,34 @@ cleanup_sql_generator
 
 # Check required ports and offer to clean them
 echo "Checking application ports..."
+echo "  Frontend port: $FRONTEND_LOCAL_PORT"
+echo "  SQL Generator port: $SQL_GEN_LOCAL_PORT"
+echo "  Backend port: $BACKEND_LOCAL_PORT"
+echo ""
 
-if ! check_port 3000; then
-    read -p "Kill processes on port 3000? (y/N): " -n 1 -r
+if ! check_port $FRONTEND_LOCAL_PORT; then
+    read -p "Kill processes on port $FRONTEND_LOCAL_PORT? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        kill_port 3000
+        kill_port $FRONTEND_LOCAL_PORT
     else
-        echo "Cannot start - port 3000 is in use"; exit 1
+        echo "Cannot start - port $FRONTEND_LOCAL_PORT is in use"; exit 1
     fi
 fi
 
-if ! check_port 8001; then
-    echo "Port 8001 is already in use"
+if ! check_port $SQL_GEN_LOCAL_PORT; then
+    echo "Port $SQL_GEN_LOCAL_PORT is already in use"
     echo "   This might be the Docker container running the SQL Generator service."
-    echo "   If Docker is running, the SQL Generator is accessible at port 8005."
+    echo "   If Docker is running, the SQL Generator is accessible at port 8020."
     echo ""
     echo "   Options:"
     echo "   1. Stop the Docker container if you want to run locally"
-    echo "   2. Use the Docker service (accessible at port 8005)"
+    echo "   2. Use the Docker service (accessible at port 8020)"
     echo ""
     read -p "Do you want to continue with the local setup anyway? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Exiting. Please stop the Docker container or use port 8005 for the SQL Generator."; exit 1
+        echo "Exiting. Please stop the Docker container or use port 8020 for the SQL Generator."; exit 1
     fi
 fi
 
@@ -130,28 +144,26 @@ else
 fi
 
 echo ""
-echo "Starting SQL Generator service..."
-# Load environment variables from .env files
-# The SQL Generator will load these from .env.local automatically
-# No need to export them here as it would override the .env.local values
-
-uv run python main.py &
+echo "Starting SQL Generator service on port $SQL_GEN_LOCAL_PORT..."
+# Pass the port as environment variable
+PORT=$SQL_GEN_LOCAL_PORT uv run python main.py &
 SQL_GEN_PID=$!
 
 cd ..
 
 echo ""
-echo "Starting Next.js frontend..."
-npm run dev &
+echo "Starting Next.js frontend on port $FRONTEND_LOCAL_PORT..."
+# Next.js reads PORT environment variable
+PORT=$FRONTEND_LOCAL_PORT npm run dev &
 NEXT_PID=$!
 
 echo ""
 echo "All services started!"
 echo ""
 echo "Service URLs:"
-echo "   - Frontend:      http://localhost:3000"
-echo "   - SQL Generator: http://localhost:8001"
-echo "   - API Docs:      http://localhost:8001/docs"
+echo "   - Frontend:      http://localhost:$FRONTEND_LOCAL_PORT"
+echo "   - SQL Generator: http://localhost:$SQL_GEN_LOCAL_PORT"
+echo "   - API Docs:      http://localhost:$SQL_GEN_LOCAL_PORT/docs"
 
 # Check for Logfire token and show URL if available
 if [ -f .env.local ]; then
