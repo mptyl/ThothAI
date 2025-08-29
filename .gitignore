@@ -157,8 +157,11 @@ Thumbs.db
 # === Submodules (temporary - will be managed as submodules) ===
 backend/
 frontend/
+
+# === Legacy Directories to Exclude ===
 thoth_be/
 thoth_docs/
+thoth_docs_en/
 thoth_sqldb2/
 thoth_ui/
 thoth_vdb3/
