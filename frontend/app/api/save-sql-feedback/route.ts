@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward the request to the backend SQL generator service
-    const backendUrl = process.env.NEXT_PUBLIC_SQL_GENERATOR_URL || 'http://localhost:8001';
+    // Use SQL_GENERATOR_URL from environment (different for Docker vs local)
+    const backendUrl = process.env.SQL_GENERATOR_URL!;
     const response = await fetch(`${backendUrl}/save-sql-feedback`, {
       method: 'POST',
       headers: {

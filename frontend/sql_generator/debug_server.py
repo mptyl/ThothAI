@@ -16,7 +16,8 @@ if __name__ == "__main__":
     # Import qui per poter mettere breakpoint nel modulo main
     from main import app, log_level
     
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8001
+    # Priority: command line arg > PORT env > default 8180
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.getenv('PORT', '8180'))
     
     # Use debug level for debug server unless overridden
     debug_log_level = os.getenv('LOGGING_LEVEL', 'DEBUG').lower()

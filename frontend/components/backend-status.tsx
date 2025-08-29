@@ -73,7 +73,7 @@ export function BackendStatus() {
             <strong>To fix this:</strong>
             <ul className="list-disc list-inside mt-1 space-y-1">
               <li>Make sure the Django backend is running</li>
-              <li>Check that it&apos;s running on the correct port (8200)</li>
+              <li>Check that it&apos;s running on the correct port</li>
               <li>Verify the DJANGO_SERVER environment variable</li>
             </ul>
           </div>

@@ -32,7 +32,7 @@ services:
     container_name: thoth-backend
     restart: always
     ports:
-      - "8040:8000"
+      - "${BACKEND_PORT:-8040}:8000"
     volumes:
       - ./exports:/app/exports
       - ./logs/backend:/app/logs
@@ -66,13 +66,13 @@ services:
       dockerfile: ../docker/frontend.Dockerfile
       args:
         BUILDKIT_INLINE_CACHE: 1
-        NEXT_PUBLIC_DJANGO_SERVER: http://localhost:8040
-        NEXT_PUBLIC_SQL_GENERATOR_URL: http://localhost:8005
+        NEXT_PUBLIC_DJANGO_SERVER: http://localhost:${BACKEND_PORT:-8040}
+        NEXT_PUBLIC_SQL_GENERATOR_URL: http://localhost:${SQL_GENERATOR_PORT:-8020}
     image: thoth-frontend:latest
     container_name: thoth-frontend
     restart: always
     ports:
-      - "3001:3000"
+      - "${FRONTEND_PORT:-3040}:3000"
     volumes:
       - ./logs/frontend:/app/logs
       - frontend-cache:/app/.next/cache
@@ -81,10 +81,14 @@ services:
     env_file: .env.docker
     environment:
       - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
       - DJANGO_SERVER=http://proxy:80
       - SQL_GENERATOR_URL=http://sql-generator:8005
       - DOCKER_CONTAINER=true
       - HOST_IP=host.docker.internal
+      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT:-8040}
+      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-8020}
     networks:
       - thoth-network
     extra_hosts:
@@ -104,7 +108,7 @@ services:
     container_name: thoth-sql-generator
     restart: always
     ports:
-      - "8005:8005"
+      - "${SQL_GENERATOR_PORT:-8020}:8005"
     volumes:
       - ./data:/app/data
       - ./logs/sql-generator:/app/logs
