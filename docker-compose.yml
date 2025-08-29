@@ -5,6 +5,21 @@
 version: '3.8'
 
 services:
+  # === SECRETS INITIALIZATION SERVICE ===
+  init-secrets:
+    build:
+      context: .
+      dockerfile: docker/init-secrets.Dockerfile
+    image: thoth-init-secrets:latest
+    container_name: thoth-init-secrets
+    volumes:
+      - thoth-secrets:/secrets
+    networks:
+      - thoth-network
+    profiles:
+      - init
+    restart: "no"
+
   # === BACKEND SERVICE ===
   backend:
     build:
@@ -25,6 +40,7 @@ services:
       - ./backend/setup_csv:/app/setup_csv
       - backend-static:/vol/static
       - backend-media:/vol/media
+      - thoth-secrets:/secrets
     env_file: .env.docker
     environment:
       - IS_DOCKER=True
@@ -160,6 +176,8 @@ volumes:
     name: thoth-frontend-cache
   qdrant-data:
     name: thoth-qdrant-data
+  thoth-secrets:
+    name: thoth-secrets
 
 networks:
   thoth-network:
