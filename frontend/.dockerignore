@@ -1,0 +1,152 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of ThothAI and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+# === DEVELOPMENT ENVIRONMENTS & DEPENDENCIES ===
+# Node.js dependencies (351MB)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python virtual environments (631MB total: .venv=511MB, sql_generator/venv=120MB)
+.venv/
+venv/
+env/
+ENV/
+.env/
+sql_generator/venv/
+sql_generator/.venv/
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+.cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# === BUILD ARTIFACTS & OUTPUTS ===
+# Next.js build outputs
+.next/
+out/
+dist/
+build/
+
+# TypeScript build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Python build artifacts
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# === LOGS & TEMPORARY FILES ===
+# Application logs (various .log files found)
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# === DEVELOPMENT & TESTING FILES ===
+# Test files and data
+test_*.py
+*_test.py
+tests/
+testing/
+coverage/
+.nyc_output
+*.lcov
+data/dev_databases/
+
+# === CONFIGURATION & ENVIRONMENT ===
+# Environment files (contain secrets)
+.env*
+!.env.example
+!.env.template
+!.env.docker
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# === VERSION CONTROL & DOCKER ===
+.git/
+.gitignore
+.gitattributes
+.dockerignore
+Dockerfile*
+docker-compose*
+
+# === DOCUMENTATION & PROJECT FILES ===
+# Documentation (already excluded in original, keeping for completeness)
+*.md
+docs/
+README*
+LICENSE*
+CHANGELOG*
+
+# Specific project documentation files
+REQS.md
+PREVIOUS_STEPS.md
+MIGRATION_SUMMARY.md
+EMBEDDING_*.md
+DOCKER_*.md
+*_PLAN.md
+*-implementation-plan.md
+*.code-workspace
+
+# === SCRIPTS & UTILITIES ===
+# Development scripts (but allow entrypoint scripts)
+!entrypoint*.sh
+start.sh
+stop-all.sh
+orchestrator-setup.sh
+test-*.sh
+
+# === MEDIA & ASSETS (for production, may need adjustment) ===
+# Screenshots and large media files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+# Note: You may want to allow specific assets needed in production
+
+# === BACKUP & TEMPORARY FILES ===
+*.bak
+*.tmp
+*.temp
+.temp/
+temp/
+
+# === SPECIFIC PROJECT EXCLUSIONS ===
+# SQL Generator exclusions (when building Next.js frontend only)
+# Note: Do NOT exclude sql_generator/ directory itself as it has its own Dockerfile
+# Only exclude its large directories:
+sql_generator/.venv/
+sql_generator/venv/
+sql_generator/__pycache__/
+sql_generator/.pytest_cache/
+sql_generator/logs/
+sql_generator/*.log

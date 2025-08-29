@@ -1,0 +1,447 @@
+{% extends "vertical_base.html" %}
+{% load static %}
+
+{% block title %}Database Documentation{% endblock title %}
+
+{% block extra_css %}
+<style>
+    .doc-iframe {
+        width: 100%;
+        height: calc(100vh - 250px);
+        border: none;
+        background-color: white;
+        border-radius: 4px;
+    }
+    
+    .doc-container {
+        width: 100%;
+        min-height: calc(100vh - 200px);
+        background-color: white;
+        border-radius: 4px;
+        overflow: auto;
+        position: relative;
+    }
+    
+    .no-doc-container {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .no-doc-icon {
+        font-size: 80px;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+    
+    .admin-link {
+        margin-top: 20px;
+    }
+    
+    /* Search functionality styles */
+    .search-bar {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+        z-index: 100;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .search-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .search-input-group {
+        flex: 1;
+        min-width: 250px;
+        position: relative;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 8px 40px 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .search-clear {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        padding: 5px;
+        display: none;
+    }
+    
+    .search-input:not(:placeholder-shown) + .search-clear {
+        display: block;
+    }
+    
+    .search-navigation {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+    
+    .search-nav-btn {
+        padding: 6px 12px;
+        border: 1px solid #ced4da;
+        background-color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .search-nav-btn:hover:not(:disabled) {
+        background-color: #e9ecef;
+    }
+    
+    .search-nav-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .search-count {
+        padding: 0 10px;
+        color: #6c757d;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+    
+    /* Highlight styles */
+    .search-highlight {
+        background-color: #ffeb3b;
+        padding: 2px 0;
+        border-radius: 3px;
+    }
+    
+    .search-highlight.current {
+        background-color: #ff9800;
+        color: white;
+    }
+    
+    /* Hide search bar when no documentation */
+    .no-search {
+        display: none;
+    }
+    
+    /* Keyboard key styling */
+    kbd {
+        display: inline-block;
+        padding: 3px 5px;
+        font-size: 11px;
+        line-height: 10px;
+        color: #444;
+        vertical-align: middle;
+        background-color: #fafafa;
+        border: solid 1px #c6cbd1;
+        border-bottom-color: #959da5;
+        border-radius: 3px;
+        box-shadow: inset 0 -1px 0 #959da5;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}
+{% include "partials/page-title.html" with page_title='Database Documentation' sub_title='Documentation' %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-0">
+            <div class="card-body p-0">
+                {% if error %}
+                <div class="alert alert-danger m-3" role="alert">
+                    <i class="dripicons-cross me-2"></i> {{ error }}
+                </div>
+                {% endif %}
+                
+                {% if info %}
+                <div class="alert alert-info m-3" role="alert">
+                    <i class="dripicons-information me-2"></i> {{ info }}
+                </div>
+                {% endif %}
+                
+                {% if doc_exists and doc_content %}
+                    
+                    <!-- Display documentation content with search -->
+                    <div class="doc-container">
+                        <!-- Search bar -->
+                        <div class="search-bar" id="searchBar">
+                            <div class="search-controls">
+                                <div class="search-input-group">
+                                    <input type="text" 
+                                           class="search-input" 
+                                           id="searchInput" 
+                                           placeholder="Search in documentation..."
+                                           autocomplete="off">
+                                    <button class="search-clear" id="searchClear" title="Clear search">
+                                        <i class="mdi mdi-close"></i>
+                                    </button>
+                                </div>
+                                <div class="search-navigation">
+                                    <span class="search-count" id="searchCount">0 results</span>
+                                    <span class="search-help text-muted" style="font-size: 12px; margin-left: 10px;">
+                                        Press <kbd>Enter</kbd> for next, <kbd>Shift+Enter</kbd> for previous, <kbd>Esc</kbd> to clear
+                                    </span>
+                                    <form method="get" action="{% url 'thoth_ai_backend:export_pdf' %}" style="display: inline-block; margin-left: 15px;">
+                                        <input type="hidden" name="db_name" value="{{ db_name }}">
+                                        <button type="submit" style="
+                                            background: #4a90a4;
+                                            color: white;
+                                            border: none;
+                                            padding: 6px 12px;
+                                            border-radius: 4px;
+                                            cursor: pointer;
+                                            font-weight: 600;
+                                            font-size: 12px;
+                                            vertical-align: middle;
+                                            display: inline-block;
+                                        ">
+                                            📄 Export PDF
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Documentation content -->
+                        <div id="docContent" style="padding: 20px;">
+                            {{ doc_content|safe }}
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- No documentation found -->
+                    <div class="no-doc-container">
+                        <div class="no-doc-icon">
+                            <i class="uil-file-exclamation-alt"></i>
+                        </div>
+                        <h3>No Documentation Available</h3>
+                        <p class="text-muted mt-3">
+                            {% if db_name %}
+                                Documentation has not been generated yet for database '<strong>{{ db_name }}</strong>'.
+                            {% else %}
+                                Please select a workspace with a database to view documentation.
+                            {% endif %}
+                        </p>
+                        
+                        {% if db_name %}
+                        <div class="admin-link">
+                            <p class="text-muted">To generate documentation:</p>
+                            <ol class="text-start" style="max-width: 500px; margin: 20px auto;">
+                                <li>Go to the Django Admin panel</li>
+                                <li>Navigate to SQL Databases</li>
+                                <li>Select your database ({{ db_name }})</li>
+                                <li>Choose "Generate database documentation (AI assisted)" from the actions dropdown</li>
+                            </ol>
+                            <a href="{% url 'admin:thoth_core_sqldb_changelist' %}" class="btn btn-primary">
+                                <i class="mdi mdi-database-cog me-2"></i> Go to Database Admin
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="admin-link">
+                            <a href="{% url 'thoth_core:index' %}" class="btn btn-primary">
+                                <i class="mdi mdi-folder-multiple me-2"></i> Go to Home
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div> <!-- end card-body-->
+        </div> <!-- end card-->
+    </div> <!-- end col -->
+</div>
+<!-- end row -->
+
+{% endblock %}
+
+{% block extra_javascript %}
+<script>
+    // Search functionality
+    let searchResults = [];
+    let currentResultIndex = 0;
+    let searchTerm = '';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const docContent = document.getElementById('docContent');
+        const searchInput = document.getElementById('searchInput');
+        const searchClear = document.getElementById('searchClear');
+        const searchCount = document.getElementById('searchCount');
+        
+        // Ensure all links open in new tab
+        if (docContent) {
+            const links = docContent.querySelectorAll('a');
+            links.forEach(link => {
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
+            });
+        }
+        
+        // Search functionality only if documentation exists
+        if (!docContent || !searchInput) return;
+        
+        // Store original content
+        const originalContent = docContent.innerHTML;
+        
+        function removeHighlights() {
+            docContent.innerHTML = originalContent;
+        }
+        
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        
+        function performSearch() {
+            const term = searchInput.value.trim();
+            
+            if (!term) {
+                removeHighlights();
+                searchResults = [];
+                updateSearchUI();
+                return;
+            }
+            
+            searchTerm = term;
+            removeHighlights();
+            
+            // Create case-insensitive regex
+            const regex = new RegExp(`(${escapeRegExp(term)})`, 'gi');
+            
+            // Function to process text nodes
+            function processTextNode(node) {
+                const text = node.textContent;
+                const matches = text.match(regex);
+                
+                if (matches && matches.length > 0) {
+                    const span = document.createElement('span');
+                    span.innerHTML = text.replace(regex, '<span class="search-highlight">$1</span>');
+                    node.parentNode.replaceChild(span, node);
+                }
+            }
+            
+            // Walk through all text nodes
+            function walkTextNodes(node) {
+                if (node.nodeType === 3) { // Text node
+                    processTextNode(node);
+                } else if (node.nodeType === 1 && node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
+                    for (let i = 0; i < node.childNodes.length; i++) {
+                        walkTextNodes(node.childNodes[i]);
+                    }
+                }
+            }
+            
+            walkTextNodes(docContent);
+            
+            // Collect all highlights
+            searchResults = Array.from(docContent.querySelectorAll('.search-highlight'));
+            currentResultIndex = 0;
+            
+            updateSearchUI();
+            
+            if (searchResults.length > 0) {
+                navigateToResult(0);
+            }
+        }
+        
+        function updateSearchUI() {
+            const count = searchResults.length;
+            
+            if (count === 0) {
+                searchCount.textContent = searchTerm ? 'No results' : '0 results';
+            } else {
+                searchCount.textContent = `${currentResultIndex + 1} of ${count}`;
+            }
+        }
+        
+        function navigateToResult(index) {
+            if (searchResults.length === 0) return;
+            
+            // Ensure index is valid
+            if (index < 0 || index >= searchResults.length) {
+                console.error('Invalid search result index:', index);
+                return;
+            }
+            
+            // Remove current highlight
+            searchResults.forEach(result => {
+                if (result && result.classList) {
+                    result.classList.remove('current');
+                }
+            });
+            
+            // Update index
+            currentResultIndex = index;
+            
+            // Add current highlight
+            const currentResult = searchResults[currentResultIndex];
+            if (currentResult && currentResult.classList) {
+                currentResult.classList.add('current');
+                
+                // Scroll to result
+                currentResult.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+            
+            updateSearchUI();
+        }
+        
+        // Event listeners
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 300);
+        });
+        
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (searchResults.length > 0) {
+                    // Navigate forward (with wrap around)
+                    let nextIndex = currentResultIndex + 1;
+                    if (nextIndex >= searchResults.length) {
+                        nextIndex = 0; // Wrap to beginning
+                    }
+                    navigateToResult(nextIndex);
+                }
+            } else if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                if (searchResults.length > 0) {
+                    // Navigate backward (with wrap around)
+                    let prevIndex = currentResultIndex - 1;
+                    if (prevIndex < 0) {
+                        prevIndex = searchResults.length - 1; // Wrap to end
+                    }
+                    navigateToResult(prevIndex);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                searchInput.value = '';
+                performSearch();
+                searchInput.blur();
+                // Scroll to top of page
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+        
+        searchClear.addEventListener('click', function() {
+            searchInput.value = '';
+            performSearch();
+            searchInput.focus();
+        });
+    });
+</script>
+{% endblock %}

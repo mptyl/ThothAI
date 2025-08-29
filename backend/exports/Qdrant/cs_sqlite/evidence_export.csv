@@ -1,0 +1,56 @@
+id,evidence
+f2b9242d-308c-4de5-bda9-468a44c83bfe,Diffrence in enrollement = `Enrollment (K-12)` - `Enrollment (Ages 5-17)`
+b4b7f5b0-479b-4631-9df6-c47472c73773,District Special Education Consortia School refers to EdOpsCode = 'SPECON'.
+880dc5d7-7bbf-4675-aa4f-88c11df4a5c0,K-12 refers to students in grades 1 through 12.
+7c067a52-0b96-461b-92aa-46c717afb9de,Difference between K-12 enrollment and 15-17 enrollment can be computed by `Enrollment (K-12)` - `Enrollment (Ages 5-17)`
+07870256-a6f3-47db-9527-841294e4e83f,Average of average math = sum(average math scores) / count(schools).
+e54cec52-6926-4bf4-837f-be28db099e00,Percent eligible for free meals = Free Meal Count (K-12) / Total (Enrollment (K-12)
+d127e63a-20cb-48f7-95ae-a3d52589f489,Elementary School District refers to DOC = 52; Monthly average number of schools that opened in 1980 = count(schools that opened in 1980) / 12
+4c34c259-6d1d-443a-b4ad-93a95e5ccf4e,Percent (%) Eligible Free (K-12) = `Free Meal Count (K-12)` / `Enrollment (K-12)` * 100%
+3fef9be9-ae54-4a24-96da-6c8167da5420,"Chartered schools refer to Charter = 1 in the table schools; Full name refers to first name, last name"
+83216dcf-acae-4b20-9706-f16fe4c39820,'Does not offer physical building' means Virtual = F in the database.
+d0a2ff62-42c0-45d4-ad92-f5500d6b0e03,Kindergarten to 8th grade refers to K-8; 'Offers a magnet program' means Magnet = 1; Multiple Provision Types refers to `NSLP Provision Status` = 'Multiple Provision Types'
+e78d9bd0-2759-4729-b624-af5da67cda36,Eligible free rates for students aged 5-17 = `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)`
+9b083625-d290-4d22-a3b3-d4ea0c11aa9b,Excellence rate = NumGE1500 / NumTstTakr; Eligible free rates for students aged 5-17 = `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)`
+6f3489ab-1530-4ec7-83e9-b7b5b7a9c7a1,Closure date and closed date are synonyms; 'Closed' was mentioned in schools.StatusType.
+464b4fda-bc71-4d2e-917b-a0d9d387c600,K-12 means First-through-twelfth-grade
+13aed9c5-c9b0-4ac2-8307-bc203033f0b6,"Execellence Rate = NumGE1500 / NumTstTakr; complete address has Street, City, State, Zip code"
+07287191-daed-4bf4-87dc-36e7d88df438,High school can be represented as EILCode = 'HS'
+9ad80b99-c004-4f1a-a5d6-d4126c16737e,Valid charter number means the number is not null
+d5c48a5e-d758-4a7a-b57a-3adb524039ff,Elementary School District refers to DOC = 52; Unified School District refers to DOC = 54.
+380d988e-fdd0-4fc2-a1f8-fad89b9310d4,Elementary School District refers to DOC = 52; Chartered schools refer to Charter = 1 in the table schools
+7dcc141c-60b4-4a1c-a4cb-529d82e277fb,Directly funded schools refers to FundingType = 'Directly Funded'
+17acc8f0-0bbc-4f48-b9cd-4e3c722411cd,Intermediate/Middle Schools refers to SOC = 62; Unified School refers to DOC = 54; years between 2009 and 2010 can refer to 'between 1/1/2009 to 12/31/2010'
+a43cf63c-2d10-40b1-8700-5509875d5ce8,Total enrollment can be represented by `Enrollment (K-12)` + `Enrollment (Ages 5-17)`
+fb6443ab-4d8f-4d16-b43b-ffe19660c95c,Average score for all subjects can be computed by AvgScrMath + AvgScrRead + AvgScrWrite
+518e7476-ee5b-4aad-8e05-bb94607f4524,grades 1-12 means K-12; Eligible free or reduced price meal rate for K-12 = `FRPM Count (K-12)` / `Enrollment (K-12)`
+274cc7f1-1647-407f-b96f-7361128766b2,State Special Schools refers to DOC = 31; Grades 1 through 12 means K-12
+09c04e98-8ca6-4651-9e9d-9f51cd0d9cf4,Ratio in percentage = (count(locally funded schools in Santa Clara) / count(all funding type schools in Santa Clara) * 100%
+ec3a9341-24d2-43b6-878c-248ec26df3ec,Eligible free rate for K-12 = `Free Meal Count (K-12)` / `Enrollment (K-12)`
+cdf1ad42-7917-4055-8a49-0286f1cf43e1,State Special School means EdOpsCode = 'SSS'
+16d764a3-14f7-4cba-9a39-dc88741cc4c7,the highest longitude refers to the school with the maximum absolute longitude value.
+56a07e74-0ac3-4d46-8e41-2be9b02af849,non-chartered schools refer to schools whose Charter = 0; K-12 means grades 1 through 12; percent of eligible free rate for K-12 = `Free Meal Count (K-12)` * 100 / `Enrollment (K-12)`
+689f753e-a3bc-49ca-943e-a18b1bc80fa3,Magnet schools or offer a magnet program means that Magnet = 1
+db5c9782-b267-44fe-9938-b70958a3e488,State Special Schools means that SOC = 31.
+257bdfc4-1426-41b8-b18a-740942a37692,"Usually, administrators manage the school stuff."
+e9306923-f433-4cba-b58b-efd9c75e759b,between 1/1/1980 and 12/31/1980 means the year = 1980
+6219a6f6-7f7c-40b7-a889-704ec9d87906,Percent (%) Eligible FRPM (Ages 5-17) can be acquired by `FRPM Count (Ages 5-17)` / `Enrollment (Ages 5-17)` * 100
+0286aa5e-d08e-45ce-9aa0-3986498869d1,"When magent is equal to 0 in the database, it means ths school doesn't offer a magnet program."
+b546d64f-e35a-4826-b089-3fa73bfa81ff,Charter schools refers to `Charter School (Y/N)` = 1 in the frpm
+06e33dbc-040d-41b8-8253-8f56dfd978d5,Total SAT scores can be computed by AvgScrRead + AvgScrMath + AvgScrWrite
+484c773f-03da-4902-b656-b40e73916fb6,Fresno Unified is a name of district;
+a0936243-c22b-4da5-a228-fff496d92125,Ratio = count(schools in Colusa) / count(schools in Humboldt)
+3badd8de-80c0-4c12-bc4b-762912290ed1,Exclusively virtual refers to Virtual = 'F'
+9a6bbd34-2c37-4caa-8f51-1ab35caa32a1,State of California refers to state = 'CA'
+94b31ae3-4bc8-4d06-b260-e51897abfacb,Charted school means `Charter School (Y/N)` = 1 in the table frpm; Students enrolled in grades 1 through 12 refers to `Enrollment (K-12)`
+70110841-71f1-4f55-b63a-4a08f84d7490,Postal street and mailing street are synonyms.
+1cb058ac-b6c7-4ffb-9573-3f8b2745832d,Charter schools refers to `Charter School (Y/N)` = 1 in the table fprm
+045b4489-b7e0-41b4-9a61-4e89fa78d7d3,Communication number refers to phone number.
+890d0efb-4253-49e5-8e6c-3b53db8b228c,Eligible free rates for students aged 5-17 = `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)`
+28207e75-446c-411f-81f6-f5468d3e71c7,Virtual = 'P' means partially virtual; Charter schools refers to Charter = 1 in the table schools
+3afa5719-69b0-4489-9e72-7fbe108b69bc,Excellence rate = NumGE1500 / NumTstTakr
+2a7ea1ce-a80d-48b2-aa91-a883c2ab7f37,"Full communication address should include Street, City, State and zip code if any."
+5ecc88bc-5c5a-4b64-9b8c-a66810dfd302,Youth Authority Facilities (CEA) refers to SOC = 11; 1980s = years between 1980 and 1989
+39ae99b4-8724-47a0-90e4-3da9151119ba,"full name means first name, last name; There are at most 3 administrators for each school; SAT Scores are greater or equal to 1500 refers to NumGE1500"
+30305d7b-68f8-49c8-9546-6ac43db9a450,K-12 refers to students in grades 1 through 12; Eligible free rate for K-12 = `Free Meal Count (K-12)` / `Enrollment (K-12)`
+14fd94c1-485c-49fa-b1d1-77843e2090d4,Exclusively virtual refers to Virtual = 'F'; respective counties means PARTITION BY County

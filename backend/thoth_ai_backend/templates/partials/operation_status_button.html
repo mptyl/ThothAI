@@ -1,0 +1,59 @@
+{% comment %}
+Reusable partial for operation buttons in the preprocessing page.
+This template handles the display of the button, its state, last run time,
+and success/error messages after an HTMX request.
+
+Context variables:
+- container_id: The ID for the main container div.
+- hx_url: The URL for the hx-post request.
+- hx_indicator_id: The ID for the spinner element.
+- button_text: The main text for the button.
+- last_run: The timestamp of the last execution (datetime object).
+- last_run_text: The text to display for the last run (e.g., "Last run on").
+- never_run_text: The text to display if it has never been run.
+- spinner_text: The text to display next to the spinner.
+- icon_class: The CSS class for the button icon (e.g., 'mdi mdi-refresh').
+- button_class: The CSS class for the button color (e.g., 'btn-primary'). Defaults to 'btn-primary'.
+- workspace: The workspace object.
+- success_message: Message to display on success.
+- error_message: Message to display on error.
+- special_message: A special message for specific conditions (e.g., evidences upload).
+{% endcomment %}
+
+<div id="{{ container_id }}">
+    {% if success_message or error_message or special_message %}
+        {% if success_message %}
+            <div class="alert alert-success" role="alert">
+                {{ success_message }}
+            </div>
+        {% elif error_message %}
+            <div class="alert alert-danger" role="alert">
+                {{ error_message }}
+            </div>
+        {% elif special_message %}
+            <div class="alert alert-info" role="alert">
+                {{ special_message }}
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <button hx-post="{{ hx_url }}"
+            hx-target="#{{ container_id }}"
+            hx-swap="outerHTML"
+            hx-indicator="#{{ hx_indicator_id }}"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            class="btn {{ button_class|default:'btn-primary' }} w-100">
+        <i class="{{ icon_class }} me-1"></i>
+        {{ button_text }}
+        {% if last_run %}
+            - {{ last_run_text }} {{ last_run|date:"d/m/Y H:i:s" }}
+        {% else %}
+            - {{ never_run_text }}
+        {% endif %}
+    </button>
+    
+    <div id="{{ hx_indicator_id }}" class="htmx-indicator" style="margin-left: 10px; display: inline-flex; align-items: center;">
+        <div class="spinner-border text-primary" role="status" style="margin-right: 8px;"></div>
+        <span>{{ spinner_text }}</span>
+    </div>
+</div>

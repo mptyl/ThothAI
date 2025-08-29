@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-08-08T16:02:38.734441",
+  "test_class": "TestAuthentication",
+  "errors": [
+    {
+      "test": "session_authentication",
+      "timestamp": "2025-08-08T16:02:38.902862",
+      "message": "Reverse for 'index' not found. 'index' is not a valid view function or pattern name.",
+      "exception_type": "NoReverseMatch"
+    }
+  ],
+  "warnings": [],
+  "summary": {
+    "session_authentication": "FAIL"
+  }
+}

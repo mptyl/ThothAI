@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-08-22T13:15:52.775186",
+  "test_class": "TestAuthentication",
+  "errors": [],
+  "warnings": [
+    {
+      "test": "api_key_authentication",
+      "timestamp": "2025-08-22T13:15:52.933107",
+      "message": "Test skipped: ApiKey model not implemented yet",
+      "status": "SKIPPED"
+    }
+  ],
+  "summary": {
+    "api_key_authentication": "SKIPPED"
+  }
+}

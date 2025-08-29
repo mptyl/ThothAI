@@ -1,0 +1,354 @@
+{% extends "vertical_base.html" %}
+{% load static %}
+
+{% block title %}ERD Diagram{% endblock title %}
+
+{% block extra_css %}
+<style>
+    .erd-iframe {
+        width: 100%;
+        height: calc(100vh - 250px);
+        border: none;
+        background-color: white;
+        border-radius: 4px;
+    }
+    
+    .erd-container {
+        width: 100%;
+        min-height: calc(100vh - 200px);
+        background-color: white;
+        border-radius: 4px;
+        overflow: auto;
+        position: relative;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .no-erd-container {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .no-erd-icon {
+        font-size: 80px;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+    
+    .admin-link {
+        margin-top: 20px;
+    }
+    
+    /* ERD display styles */
+    .erd-display {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        background-color: white;
+    }
+    
+    .erd-svg-container {
+        width: 100%;
+        height: calc(100vh - 250px);
+        overflow: auto;
+        position: relative;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    
+    .svg-wrapper {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        min-width: 100%;
+    }
+    
+    .erd-svg-container svg {
+        border-radius: 4px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: block;
+        max-width: none;
+        height: auto;
+        margin: auto;
+    }
+    
+    
+    /* Zoom controls */
+    .zoom-controls {
+        position: fixed;
+        top: 120px;
+        right: 30px;
+        display: flex;
+        gap: 5px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 4px;
+        padding: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        z-index: 1000;
+        border: 1px solid #ddd;
+    }
+    
+    .zoom-btn {
+        width: 32px;
+        height: 32px;
+        border: 1px solid #ced4da;
+        background-color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        color: #495057;
+        transition: all 0.2s;
+    }
+    
+    .zoom-btn:hover {
+        background-color: #e9ecef;
+        color: #212529;
+    }
+    
+    /* Full screen styles */
+    .fullscreen-toggle {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background-color: rgba(255, 255, 255, 0.9);
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        color: #495057;
+        transition: all 0.2s;
+    }
+    
+    .fullscreen-toggle:hover {
+        background-color: #e9ecef;
+        color: #212529;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}
+{% if db_name %}
+    {% include "partials/page-title.html" with page_title=db_name|add:" - ERD Diagram" sub_title='Entity Relationship Diagram' %}
+{% else %}
+    {% include "partials/page-title.html" with page_title='ERD Diagram' sub_title='Database Schema Visualization' %}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-0">
+            <div class="card-body p-0">
+                {% if error %}
+                <div class="alert alert-danger m-3" role="alert">
+                    <i class="dripicons-cross me-2"></i> {{ error }}
+                </div>
+                {% endif %}
+                
+                {% if info %}
+                <div class="alert alert-info m-3" role="alert">
+                    <i class="dripicons-information me-2"></i> {{ info }}
+                </div>
+                {% endif %}
+                
+                {% if erd_exists and svg_content %}
+                    
+                    
+                    <!-- ERD display container -->
+                    <div class="erd-container" id="erdContainer">
+                        <!-- Zoom controls outside the SVG container -->
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
+                            <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">−</button>
+                            <button class="zoom-btn" onclick="resetZoom()" title="Reset Zoom">⌂</button>
+                        </div>
+                        
+                        <!-- Fullscreen toggle -->
+                        <button class="fullscreen-toggle" onclick="toggleFullscreen()" id="fullscreenBtn">
+                            📐 Fullscreen
+                        </button>
+                        
+                        <!-- SVG display -->
+                        <div class="erd-svg-container" id="svgContainer">
+                            <div class="svg-wrapper">
+                                {{ svg_content|safe }}
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- No ERD found -->
+                    <div class="no-erd-container">
+                        <div class="no-erd-icon">
+                            <i class="uil-sitemap"></i>
+                        </div>
+                        <h3>No ERD Diagram Available</h3>
+                        <p class="text-muted mt-3">
+                            {% if db_name %}
+                                ERD diagram has not been generated yet for database '<strong>{{ db_name }}</strong>'.
+                            {% else %}
+                                Please select a workspace with a database to view the ERD diagram.
+                            {% endif %}
+                        </p>
+                        
+                        {% if db_name %}
+                        <div class="admin-link">
+                            <p class="text-muted">To generate ERD diagram:</p>
+                            <ol class="text-start" style="max-width: 500px; margin: 20px auto;">
+                                <li>Go to the Django Admin panel</li>
+                                <li>Navigate to SQL Databases</li>
+                                <li>Select your database ({{ db_name }})</li>
+                                <li>Choose "Generate database documentation (AI assisted)" from the actions dropdown</li>
+                                <li>This will generate both documentation and ERD diagram</li>
+                            </ol>
+                            <a href="{% url 'admin:thoth_core_sqldb_changelist' %}" class="btn btn-primary">
+                                <i class="mdi mdi-database-cog me-2"></i> Go to Database Admin
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="admin-link">
+                            <a href="{% url 'thoth_core:index' %}" class="btn btn-primary">
+                                <i class="mdi mdi-folder-multiple me-2"></i> Go to Home
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div> <!-- end card-body-->
+        </div> <!-- end card-->
+    </div> <!-- end col -->
+</div>
+<!-- end row -->
+
+{% endblock %}
+
+{% block extra_javascript %}
+<script>
+    let currentZoom = 1;
+    let isFullscreen = false;
+    let svg = null;
+    let currentTranslate = { x: 0, y: 0 };
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const svgContainer = document.getElementById('svgContainer');
+        const svgWrapper = svgContainer ? svgContainer.querySelector('.svg-wrapper') : null;
+        svg = svgWrapper ? svgWrapper.querySelector('svg') : null;
+        
+        if (svg) {
+            // Don't modify SVG attributes, let CSS handle it
+            
+            // Add pan functionality
+            let isPanning = false;
+            let startPoint = { x: 0, y: 0 };
+            
+            svg.addEventListener('mousedown', function(e) {
+                if (e.button === 0) { // Left mouse button
+                    isPanning = true;
+                    startPoint = { x: e.clientX - currentTranslate.x, y: e.clientY - currentTranslate.y };
+                    svg.style.cursor = 'grabbing';
+                }
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (isPanning) {
+                    currentTranslate.x = e.clientX - startPoint.x;
+                    currentTranslate.y = e.clientY - startPoint.y;
+                    updateSvgTransform();
+                }
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isPanning) {
+                    isPanning = false;
+                    svg.style.cursor = 'grab';
+                }
+            });
+            
+            // Set initial cursor
+            svg.style.cursor = 'grab';
+            
+            // Wheel zoom with no limits
+            svgContainer.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.95 : 1.05;  // Smaller increments for smoother zoom
+                currentZoom *= delta;
+                updateSvgTransform();
+            });
+        }
+        
+    });
+    
+    function updateSvgTransform() {
+        if (svg) {
+            svg.style.transform = `translate(${currentTranslate.x}px, ${currentTranslate.y}px) scale(${currentZoom})`;
+        }
+    }
+    
+    // Global functions for zoom controls with unlimited zoom
+    window.zoomIn = function() {
+        currentZoom *= 1.1;  // Smaller increment for smoother zoom
+        updateSvgTransform();
+    };
+    
+    window.zoomOut = function() {
+        currentZoom *= 0.9;  // Smaller decrement for smoother zoom
+        updateSvgTransform();
+    };
+    
+    window.resetZoom = function() {
+        currentZoom = 1;
+        currentTranslate = { x: 0, y: 0 };
+        updateSvgTransform();
+    };
+    
+    window.toggleFullscreen = function() {
+        const erdContainer = document.getElementById('erdContainer');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        if (!isFullscreen) {
+            if (erdContainer.requestFullscreen) {
+                erdContainer.requestFullscreen();
+            } else if (erdContainer.webkitRequestFullscreen) {
+                erdContainer.webkitRequestFullscreen();
+            } else if (erdContainer.msRequestFullscreen) {
+                erdContainer.msRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    };
+    
+    // Listen for fullscreen changes
+    document.addEventListener('fullscreenchange', updateFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+    document.addEventListener('msfullscreenchange', updateFullscreenButton);
+    
+    function updateFullscreenButton() {
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+        
+        if (fullscreenBtn) {
+            fullscreenBtn.textContent = isFullscreen ? '🗗 Exit Fullscreen' : '📐 Fullscreen';
+        }
+    }
+</script>
+{% endblock %}

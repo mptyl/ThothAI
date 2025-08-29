@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Egyptian-style human figure with Thoth colors matching the god's palette -->
+  
+  <!-- Head -->
+  <ellipse cx="100" cy="50" rx="8" ry="18" fill="#b8654b"/>
+  
+  <!-- Egyptian headdress/crown with blue and gold -->
+  <path d="M70 40 Q70 30 75 25 L100 20 L125 25 Q130 30 130 40 L130 55 Q130 60 125 62 L115 58 L100 55 L85 58 L75 62 Q70 60 70 55 Z" 
+        fill="#2c5f7c" stroke="#f39c12" stroke-width="2"/>
+  
+  <!-- Gold band on headdress -->
+  <rect x="70" y="42" width="60" height="4" fill="#f39c12"/>
+  
+  <!-- Neck -->
+  <rect x="94" y="66" width="12" height="10" fill="#b8654b"/>
+  
+  <!-- Egyptian collar with gold and purple -->
+  <path d="M75 75 Q75 72 80 72 L120 72 Q125 72 125 75 L125 82 Q125 85 120 85 L80 85 Q75 85 75 82 Z" 
+        fill="#7b3f99" stroke="#f39c12" stroke-width="2"/>
+  
+  <!-- Body/torso with blue tunic -->
+  <path d="M80 85 L120 85 L120 130 Q120 135 115 135 L85 135 Q80 135 80 130 Z" 
+        fill="#2c5f7c"/>
+  
+  <!-- Gold belt -->
+  <rect x="80" y="110" width="40" height="6" fill="#f39c12"/>
+  
+  <!-- White/cream kilt -->
+  <path d="M80 116 L120 116 L125 155 L75 155 Z" fill="#f5e6d3"/>
+  
+  <!-- Purple decorative stripe on kilt -->
+  <rect x="95" y="116" width="10" height="39" fill="#7b3f99" opacity="0.7"/>
+  
+  <!-- Arms with terracotta skin -->
+  <path d="M80 90 L70 88 Q65 88 63 92 L60 120 Q60 125 65 125 L70 123 L75 95 Z" fill="#b8654b"/>
+  <path d="M120 90 L130 88 Q135 88 137 92 L140 120 Q140 125 135 125 L130 123 L125 95 Z" fill="#b8654b"/>
+  
+  <!-- Hands -->
+  <circle cx="65" cy="125" r="6" fill="#b8654b"/>
+  <circle cx="135" cy="125" r="6" fill="#b8654b"/>
+  
+  <!-- Legs with terracotta skin -->
+  <rect x="88" y="155" width="10" height="25" fill="#b8654b"/>
+  <rect x="102" y="155" width="10" height="25" fill="#b8654b"/>
+  
+  <!-- Purple ankle bands (like Thoth) -->
+  <rect x="88" y="175" width="10" height="4" fill="#7b3f99"/>
+  <rect x="102" y="175" width="10" height="4" fill="#7b3f99"/>
+  
+  <!-- Gold accents on shoulders -->
+  <circle cx="80" cy="90" r="4" fill="#f39c12"/>
+  <circle cx="120" cy="90" r="4" fill="#f39c12"/>
+</svg>

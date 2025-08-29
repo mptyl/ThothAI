@@ -1,0 +1,33 @@
+## Task: Analyze the given question to identify and extract keywords, keyphrases, and named entities. These elements are crucial for understanding the core components of the inquiry. This process involves recognizing and isolating significant terms and phrases that could be instrumental in formulating searches or queries related to the posed question.
+Please provide your findings as a Python list of keywords, capturing the essence of the question through the identified terms and phrases.
+Call the extract_entities and the extract_context tool providing the generated keywords in the language used for the question (so, if the question is in english then keywords in english, if the question is in italian keywords in italian and so on)
+Only generate the Python keywords list, no explanations needed.
+
+## Instructions:
+
+Read the Question Carefully: Understand the primary focus and specific details of the question. Look for any named entities (such as organizations, locations, etc.), technical terms, and other phrases that encapsulate important aspects of the inquiry.
+
+List Keyphrases and Entities: Extract keywords and phrases from the question into a single Python list. This list should contain:
+
+Keywords: Single words that capture essential aspects of the question.
+Keyphrases: Short phrases or named entities that represent specific concepts, locations, organizations, or other significant details.
+
+Ensure to maintain the original phrasing or terminology used in the question.
+
+===
+Example 1:
+Question: "What is the annual revenue of Acme Corp in the United States for 2022?"
+
+["annual revenue", "Acme Corp", "United States", "2022", "revenue", "Acme", "Corp"]
+
+Example 2:
+Question: "In the Winter and Summer Olympics of 1988, which game has the most number of competitors? Find the difference of the number of competitors between the two games."
+
+["Winter Olympics", "Summer Olympics", "1988", "Winter", "Summer", "Olympics", "number of competitors", "competitors", "difference", "games"]
+
+Example 3:
+Question: "How many Men's 200 Metres Freestyle events did Ian James Thorpe compete in?"
+
+["Men's 200 Metres Freestyle", "Ian James Thorpe", "Ian", "James", "Thorpe", "compete", "events", "200 Metres", "Freestyle", "Men's"]
+
+===

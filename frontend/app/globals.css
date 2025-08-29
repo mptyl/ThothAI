@@ -1,0 +1,392 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AG-Grid styles */
+@import 'ag-grid-community/styles/ag-grid.css';
+@import 'ag-grid-community/styles/ag-theme-alpine.css';
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 10% 3.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom chatbot-style full screen layout */
+html, body, #root, #__next {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.chatbot-layout {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Login form styling */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #111827; /* bg-gray-900 */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated background pattern */
+.login-bg-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: 
+    radial-gradient(circle at 20% 35%, hsl(var(--primary) / 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 75% 44%, hsl(270 95% 60% / 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, hsl(220 95% 60% / 0.08) 0%, transparent 50%);
+  animation: bgShift 20s ease-in-out infinite;
+}
+
+@keyframes bgShift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-20px, -20px) scale(1.05); }
+  66% { transform: translate(20px, -10px) scale(0.95); }
+}
+
+.login-form {
+  @apply w-full max-w-md p-8 space-y-6 bg-card rounded-lg border shadow-lg;
+}
+
+/* Enhanced login form with glassmorphism effect */
+.login-form-enhanced {
+  @apply w-full max-w-md p-8 space-y-6 rounded-2xl bg-card;
+  background: linear-gradient(135deg, 
+    hsl(var(--card)), 
+    rgba(20, 20, 25, 0.98));
+  border: 1px solid hsl(var(--border));
+  position: relative;
+  overflow: hidden;
+}
+
+
+/* Enhanced input fields */
+.login-input {
+  @apply transition-all duration-300;
+  border: 2px solid hsl(var(--border) / 0.8);
+  background: linear-gradient(145deg, 
+    hsl(var(--background) / 0.5), 
+    hsl(var(--background)));
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.2),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.login-input:focus {
+  @apply ring-2 border-[#4a90a4]/70;
+  ring-color: rgba(74, 144, 164, 0.3);
+  background: hsl(var(--background));
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.25),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.08),
+    0 0 8px rgba(74, 144, 164, 0.2);
+}
+
+.login-input:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+/* Enhanced login button */
+.login-button {
+  @apply relative overflow-hidden transition-all duration-300 font-semibold;
+  background: linear-gradient(135deg, #4a90a4, #5ba3b8);
+  color: white !important;
+  box-shadow: 
+    0 4px 15px rgba(74, 144, 164, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(74, 144, 164, 0.3);
+}
+
+.login-button span,
+.login-button svg {
+  color: white !important;
+}
+
+.login-button:disabled span,
+.login-button:disabled svg {
+  color: white !important;
+  opacity: 1 !important;
+}
+
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #5ba3b8, #4a90a4);
+  box-shadow: 
+    0 6px 25px rgba(74, 144, 164, 0.5),
+    0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-button:disabled {
+  opacity: 1 !important;
+}
+
+.login-button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.login-button:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Welcome screen styling */
+.welcome-container {
+  @apply flex flex-col items-center justify-center min-h-screen bg-background text-foreground;
+}
+
+/* Chatbot-style sidebar */
+.chatbot-sidebar {
+  @apply w-64 bg-card border-r border-border;
+  transition: transform 0.3s ease;
+}
+
+.chatbot-sidebar.collapsed {
+  transform: translateX(-100%);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  @apply p-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors;
+}
+
+/* Continuous pulse animation for Thoth Log Viewer */
+@keyframes pulse-continuous {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-pulse-continuous {
+  animation: pulse-continuous 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Fade in animation for messages and dialogs */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Dialog slide in animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Dialog centered slide in animation */
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.animate-dialogSlideIn {
+  animation: dialogSlideIn 0.3s ease-out;
+}
+
+/* Dialog fade in animation - simpler version */
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Thoth log text styling with theme-aware colors and glows */
+.thoth-log-text {
+  color: #3da5c7; /* Bright blue without shadow for light theme */
+  font-weight: 600;
+}
+
+.dark .thoth-log-text {
+  color: #5bc4e6; /* Very bright blue without shadow for dark theme */
+  font-weight: 600;
+}
+
+/* Enhanced DataTable container styling */
+.data-table-container {
+  background: transparent;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.dark .data-table-container {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* Enhanced export button hover effect */
+.export-button-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.export-button-glow::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(66, 184, 221, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+}
+
+.export-button-glow:hover::before {
+  width: 100%;
+  height: 100%;
+}
+
+/* Smooth transitions for theme switching */
+.ag-theme-thoth-dark,
+.ag-theme-quartz {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* AG-Grid Alpine Dark Theme Customizations */
+.ag-theme-alpine-dark {
+  --ag-background-color: #0f0f0f;
+  --ag-header-background-color: #1a1a1a;
+  --ag-odd-row-background-color: rgba(255, 255, 255, 0.02);
+  --ag-row-hover-color: rgba(66, 184, 221, 0.1);
+  --ag-selected-row-background-color: rgba(66, 184, 221, 0.15);
+  --ag-border-color: rgba(255, 255, 255, 0.1);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.ag-theme-alpine-dark .ag-header {
+  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  border-bottom: 1px solid rgba(66, 184, 221, 0.3);
+}
+
+.ag-theme-alpine-dark .ag-header-cell {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.ag-theme-alpine-dark .ag-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ag-theme-alpine-dark .ag-row:hover {
+  background-color: rgba(66, 184, 221, 0.08) !important;
+}
+
+.ag-theme-alpine-dark .ag-cell {
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Additional dark theme enhancements */
+.dark .ag-theme-alpine-dark {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.24);
+}

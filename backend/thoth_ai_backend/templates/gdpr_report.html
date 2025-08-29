@@ -1,0 +1,196 @@
+{% extends "vertical_base.html" %}
+{% load static %}
+
+{% block title %}GDPR Compliance Report{% endblock title %}
+
+{% block extra_css %}
+<style>
+    .doc-container {
+        width: 100%;
+        min-height: calc(100vh - 200px);
+        background-color: white;
+        border-radius: 4px;
+        overflow: auto;
+        position: relative;
+    }
+    
+    .no-doc-container {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .no-doc-icon {
+        font-size: 80px;
+        color: #dee2e6;
+        margin-bottom: 20px;
+    }
+    
+    .admin-link {
+        margin-top: 20px;
+    }
+    
+    /* Export controls */
+    .export-controls {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+        z-index: 100;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .export-btn {
+        background: #4a90a4;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .export-btn:hover {
+        opacity: 0.9;
+        color: white;
+    }
+    
+    .export-btn-secondary {
+        background: #6c757d;
+    }
+    
+    .risk-badge-inline {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+        color: white;
+        margin-left: auto;
+    }
+    
+    .risk-critical { background-color: #e74c3c; }
+    .risk-high { background-color: #e67e22; }
+    .risk-medium { background-color: #f39c12; color: #333; }
+    .risk-low { background-color: #17a2b8; }
+    .risk-unknown { background-color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block page_title %}
+{% include "partials/page-title.html" with page_title='GDPR Compliance Report' sub_title='Compliance' %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-0">
+            <div class="card-body p-0">
+                {% if error %}
+                <div class="alert alert-danger m-3" role="alert">
+                    <i class="dripicons-cross me-2"></i> {{ error }}
+                </div>
+                {% endif %}
+                
+                {% if info %}
+                <div class="alert alert-info m-3" role="alert">
+                    <i class="dripicons-information me-2"></i> {{ info }}
+                </div>
+                {% endif %}
+                
+                {% if report_exists and report_content %}
+                    <!-- Display GDPR report content -->
+                    <div class="doc-container">
+                        <!-- Export controls bar -->
+                        <div class="export-controls">
+                            <span style="font-weight: 600; color: #333;">Database: {{ db_name }}</span>
+                            {% if scan_date %}
+                            <span style="color: #6c757d; font-size: 14px;">Last Scan: {{ scan_date|date:"Y-m-d H:i" }}</span>
+                            {% endif %}
+                            {% if risk_level %}
+                            <span class="risk-badge-inline risk-{{ risk_level|lower }}">
+                                Risk: {{ risk_level }} ({{ risk_score }}/100)
+                            </span>
+                            {% endif %}
+                            <div style="margin-left: auto; display: flex; gap: 10px;">
+                                <a href="{% url 'thoth_ai_backend:gdpr_export_pdf' %}" class="export-btn">
+                                    📄 Export PDF
+                                </a>
+                                <a href="{% url 'thoth_ai_backend:gdpr_export_json' %}" class="export-btn export-btn-secondary">
+                                    📊 Export JSON
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Report content -->
+                        <div id="reportContent" style="padding: 20px;">
+                            {{ report_content|safe }}
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- No report found -->
+                    <div class="no-doc-container">
+                        <div class="no-doc-icon">
+                            <i class="uil-shield-exclamation"></i>
+                        </div>
+                        <h3>No GDPR Compliance Report Available</h3>
+                        <p class="text-muted mt-3">
+                            {% if db_name %}
+                                GDPR compliance scan has not been performed yet for database '<strong>{{ db_name }}</strong>'.
+                            {% else %}
+                                Please select a workspace with a database to view GDPR compliance report.
+                            {% endif %}
+                        </p>
+                        
+                        {% if db_name %}
+                        <div class="admin-link">
+                            <p class="text-muted">To generate a GDPR compliance report:</p>
+                            <ol class="text-start" style="max-width: 500px; margin: 20px auto;">
+                                <li>Go to the Django Admin panel</li>
+                                <li>Navigate to SQL Databases</li>
+                                <li>Select your database ({{ db_name }})</li>
+                                <li>Choose "Scan for GDPR-sensitive data" from the actions dropdown</li>
+                            </ol>
+                            <a href="{% url 'admin:thoth_core_sqldb_changelist' %}" class="btn btn-primary">
+                                <i class="mdi mdi-database-cog me-2"></i> Go to Database Admin
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="admin-link">
+                            <a href="{% url 'thoth_core:index' %}" class="btn btn-primary">
+                                <i class="mdi mdi-folder-multiple me-2"></i> Go to Home
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div> <!-- end card-body-->
+        </div> <!-- end card-->
+    </div> <!-- end col -->
+</div>
+<!-- end row -->
+
+{% endblock %}
+
+{% block extra_javascript %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const reportContent = document.getElementById('reportContent');
+        
+        // Ensure all links open in new tab
+        if (reportContent) {
+            const links = reportContent.querySelectorAll('a');
+            links.forEach(link => {
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
+            });
+        }
+    });
+</script>
+{% endblock %}

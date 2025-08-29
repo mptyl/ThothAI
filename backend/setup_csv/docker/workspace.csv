@@ -1,0 +1,9 @@
+id,name,level,description,sql_db,default_model,question_validator,kw_sel_agent,sql_basic_agent,sql_advanced_agent,sql_expert_agent,test_gen_agent_1,test_gen_agent_2,test_gen_agent_3,test_exec_agent,explain_sql_agent,ask_human_help_agent,setting,number_of_tests_to_generate,number_of_sql_to_generate,evaluation_threshold,users,default_workspace
+14,Polluce,BASIC,Database polluce in UNI,13,17,71,13,29,23,9,16,38,17,34,62,6,1,5,12,90,"1,2","1,2"
+13,Formula 1,BASIC,Formula 1 Mariadb databse,11,17,71,13,29,23,9,16,38,17,34,62,6,1,5,12,90,"1,2","1,2"
+12,European Football 2,TITANIC,,11,24,71,,3,23,9,16,17,,34,62,6,1,5,3,90,2,
+8,Staging,TITANIC,Staging UNI database,9,24,71,,3,23,9,16,17,,34,62,6,1,5,3,90,2,
+7,Procurement,TITANIC,,8,24,71,,3,23,9,16,17,,34,62,6,1,5,3,90,2,
+6,California Schools Local,TITANIC,California Schools with local LMStudio and Ollama models,7,40,,,46,78,83,51,66,,52,63,65,,5,3,90,"1,2",
+5,California Schools Free,TITANIC,California Schools using only Free OpenRouter models,7,25,,,84,78,83,66,73,,75,68,65,,5,3,90,"1,2",
+4,California Schools,BASIC,California Schools BIRD database,7,17,71,13,29,23,9,16,38,17,34,62,6,1,5,12,90,"1,2","1,2"

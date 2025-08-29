@@ -1,0 +1,89 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of ThothAI and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env/
+*.egg-info/
+dist/
+build/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+.cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.hypothesis/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.template
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Logs
+*.log
+logs/
+
+# Test files
+tests/
+**/tests/
+test_*.py
+*_test.py
+**/test_*.py
+**/*_test.py
+# Don't exclude these files as they're not test files but part of the application
+!agents/validators/test_validators.py
+!operations/test_generation.py
+conftest.py
+**/conftest.py
+pytest.ini
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Docker files (not needed in build context)
+Dockerfile*
+docker-compose*
+.dockerignore

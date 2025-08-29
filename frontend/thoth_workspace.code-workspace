@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../thoth_be"
+		},
+		{
+			"path": "../thoth_vdb2"
+		},
+		{
+			"path": "../thoth_sqldb2"
+		},
+		{
+			"path": "../thoth_sl"
+		},
+		{
+			"path": "../thoth_docs"
+		},
+		{
+			"path": "../thoth_check_schema_linking"
+		}
+	],
+	"settings": {}
+}

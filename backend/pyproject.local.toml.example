@@ -1,0 +1,33 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of Thoth and is released under the Apache 2.0 License.
+# See the LICENSE.md file in the project root for full license information.
+
+# ==============================================================================
+# LOCAL CONFIGURATION OVERRIDE - EXAMPLE
+# ==============================================================================
+# This file is automatically managed by install.sh
+# Do NOT edit manually - use the installer UI to configure database extras
+# 
+# This file will be created as 'pyproject.local.toml' when you run install.sh
+# and select your database configuration through the UI.
+# ==============================================================================
+
+[project.optional-dependencies]
+# These sections are managed by the installer based on your UI selections
+# Default configuration includes PostgreSQL and SQLite (base dependencies)
+
+# MariaDB Support - Added when MariaDB is selected in installer
+mariadb = [
+    "mariadb>=1.1.0",
+]
+
+# SQL Server Support - Added when SQL Server is selected in installer  
+sqlserver = [
+    "pyodbc>=4.0.0",
+]
+
+# All databases - Added when all databases are selected
+all-databases = [
+    "mariadb>=1.1.0",
+    "pyodbc>=4.0.0",
+]

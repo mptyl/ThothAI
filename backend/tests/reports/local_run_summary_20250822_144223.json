@@ -1,0 +1,14 @@
+{
+  "test_run": "local",
+  "timestamp": "2025-08-22T14:42:23.918281",
+  "test_scope": "quick",
+  "total_reports": 39,
+  "total_errors": 17,
+  "total_warnings": 0,
+  "failed_views": [
+    "unknown",
+    "get_tables_by_database",
+    "api_login"
+  ],
+  "warned_views": []
+}

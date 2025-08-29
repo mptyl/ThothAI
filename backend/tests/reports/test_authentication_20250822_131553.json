@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-08-22T13:15:53.598737",
+  "test_class": "TestAuthentication",
+  "errors": [
+    {
+      "test": "permission_isolation",
+      "timestamp": "2025-08-22T13:15:53.853875",
+      "message": "Reverse for 'set_workspace' not found. 'set_workspace' is not a valid view function or pattern name.",
+      "exception_type": "NoReverseMatch"
+    }
+  ],
+  "warnings": [],
+  "summary": {
+    "permission_isolation": "FAIL"
+  }
+}

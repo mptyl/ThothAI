@@ -1,0 +1,47 @@
+# Standalone Oracle project - completely separate from main Thoth
+name: thoth-oracle
+
+services:
+  oracle-sc:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle_sc
+    restart: unless-stopped
+    environment:
+      ORACLE_PASSWORD: ThothPassword2024
+      ORACLE_DATABASE: california_schools
+      APP_USER: thoth_user
+      APP_USER_PASSWORD: thoth_password
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_sc_data:/opt/oracle/oradata
+      - ./oracle-init:/docker-entrypoint-initdb.d
+    networks:
+      - oracle-net
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh"]
+      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Adminer for database management
+  adminer-oracle:
+    image: adminer:4.8.1
+    container_name: adminer_oracle
+    restart: unless-stopped
+    ports:
+      - "8084:8080"
+    networks:
+      - oracle-net
+    depends_on:
+      oracle-sc:
+        condition: service_healthy
+
+volumes:
+  oracle_sc_data:
+    driver: local
+
+networks:
+  oracle-net:
+    driver: bridge
