@@ -5,19 +5,19 @@
 
 set -e
 
-# Check if DJANGO_API_KEY is set from environment
-if [ -z "${DJANGO_API_KEY}" ]; then
-    echo "ERROR: DJANGO_API_KEY not set in environment"
+# Read Django API_KEY from shared secrets volume
+if [ -f "/secrets/django_api_key" ]; then
+    export DJANGO_API_KEY=$(cat /secrets/django_api_key)
+    echo "Django API_KEY loaded from secrets volume"
+    echo "API key loaded: ${DJANGO_API_KEY:0:10}..."
+else
+    echo "ERROR: Django API_KEY not found at /secrets/django_api_key"
     exit 1
 fi
 
-echo "API key loaded from environment: ${DJANGO_API_KEY:0:10}..."
-
-# Get port from environment or use default
+# Get the port from environment or use default
 PORT=${PORT:-8001}
 
-echo "Starting SQL Generator on port ${PORT}..."
-
-# Run the SQL Generator
+# Run the SQL Generator with environment variables
 cd /app
-exec python run_server.py ${PORT}
+exec env DJANGO_API_KEY="$DJANGO_API_KEY" python run_server.py $PORT
