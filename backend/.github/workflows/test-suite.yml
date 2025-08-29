@@ -1,0 +1,205 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of Thoth and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+name: Thoth Test Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Test scope to run'
+        required: true
+        default: 'quick'
+        type: choice
+        options:
+          - quick      # Only critical tests (5 min)
+          - full       # All tests (15 min)
+          - views      # Only view/URL tests
+          - security   # Only security/auth tests
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    name: Run Tests - ${{ github.event.inputs.test_scope }}
+    runs-on: ubuntu-latest
+    
+    # Service containers for isolated testing
+    services:
+      postgres-test:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: test_db
+        ports:
+          - 5444:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      qdrant-test:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6334:6333
+        options: >-
+          --health-cmd "curl -f http://localhost:6333/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev --extra test
+      
+      - name: Set up test environment
+        run: |
+          cp .env.template .env.test
+          echo "DATABASE_URL=postgresql://test_user:test_pass@localhost:5444/test_db" >> .env.test
+          echo "QDRANT_URL=http://localhost:6334" >> .env.test
+          echo "SECRET_KEY=test-secret-key-for-ci" >> .env.test
+          echo "DEBUG=False" >> .env.test
+          echo "TESTING=True" >> .env.test
+      
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://test_user:test_pass@localhost:5444/test_db
+        run: |
+          uv run python manage.py migrate --noinput
+      
+      - name: Run tests - Quick
+        if: ${{ github.event.inputs.test_scope == 'quick' }}
+        run: |
+          uv run pytest tests/integration/test_core_views.py::TestCoreViews::test_api_login_view -v
+          uv run pytest tests/integration/test_core_views.py::TestCoreViews::test_get_user_workspaces_view -v
+          uv run pytest tests/integration/test_authentication.py::TestAuthentication::test_token_authentication -v
+
+      - name: Run tests - Full
+        if: ${{ github.event.inputs.test_scope == 'full' }}
+        run: |
+          uv run pytest tests/ -v --cov=. --cov-report=html --cov-report=term
+
+      - name: Run tests - Views only
+        if: ${{ github.event.inputs.test_scope == 'views' }}
+        run: |
+          uv run pytest tests/integration/test_core_views.py -v
+          uv run pytest tests/integration/test_ai_backend_views.py -v
+
+      - name: Run tests - Security only
+        if: ${{ github.event.inputs.test_scope == 'security' }}
+        run: |
+          uv run pytest tests/integration/test_authentication.py -v
+      
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "Generating test summary report..."
+          mkdir -p tests/reports
+          echo '{"ci_run": true, "test_scope": "${{ github.event.inputs.test_scope }}", "python_version": "${{ env.PYTHON_VERSION }}"}' > ci_test_summary.json
+      
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports-${{ github.event.inputs.test_scope }}-${{ github.run_number }}
+          path: |
+            tests/reports/
+            ci_test_summary.json
+            htmlcov/
+          retention-days: 30
+      
+      - name: Upload coverage reports
+        if: ${{ github.event.inputs.test_scope == 'full' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-${{ github.run_number }}
+          path: htmlcov/
+          retention-days: 30
+      
+      - name: Comment test results
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = '## Test Results\n\n';
+            summary += `**Test Scope**: ${{ github.event.inputs.test_scope }}\n`;
+            summary += `**Status**: ${{ job.status }}\n`;
+            
+            // Read test summary if exists
+            try {
+              const testSummary = JSON.parse(fs.readFileSync('ci_test_summary.json', 'utf8'));
+              summary += `**Reports Generated**: ${testSummary.total_reports}\n`;
+            } catch (e) {
+              console.log('No test summary found');
+            }
+            
+            // Create issue comment if this was triggered manually
+            if (context.eventName === 'workflow_dispatch') {
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Test Run Report - ${new Date().toISOString().split('T')[0]}`,
+                body: summary,
+                labels: ['test-report', 'automated']
+              });
+            }
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_scope == 'security' || github.event.inputs.test_scope == 'full' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install security tools
+        run: |
+          uv add --dev bandit safety
+
+      - name: Run Bandit security scan
+        run: |
+          uv run bandit -r . -f json -o bandit-report.json || true
+
+      - name: Check dependencies for vulnerabilities
+        run: |
+          uv run safety check --json --output safety-report.json || true
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports-${{ github.run_number }}
+          path: |
+            bandit-report.json
+            safety-report.json
+          retention-days: 30

@@ -1,0 +1,57 @@
+# Docker BuildKit Configuration
+DOCKER_BUILDKIT=1
+COMPOSE_DOCKER_CLI_BUILD=1
+
+SECRET_KEY=r45jjh-f1=ThothAiDev-bp9bkw9nbh_u4l8hv^8jv9tvtu&n^8!loa#4+%&#
+DEBUG=False
+PROFILE=Production
+IO_DIR=exports
+
+# LLM API Keys (for AI workflows)
+OPENAI_API_KEY=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
+GEMINI_API_KEY=AIzaSyAzm5-i6eUZAR917KAVDnrA0h2jbS5O5io
+MISTRAL_API_KEY=IBUxGTPuGqCwN9K4cqEi35xRAx7hzCtJ
+ANTHROPIC_API_KEY=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
+DEEPSEEK_API_KEY=sk-e728f390b35842478ee88dfc864a6cc6
+DEEPSEEK_API_BASE=https://api.deepseek.com/v1
+OPENROUTER_API_KEY=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
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1
+
+# Embedding Service Configuration (REQUIRED)
+# Provider options: openai, cohere, mistral, huggingface, anthropic
+EMBEDDING_PROVIDER=openai
+EMBEDDING_API_KEY=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
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_BASE_URL=
+EMBEDDING_BATCH_SIZE=100
+EMBEDDING_TIMEOUT=30
+
+# Alternative embedding providers (uncomment to use)
+# Cohere
+# COHERE_API_KEY=your-cohere-api-key-here
+# EMBEDDING_PROVIDER=cohere
+# EMBEDDING_MODEL=embed-multilingual-v3.0
+
+# HuggingFace
+# HUGGINGFACE_API_TOKEN=hf_your-token-here  
+# EMBEDDING_PROVIDER=huggingface
+# EMBEDDING_MODEL=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+
+# Mistral (EU-based, privacy-focused)
+# EMBEDDING_PROVIDER=mistral
+# EMBEDDING_API_KEY=${MISTRAL_API_KEY}  # Reuse existing Mistral key
+# EMBEDDING_MODEL=mistral-embed
+
+DJANGO_API_KEY=3LHoZzYlGGsvdamksrcZYlah3H5IArxYnLkrSTBB9pg
+DJANGO_SERVER=http://thoth-be
+STREAMLIT_SERVER=thoth-ai
+
+DB_ROOT_PATH=/app/data
+
+TOKENIZERS_PARALLELISM=false
+LOGFIRE_TOKEN=pylf_v1_eu_H17GbqX13DqfMCNXYN8pPxRqNsNKCK1PfKw1h7Vv3GlQ
+DB_NAME_DOCKER="/app/data/db.sqlite3"
+DB_NAME_LOCAL="db.sqlite3"
+
+# Frontend URL for backend-to-frontend navigation
+FRONTEND_URL=http://localhost:3000

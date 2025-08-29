@@ -1,0 +1,284 @@
+{
+  "sql_generators": {
+    "basic": [
+      {
+        "id": 99,
+        "name": "SQL Generator - Basic - OR - Kimi K2",
+        "agent_type": "SQLBASIC",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 48,
+          "name": "OpenRouter - Kimi K2",
+          "specific_model": "moonshotai/kimi-k2",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 108,
+        "name": "SQL Generator - Basic - OR - Qwen 3",
+        "agent_type": "SQLBASIC",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 18,
+          "name": "OpenRouter - Qwen3",
+          "specific_model": "qwen/qwen3-235b-a22b",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 114,
+        "name": "SQL Generator - Basic -",
+        "agent_type": "SQLBASIC",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 22,
+          "name": "OpenRouter - Gemini 2.5 Flash",
+          "specific_model": "google/gemini-2.5-flash",
+          "context_size": 1000000,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      }
+    ],
+    "advanced": [
+      {
+        "id": 100,
+        "name": "SQL Generator - Adv - OR - Kimi K2",
+        "agent_type": "SQLADVANCED",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 48,
+          "name": "OpenRouter - Kimi K2",
+          "specific_model": "moonshotai/kimi-k2",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 109,
+        "name": "SQL Generator - Adv - OR - Deepseek V3",
+        "agent_type": "SQLADVANCED",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 9,
+          "name": "OpenRouter - Deepseek V3",
+          "specific_model": "deepseek/deepseek-chat",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      }
+    ],
+    "expert": [
+      {
+        "id": 101,
+        "name": "SQL Generator - Expert - OR - Kimi K2",
+        "agent_type": "SQLEXPERT",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 48,
+          "name": "OpenRouter - Kimi K2",
+          "specific_model": "moonshotai/kimi-k2",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 110,
+        "name": "SQL Generator - Expert - OR - Claude Sonnet 3.7",
+        "agent_type": "SQLEXPERT",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 29,
+          "name": "OpenRouter - Claude Sonnet 3.7",
+          "specific_model": "anthropic/claude-3.7-sonnet",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      }
+    ]
+  },
+  "test_generators": {
+    "basic": [
+      {
+        "id": 97,
+        "name": "Test Generator - Basic - OpenRouter - Kimi K2",
+        "agent_type": "TESTGENERATORBASIC",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 48,
+          "name": "OpenRouter - Kimi K2",
+          "specific_model": "moonshotai/kimi-k2",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 112,
+        "name": "Test Generator - Basic - OR - Qwen3",
+        "agent_type": "TESTGENERATORBASIC",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 18,
+          "name": "OpenRouter - Qwen3",
+          "specific_model": "qwen/qwen3-235b-a22b",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 115,
+        "name": "Test Generator - Basic - Qwen 3",
+        "agent_type": "TESTGENERATORBASIC",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 18,
+          "name": "OpenRouter - Qwen3",
+          "specific_model": "qwen/qwen3-235b-a22b",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 116,
+        "name": "Test Generator - Basic - Gemini Flash",
+        "agent_type": "TESTGENERATORBASIC",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 22,
+          "name": "OpenRouter - Gemini 2.5 Flash",
+          "specific_model": "google/gemini-2.5-flash",
+          "context_size": 1000000,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      }
+    ],
+    "advanced": [
+      {
+        "id": 96,
+        "name": "Test Generator - Adv - OpenRouter - Kimi K2",
+        "agent_type": "TESTGENERATORADVANCED",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 48,
+          "name": "OpenRouter - Kimi K2",
+          "specific_model": "moonshotai/kimi-k2",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      },
+      {
+        "id": 111,
+        "name": "Test Generator - Adv - OR - Deepseek V3",
+        "agent_type": "TESTGENERATORADVANCED",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 9,
+          "name": "OpenRouter - Deepseek V3",
+          "specific_model": "deepseek/deepseek-chat",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      }
+    ],
+    "expert": [
+      {
+        "id": 98,
+        "name": "Test Generator - Exp - OpenRouter - Kimi K2",
+        "agent_type": "TESTGENERATOREXPERT",
+        "temperature": 0.8,
+        "top_p": 0.95,
+        "max_tokens": 1280,
+        "timeout": 45.0,
+        "retries": 5,
+        "ai_model": {
+          "id": 48,
+          "name": "OpenRouter - Kimi K2",
+          "specific_model": "moonshotai/kimi-k2",
+          "context_size": 32768,
+          "basic_model": {
+            "name": "OpenRouter"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+# Thoth Log Cleanup Cron Jobs
+# Run log cleanup every 6 hours as backup (in case container is restarted frequently)
+0 */6 * * * cd /app && python manage.py cleanup_logs >> /var/log/cron.log 2>&1
+
+# Add a newline at the end (required by cron)

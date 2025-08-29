@@ -1,0 +1,79 @@
+### When a DB schema, a question, and a knowledge evidence are given, and up to
+three SQLite queries expressing the question are given, please choose the most
+accurate SQL based on the Checklist.
+<examples>
+# Question: Among all the customers, what is the percentage of the customer’s nation
+being Germany?
+# Knowledge Evidence: DIVIDE(COUNT(c_custkey when n_name = ’GERMANY’), COUNT(
+c_custkey)) as percentage;
+
+# Gold SQL: SELECT CAST(SUM(IIF(T2.n_name = ’GERMANY’, 1, 0)) AS REAL) * 100 / COUNT
+(T1.c_custkey) FROM customer AS T1 INNER JOIN nation AS T2 ON T1.c_nationkey =
+T2.n_nationkey
+# Question: Among the schools whose donators are teachers, what is the percentage of
+schools that are in Brooklyn?
+# Knowledge Evidence: donors are teachers refers to is_teacher_acct = ’t’; Brooklyn
+is school_city; percentage = Divide(Count(school_city-’Brooklyn’),Count(
+school_city))*100
+# Gold SQL: SELECT CAST(SUM(CASE WHEN T1.school_city LIKE ’Brooklyn’ THEN 1 ELSE 0
+END) AS REAL) * 100 / COUNT(T1.teacher_acctid) FROM projects AS T1 INNER JOIN
+donations AS T2 ON T1.projectid = T2.projectid WHERE T2.is_teacher_acct = ’t’
+...
+</examples>
+
+### SQLite SQL tables, with their properties:
+# molecule ( molecule_id, label )
+# bond ( bond_id, molecule_id, bond_type )
+#
+# bond.molecule_id = molecule.molecule_id
+
+### The type and description of each column:
+# [molecule]
+- molecule_id (text): unique id of molecule
+- label (text): whether this molecule is carcinogenic or not
+# [bond]
+- bond_id (text): unique id representing bonds
+- molecule_id (text): identifying the molecule in which the bond appears
+- bond_type (text): type of the bond
+### Sample rows of each table in csv format:
+# [molecule]
+molecule_id,label
+TR000,+
+TR001,+
+TR002,-
+# [bond]
+bond_id,molecule_id,bond_type
+TR000_1_2,TR000,-
+TR000_2_3,TR000,-
+TR000_2_4,TR000,-
+
+### Question: Among all chemical compounds identified in the database, what percent
+of compounds form a triple-bond.
+### Knowledge Evidence: triple bond refers to bond_type = ’#’;
+### Candidate SQLs:
+1. SELECT CAST(COUNT(CASE WHEN bond_type = ’#’ THEN 1 ELSE NULL END) AS REAL) * 100
+/ COUNT(*) FROM bond
+2. SELECT CAST(COUNT(DISTINCT CASE WHEN bond_type = ’#’ THEN molecule_id ELSE NULL
+END) AS REAL) * 100 / COUNT(DISTINCT molecule_id) FROM bond
+### Checklist:
+1. The SQL should accurately represent the question.
+2. The SQL should accurately use the given knowledge evidence.
+3. The SELECT clause should not include any additional columns that are not included
+in the question.
+4. The order of columns in the SELECT clause must be the same as the order in the
+question.
+5. Check if the operations are being performed correctly according to the column
+type.
+### Instruction:
+- If the first SQL satisfies all the conditions of the checklist, please choose the
+first SQL. If not, move on to the next SQL.
+- If there’s no SQL that satisfies all the requirements on the checklist, just
+choose the first SQL.
+- Provide a detailed step-by-step explanation following the order of the checklist
+when checking whether each SQL satisfies the checklist.
+- Your answer should strictly follow the following json format.
+{{
+"reasoning": "", // The reasoning steps for choosing the best SQL.
+"sql": "", // The final chosen SQL.
+}}
+### Your Answer:

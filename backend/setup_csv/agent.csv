@@ -1,0 +1,72 @@
+id,name,agent_type,ai_model,temperature,top_p,max_tokens,timeout,retries
+65,Default - ORFree - Deepseek V3,DEFAULT,25,0.80,0.95,1280,45.0,3
+67,Default - ORFree - Kimi K2,DEFAULT,41,0.50,0.95,1280,45.0,3
+6,Default - OpenRouter - Mistral Large,DEFAULT,24,0.80,0.95,1280,45.0,3
+72,Default - ollama - Qwen2.5:14b,DEFAULT,40,0.80,0.95,1280,45.0,3
+68,Explain SQL - ORFree - Qwen 3,EXPLAINSQL,42,0.80,0.95,1280,45.0,3
+62,Explain SQL - OpenRouter - Gemini Flash,EXPLAINSQL,22,0.30,0.95,1280,45.0,3
+63,Explain SQL - ollama - Qwen2.5:14b,EXPLAINSQL,40,0.80,0.95,1280,45.0,3
+69,Extract Keywards - ORFree - Qwen3 32b,EXTRACTKEYWORDS,42,0.50,0.95,1280,45.0,3
+57,Extract Keywords - ORFree - Deepseek V3,EXTRACTKEYWORDS,25,0.30,0.95,1280,45.0,3
+13,Extract Keywords - OpenRouter - Gemini 2.5 Flash,EXTRACTKEYWORDS,22,0.80,0.95,1280,45.0,3
+56,Extract Keywords - OpenRouter - Gemini Flash Lite,EXTRACTKEYWORDS,37,0.30,0.95,1280,45.0,3
+42,Extract Keywords - OpenRouter - Mistral Medium,EXTRACTKEYWORDS,28,0.80,0.95,1280,45.0,3
+31,Extract Keywords - OpenRouter - Mistral Mini,EXTRACTKEYWORDS,23,0.80,0.95,1280,45.0,3
+64,Extract Keywords - ollama - Qwen2.5:14b,EXTRACTKEYWORDS,40,0.80,0.95,1280,45.0,3
+70,Question Validator - ORFree - Qwen3 32b,VALIDATEQUESTION,42,0.50,0.95,1280,45.0,3
+71,Question Validator - OpenRouter - Gemini 2.5 flash,VALIDATEQUESTION,22,0.50,0.95,1280,45.0,3
+60,Question Validator - ollama - Qwen2.5:14b,VALIDATEQUESTION,8,0.30,0.95,1280,45.0,3
+55,Select Columns - LMStudio - xiyansql,SELECTCOLUMNS,32,0.30,0.95,1280,45.0,3
+2,Select Columns - MistralLarge,SELECTCOLUMNS,1,0.30,0.95,1280,45.0,3
+77,Select Columns - ORFree - Deepseek V3,SELECTCOLUMNS,25,0.30,0.95,1280,45.0,3
+76,Select Columns - ORFree - Kimi K2,SELECTCOLUMNS,41,0.30,0.95,1280,45.0,3
+30,Select Columns - OpenRouter - Gemini 2.5 flash,SELECTCOLUMNS,22,0.30,0.95,1280,45.0,3
+14,Select Columns - OpenRouter - Gemini Pro 2.5,SELECTCOLUMNS,17,0.30,0.95,1280,45.0,3
+32,Select Columns - OpenRouter - Mistral Mini ral,SELECTCOLUMNS,23,0.30,0.95,1280,45.0,3
+21,Sql Advanced  - OpenRouter - Gpt 4.1,SQLADVANCED,19,0.10,0.95,1280,45.0,3
+11,Sql Advanced  - OpenRouter - OpenAI 04-mini-high,SQLADVANCED,27,0.10,0.95,1280,45.0,3
+78,Sql Advanced - ORFree - Deepseek V3,SQLADVANCED,25,0.10,0.95,1280,45.0,3
+23,Sql Advanced - OpenRouter - Claude Sonnet 3.7,SQLADVANCED,30,0.10,0.95,1280,45.0,3
+43,Sql Advanced - OpenRouter - Codestral,SQLADVANCED,10,0.10,0.95,1280,45.0,3
+79,Sql Advanced - OpenRouter - Devstral Medium,SQLADVANCED,47,0.10,0.95,1280,45.0,3
+36,Sql Advanced - OpenRouter - Mistral Medium,SQLADVANCED,28,0.10,0.95,1280,45.0,3
+46,Sql Basic - LMStudio - xiyansql-qwenencoder,SQLBASIC,32,0.10,0.95,16000,45.0,3
+25,Sql Basic - ORFree - Deepseek V3,SQLBASIC,25,0.80,0.95,1280,45.0,3
+84,Sql Basic - ORFree - Kimi Dev,SQLBASIC,45,0.80,0.95,1280,45.0,3
+81,Sql Basic - ORFree - Qwen 2.5 Coder,SQLBASIC,46,0.10,0.95,1280,45.0,3
+29,Sql Basic - Open Router - Gemini flash 2.5,SQLBASIC,22,0.80,0.95,1280,45.0,3
+47,Sql Basic - OpenRouter - Agentica Deepcoder,SQLBASIC,33,0.80,0.95,1280,45.0,3
+3,Sql Basic - OpenRouter Codestral,SQLBASIC,10,0.80,0.95,1280,45.0,3
+33,Sql Basic - OpenRouter Devstral Small,SQLBASIC,31,0.80,0.95,1280,45.0,3
+28,Sql Basic - OpenRouter GPT 4.1,SQLBASIC,19,0.80,0.95,1280,45.0,3
+27,Sql Basic - OpenRouter GPT-4.1-mini,SQLBASIC,26,0.80,0.95,1280,45.0,3
+5,Sql Basic - OpenRouter Mistral medium,SQLBASIC,28,0.80,0.95,1280,45.0,3
+83,Sql Expert - ORFree - Kimi K2,SQLEXPERT,41,0.80,0.95,1280,45.0,3
+22,Sql Expert - OpenRouter  Deepseek R1,SQLEXPERT,12,0.80,0.95,1280,45.0,3
+9,Sql Expert - OpenRouter Gemini Pro 2.5,SQLEXPERT,17,0.80,0.95,1280,45.0,3
+44,Sql Expert - OpenRouter Mistral Large,SQLEXPERT,24,0.80,0.95,1280,45.0,3
+37,Sql Expert - OpenRouter Mistral Large,SQLEXPERT,24,0.80,0.95,1280,45.0,3
+8,Sql Expert - OpenRouter OpenAI o4-mini-high,SQLEXPERT,27,0.80,0.95,1280,45.0,3
+48,Sql Titanic - LMStudio - xiyansql-qwencoder,SQLTITAN,32,0.10,0.95,1280,45.0,3
+58,Sql Titanic - ORFree - Deepseek V3,SQLTITAN,38,0.10,0.95,1280,45.0,3
+80,Sql Titanic - ORFree - Kimi K2,SQLTITAN,41,0.10,0.95,1280,45.0,3
+85,Sql Titanic - OpenRouter - Gemini 2.5 Flash,SQLTITAN,22,0.10,0.95,1280,45.0,3
+86,Sql Titanic - OpenRouter - Kimi K2,SQLTITAN,48,0.80,0.95,1280,45.0,3
+35,Sql Titanic - OpenRouter Claude 4,SQLTITAN,30,0.10,0.95,1280,45.0,3
+19,Sql Titanic - OpenRouter Gemini 2.5 Pro,SQLTITAN,17,0.10,0.95,1280,45.0,3
+45,Sql Titanic - OpenRouter Mistral Large,SQLTITAN,24,0.80,0.95,1280,45.0,3
+52,Test Executor - LMStudio - xiyansql-qwencoder,TESTEXECUTOR,32,0.20,0.95,1280,45.0,3
+74,Test Executor - ORFree - Kimi K2,EXTRACTKEYWORDS,41,0.30,0.95,1280,45.0,3
+75,Test Executor - ORFree - Qwen3 32b,EXTRACTKEYWORDS,42,0.30,0.95,1280,45.0,3
+34,Test Executor - OpenRouter Gemini 2.5 Flash,TESTEXECUTOR,22,0.80,0.95,1280,45.0,3
+15,Test Executor - OpenRouter Gemini 2.5 Pro,TESTEXECUTOR,17,0.80,0.95,1280,45.0,3
+39,Test Executor - OpenRouter Mistral Medium,TESTEXECUTOR,28,0.80,0.95,1280,45.0,3
+41,Test Executor - OpenRouter Mistral Small,TESTEXECUTOR,23,0.80,0.95,1280,45.0,3
+18,Test Executor - OperRouter - Gpt 4.1,TESTEXECUTOR,19,0.80,0.95,1280,45.0,3
+51,Test Generator - LMStudio - xiyansql-qwencoder,TESTGENERATOR,32,0.20,0.95,1280,45.0,3
+66,Test Generator - ORFree - Deepseek V3,TESTGENERATOR,25,0.50,0.95,1280,45.0,3
+73,Test Generator - ORFree - Kimi K2,TESTGENERATOR,41,0.30,0.95,1280,45.0,3
+16,Test Generator - OpenRouter - Gemini 2.5 Flash,TESTGENERATOR,22,0.80,0.95,1280,45.0,3
+17,Test Generator - OpenRouter - Gemini 2.5 Pro,TESTGENERATOR,17,0.80,0.95,1280,45.0,3
+38,Test Generator - OpenRouter - Mistral Medium,TESTGENERATOR,28,0.80,0.95,1280,45.0,3
+40,Test Generator - OpenRouter - Mistral Small,TESTGENERATOR,23,0.80,0.95,1280,45.0,3

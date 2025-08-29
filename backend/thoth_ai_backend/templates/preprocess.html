@@ -1,0 +1,202 @@
+{% extends 'vertical_base.html' %}
+
+{% block title %}Database Information{% endblock %}
+
+{% block extra_css %}
+    <style>
+        .card {
+            margin-bottom: 0 !important;
+        }
+        
+        /* Stile per lo spinner */
+        .htmx-indicator {
+            display: none;
+        }
+        
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+        
+        .htmx-request.htmx-indicator {
+            display: inline-block;
+        }
+        .seamless-card {
+            border-top: none !important;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-2">
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if workspace and db and vector_store %}
+    <!-- Fake Header Row -->
+    <div class="row g-0 ms-2 mt-2">
+        <div class="col-md-4">
+            <!-- Title in the first column -->
+            <h1 class="mb-2">Database Preprocessing</h1>
+        </div>
+        <div class="col-md-8">
+            <div class="card-header bg-warning text-dark py-2" style="border-radius: .25rem 0 0 0; border-right: none; padding-left: 1.25rem;">
+                <h4 class="mb-0 fw-bold text-left" style="letter-spacing: 0.5px; text-transform: uppercase; font-size: 1.1rem;">Run only with pre-defined columns, evidences & Gold SQLs</h4>
+            </div>
+        </div>
+    </div>
+    <!-- Main Content Row -->
+    <div class="row mb-2 d-flex">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Run Preprocessing</h4>
+                </div>
+                <div class="card-body py-2 d-flex flex-column">
+                    <table class="table table-bordered mb-2">
+                        <tbody>
+                            <tr>
+                                <th>Workspace</th>
+                                <td>{{ workspace.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>ID</th>
+                                <td>{{ workspace.id }}</td>
+                            </tr>
+                            <tr>
+                                <th>Description</th>
+                                <td>{{ workspace.description|default:"No description" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="mt-auto">
+                        {% url 'thoth_ai_backend:run_preprocessing' workspace.id as preprocessing_url %}
+                        {% include 'partials/operation_status_button.html' with container_id='preprocessing-container' hx_url=preprocessing_url hx_indicator_id='spinner' button_text='Run Preprocessing' last_run=workspace.last_preprocess last_run_text='Last run on' never_run_text='Never run' spinner_text='Processing in progress...' icon_class='mdi mdi-refresh' button_class='btn-primary' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 seamless-card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">SQL Database</h4>
+                </div>
+                <div class="card-body py-2 d-flex flex-column">
+                    <table class="table table-bordered mb-2">
+                        <tbody>
+                            <tr>
+                                <th>Type</th>
+                                <td>{{ db.db_type }}</td>
+                            </tr>
+                            <tr>
+                                <th>Name</th>
+                                <td>{{ db.db_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Host</th>
+                                <td>{{ db.db_host }}</td>
+                            </tr>
+                            <tr>
+                                <th>Port</th>
+                                <td>{{ db.db_port }}</td>
+                            </tr>
+                            <tr>
+                                <th>Schema</th>
+                                <td>{{ db.schema|default:"public" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Username</th>
+                                <td>{{ db.user_name }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="mt-auto">
+                        {% url 'thoth_ai_backend:update_database_columns' workspace.id as update_columns_url %}
+                        {% include 'partials/operation_status_button.html' with container_id='update-columns-container' hx_url=update_columns_url hx_indicator_id='columns-spinner' button_text='Update Columns Description' last_run=db.last_columns_update last_run_text='Last update on' never_run_text='Never updated' spinner_text='Updating...' icon_class='mdi mdi-database-refresh' button_class='btn-primary' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 seamless-card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Vector Store</h4>
+                </div>
+                <div class="card-body py-2 d-flex flex-column">
+                    <table class="table table-bordered mb-2">
+                        <tbody>
+                            <tr>
+                                <th>Vector Store Type</th>
+                                <td>{{ vector_store_type }}</td>
+                            </tr>
+                            <tr>
+                                <th>Collection</th>
+                                <td>{% if collection_name and collection_name != 'Unknown' %}{{ collection_name }}{% else %}Not Applicable{% endif %}</td>
+                            </tr>
+                             {% if vector_store.host %}
+                            <tr>
+                                <th>Host</th>
+                                <td>{{ vector_store.host }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div class="mt-auto">
+                        {% url 'thoth_ai_backend:upload_evidences' workspace.id as upload_evidence_url %}
+                        {% include 'partials/operation_status_button.html' with container_id='evidence-container' hx_url=upload_evidence_url hx_indicator_id='evidence-spinner' button_text='Load Evidences' last_run=workspace.last_evidence_load last_run_text='Last upload on' never_run_text='Never uploaded' spinner_text='Uploading evidences...' icon_class='mdi mdi-lightbulb-on-outline' button_class='btn-primary' %}
+                    </div>
+                    <div class="mt-2">
+                        {% url 'thoth_ai_backend:upload_questions' workspace.id as upload_questions_url %}
+                        {% include 'partials/operation_status_button.html' with container_id='questions-container' hx_url=upload_questions_url hx_indicator_id='questions-spinner' button_text='Load Gold SQLs' last_run=workspace.last_sql_loaded last_run_text='Last upload on' never_run_text='Never uploaded' spinner_text='Uploading Gold SQLs...' icon_class='mdi mdi-database-search' button_class='btn-primary' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <h1 class="mb-2">Database Preprocessing</h1>
+    <div class="alert alert-warning">
+        <h4>No workspace or database selected</h4>
+        <p>Please select a workspace and database to view their information.</p>
+        <a href="{% url 'thoth_core:index' %}" class="btn btn-primary">Go to Home</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_javascript %}
+{{ block.super }}
+<script>
+document.body.addEventListener('click', function(event) {
+    const button = event.target.closest('button[hx-post]');
+    let confirmMessage = null;
+
+    if (button && button.parentElement) {
+        const parentId = button.parentElement.id;
+
+        if (parentId === 'preprocessing-container') {
+            confirmMessage = "Are you sure you want to run preprocessing?";
+        } else if (parentId === 'update-columns-container') {
+            confirmMessage = "Are you sure you want to update column descriptions?";
+        } else if (parentId === 'evidence-container') {
+            confirmMessage = "Are you sure you want to load evidence?";
+        } else if (parentId === 'questions-container') {
+            confirmMessage = "Are you sure you want to load Gold SQLs?";
+        }
+
+        if (confirmMessage) {
+            if (!confirm(confirmMessage)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+        }
+    }
+}, true); // Use capture phase
+</script>
+{% endblock %}

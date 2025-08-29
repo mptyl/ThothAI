@@ -1,0 +1,235 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of Thoth and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+"""
+Execution state context for SystemState decomposition.
+
+Contains runtime state information that changes during SQL generation execution,
+including error states, execution results, and strategy decisions.
+"""
+
+from typing import Optional
+from pydantic import BaseModel, Field, validator
+
+
+class ExecutionState(BaseModel):
+    """
+    Runtime execution state and error tracking context.
+    
+    This context contains mutable state information that changes during
+    SQL generation execution. It tracks the current execution status,
+    errors encountered, and strategic decisions made during the process.
+    
+    State is grouped by purpose:
+    - SQL Execution: last_SQL, last_execution_error, last_generation_success
+    - Error Tracking: sql_generation_failure_message  
+    - Strategy Decisions: schema_link_strategy, available_context_tokens, full_schema_tokens_count
+    """
+    
+    # Current SQL execution state
+    last_SQL: str = Field(
+        default="",
+        description="Most recently generated or executed SQL query"
+    )
+    
+    last_execution_error: str = Field(
+        default="",
+        description="Error message from the last SQL execution attempt"
+    )
+    
+    last_generation_success: bool = Field(
+        default=False,
+        description="Whether the last SQL generation attempt was successful"
+    )
+    
+    # Generation failure tracking
+    sql_generation_failure_message: Optional[str] = Field(
+        default=None,
+        description="Detailed failure message if SQL generation completely failed"
+    )
+    
+    # Schema linking strategy state
+    schema_link_strategy: Optional[str] = Field(
+        default=None,
+        description="Strategy used for schema linking: 'WITH_SCHEMA_LINK' or 'WITHOUT_SCHEMA_LINK'"
+    )
+    
+    available_context_tokens: Optional[int] = Field(
+        default=None,
+        description="Available context window size of the LLM model"
+    )
+    
+    full_schema_tokens_count: Optional[int] = Field(
+        default=None,
+        description="Token count required for the full M-Schema representation"
+    )
+    
+    class Config:
+        """Pydantic configuration"""
+        arbitrary_types_allowed = False  # Only simple types
+        validate_assignment = True  # Validate on field assignment
+        
+    @validator('schema_link_strategy')
+    def validate_schema_link_strategy(cls, v):
+        """Validate schema link strategy is one of allowed values"""
+        if v is not None:
+            allowed_strategies = {'WITH_SCHEMA_LINK', 'WITHOUT_SCHEMA_LINK'}
+            if v not in allowed_strategies:
+                raise ValueError(f'schema_link_strategy must be one of {allowed_strategies}, got: {v}')
+        return v
+        
+    @validator('available_context_tokens', 'full_schema_tokens_count')
+    def validate_token_counts(cls, v):
+        """Validate token counts are positive if provided"""
+        if v is not None and v <= 0:
+            raise ValueError('Token counts must be positive integers')
+        return v
+        
+    def has_sql(self) -> bool:
+        """
+        Check if a SQL query has been generated.
+        
+        Returns:
+            bool: True if last_SQL contains a query
+        """
+        return bool(self.last_SQL and self.last_SQL.strip())
+        
+    def has_execution_error(self) -> bool:
+        """
+        Check if there is a current execution error.
+        
+        Returns:
+            bool: True if execution error exists
+        """
+        return bool(self.last_execution_error and self.last_execution_error.strip())
+        
+    def has_generation_failure(self) -> bool:
+        """
+        Check if generation has completely failed.
+        
+        Returns:
+            bool: True if generation failure message exists
+        """
+        return (self.sql_generation_failure_message is not None and 
+                bool(self.sql_generation_failure_message.strip()))
+        
+    def has_schema_strategy(self) -> bool:
+        """
+        Check if schema linking strategy has been decided.
+        
+        Returns:
+            bool: True if strategy is set
+        """
+        return self.schema_link_strategy is not None
+        
+    def has_token_analysis(self) -> bool:
+        """
+        Check if token analysis has been performed.
+        
+        Returns:
+            bool: True if token counts are available
+        """
+        return (self.available_context_tokens is not None and 
+                self.full_schema_tokens_count is not None)
+        
+    def is_schema_link_enabled(self) -> bool:
+        """
+        Check if schema linking is enabled based on strategy.
+        
+        Returns:
+            bool: True if schema linking should be used
+        """
+        return self.schema_link_strategy == 'WITH_SCHEMA_LINK'
+        
+    def get_execution_status(self) -> str:
+        """
+        Get current execution status as a string.
+        
+        Returns:
+            str: Current status description
+        """
+        if self.has_generation_failure():
+            return "Generation Failed"
+        elif self.has_execution_error():
+            return "Execution Error"
+        elif self.last_generation_success:
+            return "Success"
+        elif self.has_sql():
+            return "SQL Generated"
+        else:
+            return "Not Started"
+            
+    def get_error_summary(self) -> str:
+        """
+        Get summary of current errors.
+        
+        Returns:
+            str: Error summary or empty string if no errors
+        """
+        errors = []
+        
+        if self.has_execution_error():
+            errors.append(f"Execution: {self.last_execution_error[:100]}...")
+            
+        if self.has_generation_failure():
+            errors.append(f"Generation: {self.sql_generation_failure_message[:100]}...")
+            
+        return "; ".join(errors)
+        
+    def clear_errors(self) -> None:
+        """
+        Clear all error states.
+        """
+        self.last_execution_error = ""
+        self.sql_generation_failure_message = None
+        
+    def reset_execution_state(self) -> None:
+        """
+        Reset execution state for a new attempt.
+        """
+        self.last_SQL = ""
+        self.last_execution_error = ""
+        self.last_generation_success = False
+        self.sql_generation_failure_message = None
+        
+    def can_fit_full_schema(self) -> Optional[bool]:
+        """
+        Check if full schema can fit in available context.
+        
+        Returns:
+            Optional[bool]: True if fits, False if doesn't, None if unknown
+        """
+        if not self.has_token_analysis():
+            return None
+            
+        return self.full_schema_tokens_count <= self.available_context_tokens
+        
+    def get_execution_summary(self) -> str:
+        """
+        Get a summary of execution state for logging/display.
+        
+        Returns:
+            str: Human-readable execution state summary
+        """
+        status = self.get_execution_status()
+        summary_parts = [f"Status: {status}"]
+        
+        if self.has_schema_strategy():
+            strategy = "enabled" if self.is_schema_link_enabled() else "disabled"
+            summary_parts.append(f"Schema linking: {strategy}")
+            
+        if self.has_token_analysis():
+            can_fit = self.can_fit_full_schema()
+            fit_status = "fits" if can_fit else "exceeds" if can_fit is False else "unknown"
+            summary_parts.append(f"Schema size: {fit_status} context")
+            
+        if self.has_sql():
+            sql_preview = self.last_SQL[:50].replace('\n', ' ') + "..." if len(self.last_SQL) > 50 else self.last_SQL
+            summary_parts.append(f"Last SQL: {sql_preview}")
+            
+        error_summary = self.get_error_summary()
+        if error_summary:
+            summary_parts.append(f"Errors: {error_summary}")
+            
+        return f"Execution state: {', '.join(summary_parts)}"

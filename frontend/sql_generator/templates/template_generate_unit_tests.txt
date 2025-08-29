@@ -1,0 +1,30 @@
+Here are the question, the database type, the database schema, the directives the evidence and the list of candidate SQL to evaluate
+
+**QUESTION**
+{question}
+
+**DATABASE TYPE**
+{dbmanager.db_type}
+
+**DATABASE SCHEMA**
+{used_mschema}
+
+**DIRECTIVES**
+The SQL generator being tested must strictly follow these directives:
+{directives}
+
+**EVIDENCE**
+{evidence_for_template}
+
+**CANDIDATES SQL**
+{sql_candidate_list}
+
+**IMPORTANT INSTRUCTIONS:**
+- DO NOT test for the presence or absence of a specific field
+- Do NOT test for the presence, absence, or usage of subqueries
+- Do NOT test for specific implementation approaches (subqueries vs joins vs other methods)
+- The SQL generator must be free to choose any valid approach to accomplish the task
+- Only test correctness, not implementation preferences
+- Ensure the SQL generator follows the directives provided above
+
+Generate from 7 to 14 comprehensive unit tests based on the question and schema above. Provide your reasoning in the thinking field and the list of test statements in the answers field.

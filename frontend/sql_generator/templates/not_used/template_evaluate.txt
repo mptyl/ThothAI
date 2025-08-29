@@ -1,0 +1,46 @@
+** Instructions: **
+Given the following question, database schema, a candidate SQL query response, and list of unit tests, evaluate whether or not the response passes each unit test.
+
+- In your evaluation, you should consider how the response align with all the given unit tests.
+- At the end of your evaluation, you must finish with an output composed by:
+        1. a list of verdicts corresponding to each test response as the Answer. The verdict must be a string composed by the text of the text followed the test result expressed formatted options: '[Passed]' or '[Failed]'
+        2. a boolen as Result that is true if all the test are passed and false otherwise
+- Each verdict should be a new line string and correspond to the test in the same order as they are provided.
+** Here are some example of the output format: **
+## Answer:
+[Test #1 text]: [Passed]
+[Test #2 text] [Failed]
+[Test #2 text]: [Passed]
+## Result:
+False
+....
+## Answer:
+[Test #1 text]: [Passed]
+[Test #2 text] [Passed]
+[Test #2 text]: [Passed]
+## Result:
+True
+
+** Here is the question, database schema, candidate responses, and the unit tests to evaluate the responses: **
+
+*** Database Schema: ***
+{DATABASE_SCHEMA}
+
+*** Question: ***
+{QUESTION}
+
+*** HINTS ***
+{HINTS}
+
+*** Candidate SQL Queries: ***
+{CANDIDATE_RESPONSE}
+
+*** Unit Tests: ***
+{UNIT_TESTS}
+** Output Format: **
+## Answer
+[Test #1 text]: [Passed]
+[Test #2 text] [Passed]
+[Test #2 text]: [Passed]
+## Result
+True

@@ -1,0 +1,202 @@
+id,original_column_name,column_name,data_format,column_description,generated_comment,value_description,sql_table_id,pk_field,fk_field
+2140,CDSCode,CDSCode,VARCHAR,"Unique identifier for each educational entity (school, district, or county office). This column serves as the primary key.","Unique identifier for each educational entity (school, district, or county office). This column serves as the primary key.",,284,PK,schools.CDSCode
+2141,Academic Year,,VARCHAR,"The academic year to which the data pertains, e.g., 2014-2015.","The academic year to which the data pertains, e.g., 2014-2015.",,284,,
+2142,County Code,,VARCHAR,The unique code identifying the county.,The unique code identifying the county.,,284,,
+2143,District Code,,INT,The unique code identifying the school district.,The unique code identifying the school district.,,284,,
+2144,School Code,,VARCHAR,The unique code identifying the school.,The unique code identifying the school.,,284,,
+2145,County Name,,VARCHAR,"The name of the county, e.g., Los Angeles, San Diego, Orange, San Bernardino, Riverside.","The name of the county, e.g., Los Angeles, San Diego, Orange, San Bernardino, Riverside.",,284,,
+2146,District Name,,VARCHAR,"The name of the school district, e.g., Los Angeles Unified, San Diego Unified, Oakland Unified, San Francisco Unified, Fresno Unified.","The name of the school district, e.g., Los Angeles Unified, San Diego Unified, Oakland Unified, San Francisco Unified, Fresno Unified.",,284,,
+2147,School Name,,VARCHAR,"The name of the school or educational entity, e.g., District Office, Lincoln Elementary, Washington Elementary, Jefferson Elementary, Roosevelt Elementary.","The name of the school or educational entity, e.g., District Office, Lincoln Elementary, Washington Elementary, Jefferson Elementary, Roosevelt Elementary.",,284,,
+2148,District Type,,VARCHAR,"The type of school district, e.g., Unified School District, Elementary School District, High School District, County Office of Education (COE), State Board of Education.","The type of school district, e.g., Unified School District, Elementary School District, High School District, County Office of Education (COE), State Board of Education.",,284,,
+2149,School Type,,VARCHAR,"The type of school, e.g., Elementary Schools (Public), High Schools (Public), Intermediate/Middle Schools (Public), Continuation High Schools, Alternative Schools of Choice.","The type of school, e.g., Elementary Schools (Public), High Schools (Public), Intermediate/Middle Schools (Public), Continuation High Schools, Alternative Schools of Choice.",,284,,
+2150,Educational Option Type,,VARCHAR,"The type of educational option offered by the school. Possible values include: Traditional, Continuation School, Alternative School of Choice, Community Day School, Special Education School.","The type of educational option offered by the school. Possible values include: Traditional, Continuation School, Alternative School of Choice, Community Day School, Special Education School.",,284,,
+2151,NSLP Provision Status,,VARCHAR,"The National School Lunch Program (NSLP) provision status. Possible values include: Provision 2, Breakfast Provision 2, CEP, Multiple Provision Types, Provision 1.","The National School Lunch Program (NSLP) provision status. Possible values include: Provision 2, Breakfast Provision 2, CEP, Multiple Provision Types, Provision 1.",,284,,
+2152,Charter School (Y/N),,INT,Indicates whether the school is a charter school. 0 represents 'No' and 1 represents 'Yes'.,Indicates whether the school is a charter school. 0 represents 'No' and 1 represents 'Yes'.,"0: N;
+1: Y",284,,
+2153,Charter School Number,,VARCHAR,The unique identification number assigned to a charter school.,The unique identification number assigned to a charter school.,,284,,
+2154,Charter Funding Type,,VARCHAR,"The funding type for the charter school. Possible values include: Directly funded, Locally funded, Not in CS funding model.","The funding type for the charter school. Possible values include: Directly funded, Locally funded, Not in CS funding model.",,284,,
+2155,IRC,,INT,Not useful.,Not useful.,Not useful,284,,
+2156,Low Grade,,VARCHAR,The lowest grade level served by the school.,The lowest grade level served by the school.,,284,,
+2157,High Grade,,VARCHAR,The highest grade level served by the school.,The highest grade level served by the school.,,284,,
+2158,Enrollment (K-12),,FLOAT,The total student enrollment for grades Kindergarten through 12th grade.,The total student enrollment for grades Kindergarten through 12th grade.,"commonsense evidence:
+
+K-12: 1st grade - 12nd grade ",284,,
+2159,Free Meal Count (K-12),,FLOAT,The number of students eligible for free meals in grades Kindergarten through 12th grade.,The number of students eligible for free meals in grades Kindergarten through 12th grade.,"commonsense evidence:
+
+eligible free rate = Free Meal Count / Enrollment",284,,
+2160,Percent (%) Eligible Free (K-12),,FLOAT,The percentage of K-12 students eligible for free meals. This is calculated based on Enrollment (K-12) and Free Meal Count (K-12).,The percentage of K-12 students eligible for free meals. This is calculated based on Enrollment (K-12) and Free Meal Count (K-12).,,284,,
+2161,FRPM Count (K-12),,FLOAT,The count of K-12 students eligible for Free or Reduced-Price Meals (FRPM). This count represents the total number of K-12 students eligible for either free or reduced-price meals.,The count of K-12 students eligible for Free or Reduced-Price Meals (FRPM). This count represents the total number of K-12 students eligible for either free or reduced-price meals.,"commonsense evidence:
+
+eligible FRPM rate = FRPM / Enrollment",284,,
+2162,Percent (%) Eligible FRPM (K-12),,FLOAT,The percentage of K-12 students eligible for Free or Reduced-Price Meals (FRPM). This is calculated based on Enrollment (K-12) and FRPM Count (K-12).,The percentage of K-12 students eligible for Free or Reduced-Price Meals (FRPM). This is calculated based on Enrollment (K-12) and FRPM Count (K-12).,,284,,
+2163,Enrollment (Ages 5-17),,FLOAT,The total student enrollment for ages 5-17.,The total student enrollment for ages 5-17.,,284,,
+2164,Free Meal Count (Ages 5-17),,FLOAT,The count of students aged 5-17 eligible for free meals. This count represents the number of students aged 5-17 who qualify for free school meals.,The count of students aged 5-17 eligible for free meals. This count represents the number of students aged 5-17 who qualify for free school meals.,"commonsense evidence:
+
+eligible free rate = Free Meal Count / Enrollment",284,,
+2165,Percent (%) Eligible Free (Ages 5-17),,FLOAT,The percentage of students aged 5-17 eligible for free meals. This is calculated based on Enrollment (Ages 5-17) and Free Meal Count (Ages 5-17).,The percentage of students aged 5-17 eligible for free meals. This is calculated based on Enrollment (Ages 5-17) and Free Meal Count (Ages 5-17).,,284,,
+2166,FRPM Count (Ages 5-17),,FLOAT,The count of students aged 5-17 eligible for Free or Reduced-Price Meals (FRPM). This count represents the total number of students aged 5-17 eligible for either free or reduced-price meals.,The count of students aged 5-17 eligible for Free or Reduced-Price Meals (FRPM). This count represents the total number of students aged 5-17 eligible for either free or reduced-price meals.,,284,,
+2167,Percent (%) Eligible FRPM (Ages 5-17),,FLOAT,The percentage of students aged 5-17 eligible for Free or Reduced-Price Meals (FRPM). This is calculated based on Enrollment (Ages 5-17) and FRPM Count (Ages 5-17).,The percentage of students aged 5-17 eligible for Free or Reduced-Price Meals (FRPM). This is calculated based on Enrollment (Ages 5-17) and FRPM Count (Ages 5-17).,,284,,
+2168,2013-14 CALPADS Fall 1 Certification Status,,INT,The certification status of the 2013-14 California Longitudinal Pupil Achievement Data System (CALPADS) Fall 1 submission. Possible values include 1 (Certified).,"The certification status of the school's CALPADS Fall 1 submission for the 2013-14 academic year. Based on the example data, possible values include 1 (certified) or null (not certified).",,284,,
+2169,cds,cds,VARCHAR,"Unique identifier for the school, district, or county.","Unique identifier for the school, district, or county.",,285,PK,schools.CDSCode
+2170,rtype,,VARCHAR,"Type of entity represented by the row. Possible values include: S, D.","Type of entity represented by the row. Possible values include: S, D.",unuseful,285,,
+2171,sname,school name,VARCHAR,Name of the school.,Name of the school.,,285,,
+2172,dname,district name,VARCHAR,Name of the district.,Name of the district.,,285,,
+2173,cname,county name,VARCHAR,Name of the county.,Name of the county.,,285,,
+2174,enroll12,enrollment (1st-12nd grade),INT,Number of students enrolled in 12th grade.,Number of students enrolled in 12th grade.,,285,,
+2175,NumTstTakr,Number of Test Takers,INT,Number of test takers in each school.,Number of test takers in each school.,number of test takers in each school,285,,
+2176,AvgScrRead,average scores in Reading,INT,Average scores in Reading.,Average scores in Reading.,average scores in Reading,285,,
+2177,AvgScrMath,average scores in Math,INT,Average scores in Math.,Average scores in Math.,average scores in Math,285,,
+2178,AvgScrWrite,average scores in writing,INT,Average scores in writing.,Average scores in writing.,average scores in writing,285,,
+2179,NumGE1500,Number of Test Takers Whose Total SAT Scores Are Greater or Equal to 1500,INT,Number of test takers whose total SAT scores are greater than or equal to 1500. This refers to the count of individuals who achieved a combined score of 1500 or higher across all sections of the SAT.,Number of test takers whose total SAT scores are greater than or equal to 1500. This refers to the count of individuals who achieved a combined score of 1500 or higher across all sections of the SAT.,"Number of Test Takers Whose Total SAT Scores Are Greater or Equal to 1500
+
+commonsense evidence:
+
+Excellence Rate = NumGE1500 / NumTstTakr",285,,
+2180,CDSCode,CDSCode,VARCHAR,A unique identifier for the school. This is the primary key.,A unique identifier for the school. This is the primary key.,,286,PK,
+2181,NCESDist,National Center for Educational Statistics school district identification number,VARCHAR,The National Center for Education Statistics (NCES) District ID.,The National Center for Education Statistics (NCES) District ID.,,286,,
+2182,NCESSchool,National Center for Educational Statistics school identification number,VARCHAR,The National Center for Education Statistics (NCES) School ID.,The National Center for Education Statistics (NCES) School ID.,,286,,
+2183,StatusType,,VARCHAR,"The operational status of the school. Possible values include: Active, Closed, Merged, Pending.","The operational status of the school. Possible values include: Active, Closed, Merged, Pending.","Definitions of the valid status types are listed below:
+·       Active: The district is in operation and providing instructional services.
+·       Closed: The district is not in operation and no longer providing instructional services.
+·       Merged: The district has combined with another district or districts.
+·       Pending: The district has not opened for operation and instructional services yet, but plans to open within the next 9–12 months.",286,,
+2184,County,,VARCHAR,The county where the school is located.,The county where the school is located.,,286,,
+2185,District,,VARCHAR,The school district to which the school belongs.,The school district to which the school belongs.,,286,,
+2186,School,,VARCHAR,The name of the school.,The name of the school.,,286,,
+2187,Street,,VARCHAR,The street address of the school.,The street address of the school.,,286,,
+2188,StreetAbr,street address ,VARCHAR,"The abbreviated street address of the school, used for mailing or display purposes.","The abbreviated street address of the school, used for mailing or display purposes.","The abbreviated street address of the school, district, or administrative authority’s physical location. Note: Some records (primarily records of closed or retired schools) may not have data in this field.",286,,
+2189,City,,VARCHAR,The city where the school is located.,The city where the school is located.,,286,,
+2190,Zip,,VARCHAR,The zip code associated with the physical address of the school.,The zip code associated with the physical address of the school.,,286,,
+2191,State,,VARCHAR,The state associated with the physical address of the school. Example values include: CA.,The state associated with the physical address of the school. Example values include: CA.,,286,,
+2192,MailStreet,,VARCHAR,The unabbreviated mailing address of the school.,The unabbreviated mailing address of the school.,"The unabbreviated mailing address of the school, district, or administrative authority. Note: 1) Some entities (primarily closed or retired schools) may not have data in this field; 2) Many active entities have not provided a mailing street address. For your convenience we have filled the unpopulated MailStreet cells with Street data.",286,,
+2193,MailStrAbr,mailing street address ,VARCHAR,The abbreviated mailing street address of the school.,The abbreviated mailing street address of the school.,"the abbreviated mailing street address of the school, district, or administrative authority.Note: Many active entities have not provided a mailing street address. For your convenience we have filled the unpopulated MailStrAbr cells with StreetAbr data.",286,,
+2194,MailCity,mailing city,VARCHAR,The city associated with the mailing address of the school.,The city associated with the mailing address of the school.,"The city associated with the mailing address of the school, district, or administrative authority. Note: Many entities have not provided a mailing address city. For your convenience we have filled the unpopulated MailCity cells with City data.",286,,
+2195,MailZip,mailing zip ,VARCHAR,The zip code associated with the mailing address of the school.,The zip code associated with the mailing address of the school.,"The zip code associated with the mailing address of the school, district, or administrative authority. Note: Many entities have not provided a mailing address zip code. For your convenience we have filled the unpopulated MailZip cells with Zip data.",286,,
+2196,MailState,mailing state,VARCHAR,The state within the mailing address. Example values include: CA.,The state within the mailing address. Example values include: CA.,The state within the mailing address. For your convenience we have filled the unpopulated MailState cells with State data.,286,,
+2197,Phone,,VARCHAR,"The primary telephone number of the school, district, or office.","The primary telephone number of the school, district, or office.",,286,,
+2198,Ext,extension,VARCHAR,"The phone number extension of the school, district, or office.","The phone number extension of the school, district, or office.","The phone number extension of the school, district, or administrative authority.",286,,
+2199,Website,,VARCHAR,"The website address of the school, district, or office.","The website address of the school, district, or office.","The website address of the school, district, or administrative authority.",286,,
+2200,OpenDate,,DATE,The date the school opened.,The date the school opened.,,286,,
+2201,ClosedDate,,DATE,The date the school closed.,The date the school closed.,,286,,
+2202,Charter,,INT,"Indicates if the school is a charter school. Values are: 0 = not a charter school, 1 = charter school.","Indicates if the school is a charter school. Values are: 0 = not a charter school, 1 = charter school.","The field is coded as follows:
+
+·       1 = The school is a charter
+
+·       0 = The school is not a charter",286,,
+2203,CharterNum,,VARCHAR,A 4-digit number assigned to a charter school.,A 4-digit number assigned to a charter school.,4-digit number assigned to a charter school.,286,,
+2204,FundingType,,VARCHAR,"The type of funding the school receives. Values are: Directly funded, Locally funded, Not in CS funding model.","The type of funding the school receives. Values are: Directly funded, Locally funded, Not in CS funding model.","Values are as follows:
+
+·       Not in CS (California School) funding model
+
+·       Locally funded
+
+·       Directly funded",286,,
+2205,DOC,District Ownership Code,VARCHAR,The District Ownership Code (DOC) is the numerical code for the type of agency that has legal control of the school.,The District Ownership Code (DOC) is the numerical code for the type of agency that has legal control of the school.,"The District Ownership Code (DOC) is the numeric code used to identify the category of the Administrative Authority.
+•       00 - County Office of Education
+•       02 – State Board of Education
+•       03 – Statewide Benefit Charter
+•       31 – State Special Schools
+•       34 – Non-school Location*
+•       52 – Elementary School District
+•       54 – Unified School District
+•       56 – High School District
+•       98 – Regional Occupational Center/Program (ROC/P)
+commonsense evidence:
+*Only the California Education Authority has been included in the non-school location category.",286,,
+2206,DOCType,The District Ownership Code Type,VARCHAR,The text description corresponding to the District Ownership Code (DOC).,The text description corresponding to the District Ownership Code (DOC).,(See text values in DOC field description above),286,,
+2207,SOC,School Ownership Code,VARCHAR,"The School Ownership Code (SOC) defines categories of school settings or the grade levels served by the school. Values are: 08 - Preschool, 09 – Special Education Schools (Public), 60 - Elementary Schools (Public), 62 - Intermediate/Middle Schools (Public), 66 - High Schools (Public), 68 - Continuation High Schools.","The School Ownership Code (SOC) defines categories of school settings or the grade levels served by the school. Values are: 08 - Preschool, 09 – Special Education Schools (Public), 60 - Elementary Schools (Public), 62 - Intermediate/Middle Schools (Public), 66 - High Schools (Public), 68 - Continuation High Schools.","•      08 - Preschool      
+•       09 – Special Education Schools (Public)
+•      11 – Youth Authority Facilities (CEA)
+•       13 – Opportunity Schools
+•       14 – Juvenile Court Schools
+•       15 – Other County or District Programs
+•       31 – State Special Schools
+•       60 – Elementary School (Public)
+•       61 – Elementary School in 1 School District (Public)
+•       62 – Intermediate/Middle Schools (Public)
+•       63 – Alternative Schools of Choice
+•       64 – Junior High Schools (Public)
+•       65 – K-12 Schools (Public)
+•       66 – High Schools (Public)
+•       67 – High Schools in 1 School District (Public)
+•       68 – Continuation High Schools
+•       69 – District Community Day Schools
+•       70 – Adult Education Centers
+•       98 – Regional Occupational Center/Program (ROC/P)",286,,
+2208,SOCType,School Ownership Code Type,VARCHAR,The text description corresponding to the School Ownership Code (SOC).,The text description corresponding to the School Ownership Code (SOC).,The School Ownership Code Type is the text description of the type of school.,286,,
+2209,EdOpsCode,Education Option Code,VARCHAR,"The operational code for the type of educational operations. Values are: TRAD, CON, COMMDAY, ALTSOC, SPEC.","The operational code for the type of educational operations. Values are: TRAD, CON, COMMDAY, ALTSOC, SPEC.","
+•      ALTSOC – Alternative School of Choice
+•      COMM – County Community School
+•       COMMDAY – Community Day School
+•       CON – Continuation School
+•       JUV – Juvenile Court School
+•       OPP – Opportunity School
+•       YTH – Youth Authority School
+•       SSS – State Special School
+•       SPEC – Special Education School
+•       TRAD – Traditional
+•       ROP – Regional Occupational Program
+•       HOMHOS – Home and Hospital
+•       SPECON – District Consortia Special Education School",286,,
+2210,EdOpsName,Educational Option Name,VARCHAR,"The descriptive name for the educational option or program offered by the school, such as 'Traditional' or 'Continuation School'.","The descriptive name for the educational option or program offered by the school, such as 'Traditional' or 'Continuation School'.",The Educational Option Name is the long text description of the type of education being offered.,286,,
+2211,EILCode,Educational Instruction Level Code,VARCHAR,"The code representing the Educational Instruction Level of the school. Possible values include: A, ELEM, HS, UG, INTMIDJR, ELEMHIGH.","The code representing the Educational Instruction Level of the school. Possible values include: A, ELEM, HS, UG, INTMIDJR, ELEMHIGH.","•       A – Adult
+•       ELEM – Elementary
+•       ELEMHIGH – Elementary-High Combination
+•       HS – High School
+•       INTMIDJR – Intermediate/Middle/Junior High
+•       PS – Preschool
+•       UG – Ungraded",286,,
+2212,EILName,Educational Instruction Level Name ,VARCHAR,"The descriptive name for the Educational Instruction Level. Examples include 'Elementary', 'High School', and 'Ungraded'.","The descriptive name for the Educational Instruction Level. Examples include 'Elementary', 'High School', and 'Ungraded'.",The Educational Instruction Level Name is the long text description of the institution’s type relative to the grade range served.,286,,
+2213,GSoffered,grade span offered,VARCHAR,"The range of grade levels offered by the school, such as 'K-5' or '9-12'.","The range of grade levels offered by the school, such as 'K-5' or '9-12'.","For example XYZ School might display the following data:
+
+GSoffered = P–Adult
+
+GSserved = K–12",286,,
+2214,GSserved,grade span served.,VARCHAR,"The range of grade levels actually served by the school, which may differ from the grades offered.","The range of grade levels actually served by the school, which may differ from the grades offered.","commonsense evidence:
+
+1.     Only K–12 enrollment is reported through CALPADS
+
+2.     Note: Special programs at independent study, alternative education, and special education schools will often exceed the typical grade span for schools of that type",286,,
+2215,Virtual,,VARCHAR,"Indicates whether the school provides virtual instruction. Possible values include: N, P, F.","Indicates whether the school provides virtual instruction. Possible values include: N, P, F.","The field is coded as follows:
+
+·       F = Exclusively Virtual – The school has no physical building where students meet with each other or with teachers, all instruction is virtual.
+
+·       V = Primarily Virtual – The school focuses on a systematic program of virtual instruction but includes some physical meetings among students or with teachers.
+
+·       C = Primarily Classroom – The school offers virtual courses but virtual instruction is not the primary means of instruction.
+
+·       N = Not Virtual – The school does not offer any virtual instruction.
+
+·       P = Partial Virtual – The school offers some, but not all, instruction through virtual instruction. Note: This value was retired and replaced with the Primarily Virtual and Primarily Classroom values beginning with the 2016–17 school year.",286,,
+2216,Magnet,,INT,"Indicates if the school is a magnet school. A value of 1 means it is a magnet school, and 0 means it is not.","Indicates if the school is a magnet school. A value of 1 means it is a magnet school, and 0 means it is not.","The field is coded as follows:
+
+·       1 = Magnet - The school is a magnet school and/or offers a magnet program.
+
+·       0 = Not Magnet - The school is not a magnet school and/or does not offer a magnet program.
+
+commonsense evidence:
+
+Note: Preschools and adult education centers do not contain a magnet school indicator.",286,,
+2217,Latitude,,FLOAT,The geographical latitude coordinate of the school's location. This column stores real numbers for precise positioning.,The geographical latitude coordinate of the school's location. This column stores real numbers for precise positioning.,"The angular distance (expressed in degrees) between the location of the school, district, or administrative authority and the equator measured north to south.",286,,
+2218,Longitude,,FLOAT,The geographical longitude coordinate of the school's location. This column stores real numbers for precise positioning.,The geographical longitude coordinate of the school's location. This column stores real numbers for precise positioning.,"The angular distance (expressed in degrees) between the location of the school, district, or administrative authority and the prime meridian (Greenwich, England) measured from west to east.",286,,
+2219,AdmFName1,administrator's first name,VARCHAR,The first name of the primary administrator for the school.,The first name of the primary administrator for the school.,"The superintendent’s or principal’s first name.
+
+commonsense evidence:
+
+Only active and pending districts and schools will display administrator information, if applicable.",286,,
+2220,AdmLName1,administrator's last name,VARCHAR,"The last name of the first administrative contact for the school, such as a superintendent or principal. This can be the last name of the superintendent or principal.","The last name of the first administrative contact for the school, such as a superintendent or principal. This can be the last name of the superintendent or principal.","The superintendent’s or principal’s last name.
+
+commonsense evidence:
+Only active and pending districts and schools will display administrator information, if applicable.",286,,
+2221,AdmEmail1,administrator's email address,VARCHAR,"The email address of the first administrative contact for the school, such as a superintendent or principal. This can be the email of the superintendent or principal.","The email address of the first administrative contact for the school, such as a superintendent or principal. This can be the email of the superintendent or principal.","The superintendent’s or principal’s email address.
+
+commonsense evidence:
+
+Only active and pending districts and schools will display administrator information, if applicable.",286,,
+2222,AdmFName2,,VARCHAR,The first name of the second administrative contact for the school. This often refers to a secondary administrative contact.,The first name of the second administrative contact for the school. This often refers to a secondary administrative contact.,SAME as 1,286,,
+2223,AdmLName2,,VARCHAR,The last name of the second administrative contact for the school. This often refers to a secondary administrative contact.,The last name of the second administrative contact for the school. This often refers to a secondary administrative contact.,,286,,
+2224,AdmEmail2,,VARCHAR,The email address of the second administrative contact for the school. This often refers to a secondary administrative contact.,The email address of the second administrative contact for the school. This often refers to a secondary administrative contact.,,286,,
+2225,AdmFName3,,VARCHAR,The first name of the third administrative contact for the school. Not enough information to make a valid prediction,The first name of the third administrative contact for the school. Not enough information to make a valid prediction,not useful,286,,
+2226,AdmLName3,,VARCHAR,The last name of the third administrative contact for the school. Not enough information to make a valid prediction,The last name of the third administrative contact for the school. Not enough information to make a valid prediction,not useful,286,,
+2227,AdmEmail3,,VARCHAR,The email address of the third administrative contact for the school. Not enough information to make a valid prediction,The email address of the third administrative contact for the school. Not enough information to make a valid prediction,not useful,286,,
+2228,LastUpdate,,DATE,The date when the record was last updated. This indicates the most recent modification date for the school's information.,The date when the record was last updated. This indicates the most recent modification date for the school's information.,when is this record updated last time,286,,

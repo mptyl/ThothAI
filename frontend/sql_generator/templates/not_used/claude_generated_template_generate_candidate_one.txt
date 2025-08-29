@@ -1,0 +1,176 @@
+# # SQL Query Generator with Mandatory Validation
+
+  ## 🚫 STOP: CRITICAL SQL ERROR PREVENTION 🚫
+
+  Every SQL query you generate MUST be validated through this exact procedure:
+
+  ```
+  STEP 1: Write your SQL query
+  STEP 2: Run this exact validation procedure:
+     2a. Check if query contains both DISTINCT and ORDER BY
+     2b. If YES, extract all columns from ORDER BY clause
+     2c. Verify each ORDER BY column appears in SELECT clause
+     2d. If any ORDER BY column is missing from SELECT, FAIL
+     2e. If FAIL, add missing ORDER BY columns to SELECT
+  STEP 3: Repeat validation until PASS
+  STEP 4: Return only validated query
+  ```
+
+  **CONCRETE EXAMPLE OF THE ERROR:**
+
+  ```sql
+  -- ❌ THIS QUERY WILL FAIL:
+  SELECT DISTINCT T1.ncesschool
+  FROM schools AS T1
+  INNER JOIN frpm AS T2 ON T1.cdscode = T2.cdscode
+  ORDER BY T2."Enrollment (Ages 5-17)" DESC
+  LIMIT 5
+  ```
+
+  The above query fails because `T2."Enrollment (Ages 5-17)"` appears in ORDER BY but not in SELECT.
+
+  **THE FIXED VERSION:**
+
+  ```sql
+  -- ✅ THIS QUERY WILL WORK:
+  SELECT DISTINCT T1.ncesschool, T2."Enrollment (Ages 5-17)"
+  FROM schools AS T1
+  INNER JOIN frpm AS T2 ON T1.cdscode = T2.cdscode
+  ORDER BY T2."Enrollment (Ages 5-17)" DESC
+  LIMIT 5
+  ```
+
+  ## DATABASE SCHEMA
+  {DATABASE_SCHEMA}
+
+  ## Your Task
+  Convert this question into an accurate SQL query: {QUESTION}
+  Hints: {HINT}
+
+  ## 🔍 DETAILED VALIDATION ALGORITHM 🔍
+
+  ```javascript
+  function validateSqlQuery(query) {
+    // 1. Check if query uses both DISTINCT and ORDER BY
+    const hasDistinct = query.includes("SELECT DISTINCT");
+    const hasOrderBy = query.includes("ORDER BY");
+
+    if (!hasDistinct || !hasOrderBy) {
+      return "PASS"; // Not relevant if not using both
+    }
+
+    // 2. Extract SELECT and ORDER BY columns
+    const selectPart = extractSelectClause(query);
+    const orderByPart = extractOrderByClause(query);
+
+    // 3. Check if all ORDER BY columns are in SELECT
+    const orderByColumns = extractColumns(orderByPart);
+    const selectColumns = extractColumns(selectPart);
+
+    const missingColumns = [];
+    for (const orderCol of orderByColumns) {
+      if (!selectColumns.includes(orderCol)) {
+        missingColumns.push(orderCol);
+      }
+    }
+
+    // 4. Return result
+    if (missingColumns.length > 0) {
+      return `FAIL: Missing columns in SELECT: ${missingColumns.join(", ")}`;
+    }
+
+    return "PASS";
+  }
+  ```
+
+  ## Additional Examples
+
+  ### Example 1: Basic Counting with Conditions
+
+  **Question**: How many Thai restaurants can be found in San Pablo Ave, Albany?
+
+  **Analysis**:
+  - Restaurant info is in generalinfo table
+  - Location info is in location table
+  - Need to join on id_restaurant
+  - Filter for Thai food and San Pablo Ave, Albany
+
+  ```sql
+  SELECT COUNT(T1.id_restaurant)
+  FROM generalinfo AS T1
+  INNER JOIN location AS T2 ON T1.id_restaurant = T2.id_restaurant
+  WHERE T1.food_type = 'thai' AND T2.street_name = 'san pablo ave' AND T2.city = 'albany'
+  ```
+
+  ### Example 2: Complex Multi-Table Join
+
+  **Question**: From 1900 to 1992, how many games did London host?
+
+  **Analysis**:
+  - Games are in games table
+  - Cities are in city table
+  - Relationship through games_city table
+  - Need to filter for London and years 1900-1992
+
+  ```sql
+  SELECT COUNT(T3.id)
+  FROM games_city AS T1
+  INNER JOIN city AS T2 ON T1.city_id = T2.id
+  INNER JOIN games AS T3 ON T1.games_id = T3.id
+  WHERE T2.city_name = 'London' AND T3.games_year BETWEEN 1900 AND 1992
+  ```
+
+  ### Example 3: Aggregation with GROUP BY
+
+  **Question**: What is the average rating for each restaurant type?
+
+  **Analysis**:
+  - Restaurant types are in generalinfo table
+  - Ratings are in ratings table
+  - Need to join and group by restaurant type
+
+  ```sql
+  SELECT T1.food_type, AVG(T2.rating) AS average_rating
+  FROM generalinfo AS T1
+  INNER JOIN ratings AS T2 ON T1.id_restaurant = T2.id_restaurant
+  GROUP BY T1.food_type
+  ORDER BY average_rating DESC
+  ```
+
+  ## Solution Process
+
+  1. Analyze the schema and required tables/columns
+  2. Write initial SQL query
+  3. **MANDATORY**: Run the validation check:
+     - Check if query uses both DISTINCT and ORDER BY
+     - If yes, verify all ORDER BY columns are in SELECT
+     - If validation fails, add missing columns to SELECT
+  4. Return only the validated query
+
+  ## FINAL ANSWER FORMAT
+
+  You MUST follow this answer format exactly:
+
+  ```
+  Initial SQL Query:
+  [Your initial SQL query]
+
+  Validation:
+  - Has DISTINCT: [Yes/No]
+  - Has ORDER BY: [Yes/No]
+  - SELECT columns: [List all columns in SELECT]
+  - ORDER BY columns: [List all columns in ORDER BY]
+  - Missing columns: [List any columns in ORDER BY but not in SELECT]
+  - Validation result: [PASS/FAIL]
+
+  Final SQL Query:
+  [Your corrected SQL query]
+  ```
+
+  ## IMPORTANT REMINDERS
+
+  - When using DISTINCT, all ORDER BY columns MUST appear in the SELECT list
+  - Tables and columns with spaces need proper quoting (`T1."Column Name"`)
+  - String values need quotes ('value'), numbers don't (123)
+  - Double-check join columns exist in both tables
+  - Always verify query validation before submission

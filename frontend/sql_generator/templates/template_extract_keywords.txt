@@ -1,0 +1,6 @@
+## Task: Analyze the given question to identify and extract keywords, keyphrases, and named entities. These elements are crucial for understanding the core components of the inquiry and the guidance provided. This process involves recognizing and isolating significant terms and phrases that could be instrumental in formulating searches or queries related to the posed question.
+Please provide your findings as a Python list of keywords, capturing the essence of both the question and hint through the identified terms and phrases.
+Call the extract_entities and the extract_context tool providing the generated keywords in the language used for the question (so, if the question is in english then keywords in english, if the question is in italian keywords in italian and so on)
+Only generate the Python keywords list, no explanations needed.
+
+Question: {question}

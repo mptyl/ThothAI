@@ -1,0 +1,18 @@
+#!/bin/bash
+# Unified Database Management Wrapper
+# This script provides easy access to the unified database management system
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UNIFIED_DIR="$SCRIPT_DIR/database-tools/unified-test-dbs"
+
+# Check if the unified directory exists
+if [ ! -d "$UNIFIED_DIR" ]; then
+    echo "Error: Unified database tools directory not found at $UNIFIED_DIR"
+    exit 1
+fi
+
+# Change to the unified directory and run the management script
+cd "$UNIFIED_DIR"
+
+# Pass all arguments to the Python management script
+python manage-thoth-test-dbs.py "$@"

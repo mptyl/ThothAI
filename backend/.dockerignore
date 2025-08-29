@@ -1,0 +1,85 @@
+# Local environment file - should not be copied to Docker container
+.env
+_env
+
+# Git files
+.git
+.gitignore
+
+# IDE files
+.vscode
+.idea
+*.iml
+.claude
+.kilocode
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environment
+.venv/
+.venv
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Development files
+.pytest_cache
+.coverage
+htmlcov/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Documentation
+README.md
+
+# Test directories
+**/tests/
+**/test_*.py
+**/*_test.py
+**/conftest.py
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+database-tools/
+vector-database-tools/
+dev-progress/
+docs/
+.CLAUDE.md
+.LINKED_PROJECTS.md
+
+# Large data directories
+qdrant_storage/
+postgres/
+exports/
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*~
+*.swp
+*.swo
+
+# Cache directories
+.cache/
+.mypy_cache/
+.tox/
+.hypothesis/

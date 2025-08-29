@@ -1,0 +1,307 @@
+/* Copyright (c) 2025 Marco Pancotti
+ * This file is part of ThothAI and is released under the Apache License 2.0.
+ * See the LICENSE.md file in the project root for full license information.
+ */
+
+/* Custom Dark Theme for AG-Grid in ThothAI UI */
+
+/* Import base theme structure */
+@import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+.ag-theme-thoth-dark {
+  /* Core Variables */
+  --ag-background-color: #0f0f0f;
+  --ag-foreground-color: #e0e0e0;
+  --ag-header-background-color: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  --ag-header-foreground-color: #ffffff;
+  --ag-secondary-foreground-color: #b0b0b0;
+  --ag-row-hover-color: rgba(66, 184, 221, 0.1);
+  --ag-selected-row-background-color: rgba(66, 184, 221, 0.15);
+  --ag-odd-row-background-color: rgba(255, 255, 255, 0.02);
+  --ag-border-color: rgba(255, 255, 255, 0.1);
+  --ag-header-cell-hover-background-color: rgba(66, 184, 221, 0.15);
+  --ag-header-cell-moving-background-color: rgba(66, 184, 221, 0.2);
+  
+  /* Typography */
+  --ag-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ag-font-size: 14px;
+  --ag-header-height: 48px;
+  --ag-row-height: 42px;
+  
+  /* Grid Lines */
+  --ag-line-height: 42px;
+  --ag-cell-horizontal-border: 1px solid rgba(255, 255, 255, 0.05);
+  --ag-header-column-separator-color: rgba(255, 255, 255, 0.15);
+  
+  /* Inputs and Controls */
+  --ag-input-border-color: rgba(255, 255, 255, 0.2);
+  --ag-input-focus-border-color: #42b8dd;
+  --ag-input-background-color: rgba(255, 255, 255, 0.05);
+  --ag-checkbox-background-color: rgba(255, 255, 255, 0.1);
+  --ag-checkbox-checked-color: #42b8dd;
+  
+  /* Range Selection */
+  --ag-range-selection-background-color: rgba(66, 184, 221, 0.1);
+  --ag-range-selection-border-color: #42b8dd;
+  
+  /* Menu */
+  --ag-menu-background-color: #1a1a1a;
+  --ag-menu-border-color: rgba(255, 255, 255, 0.15);
+  
+  /* Pagination */
+  --ag-disabled-foreground-color: rgba(255, 255, 255, 0.3);
+  
+  /* Focus */
+  --ag-input-focus-box-shadow: 0 0 0 2px rgba(66, 184, 221, 0.3);
+  --ag-cell-focus-border: 1px solid #42b8dd;
+}
+
+/* Header Styling */
+.ag-theme-thoth-dark .ag-header {
+  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  border-bottom: 2px solid rgba(66, 184, 221, 0.3);
+}
+
+.ag-theme-thoth-dark .ag-header-cell {
+  background: transparent;
+  color: #ffffff;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.ag-theme-thoth-dark .ag-header-cell:hover {
+  background: rgba(66, 184, 221, 0.1);
+}
+
+.ag-theme-thoth-dark .ag-header-cell-label {
+  padding: 0 8px;
+}
+
+/* Row Styling */
+.ag-theme-thoth-dark .ag-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.15s ease;
+}
+
+.ag-theme-thoth-dark .ag-row:hover {
+  background-color: rgba(66, 184, 221, 0.08) !important;
+}
+
+.ag-theme-thoth-dark .ag-row-odd {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.ag-theme-thoth-dark .ag-row-even {
+  background-color: transparent;
+}
+
+.ag-theme-thoth-dark .ag-row-selected {
+  background-color: rgba(66, 184, 221, 0.15) !important;
+  box-shadow: inset 0 0 0 1px rgba(66, 184, 221, 0.3);
+}
+
+/* Cell Styling */
+.ag-theme-thoth-dark .ag-cell {
+  color: #e0e0e0;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+}
+
+.ag-theme-thoth-dark .ag-cell-value {
+  word-break: break-word;
+}
+
+.ag-theme-thoth-dark .ag-cell-focus {
+  border: 1px solid #42b8dd !important;
+  outline: none;
+}
+
+/* Filter Panel */
+.ag-theme-thoth-dark .ag-filter-panel {
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ag-theme-thoth-dark .ag-filter-header-container {
+  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Floating Filters */
+.ag-theme-thoth-dark .ag-floating-filter {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ag-theme-thoth-dark .ag-floating-filter-input {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  padding: 4px 8px;
+  transition: all 0.2s ease;
+}
+
+.ag-theme-thoth-dark .ag-floating-filter-input:focus {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: #42b8dd;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(66, 184, 221, 0.2);
+}
+
+/* Pagination */
+.ag-theme-thoth-dark .ag-paging-panel {
+  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  padding: 8px 16px;
+}
+
+.ag-theme-thoth-dark .ag-paging-button {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 0 2px;
+}
+
+.ag-theme-thoth-dark .ag-paging-button:hover:not(.ag-disabled) {
+  background-color: rgba(66, 184, 221, 0.2);
+  border-color: #42b8dd;
+}
+
+.ag-theme-thoth-dark .ag-paging-button.ag-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Scrollbars */
+.ag-theme-thoth-dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.ag-theme-thoth-dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 5px;
+}
+
+.ag-theme-thoth-dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  transition: background 0.2s ease;
+}
+
+.ag-theme-thoth-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ag-theme-thoth-dark ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Menus and Dropdowns */
+.ag-theme-thoth-dark .ag-menu {
+  background-color: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.ag-theme-thoth-dark .ag-menu-option {
+  color: #e0e0e0;
+  padding: 8px 12px;
+  transition: background-color 0.15s ease;
+}
+
+.ag-theme-thoth-dark .ag-menu-option:hover {
+  background-color: rgba(66, 184, 221, 0.15);
+}
+
+.ag-theme-thoth-dark .ag-menu-option-active {
+  background-color: rgba(66, 184, 221, 0.2);
+}
+
+/* Sort Indicators */
+.ag-theme-thoth-dark .ag-header-cell-sorted-asc .ag-sort-ascending-icon,
+.ag-theme-thoth-dark .ag-header-cell-sorted-desc .ag-sort-descending-icon {
+  color: #42b8dd;
+}
+
+/* Loading Overlay */
+.ag-theme-thoth-dark .ag-overlay-loading-wrapper {
+  background-color: rgba(15, 15, 15, 0.9);
+}
+
+.ag-theme-thoth-dark .ag-overlay-loading-center {
+  color: #42b8dd;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* No Rows Overlay */
+.ag-theme-thoth-dark .ag-overlay-no-rows-wrapper {
+  background-color: rgba(15, 15, 15, 0.95);
+}
+
+.ag-theme-thoth-dark .ag-overlay-no-rows-center {
+  color: #b0b0b0;
+  font-size: 16px;
+}
+
+/* Column Resize Handle */
+.ag-theme-thoth-dark .ag-header-cell-resize {
+  width: 4px;
+  background-color: transparent;
+  cursor: col-resize;
+  transition: background-color 0.2s ease;
+}
+
+.ag-theme-thoth-dark .ag-header-cell-resize:hover {
+  background-color: #42b8dd;
+}
+
+/* Selection Checkbox */
+.ag-theme-thoth-dark .ag-checkbox-input-wrapper {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.ag-theme-thoth-dark .ag-checkbox-input-wrapper.ag-checked {
+  background-color: #42b8dd;
+  border-color: #42b8dd;
+}
+
+.ag-theme-thoth-dark .ag-checkbox-input-wrapper:hover {
+  border-color: #42b8dd;
+  box-shadow: 0 0 0 2px rgba(66, 184, 221, 0.2);
+}
+
+/* Animation for row appearance */
+@keyframes fadeInRow {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ag-theme-thoth-dark .ag-row {
+  animation: fadeInRow 0.3s ease-out;
+}
+
+/* Glow effect for focused elements */
+.ag-theme-thoth-dark .ag-cell-focus,
+.ag-theme-thoth-dark .ag-floating-filter-input:focus,
+.ag-theme-thoth-dark .ag-paging-button:focus {
+  box-shadow: 0 0 8px rgba(66, 184, 221, 0.4);
+}

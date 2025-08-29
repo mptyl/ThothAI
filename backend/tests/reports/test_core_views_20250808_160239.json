@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-08-08T16:02:39.172132",
+  "test_class": "TestCoreViews",
+  "errors": [
+    {
+      "view": "get_tables_by_database",
+      "timestamp": "2025-08-08T16:02:39.340022",
+      "message": "Reverse for 'get_tables_by_database' not found. 'get_tables_by_database' is not a valid view function or pattern name.",
+      "exception_type": "NoReverseMatch"
+    }
+  ],
+  "warnings": [],
+  "summary": {
+    "get_tables_by_database": "FAIL"
+  }
+}

@@ -1,0 +1,26 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of ThothAI and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+**Original Test List:**
+{ORIGINAL_TESTS}
+
+**Test Generation Thinking:**
+{TEST_THINKING}
+
+**Question Context:**
+{QUESTION}
+
+**Database Schema:**
+{DATABASE_SCHEMA}
+
+Your task is to analyze the original test list and identify semantic duplicates - tests that evaluate the same SQL behavior or requirement despite different wording.
+
+For each potential duplicate group:
+1. Identify the semantic equivalence
+2. Choose the most comprehensive and clearly stated test
+3. Explain why the others are redundant
+
+Provide your analysis and return the reduced test list that maintains full coverage while eliminating semantic redundancy.
+
+Be conservative - when uncertain about semantic equivalence, preserve both tests rather than risk losing test coverage.
