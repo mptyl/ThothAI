@@ -280,6 +280,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:3001",  # Docker frontend
     "http://127.0.0.1:3001",  # Docker frontend
+    "http://localhost:3040",  # Docker frontend custom port
+    "http://127.0.0.1:3040",  # Docker frontend custom port
     "http://localhost:8040",  # Nginx proxy
     "http://127.0.0.1:8040",  # Nginx proxy
 ]
