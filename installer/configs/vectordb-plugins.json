@@ -1,0 +1,101 @@
+{
+  "vector_databases": {
+    "qdrant": {
+      "display_name": "Qdrant",
+      "description": "High-performance vector database with REST API and web dashboard",
+      "manager_profile": "qdrant",
+      "dependencies": [
+        "qdrant-client>=1.13.3",
+        "qdrant-haystack>=9.1.1"
+      ],
+      "conflicts": [],
+      "default": true
+    },
+    "chroma": {
+      "display_name": "Chroma",
+      "description": "Simple vector database for embeddings with local storage",
+      "manager_profile": "chroma",
+      "dependencies": [
+        "chromadb>=0.5.0"
+      ],
+      "conflicts": [],
+      "default": false
+    },
+    "weaviate": {
+      "display_name": "Weaviate",
+      "description": "GraphQL-based vector database with advanced schema support",
+      "manager_profile": "weaviate",
+      "dependencies": [
+        "weaviate-client>=4.8.0"
+      ],
+      "conflicts": ["milvus"],
+      "default": false
+    },
+    "milvus": {
+      "display_name": "Milvus",
+      "description": "Scalable vector database for AI applications with clustering support",
+      "manager_profile": "milvus",
+      "dependencies": [
+        "pymilvus>=2.4.0"
+      ],
+      "conflicts": ["weaviate"],
+      "default": false
+    },
+    "pgvector": {
+      "display_name": "PgVector",
+      "description": "PostgreSQL extension for vector operations (requires PostgreSQL)",
+      "manager_profile": "pgvector",
+      "dependencies": [
+        "pgvector>=0.3.0"
+      ],
+      "conflicts": [],
+      "default": false,
+      "requires": ["postgresql"]
+    },
+    "pinecone": {
+      "display_name": "Pinecone",
+      "description": "Managed vector database service with cloud hosting",
+      "manager_profile": "pinecone",
+      "dependencies": [
+        "pinecone-client>=5.0.0"
+      ],
+      "conflicts": [],
+      "default": false
+    }
+  },
+  "core_vector_dependencies": [
+    "numpy>=2.2.4",
+    "scipy>=1.15.2",
+    "sentence-transformers>=4.1.0",
+    "huggingface-hub>=0.30.2",
+    "transformers>=4.51.3",
+    "torch>=2.6.0"
+  ],
+  "embedding_models": {
+    "openai": [
+      "openai>=1.75.0"
+    ],
+    "huggingface": [
+      "transformers>=4.51.3",
+      "torch>=2.6.0"
+    ],
+    "cohere": [
+      "cohere>=5.15.0"
+    ],
+    "anthropic": [
+      "anthropic>=0.49.0"
+    ],
+    "ollama": [
+      "ollama>=0.4.0"
+    ]
+  },
+  "plugin_groups": {
+    "cloud": ["pinecone"],
+    "selfhosted": ["qdrant", "weaviate", "milvus", "chroma"],
+    "postgresql_based": ["pgvector"],
+    "enterprise": ["milvus", "qdrant", "pinecone"],
+    "lightweight": ["chroma"],
+    "production": ["qdrant", "milvus", "pinecone"],
+    "development": ["qdrant", "chroma"]
+  }
+}

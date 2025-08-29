@@ -1,0 +1,45 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of Thoth and is released under the MIT License.
+# See the LICENSE.md file in the project root for full license information.
+
+[project]
+name = "thoth-docs-en"
+version = "0.1.0"
+description = "ThothAI Backend Documentation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "pymdown-extensions>=10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["docs"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0", 
+    "ruff>=0.1.0",
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+select = ["E", "F", "I", "N", "W"]

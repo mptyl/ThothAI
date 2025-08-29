@@ -1,0 +1,43 @@
+{
+    "mcpServers": {
+        "context7": {
+            "command": "npx",
+            "args": ["-y", "@upstash/context7-mcp@latest"],
+            "env": {}
+        },
+        "filesystem": {
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+            "env": {}
+        },
+        "sequential-thinking": {
+            "command": "npx", 
+            "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+            "env": {}
+        },
+        "playwright": {
+            "command": "npx",
+            "args": [
+            "-y",
+            "@ejazullah/mcp-playwright"
+            ]
+        },
+        "puppeteer": {
+            "command": "npx",
+            "args": [
+              "-y",
+              "@modelcontextprotocol/server-puppeteer"
+            ]
+        },
+        "pydantic-ai-docs": {
+            "command": "uv",
+            "args": [
+              "--directory",
+              "/Users/mp/pydantic-ai-docs-server",
+              "run",
+              "-m",
+              "pydantic_ai_docs_server"
+            ]
+        }
+    }
+}
