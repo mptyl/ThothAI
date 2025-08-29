@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-08-22T12:41:52.702779",
+  "test_class": "TestCoreViews",
+  "errors": [
+    {
+      "view": "api_login",
+      "timestamp": "2025-08-22T12:41:53.116416",
+      "message": "Reverse for 'api_login' not found. 'api_login' is not a valid view function or pattern name.",
+      "exception_type": "NoReverseMatch"
+    }
+  ],
+  "warnings": [],
+  "summary": {
+    "api_login": "FAIL"
+  }
+}

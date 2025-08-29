@@ -1,0 +1,124 @@
+{% extends "vertical_base.html" %}
+{% load static %}
+
+{% block title %}Columns{% endblock title %}
+
+{% block extra_css %}
+
+<link href="{% static 'css/thoth/datatables.min.css' %}" rel="stylesheet"  type="text/css"/>
+<link href="{% static 'css/vendor/responsive.bootstrap5.min.css' %}" rel="stylesheet" type="text/css" />
+
+<style>
+    /* Consistent row height styling to match questions table */
+    #columns-datatable th,
+    #columns-datatable td {
+        vertical-align: middle;
+        padding: 6px 8px;
+        font-size: 0.875rem;
+        line-height: 1.3;
+    }
+
+    /* Ensure table-name value starts at 0px from the left */
+    #columns-datatable td:first-child {
+        padding: 10px 0px 10px 25px !important;
+        margin-left: 0px !important;
+    }
+</style>
+
+{% endblock %}
+
+{% block page_title %}
+{% include "partials/page-title.html" with page_title='Columns' sub_title='Evidences & Context' %}
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-sm-12">
+                        <div class="text-sm-end">
+                            {% if user_is_editor %}
+                            <form method="POST" action="{% url 'thoth_ai_backend:delete_all_columns' %}" style="display: inline-block; margin-right: 5px;" onsubmit="return confirm('Are you sure you want to delete ALL columns? This action cannot be undone.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger mb-2"><i class="mdi mdi-delete-sweep me-2"></i> Delete All Columns</button>
+                            </form>
+                            <form method="POST" action="{% url 'thoth_ai_backend:import_columns_server_csv' %}" style="display: inline-block; margin-right: 5px;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-info mb-2">Import from CSV</button>
+                            </form>
+                            {% endif %}
+                            <a href="{% url 'thoth_ai_backend:export_columns_csv' %}" class="btn btn-light mb-2">Export CSV</a>
+                        </div>
+                    </div><!-- end col-->
+                </div>
+
+                <div class="table-responsive">
+                        <table id="columns-datatable" class="table table-striped dt-responsive nowrap w-100">
+                            <thead>
+                                <tr>
+                                    <th>Table</th>
+                                    <th>Column</th>
+                                    <th>Description</th>
+                                    <th>Value Description</th>
+                                    <th class="action-column" style="width: 45px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for column in columns %}
+                                <tr>
+                                    <td>{{ column.table_name }}</td>
+                                    <td>{{ column.original_column_name }}</td>
+                                    <td>{{ column.column_description }}</td>
+                                    <td>{{ column.value_description }}</td>
+                                    <td class="table-action">
+                                        {# Link to view/detail page #}
+                                        <a href="{% url 'thoth_ai_backend:view_columns' column_id=column.id %}" class="action-icon">
+                                            <i class="mdi mdi-eye-outline"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    {# Adjusted colspan to 3 since we removed the checkbox column #}
+                                    <td>
+                                        {% if error %}
+                                            <div class="alert alert-error">
+                                                {{ error }}
+                                            </div>
+                                        {% else %}
+                                            No columns found.
+                                        {% endif %}
+                                    </td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                                {% endfor %}
+
+                            </tbody>
+                        </table>
+
+                 </div> <!-- end tab-content-->
+
+            </div> <!-- end card body-->
+        </div> <!-- end card -->
+    </div><!-- end col-->
+</div>
+<!-- end row -->
+{% endblock %}
+
+{% block extra_javascript %}
+
+<!-- Third party js -->
+<script src = "{% static 'js/thoth/datatables.min.js' %}"></script>
+<!-- Third party js ends -->
+
+<!-- Init js -->
+<script src="{% static 'js/thoth/vdb.columns.js' %}"></script>
+<!-- Init js end -->
+
+{% endblock %}

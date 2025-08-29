@@ -1,0 +1,33 @@
+[project]
+name = "sql-generator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.116.1",
+    "frozendict>=2.4.6",
+    "frozenlist>=1.5.0",
+    "httpx>=0.28.1",
+    "logfire>=2.7.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "pydantic>=2.10.0",
+    "pydantic-ai>=0.0.50",
+    "python-dotenv>=1.0.0",
+    "python-multipart>=0.0.20",
+    "requests>=2.32.0",
+    "sqlalchemy>=2.0.0",
+    "sqlglot>=25.0.0",
+    "thoth-dbmanager[postgresql,sqlite]>=0.5.5", # Fixed plugin loading for optional dependencies
+    "thoth-qdrant>=0.1.8", # Native Qdrant implementation
+    "uvicorn>=0.35.0",
+    # REMOVED: "sentence-transformers>=2.2.0", # Now managed by thoth-qdrant
+    # REMOVED: "torch>=2.0.0", # Was a dependency of sentence-transformers, no longer needed
+    "annotated-types>=0.6.0",
+    "pathlib>=1.0.1",
+    "sqlparse>=0.5.3",
+    "func-timeout>=4.3.5",
+    "tzlocal>=5.3.1",
+    "debugpy>=1.8.16",
+]

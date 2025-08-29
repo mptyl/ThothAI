@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "context7-thoth-be": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "env": {
+        "DEFAULT_MINIMUM_TOKENS": "10000",
+        "PROJECT_ROOT": "/Users/mp/Thoth/thoth_be",
+        "PROJECT_NAME": "Thoth Backend",
+        "PROJECT_DESCRIPTION": "Backend services and APIs for the Thoth project"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/mp/Thoth/thoth_be"],
+      "env": {}
+    },
+    "sequential-thinking": {
+      "command": "npx", 
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "test_run": "local",
+  "timestamp": "2025-08-08T18:02:25.318260",
+  "test_scope": "quick",
+  "total_reports": 4,
+  "total_errors": 2,
+  "total_warnings": 0,
+  "failed_views": [
+    "api_login"
+  ],
+  "warned_views": []
+}

@@ -1,0 +1,151 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script type="text/javascript">
+(function($) {
+    $(document).ready(function() {
+        console.log('Relationship form JavaScript loaded');
+        var $database = $('#id_database');
+        var $sourceTable = $('#id_source_table');
+        var $targetTable = $('#id_target_table');
+        var $sourceColumn = $('#id_source_column');
+        var $targetColumn = $('#id_target_column');
+        
+        console.log('Form elements found:', {
+            database: $database.length,
+            sourceTable: $sourceTable.length,
+            targetTable: $targetTable.length,
+            sourceColumn: $sourceColumn.length,
+            targetColumn: $targetColumn.length
+        });
+        
+        // Function to update table options based on selected database
+        function updateTables(databaseId) {
+            if (!databaseId) {
+                // Clear table options
+                $sourceTable.empty().append('<option value="">---------</option>');
+                $targetTable.empty().append('<option value="">---------</option>');
+                updateColumns('', '');
+                return;
+            }
+            
+            console.log('Updating tables for database ID:', databaseId);
+            
+            $.ajax({
+                url: '/ajax/admin/tables/',
+                data: {'database_id': databaseId},
+                dataType: 'json',
+                success: function(data) {
+                    console.log('Received tables data:', data);
+                    
+                    // Store current selections before clearing
+                    var currentSourceTable = $sourceTable.val();
+                    var currentTargetTable = $targetTable.val();
+                    
+                    // Clear and populate source table
+                    $sourceTable.empty().append('<option value="">---------</option>');
+                    $targetTable.empty().append('<option value="">---------</option>');
+                    
+                    $.each(data, function(index, table) {
+                        $sourceTable.append('<option value="' + table.id + '">' + table.name + '</option>');
+                        $targetTable.append('<option value="' + table.id + '">' + table.name + '</option>');
+                    });
+                    
+                    // Restore selections if they still exist in the new data
+                    if (currentSourceTable) {
+                        $sourceTable.val(currentSourceTable);
+                    }
+                    if (currentTargetTable) {
+                        $targetTable.val(currentTargetTable);
+                    }
+                    
+                    // Update columns based on current selections
+                    updateColumns($sourceTable.val(), $targetTable.val());
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading tables:', xhr.responseText);
+                }
+            });
+        }
+        
+        // Function to update column options based on selected tables
+        function updateColumns(sourceTableId, targetTableId) {
+            // Store current selections before clearing
+            var currentSourceColumn = $sourceColumn.val();
+            var currentTargetColumn = $targetColumn.val();
+            
+            // Clear column dropdowns
+            $sourceColumn.empty().append('<option value="">---------</option>');
+            $targetColumn.empty().append('<option value="">---------</option>');
+            
+            // Update source columns
+            if (sourceTableId) {
+                $.ajax({
+                    url: '/ajax/admin/columns/',
+                    data: {'table_id': sourceTableId},
+                    dataType: 'json',
+                    success: function(data) {
+                        $.each(data, function(index, column) {
+                            $sourceColumn.append('<option value="' + column.id + '">' + column.name + '</option>');
+                        });
+                        // Restore selection if it still exists
+                        if (currentSourceColumn) {
+                            $sourceColumn.val(currentSourceColumn);
+                        }
+                    }
+                });
+            }
+            
+            // Update target columns
+            if (targetTableId) {
+                $.ajax({
+                    url: '/ajax/admin/columns/',
+                    data: {'table_id': targetTableId},
+                    dataType: 'json',
+                    success: function(data) {
+                        $.each(data, function(index, column) {
+                            $targetColumn.append('<option value="' + column.id + '">' + column.name + '</option>');
+                        });
+                        // Restore selection if it still exists
+                        if (currentTargetColumn) {
+                            $targetColumn.val(currentTargetColumn);
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Event handlers
+        $database.change(function() {
+            var databaseId = $(this).val();
+            console.log('Database changed to:', databaseId);
+            updateTables(databaseId);
+        });
+        
+        $sourceTable.change(function() {
+            var sourceTableId = $(this).val();
+            var targetTableId = $targetTable.val();
+            updateColumns(sourceTableId, targetTableId);
+        });
+        
+        $targetTable.change(function() {
+            var sourceTableId = $sourceTable.val();
+            var targetTableId = $(this).val();
+            updateColumns(sourceTableId, targetTableId);
+        });
+        
+        // Initialize on page load - much simpler now that we preserve selections
+        var initialDatabaseId = $database.val();
+        if (initialDatabaseId) {
+            console.log('Initializing for existing relationship with database:', initialDatabaseId);
+            // Just update tables - the improved functions will preserve existing selections
+            updateTables(initialDatabaseId);
+        } else {
+            console.log('New relationship - no initialization needed');
+        }
+    });
+})(django.jQuery);
+</script>
+{% endblock %}

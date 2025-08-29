@@ -1,0 +1,184 @@
+{% load static %}
+<!-- Assicuriamoci che HTMX sia caricato prima -->
+<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+
+<div class="navbar-custom">
+    <div class="topbar container-fluid">
+        <div class="d-flex align-items-center gap-lg-2 gap-1">
+
+            <!-- Topbar Brand Logo -->
+            <div class="logo-topbar">
+                <!-- Logo light -->
+                <a href="{% url 'thoth_core:index' %}" class="logo-light">
+                    <span class="logo-lg">
+                        <img src="{% static 'images/logo.png' %}" alt="logo">
+                    </span>
+                    <span class="logo-sm">
+                        <img src="{% static 'images/logo-sm.png' %}" alt="small logo">
+                    </span>
+                </a>
+
+                <!-- Logo Dark -->
+                <a href="{% url 'thoth_core:index' %}" class="logo-dark">
+                    <span class="logo-lg">
+                        <img src="{% static 'images/logo-dark.png' %}" alt="dark logo">
+                    </span>
+                    <span class="logo-sm">
+                        <img src="{% static 'images/logo-dark-sm.png' %}" alt="small logo">
+                    </span>
+                </a>
+            </div>
+
+            <!-- Sidebar Menu Toggle Button -->
+            <button class="button-toggle-menu" title="Toggle Menu">
+                <i class="mdi mdi-menu"></i>
+            </button>
+
+            <!-- Horizontal Menu Toggle Button -->
+            <button class="navbar-toggle" data-bs-toggle="collapse" data-bs-target="#topnav-menu-content" title="Toggle Navigation">
+                <span class="toggle-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+            </button>
+
+            <!-- Workspace Selector -->
+            {% if request.user.is_authenticated and user_workspaces %}
+                <div class="ms-2 d-flex align-items-center">
+                    <label for="workspace-select" class="form-label me-1 mb-0">Workspace</label>
+                    <select class="form-select form-select-sm"
+                            id="workspace-select"
+                            name="workspace_id"
+                            hx-post="{% url 'thoth_core:set_workspace' %}"
+                            hx-trigger="change"
+                            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                            hx-swap="none"
+                            aria-label="Workspace selection">
+                        {% for workspace in user_workspaces %}
+                            <option value="{{ workspace.pk }}" {% if workspace == current_workspace %}selected{% endif %}>
+                                {{ workspace.name }}
+                            </option>
+                        {% empty %}
+                            <option selected disabled>No workspaces found</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- To Frontend Button -->
+                {% if frontend_url %}
+                    <button id="to-frontend-btn" class="btn btn-primary btn-sm ms-2">
+                        To Frontend
+                    </button>
+                {% endif %}
+
+                <!-- Script per gestire il reload dopo il cambio di workspace e il redirect al frontend -->
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Handle workspace change
+                        document.getElementById('workspace-select').addEventListener('htmx:afterRequest', function(event) {
+                            // Ricarica la pagina dopo che la richiesta HTMX è stata completata
+                            window.location.reload();
+                        });
+                        
+                        // Handle To Frontend button - simplified version
+                        const toFrontendBtn = document.getElementById('to-frontend-btn');
+                        if (toFrontendBtn) {
+                            toFrontendBtn.addEventListener('click', function() {
+                                // Simply open the frontend URL without any token
+                                // The frontend will handle authentication using the existing session
+                                window.open('{{ frontend_url }}', '_blank');
+                            });
+                        }
+                    });
+                </script>
+            {% endif %}
+        </div>
+
+        <ul class="topbar-menu d-flex align-items-center gap-3">
+            <li class="dropdown d-lg-none">
+                <a class="nav-link dropdown-toggle arrow-none" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
+                    <i class="ri-search-line font-22"></i>
+                </a>
+                <div class="dropdown-menu dropdown-menu-animated dropdown-lg p-0">
+                    <form class="p-3">
+                        <input type="search" class="form-control" placeholder="Search ..." aria-label="Recipient's username">
+                    </form>
+                </div>
+            </li>
+
+            {% if request.user.is_authenticated %}
+            <li class="d-none d-sm-inline-block">
+                <a class="nav-link" href="{% url 'admin:index' %}">
+                    <i class="ri-settings-3-line font-22"></i>
+                </a>
+            </li>
+            {% endif %}
+
+            <li class="d-none d-sm-inline-block">
+                <div class="nav-link" id="light-dark-mode" data-bs-toggle="tooltip" data-bs-placement="left" title="Theme Mode">
+                    <i class="ri-moon-line font-22"></i>
+                </div>
+            </li>
+
+            <li class="d-none d-md-inline-block">
+                <a class="nav-link" href="" data-toggle="fullscreen">
+                    <i class="ri-fullscreen-line font-22"></i>
+                </a>
+            </li>
+
+            <li class="dropdown">
+                <a href="#" class="px-2" id="userDropdownMenu" style="color: inherit; text-decoration: none;" onclick="toggleUserDropdown(event)">
+                    <!-- Always visible user icon for all screen sizes -->
+                    <i class="ri-user-line font-22 d-inline-block"></i>
+                    <!-- Username visible only on large screens -->
+                    <span class="d-lg-flex flex-column gap-1 d-none">
+                        <h5 class="my-0">
+                            {% if request.user.first_name or request.user.last_name %}
+                                {{ request.user.first_name }} {{ request.user.last_name }}
+                            {% else %}
+                                {{ request.user.username }}
+                            {% endif %}
+                        </h5>
+                    </span>
+                </a>
+                <div id="userDropdownContent" class="dropdown-menu profile-dropdown" style="display: none; position: absolute; min-width: 150px; width: auto; right: 0; top: 100%;">
+                    <!-- separator -->
+                    <div class="dropdown-divider my-1"></div>
+
+                    <!-- item-->
+                    <a href="{% url 'account_logout' %}" class="dropdown-item text-end">
+                        <span>Logout</span>
+                        <i class="mdi mdi-logout ms-1"></i>
+                    </a>
+                </div>
+            </li>
+
+            <script>
+                function toggleUserDropdown(event) {
+                    event.preventDefault();
+                    var dropdown = document.getElementById('userDropdownContent');
+                    var userMenu = document.getElementById('userDropdownMenu');
+
+                    if (dropdown.style.display === 'none') {
+                        // Use a fixed width for the dropdown instead of matching username width
+                        // This ensures the dropdown is wide enough regardless of username length
+                        dropdown.style.width = '150px';
+                        dropdown.style.display = 'block';
+                    } else {
+                        dropdown.style.display = 'none';
+                    }
+
+                    // Close dropdown when clicking outside
+                    document.addEventListener('click', function closeDropdown(e) {
+                        if (!document.getElementById('userDropdownMenu').contains(e.target) &&
+                            !document.getElementById('userDropdownContent').contains(e.target)) {
+                            dropdown.style.display = 'none';
+                            document.removeEventListener('click', closeDropdown);
+                        }
+                    });
+                }
+            </script>
+        </ul>
+    </div>
+</div>

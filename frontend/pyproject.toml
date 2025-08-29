@@ -1,0 +1,184 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thoth-ui-backend"
+version = "0.2.0"
+authors = [
+  { name="Marco Pancotti", email="mp@tylconsulting.it" },
+]
+description = "Thoth UI Backend - Django application with AI-powered database management and SQL generation capabilities"
+readme = "README.md"
+keywords = ["django", "ai", "database", "sql", "thoth", "backend"]
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Development Status :: 4 - Beta",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+]
+dependencies = [
+    # Core Django Framework
+    "Django>=5.2",
+    "djangorestframework>=3.16.0",
+    "django-allauth>=65.0.0",
+    "django-crispy-forms>=2.0.0",
+    "crispy-bootstrap5>=2024.0",
+    "gunicorn>=23.0.0",
+    # Essential Utilities
+    "python-dotenv>=1.0.0",
+    "PyYAML>=6.0.0",
+    "requests>=2.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-ai>=0.7.2",
+    "pydantic-settings>=2.8.0",
+    "loguru>=0.7.0",
+    "frozendict>=2.4.0",
+    "frozenlist>=1.4.0",
+    # Data Processing
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "psutil>=5.9.0",
+    # Database Support
+    "psycopg2-binary>=2.9.0",
+    "SQLAlchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "sqlglot>=25.0.0",
+    # Thoth-specific Libraries with Database Support
+    "thoth-dbmanager[postgresql,sqlite]==0.5.8",
+    "thoth-qdrant>=0.1.8",
+    "qdrant-client>=1.7.0",
+    # AI/ML Libraries
+    "openai>=1.30.0",
+    "anthropic>=0.25.0",
+    "mistralai>=0.4.0",
+    # File Processing
+    "openpyxl>=3.1.0",
+    "xlsxwriter>=3.1.0",
+    # Monitoring and Observability
+    "logfire>=0.60.0",
+    # API Server
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    # Testing
+    "pytest>=8.0.0",
+    "httpx>=0.25.0",
+    # SQL Processing
+    "sqlparse>=0.5.0",
+    "func-timeout>=4.3.5",
+    # Essential System Dependencies (let UV resolve these automatically)
+    "certifi",
+    "charset-normalizer",
+    "click",
+    "idna",
+    "urllib3",
+    "pytz",
+    "tzdata",
+    "tzlocal>=5.3.1",
+]
+
+[project.optional-dependencies]
+# Development dependencies
+dev = [
+    "django-browser-reload==1.18.0",
+    "pytest==8.4.1",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+# Testing dependencies
+test = [
+    "pytest==8.4.1",
+    "pytest-cov>=4.0.0",
+    "pytest-django>=4.5.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mptyl/ThothUi"
+"Bug Tracker" = "https://github.com/mptyl/ThothUi/issues"
+"Documentation" = "https://github.com/mptyl/ThothUi#readme"
+"Source Code" = "https://github.com/mptyl/ThothUi"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["thoth_core*", "thoth_ai_backend*", "Thoth*"]
+exclude = ["tests*", "test_*", "node_modules*", "sql_generator*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.txt", "*.yml", "*.yaml", "*.json"]
+
+# UV-specific configuration
+[tool.uv]
+dev-dependencies = [
+    "django-browser-reload==1.18.0",
+    "pytest==8.4.1",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+# Ruff configuration for linting
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "DJ"]
+ignore = ["E501", "S101", "DJ01"]
+
+[tool.ruff.per-file-ignores]
+"*/migrations/*" = ["E501", "N806", "N999"]
+"*/tests/*" = ["S101", "S106"]
+
+# Black configuration
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  migrations
+  | node_modules
+  | \.venv
+)/
+'''
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "Thoth.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "--disable-warnings",
+    "-p", "no:warnings",
+    "--reuse-db",
+    "--nomigrations",
+]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]

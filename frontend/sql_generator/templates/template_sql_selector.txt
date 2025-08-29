@@ -1,0 +1,32 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of ThothAI and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+**Question:**
+{QUESTION}
+
+**Database Schema:**
+{DATABASE_SCHEMA}
+
+**Equivalent SQL Candidates (All Passed 100% of Tests):**
+{EQUIVALENT_SQLS}
+
+**Test Results Context:**
+{TEST_RESULTS_CONTEXT}
+
+**Gold SQL Examples (Reference):**
+{GOLD_SQL_EXAMPLES}
+
+Your task is to select the single best SQL query from the equivalent candidates above. All of these SQLs have passed 100% of the evaluation tests, so they are functionally equivalent.
+
+Analyze each SQL candidate on these criteria:
+1. **Correctness**: Does it accurately answer the question?
+2. **Simplicity**: Is the approach as simple as possible while remaining clear?
+3. **Performance**: Will it execute efficiently on large datasets?
+4. **Maintainability**: Is it easy to understand and modify?
+5. **Standards**: Does it follow SQL best practices?
+6. **Robustness**: Does it handle edge cases well?
+
+Compare the candidates systematically and select the one that scores highest overall. Provide your detailed comparison and reasoning, then specify the selected SQL by its index (0-based).
+
+**Important**: Your selection must be definitive. Choose exactly one SQL as the best option.

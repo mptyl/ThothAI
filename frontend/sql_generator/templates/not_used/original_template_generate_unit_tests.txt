@@ -1,0 +1,32 @@
+** Instructions: **
+
+Given the following question database schema, hints and chain of thoughts generate a set of at least 10 unit tests that would evaluate the correctness of SQL queries that would answer the question.
+
+- The unit tests should cover various aspects of the question and ensure comprehensive evaluation.
+- if the sql includes some join between tables verify that a foreign-key->primary-key relationship is used. Use the foreign-key->primary-key relationship if used if available. Accept other type of relationship only if no FK->PK relationship is available for the specific join
+- Each unit test should be clearly stated and should include the expected outcome.
+- The unit test should be formatted like 'The answer SQL query should mention...', 'The answer SQL query should state...', 'The answer SQL query should use...', etc. followed by the expected outcome.
+- First think step by step how you can design the units tests to distinguish the candidate responses using the 'Thinking' tag.
+- After the thinking process, provide the list of unit tests as the Answer.
+
+VERY IMPORTANT:
+All of the unit tests should consider the logic of the SQL query do not consider the formatting of the output or output values.
+
+Example of the output format:
+Thinking:Your step by step reasoning here.
+Answer:
+['The answer SQL  should mention...', 'The answer SQL  should state...', 'The answer SQL  should use...']
+
+** Database Schema: **
+{DATABASE_SCHEMA}
+
+** Question: **
+Question: {QUESTION}
+
+** HINTS **
+Hints: {HINTS}
+
+** Output Format: **
+Thinking: Your step by step reasoning here.
+Answer:
+output should be only a list of strings (e.g. ['The answer SQL should mention ...', 'The answer SQL should state ...', 'The answer SQL  should use...']).

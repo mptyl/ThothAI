@@ -1,0 +1,46 @@
+# Standalone SQL Server project - completely separate from main Thoth
+name: thoth-sqlserver
+
+services:
+  sqlserver-sc:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver_sc
+    restart: unless-stopped
+    environment:
+      SA_PASSWORD: ThothPassword2024!
+      ACCEPT_EULA: Y
+      MSSQL_PID: Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_sc_data:/var/opt/mssql
+      - ./sqlserver-init:/docker-entrypoint-initdb.d
+    networks:
+      - sqlserver-net
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ThothPassword2024! -Q 'SELECT 1'"]
+      start_period: 10s
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # Adminer for database management
+  adminer-sqlserver:
+    image: adminer:4.8.1
+    container_name: adminer_sqlserver
+    restart: unless-stopped
+    ports:
+      - "8083:8080"
+    networks:
+      - sqlserver-net
+    depends_on:
+      sqlserver-sc:
+        condition: service_healthy
+
+volumes:
+  sqlserver_sc_data:
+    driver: local
+
+networks:
+  sqlserver-net:
+    driver: bridge

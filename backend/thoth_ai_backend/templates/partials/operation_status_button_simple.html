@@ -1,0 +1,91 @@
+{% comment %}
+Reusable partial for operation buttons with simple progress display.
+This template handles the display of the button, its state, last run time,
+and success/error messages after an HTMX request.
+
+Context variables:
+- container_id: The ID for the main container div.
+- hx_url: The URL for the hx-post request.
+- hx_indicator_id: The ID for the spinner element.
+- button_text: The main text for the button.
+- last_run: The timestamp of the last execution (datetime object).
+- last_run_text: The text to display for the last run (e.g., "Last run on").
+- never_run_text: The text to display if it has never been run.
+- spinner_text: The text to display next to the spinner.
+- icon_class: The CSS class for the button icon (e.g., 'mdi mdi-refresh').
+- button_class: The CSS class for the button color (e.g., 'btn-primary'). Defaults to 'btn-primary'.
+- workspace: The workspace object.
+- success_message: Message to display on success.
+- error_message: Message to display on error.
+- special_message: A special message for specific conditions (e.g., evidences upload).
+- total_items: Total number of items processed (shown in success message).
+- successful_uploads: Number of successfully uploaded items.
+{% endcomment %}
+
+<div id="{{ container_id }}">
+    {% if success_message or error_message or special_message %}
+        {% if success_message %}
+            <div class="alert alert-success" role="alert">
+                {{ success_message }}
+                {% if total_items and successful_uploads %}
+                <div class="mt-2">
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success" 
+                             role="progressbar" 
+                             style="width: {% widthratio successful_uploads total_items 100 %}%"
+                             aria-valuenow="{{ successful_uploads }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="{{ total_items }}">
+                            {{ successful_uploads }}/{{ total_items }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        {% elif error_message %}
+            <div class="alert alert-danger" role="alert">
+                {{ error_message }}
+            </div>
+        {% elif special_message %}
+            <div class="alert alert-info" role="alert">
+                {{ special_message }}
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <button hx-post="{{ hx_url }}"
+            hx-target="#{{ container_id }}"
+            hx-swap="outerHTML"
+            hx-indicator="#{{ hx_indicator_id }}"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            class="btn {{ button_class|default:'btn-primary' }} w-100">
+        <i class="{{ icon_class }} me-1"></i>
+        {{ button_text }}
+        {% if last_run %}
+            - {{ last_run_text }} {{ last_run|date:"d/m/Y H:i:s" }}
+        {% else %}
+            - {{ never_run_text }}
+        {% endif %}
+    </button>
+    
+    <div id="{{ hx_indicator_id }}" class="htmx-indicator mt-2">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border text-primary me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="flex-grow-1">
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         style="width: 100%"
+                         aria-valuenow="100" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        {{ spinner_text }}
+                    </div>
+                </div>
+                <small class="text-muted">Processing items... This may take a few moments.</small>
+            </div>
+        </div>
+    </div>
+</div>

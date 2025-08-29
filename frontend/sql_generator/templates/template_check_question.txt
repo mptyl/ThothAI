@@ -1,0 +1,38 @@
+You are analyzing a user question for basic form validation. Your task is to be EXTREMELY PERMISSIVE and only reject obviously invalid input. Accept virtually ALL legitimate attempts at asking database-related questions.
+
+The user question to analyze is: {question}
+
+The database scope is: {scope}
+The target language is: {language}
+
+CRITICAL VALIDATION RULES:
+- ACCEPT any question that could reasonably be about data, even if unclear or incomplete
+- ACCEPT questions in ANY language (English, Italian, Spanish, etc.)
+- ACCEPT questions with typos, grammar errors, or unclear phrasing
+- ACCEPT questions that may reference non-existent tables or columns
+- ACCEPT vague or broad questions like "show me data", "what's in the database"
+- ACCEPT questions asking for specific data even without context
+
+ONLY REJECT if the text is:
+1. Completely meaningless gibberish (e.g., "asdf kjlh 123 @#$" with no recognizable words)
+2. Obviously unrelated to any possible database context (e.g., "How do I cook pasta?" or "What's the weather?")
+
+ALWAYS CHOOSE "OK" FOR:
+- Questions about showing, finding, getting, or analyzing data
+- Questions mentioning tables, columns, records, rows, or database terms
+- Questions asking for counts, averages, sums, or any aggregations
+- Questions with WHERE clauses or filtering requests
+- Incomplete or unclear questions that could be database-related
+- Questions in languages other than English
+- Questions with spelling or grammar errors
+
+Return the analysis result as two strings:
+1) The outcome of the text analysis:
+   - "OK" (DEFAULT CHOICE - the text could possibly be database-related)
+   - "Meaningless" (completely random gibberish with no recognizable words)
+   - "Out of scope" (clearly requests something completely unrelated like weather, recipes, etc.)
+
+2) For "OK" outcomes: "Question accepted for processing"
+   For non-OK outcomes: Provide a brief explanation in the SAME language as the question
+
+REMEMBER: When in doubt, ALWAYS choose "OK". It's better to process an unclear question than to reject a legitimate one.

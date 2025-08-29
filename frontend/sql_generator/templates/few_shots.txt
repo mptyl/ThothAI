@@ -1,0 +1,266 @@
+### Example 1
+
+**Schema Section**
+```sql
+-- Account information with district associations
+CREATE TABLE account (
+account_id INT -- PRIMARY KEY
+-- Unique identifier for the account, serving as the primary key.
+district_id INT
+-- Reference to the district where the account is located.
+frequency VARCHAR(255)
+-- Frequency of account operations.
+date DATE
+-- Date when the account was created.
+);
+
+-- Client information including personal details
+CREATE TABLE client (
+client_id INT -- PRIMARY KEY
+-- Unique identifier for the client, serving as the primary key.
+gender CHAR(1)
+-- Gender of the client (M/F).
+birth_date DATE
+-- Birth date of the client.
+district_id INT
+-- Reference to the district where the client is located.
+);
+
+-- District information with demographic data
+CREATE TABLE district (
+district_id INT -- PRIMARY KEY
+-- Unique identifier for the district, serving as the primary key.
+a4 VARCHAR(255)
+-- District attribute A4.
+a11 VARCHAR(255)
+-- District attribute A11 representing average salary.
+);
+
+【Foreign keys】
+account.district_id=district.district_id
+client.district_id=district.district_id
+```
+
+**Question**
+What is the gender of the youngest client who opened account in the lowest average salary branch?
+
+**Evidence**
+Given that Later birthdate refers to younger age, a11 refers to average salary
+
+**Answer**
+SELECT T1.gender FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id ORDER BY T2.a11 ASC NULLS LAST, T1.birth_date DESC NULLS FIRST LIMIT 1
+
+### Example 2
+
+**Schema Section**
+```sql
+-- Information about Olympic games by year
+CREATE TABLE games (
+id INTEGER -- PRIMARY KEY
+-- Unique identifier for the game, serving as the primary key.
+games_year INTEGER
+-- The year of the game.
+);
+
+-- Mapping between games and host cities
+CREATE TABLE games_city (
+games_id INTEGER
+-- Reference to the game ID.
+city_id INTEGER
+-- The id of the city that held the game.
+);
+
+-- City information
+CREATE TABLE city (
+id INTEGER -- PRIMARY KEY
+-- Unique identifier for the city, serving as the primary key.
+city_name TEXT
+-- Name of the city.
+-- Examples: London, Paris, Tokyo
+);
+
+【Foreign keys】
+games_city.city_id=city.id
+games_city.games_id=games.id
+```
+
+**Question**
+From 1900 to 1992, how many games did London host?
+
+**Evidence**
+From 1900 to 1992 refers to games_year BETWEEN 1900 AND 1992, London refers to city_name = 'London', games refer to games_name
+
+**Answer**
+SELECT COUNT(T3.id) FROM games_city AS T1 INNER JOIN city AS T2 ON T1.city_id = T2.id INNER JOIN games AS T3 ON T1.games_id = T3.id WHERE T2.city_name = 'London' AND T3.games_year BETWEEN 1900 AND 1992
+
+### Example 3
+
+**Schema Section**
+```sql
+-- Product catalog for e-commerce platform
+CREATE TABLE products (
+product_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the product, serving as the primary key.
+product_name VARCHAR(255)
+-- Name of the product.
+category VARCHAR(100)
+-- Product category.
+-- Examples: Electronics, Clothing, Books
+price DECIMAL(10,2)
+-- Product price in dollars.
+);
+
+-- Customer order information
+CREATE TABLE orders (
+order_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the order, serving as the primary key.
+customer_id INTEGER
+-- Reference to the customer who placed the order.
+product_id INTEGER
+-- Reference to the ordered product.
+quantity INTEGER
+-- Number of items ordered.
+order_date DATE
+-- Date when the order was placed.
+);
+
+-- Customer information
+CREATE TABLE customers (
+customer_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the customer, serving as the primary key.
+customer_name VARCHAR(255)
+-- Full name of the customer.
+email VARCHAR(255)
+-- Customer's email address.
+registration_date DATE
+-- Date when the customer registered.
+);
+
+【Foreign keys】
+orders.customer_id=customers.customer_id
+orders.product_id=products.product_id
+```
+
+**Question**
+What are the top 5 products by total revenue in the Electronics category?
+
+**Evidence**
+revenue refers to SUM(price * quantity); Electronics category refers to category = 'Electronics'
+
+**Answer**
+SELECT T1.product_name, SUM(T1.price * T2.quantity) AS total_revenue FROM products AS T1 INNER JOIN orders AS T2 ON T1.product_id = T2.product_id WHERE T1.category = 'Electronics' GROUP BY T1.product_id, T1.product_name ORDER BY total_revenue DESC NULLS FIRST LIMIT 5
+
+### Example 4
+
+**Schema Section**
+```sql
+-- Employee information
+CREATE TABLE employees (
+employee_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the employee, serving as the primary key.
+first_name VARCHAR(100)
+-- Employee's first name.
+last_name VARCHAR(100)
+-- Employee's last name.
+department_id INTEGER
+-- Reference to the employee's department.
+hire_date DATE
+-- Date when the employee was hired.
+);
+
+-- Department information
+CREATE TABLE departments (
+department_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the department, serving as the primary key.
+department_name VARCHAR(100)
+-- Name of the department.
+-- Examples: Sales, Engineering, HR, Marketing
+manager_id INTEGER
+-- Reference to the department manager's employee ID.
+);
+
+-- Salary information for employees
+CREATE TABLE salaries (
+salary_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the salary record, serving as the primary key.
+employee_id INTEGER
+-- Reference to the employee.
+salary_amount DECIMAL(10,2)
+-- Annual salary amount in dollars.
+effective_date DATE
+-- Date when this salary became effective.
+);
+
+【Foreign keys】
+employees.department_id=departments.department_id
+departments.manager_id=employees.employee_id
+salaries.employee_id=employees.employee_id
+```
+
+**Question**
+What is the average salary by department for employees hired after 2020?
+
+**Evidence**
+hired after 2020 refers to hire_date > '2020-12-31'; average salary refers to AVG(salary_amount)
+
+**Answer**
+SELECT T2.department_name, AVG(T3.salary_amount) AS avg_salary FROM employees AS T1 INNER JOIN departments AS T2 ON T1.department_id = T2.department_id INNER JOIN salaries AS T3 ON T1.employee_id = T3.employee_id WHERE T1.hire_date > '2020-12-31' GROUP BY T2.department_id, T2.department_name ORDER BY avg_salary DESC NULLS FIRST
+
+### Example 5
+
+**Schema Section**
+```sql
+-- Student information
+CREATE TABLE students (
+student_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the student, serving as the primary key.
+student_name VARCHAR(255)
+-- Full name of the student.
+enrollment_date DATE
+-- Date when the student enrolled.
+major VARCHAR(100)
+-- Student's major field of study.
+-- Examples: Computer Science, Mathematics, Physics
+);
+
+-- Course catalog
+CREATE TABLE courses (
+course_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the course, serving as the primary key.
+course_name VARCHAR(255)
+-- Name of the course.
+credits INTEGER
+-- Number of credit hours for the course.
+department VARCHAR(100)
+-- Department offering the course.
+);
+
+-- Student enrollment in courses
+CREATE TABLE enrollments (
+enrollment_id INTEGER -- PRIMARY KEY
+-- Unique identifier for the enrollment record, serving as the primary key.
+student_id INTEGER
+-- Reference to the enrolled student.
+course_id INTEGER
+-- Reference to the course.
+semester VARCHAR(20)
+-- Semester of enrollment.
+-- Examples: Fall 2023, Spring 2024
+grade VARCHAR(2)
+-- Final grade received.
+-- Examples: A, B, C, D, F
+);
+
+【Foreign keys】
+enrollments.student_id=students.student_id
+enrollments.course_id=courses.course_id
+```
+
+**Question**
+Which students are enrolled in more than 5 courses in the current semester?
+
+**Evidence**
+current semester refers to semester = 'Fall 2024'; more than 5 courses refers to COUNT(course_id) > 5
+
+**Answer**
+SELECT T1.student_name, COUNT(T2.course_id) AS course_count FROM students AS T1 INNER JOIN enrollments AS T2 ON T1.student_id = T2.student_id WHERE T2.semester = 'Fall 2024' GROUP BY T1.student_id, T1.student_name HAVING COUNT(T2.course_id) > 5 ORDER BY course_count DESC NULLS FIRST

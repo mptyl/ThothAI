@@ -1,0 +1,44 @@
+id,basic_model,specific_model,name,url,temperature_allowed,temperature,top_p,max_tokens,timeout,context_size
+13,1004,claude-3-7-sonnet-20250219,Claude Sonnet 3.7,,True,0.80,0.90,1280,45.0,32768
+6,1003,codestral-latest,Codestral,,True,0.80,0.90,1280,45.0,32768
+2,1005,deepseek-chat,Deepseek-v3,,True,0.80,0.90,1280,45.0,32768
+14,1008,gemini-2.5-pro,Gemini 2.5 pro,,True,0.80,0.90,1280,45.0,32768
+36,1009,mlx-community/Qwen2.5-7B-Instruct-4bit,LM.Studio - Qwen2.5,,True,0.80,0.90,1280,45.0,32768
+32,1009,LMStudio - xiyansql-qwencoder-7b-2504,LMStudio - Yiyan Sql Coder,http://localhost:1234,True,0.80,0.90,1280,45.0,32768
+1,1003,mistral-large-latest,Mistral Large,,True,0.80,0.90,1280,45.0,32768
+5,1003,mistral-small-latest,Mistral Small,,True,0.80,0.90,1280,45.0,32768
+25,1007,deepseek/deepseek-chat-v3-0324:free,ORFree - Deepseek V3 0324,,True,0.80,0.90,1280,45.0,32768
+43,1007,google/gemma-3-27b-it:free,ORFree - Gemma 3,,True,0.80,0.90,1280,45.0,32768
+45,1007,moonshotai/kimi-dev-72b:free,ORFree - Kimi Dev 72b,,True,0.80,0.90,1280,45.0,32768
+41,1007,moonshotai/kimi-k2:free,ORFree - Kimi K2,,True,0.80,0.90,1280,45.0,32768
+44,1007,mistralai/mistral-small-3.2-24b-instruct:free,ORFree - Mistral Small 3.2,,True,0.80,0.90,1280,45.0,32768
+46,1007,qwen/qwen-2.5-coder-32b-instruct:free,ORFree - Qwen 2.5 Coder,,True,0.80,0.90,1280,45.0,32768
+42,1007,qwen/qwen3-32b:free,ORFree - Qwen3 32b,,True,0.80,0.90,1280,45.0,32768
+33,1007,agentica-org/deepcoder-14b-preview,OpenRouter - Agentica Deepcoder,,True,0.80,0.90,1280,45.0,32768
+29,1007,anthropic/claude-3.7-sonnet,OpenRouter - Claude Sonnet 3.7,,True,0.80,0.90,1280,45.0,32768
+30,1007,anthropic/claude-sonnet-4,OpenRouter - Claude Sonnet 4,,True,0.80,0.90,1280,45.0,32768
+12,1007,deepseek/deepseek-r1-0528,OpenRouter - Deepseek R1 0528,,True,0.80,0.90,1280,45.0,32768
+9,1007,deepseek/deepseek-chat,OpenRouter - Deepseek V3,,True,0.80,0.90,1280,45.0,32768
+38,1007,deepseek/deepseek-chat-v3-0324:free,OpenRouter - Deepseek v3 free,,True,0.80,0.90,1280,45.0,32768
+47,1007,mistralai/devstral-medium,OpenRouter - Devstral Medium,,True,0.80,0.90,1280,45.0,32768
+22,1007,google/gemini-2.5-flash,OpenRouter - Gemini 2.5 Flash,,True,0.80,0.90,1280,45.0,32768
+37,1007,google/gemini-2.5-flash-lite-preview-06-17,OpenRouter - Gemini 2.5 Flash Lite,,True,0.80,0.90,1280,45.0,32768
+17,1007,google/gemini-2.5-pro,OpenRouter - Gemini 2.5 Pro,,True,0.00,0.90,1280,45.0,32768
+48,1007,moonshotai/kimi-k2,OpenRouter - Kimi K2,,True,0.80,0.90,1280,45.0,32768
+10,1007,mistralai/codestral-2501,OpenRouter - Mistral Codestral,,True,0.80,0.90,1280,45.0,32768
+31,1007,mistralai/devstral-small,OpenRouter - Mistral Devstral,,True,0.80,0.90,1280,45.0,32768
+24,1007,mistralai/mistral-large-2411,OpenRouter - Mistral Large,,True,0.80,0.90,1280,45.0,32768
+28,1007,mistralai/mistral-medium-3,OpenRouter - Mistral Mediun,,True,0.80,0.90,1280,45.0,32768
+23,1007,mistralai/mistral-small-3.1-24b-instruct:free,OpenRouter - Mistral Small 3.1,,True,0.80,0.90,1280,45.0,32768
+27,1007,openai/o4-mini-high,OpenRouter - OpenAI 04-mini-high,,True,0.80,0.90,1280,45.0,32768
+19,1007,openai/gpt-4.1,OpenRouter - OpenAI GPT 4.1,,True,0.80,0.90,1280,45.0,32768
+26,1007,openai/gpt-4.1-mini,OpenRouter - OpenAI GPT-4.1 Mini,,True,0.80,0.90,1280,45.0,32768
+18,1007,qwen/qwen3-235b-a22b,OpenRouter - Qwen3,,True,0.80,0.90,1280,45.0,32768
+15,2,o3-mini,o3-mini,,False,0.80,0.90,1280,45.0,32768
+35,3,mlx-community/Qwen2.5-7B-Instruct-4bit,ollama - Mistral Qwen,,True,0.80,0.90,1280,45.0,32768
+40,3,qwen2.5:14b,ollama - Qwen2.5:14b,,True,0.80,0.90,1280,45.0,32768
+7,3,codestral-latest,ollama - codestral,,True,0.80,0.90,1280,45.0,32768
+3,3,deepseek-r1:14b,ollama - deepseek,,True,0.80,0.90,1280,45.0,32768
+8,3,qwen2.5:14b,ollama - qwen 2.5,,True,0.80,0.90,1280,45.0,32768
+39,3,mistral-nemo:latest,ollama Mistral Nemo,,True,0.80,0.90,1280,45.0,32768
+34,3,llama3.2:latest,ollama llama 3.2:3b,,True,0.80,0.90,1280,45.0,32768

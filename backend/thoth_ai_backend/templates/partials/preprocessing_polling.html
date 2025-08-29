@@ -1,0 +1,25 @@
+{% comment %}
+This template is used to poll the status of the preprocessing task.
+It triggers an HTMX GET request every 5 seconds to check the status.
+
+Context variables:
+- workspace: The workspace object.
+- hx_indicator_id: The ID for the spinner element.
+- spinner_text: The text to display next to the spinner.
+{% endcomment %}
+
+<div id="preprocessing-container"
+     hx-get="{% url 'thoth_ai_backend:check_preprocessing_status' workspace.id %}"
+     hx-trigger="every 5s"
+     hx-swap="outerHTML">
+
+    <div class="alert alert-info d-flex align-items-center" role="alert">
+        <div id="{{ hx_indicator_id }}" style="margin-right: 10px;">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+        <span>{{ spinner_text }}</span>
+    </div>
+    <div class="progress">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+    </div>
+</div>

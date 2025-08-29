@@ -1,0 +1,75 @@
+#!/bin/sh
+
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of Thoth and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+set -e
+
+echo "=== Starting Thoth Application ==="
+
+# Generate or load secrets if in Docker with auto-generation enabled
+if [ "$AUTO_GENERATE_SECRETS" = "true" ] && [ -f "/app/scripts/generate-secrets.sh" ]; then
+    echo "Loading/generating secrets..."
+    . /app/scripts/generate-secrets.sh
+fi
+
+# Activate virtual environment
+export PATH="/app/.venv/bin:$PATH"
+
+# Check SQLite database
+echo "Checking SQLite database..."
+python -c "
+import os
+import sqlite3
+from pathlib import Path
+
+# Get database path from environment
+db_path = os.environ.get('DB_NAME_DOCKER', '/app/data/db.sqlite3')
+db_dir = os.path.dirname(db_path)
+
+# Create directory if it doesn't exist
+Path(db_dir).mkdir(parents=True, exist_ok=True)
+
+# Create database file if it doesn't exist
+if not os.path.exists(db_path):
+    print(f'Creating new SQLite database at {db_path}')
+    conn = sqlite3.connect(db_path)
+    conn.close()
+else:
+    print(f'SQLite database found at {db_path}')
+
+# Verify we can connect
+try:
+    conn = sqlite3.connect(db_path)
+    conn.execute('SELECT 1')
+    conn.close()
+    print('Database is ready!')
+except Exception as e:
+    print(f'Database error: {e}')
+    exit(1)
+"
+
+echo "Running makemigrations..."
+python manage.py makemigrations
+
+echo "Running migrate..."
+python manage.py migrate
+
+# Create cache table if it doesn't exist
+echo "Creating cache table..."
+python manage.py createcachetable || echo "Cache table already exists"
+
+# Check migration status for debugging
+echo "Checking migration status..."
+python manage.py showmigrations thoth_core
+
+echo "Running collectstatic..."
+python manage.py collectstatic --noinput
+echo "Collectstatic finished."
+
+echo "Startup script completed successfully."
+
+# Start Django server
+echo "Starting Django server..."
+exec python manage.py runserver 0.0.0.0:8000

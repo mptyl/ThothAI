@@ -1,0 +1,107 @@
+id,name,db_host,db_type,db_name,db_port,schema,user_name,password,db_mode,vector_db,language,scope,scope_json,directives,erd
+13,polluce,polluce-dev.uni.com,SQLServer,UNI,1433,crm,usr_pank,Q3AY2g0=_yV|0=nK!o,dev,13,English,,,,
+9,staging,thoth-db,PostgreSQL,staging,5432,uniprj_staging,thoth_user,thoth_password,dev,8,Italian,"## Overview
+Questo database staging è progettato per gestire le informazioni relative alla produzione, commercializzazione e gestione di vari tipi di prodotti editoriali e formativi, inclusi libri, CD-ROM, corsi e standard tecnici (UNI, ISO, CEN). Il sistema supporta la categorizzazione dei prodotti, la gestione dei processi di produzione e pubblicazione, la classificazione dei contenuti e la definizione delle relazioni tra diverse entità.
+
+## Main Entities
+Le entità principali del database includono 'Product' (prodotto astratto), 'ProductItem' (varianti vendibili del prodotto), 'Book', 'Cdrom', 'Course' e 'Standard' (norme tecniche). Altre entità chiave sono 'Project' (progetti di sviluppo standard), 'Process' (processi di gestione legati ai progetti e prodotti), 'TechnicalBody' (organismi tecnici), 'Teacher' (docenti per i corsi) e 'Classification' (strutture di classificazione dei contenuti).
+
+## Business Purpose
+Il database serve a supportare le operazioni di un'organizzazione che produce e distribuisce contenuti e formazioni. Abilita la gestione del ciclo di vita dei prodotti, dalla loro creazione e classificazione, alla definizione dei prezzi, alla tracciabilità dei processi di sviluppo (specialmente per gli standard), fino alla loro commercializzazione. Permette inoltre la gestione delle relazioni tra prodotti, progetti e organismi tecnici, nonché la tracciabilità delle fasi di lavoro e delle proprietà associate.
+
+## Key Relationships
+Il database stabilisce relazioni complesse tra le sue entità. Ad esempio, un 'ProductItem' è una variante vendibile di un 'Product'. 'Project' si lega a 'Standard' e 'TechnicalBody', mentre 'Process' traccia l'avanzamento dei 'Project' attraverso varie 'Stage'. I 'Component' sono associati ai 'Product' e 'ProductItem'. Le classificazioni ('Classification') sono applicate a 'Product' e 'Teacher', mentre 'RelationshipType' definisce i tipi di connessioni tra 'Product', 'Project' e 'TechnicalBody'.
+
+## Data Scope
+Il database contiene metadati dettagliati su libri (autori, ISBN, pagine, ristampe), CD-ROM, e corsi (durata, sede, date). Per gli standard, include informazioni sull'origine (UNI, ISO, CEN), numeri, anni, lingue disponibili, date di pubblicazione e ritiro, e stati di produzione. Vengono gestiti anche documenti associati agli standard, i loro titoli multilingue e le relative proprietà. Sono presenti dati sui processi (date, stato, fasi), sui tipi di classi e sui ruoli utente. Comprende inoltre informazioni sui prezzi e sui fornitori di credito.","{
+  ""overview"": ""Questo database staging è progettato per gestire le informazioni relative alla produzione, commercializzazione e gestione di vari tipi di prodotti editoriali e formativi, inclusi libri, CD-ROM, corsi e standard tecnici (UNI, ISO, CEN). Il sistema supporta la categorizzazione dei prodotti, la gestione dei processi di produzione e pubblicazione, la classificazione dei contenuti e la definizione delle relazioni tra diverse entità."",
+  ""main_entities"": ""Le entità principali del database includono 'Product' (prodotto astratto), 'ProductItem' (varianti vendibili del prodotto), 'Book', 'Cdrom', 'Course' e 'Standard' (norme tecniche). Altre entità chiave sono 'Project' (progetti di sviluppo standard), 'Process' (processi di gestione legati ai progetti e prodotti), 'TechnicalBody' (organismi tecnici), 'Teacher' (docenti per i corsi) e 'Classification' (strutture di classificazione dei contenuti)."",
+  ""business_purpose"": ""Il database serve a supportare le operazioni di un'organizzazione che produce e distribuisce contenuti e formazioni. Abilita la gestione del ciclo di vita dei prodotti, dalla loro creazione e classificazione, alla definizione dei prezzi, alla tracciabilità dei processi di sviluppo (specialmente per gli standard), fino alla loro commercializzazione. Permette inoltre la gestione delle relazioni tra prodotti, progetti e organismi tecnici, nonché la tracciabilità delle fasi di lavoro e delle proprietà associate."",
+  ""key_relationships"": ""Il database stabilisce relazioni complesse tra le sue entità. Ad esempio, un 'ProductItem' è una variante vendibile di un 'Product'. 'Project' si lega a 'Standard' e 'TechnicalBody', mentre 'Process' traccia l'avanzamento dei 'Project' attraverso varie 'Stage'. I 'Component' sono associati ai 'Product' e 'ProductItem'. Le classificazioni ('Classification') sono applicate a 'Product' e 'Teacher', mentre 'RelationshipType' definisce i tipi di connessioni tra 'Product', 'Project' e 'TechnicalBody'."",
+  ""data_scope"": ""Il database contiene metadati dettagliati su libri (autori, ISBN, pagine, ristampe), CD-ROM, e corsi (durata, sede, date). Per gli standard, include informazioni sull'origine (UNI, ISO, CEN), numeri, anni, lingue disponibili, date di pubblicazione e ritiro, e stati di produzione. Vengono gestiti anche documenti associati agli standard, i loro titoli multilingue e le relative proprietà. Sono presenti dati sui processi (date, stato, fasi), sui tipi di classi e sui ruoli utente. Comprende inoltre informazioni sui prezzi e sui fornitori di credito.""
+}",,"erDiagram
+    book ||--o{ product : has
+    cdrom ||--o{ product : has
+    classification_text ||--|| classification : describes
+    classification_type_to_classification_type ||--|| classification_type : relates_to
+    classification_type_to_classification_type }o--|| classification_type : relates_to
+    component ||--o{ product : belongs_to
+    course ||--o{ product : has
+    document_type ||--o{ standard_document : has_type
+    classification ||--o{ classification_type : has_type
+    classification ||--o{ classification : has_parent
+    phase_type ||--o{ process : has_phase
+    process ||--o{ process_type : has_type
+    process ||--o{ project : relates_to
+    process ||--o{ stage : has_current
+    process_type ||--o{ document_type : uses_workflow
+    price_group ||--o{ price_group : has_uni_code
+    product_subtype ||--o{ product : categorized_by
+    product_to_classification ||--|| classification : links_to
+    product_to_classification ||--|| classification_type : specifies_type
+    product_to_classification ||--|| product : links_to
+    classification_type ||--o{ classification : defines
+    credit_supplier ||--o{ credit : supplies
+    credit ||--|| credit_supplier : provided_by
+    credit ||--|| product_item : relates_to
+    product_item ||--o{ product : is_variant_of
+    product_item ||--o{ teacher : taught_by
+    product_item_to_component ||--|| component : links_to
+    product_item_to_component ||--|| product_item : links_to
+    product_item_to_teacher ||--|| product_item : links_to
+    product_item_to_teacher ||--|| teacher : links_to
+    product_to_product ||--|| relationship_type : has_type
+    product_to_product ||--|| product : relates_to
+    product ||--o{ product_subtype : has_subtype
+    external_reference ||--o{ project_to_external_reference : references
+    project_to_external_reference ||--|| external_reference : refers_to
+    project_to_external_reference ||--|| project : links_to
+    project ||--o{ standard : generates
+    project ||--o{ process : related_to
+    macro_stage ||--o{ stage_type : includes
+    property ||--o{ process : associated_with
+    property ||--o{ stage : associated_with
+    property ||--o{ property_help : describes
+    property_help ||--o{ property : defines
+    role ||--o{ user : has
+    standard ||--o{ standard_status : has_status
+    standard ||--o{ product : is_product
+    relationship_type ||--o{ product_to_product : defines
+    relationship_type ||--o{ project_to_technical_body : defines
+    relationship_type ||--o{ technical_body_to_technical_body : defines
+    relationship_type ||--o{ classification_to_classification : defines
+    relationship_type ||--o{ project_to_project : defines
+    relationship_type ||--o{ user_to_technical_body : defines
+    project_to_technical_body ||--|| project : links_to
+    project_to_technical_body ||--|| relationship_type : has_type
+    project_to_technical_body ||--|| technical_body : links_to
+    stage_type ||--|| macro_stage : belongs_to
+    stage_type ||--o{ stage : has_type
+    standard_document ||--o{ component : is_component
+    standard_document ||--o{ document_type : has_type
+    standard_title ||--o{ product : describes
+    subscription ||--o{ product : has
+    teacher_to_classification ||--|| classification : links_to
+    teacher_to_classification ||--|| classification_type : specifies_type
+    teacher_to_classification ||--|| teacher : links_to
+    teacher ||--o{ product_item : teaches
+    technical_body_to_technical_body ||--|| relationship_type : has_type
+    technical_body_to_technical_body ||--|| technical_body : relates_to
+    technical_body_to_technical_body ||--|| technical_body : relates_to
+    technical_body ||--o{ project_to_technical_body : associated_with
+    technical_body ||--o{ user_to_technical_body : associated_with
+    user ||--o{ user_to_technical_body : associated_with
+    classification_to_classification ||--|| classification_type : has_type
+    classification_to_classification ||--|| classification : links_to
+    classification_to_classification ||--|| classification : links_to
+    project_to_project ||--|| relationship_type : has_type
+    project_to_project ||--|| project : links_to
+    project_to_project ||--|| project : links_to
+    stage ||--|| stage_type : has_type
+    stage ||--o{ process : belongs_to
+    standard_status ||--o{ standard : defines_status
+    teacher_text ||--|| teacher : describes
+    user_to_technical_body ||--|| relationship_type : has_type
+    user_to_technical_body ||--|| technical_body : links_to
+    user_to_technical_body ||--|| user : links_to"
+7,california_schools,,SQLite,california_schools,,,,,dev,6,English,,,,
