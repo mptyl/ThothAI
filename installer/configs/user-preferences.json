@@ -1,0 +1,144 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-07-27T22:50:06.573381",
+  "installation_id": null,
+  "selected_databases": [
+    "sqlite"
+  ],
+  "selected_vectordbs": [
+    "qdrant"
+  ],
+  "installation_history": [
+    {
+      "timestamp": "2025-07-27T18:47:23.206691",
+      "databases": [
+        "sqlite",
+        "postgresql"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 51,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T20:19:24.961460",
+      "databases": [
+        "postgresql",
+        "mysql"
+      ],
+      "vectordbs": [
+        "qdrant",
+        "chroma"
+      ],
+      "packages_count": 58,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T20:31:12.571293",
+      "databases": [
+        "postgresql"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 51,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T20:35:39.807941",
+      "databases": [
+        "postgresql"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 51,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T20:41:00.226885",
+      "databases": [
+        "sqlite"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 50,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T20:44:53.457704",
+      "databases": [
+        "sqlite"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 50,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T21:05:04.312546",
+      "databases": [
+        "sqlite"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 50,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T22:42:32.383001",
+      "databases": [
+        "sqlite"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 50,
+      "python_version": "3.13.2",
+      "success": true
+    },
+    {
+      "timestamp": "2025-07-27T22:50:06.573299",
+      "databases": [
+        "sqlite"
+      ],
+      "vectordbs": [
+        "qdrant"
+      ],
+      "packages_count": 50,
+      "python_version": "3.13.2",
+      "success": true
+    }
+  ],
+  "environment": {
+    "python_version": "3.13.2",
+    "platform": "Darwin",
+    "virtual_env": true
+  },
+  "rollback_points": [],
+  "thothsl_config": {
+    "streamlit_port": 8501,
+    "django_backend_url": "http://localhost:8040",
+    "enable_local_ai": true,
+    "enable_monitoring": true,
+    "enable_development_tools": false
+  },
+  "installation_preferences": {
+    "auto_docker": true,
+    "create_venv": true,
+    "install_dev_tools": false,
+    "enable_jupyter": false,
+    "aws_support": false
+  }
+}
