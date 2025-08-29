@@ -3,10 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request): Promise<Response> {
-  const targetBaseUrl =
-    process.env.SQL_GENERATOR_URL ||
-    process.env.NEXT_PUBLIC_SQL_GENERATOR_URL ||
-    'http://localhost:8001';
+  // Use SQL_GENERATOR_URL from environment (different for Docker vs local)
+  const targetBaseUrl = process.env.SQL_GENERATOR_URL!;
 
   let payload: unknown;
   try {

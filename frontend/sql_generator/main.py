@@ -499,6 +499,8 @@ async def save_sql_feedback(request: Dict[str, Any]):
 if __name__ == "__main__":
     import uvicorn
     import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8001
+    import os
+    # Priority: command line arg > PORT env > default 8180
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.getenv('PORT', '8180'))
     uvicorn.run(app, host="0.0.0.0", port=port)
     
