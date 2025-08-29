@@ -5,31 +5,16 @@
 
 set -e
 
-# Path to the secrets volume
-SECRETS_DIR="/vol/secrets"
-API_KEY_FILE="${SECRETS_DIR}/django_api_key"
-
-# Wait for the API key file to be created (by backend)
-echo "Waiting for API key file..."
-i=1
-while [ $i -le 30 ]; do
-    if [ -f "${API_KEY_FILE}" ]; then
-        break
-    fi
-    echo "Waiting for API key file... (attempt $i/30)"
-    sleep 2
-    i=$((i + 1))
-done
-
-if [ -f "${API_KEY_FILE}" ]; then
-    echo "Loading API key from ${API_KEY_FILE}"
-    export DJANGO_API_KEY=$(cat "${API_KEY_FILE}")
+# Read Django API_KEY from shared secrets volume
+if [ -f "/secrets/django_api_key" ]; then
+    export DJANGO_API_KEY=$(cat /secrets/django_api_key)
+    echo "Django API_KEY loaded from secrets volume"
     echo "API key loaded: ${DJANGO_API_KEY:0:10}..."
     
     # Also export for Next.js runtime
     export NEXT_PUBLIC_DJANGO_API_KEY="${DJANGO_API_KEY}"
 else
-    echo "ERROR: API key file not found after 60 seconds!"
+    echo "ERROR: Django API_KEY not found at /secrets/django_api_key"
     exit 1
 fi
 
