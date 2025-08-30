@@ -1,7 +1,16 @@
 #!/usr/bin/env python3
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of Thoth and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """
 Cross-platform Docker setup script for ThothAI
@@ -89,12 +98,13 @@ def create_directories():
 
 
 def check_env_file():
-    """Check if _env file exists"""
-    if not Path("_env").exists():
-        print("\n[WARNING] _env file not found!")
-        print("Please copy _env.template to _env and configure your API keys")
+    """Check if root .env.docker file exists"""
+    root_env = Path("../.env.docker")
+    if not root_env.exists():
+        print("\n[WARNING] .env.docker file not found in root directory!")
+        print("Please create .env.docker from .env.template and configure your API keys")
         return False
-    print("Environment file _env found")
+    print("Environment file .env.docker found in root directory")
     return True
 
 

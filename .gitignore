@@ -10,6 +10,9 @@
 !.env.template
 !.env.docker
 
+# === Test Output Directory ===
+cs_test/
+
 # === Python ===
 __pycache__/
 *.py[cod]
@@ -108,6 +111,15 @@ qdrant_storage/
 postgres_data/
 .pypi-token
 
+# === Configuration Files ===
+config.yml.local
+config.yaml.local
+*.local
+pyproject.toml.local
+pyproject.toml.merged
+.env.docker
+.admin_password.hash
+
 # === Backups ===
 *.backup
 *.bak
@@ -149,15 +161,4 @@ Thumbs.db
 *.seed
 *.pid.lock
 
-# === Keep Original Directories (temporary) ===
-# Remove these when migration is complete
-# thoth_be/
-# thoth_ui/
-
-# === Legacy Directories to Exclude ===
-thoth_be/
-thoth_docs/
-thoth_docs_en/
-thoth_sqldb2/
-thoth_ui/
-thoth_vdb3/
+.mcp.json

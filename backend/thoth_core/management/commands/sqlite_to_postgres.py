@@ -1,6 +1,14 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of Thoth and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import subprocess
@@ -27,12 +35,12 @@ class Command(BaseCommand):
         parser.add_argument(
             '--create-db',
             action='store_true',
-            help='Crea il database di destinazione se non esiste'
+            help='Create the destination database if it does not exist'
         )
         parser.add_argument(
             '--drop-tables',
             action='store_true',
-            help='Elimina le tabelle esistenti prima dell\'importazione (richiede --create-db)'
+            help='Drop existing tables before import (requires --create-db)'
         )
         parser.add_argument(
             '--dry-run',
@@ -64,7 +72,7 @@ class Command(BaseCommand):
             # Step 2: Ottieni le credenziali PostgreSQL
             pg_config = self._get_postgres_config()
             
-            # Step 3: Crea il database se richiesto
+            # Step 3: Create the database if requested
             if create_db:
                 self._create_postgres_database(target_db, pg_config, drop_tables)
             
@@ -90,7 +98,7 @@ class Command(BaseCommand):
         data_dir = '/app/data'
         sqlite_path = os.path.join(data_dir, sqlite_filename)
         
-        # Controlla se il file esiste
+        # Check if the file exists
         if not os.path.exists(sqlite_path):
             raise CommandError(
                 f"File SQLite non trovato: {sqlite_path}\n"
@@ -131,7 +139,7 @@ class Command(BaseCommand):
         }
 
     def _create_postgres_database(self, target_db, pg_config, drop_tables):
-        """Crea il database PostgreSQL se non esiste"""
+        """Create the PostgreSQL database if it does not exist"""
         self.stdout.write(f"Verificando/creando database '{target_db}'...")
         
         # Comando per creare il database
@@ -144,7 +152,7 @@ class Command(BaseCommand):
         ]
         
         try:
-            # Controlla se il database esiste
+            # Check if the database exists
             result = subprocess.run(
                 create_db_cmd,
                 capture_output=True,

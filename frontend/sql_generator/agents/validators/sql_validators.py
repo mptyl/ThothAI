@@ -1,6 +1,14 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of ThothAI and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """
 Validators for SQL generation agents.
@@ -406,14 +414,10 @@ class SqlValidators:
             sanitized_sql = re.sub(r'`([^`]+)`', r'"\1"', sanitized_sql)
             sanitized_sql = re.sub(r'\[([^\]]+)\]', r'"\1"', sanitized_sql)
         
-        # Step 2: Handle LIMIT/OFFSET syntax differences
         if db_type_lower in ['mssql', 'sqlserver']:
-            # SQL Server uses TOP instead of LIMIT
-            # Convert LIMIT to TOP (simplified - may need more sophisticated handling)
             limit_match = re.search(r'\bLIMIT\s+(\d+)\b', sanitized_sql, re.IGNORECASE)
             if limit_match:
                 limit_value = limit_match.group(1)
-                # Remove LIMIT clause
                 sanitized_sql = re.sub(r'\bLIMIT\s+\d+\b', '', sanitized_sql, flags=re.IGNORECASE)
                 # Add TOP after SELECT
                 sanitized_sql = re.sub(r'\bSELECT\b', f'SELECT TOP {limit_value}', sanitized_sql, flags=re.IGNORECASE)
@@ -438,7 +442,6 @@ class SqlValidators:
             limit_match = re.search(r'\bLIMIT\s+(\d+)\b', sanitized_sql, re.IGNORECASE)
             if limit_match:
                 limit_value = limit_match.group(1)
-                # Remove LIMIT clause
                 sanitized_sql = re.sub(r'\bLIMIT\s+\d+\b', '', sanitized_sql, flags=re.IGNORECASE)
                 # Add FETCH FIRST n ROWS ONLY (Oracle 12c+)
                 sanitized_sql = sanitized_sql.rstrip().rstrip(';') + f' FETCH FIRST {limit_value} ROWS ONLY'

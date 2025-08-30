@@ -1,6 +1,14 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of ThothAI and is released under the Apache License 2.0.
-# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import json
 import logging
@@ -177,7 +185,6 @@ class PaginatedQueryService:
             return sql
         
         # Check if SQL already has an ORDER BY clause
-        # Match ORDER BY and everything until LIMIT or end of string
         # This regex captures the ORDER BY content more accurately
         order_by_match = re.search(r'\s+ORDER\s+BY\s+(.+?)(?=\s+LIMIT|\s*$)', sql, flags=re.IGNORECASE | re.DOTALL)
         
@@ -189,7 +196,6 @@ class PaginatedQueryService:
             # For now, we'll replace the entire ORDER BY with AG-Grid's sorting
             # This is because AG-Grid manages the complete sort state
             
-                # Remove the existing ORDER BY clause and everything until LIMIT or end
             sql_without_order = re.sub(r'\s+ORDER\s+BY\s+.+?(?=\s+LIMIT|\s*$)', '', sql, flags=re.IGNORECASE | re.DOTALL)
             
             # Build new ORDER BY based on sort_model from AG-Grid
@@ -209,14 +215,10 @@ class PaginatedQueryService:
                     order_by_parts.append(f"{col_id_safe} {sort_direction} {nulls_clause}")
             
             if order_by_parts:
-                # Add the new ORDER BY clause BEFORE any LIMIT clause
-                # Check if there's a LIMIT clause
                 if ' LIMIT ' in sql_without_order.upper():
-                    # Insert ORDER BY before LIMIT
                     parts = re.split(r'(\s+LIMIT\s+)', sql_without_order, flags=re.IGNORECASE)
                     sql = parts[0] + f" ORDER BY {', '.join(order_by_parts)}" + ''.join(parts[1:])
                 else:
-                    # No LIMIT, check for semicolon at the end
                     sql_without_order = sql_without_order.strip()
                     if sql_without_order.endswith(';'):
                         # Insert ORDER BY before the semicolon
@@ -243,13 +245,10 @@ class PaginatedQueryService:
                     order_by_parts.append(f"{col_id_safe} {sort_direction} {nulls_clause}")
             
             if order_by_parts:
-                # Add ORDER BY before any LIMIT clause
                 if ' LIMIT ' in sql.upper():
-                    # Insert ORDER BY before LIMIT
                     parts = re.split(r'(\s+LIMIT\s+)', sql, flags=re.IGNORECASE)
                     sql = parts[0] + f" ORDER BY {', '.join(order_by_parts)}" + ''.join(parts[1:])
                 else:
-                    # No LIMIT, check for semicolon at the end
                     sql = sql.strip()
                     if sql.endswith(';'):
                         # Insert ORDER BY before the semicolon
@@ -301,13 +300,11 @@ class PaginatedQueryService:
                 # Add conditions to existing WHERE clause
                 sql = sql.replace('WHERE', f"WHERE ({' AND '.join(filter_conditions)}) AND ", 1)
             else:
-                # Add WHERE clause before ORDER BY or LIMIT
                 if 'ORDER BY' in sql.upper():
                     sql = re.sub(r'(\s+ORDER\s+BY)', f" WHERE {' AND '.join(filter_conditions)}\\1", sql, flags=re.IGNORECASE)
                 elif 'LIMIT' in sql.upper():
                     sql = re.sub(r'(\s+LIMIT)', f" WHERE {' AND '.join(filter_conditions)}\\1", sql, flags=re.IGNORECASE)
                 else:
-                    # No ORDER BY or LIMIT, check for semicolon at the end
                     sql = sql.strip()
                     if sql.endswith(';'):
                         # Insert WHERE before the semicolon
@@ -336,31 +333,24 @@ class PaginatedQueryService:
             """Helper function to insert LIMIT/OFFSET before the final semicolon if present"""
             sql_query = sql_query.strip()
             if sql_query.endswith(';'):
-                # Insert LIMIT/OFFSET before the semicolon
                 return sql_query[:-1] + f" {limit_clause};"
             else:
                 # No semicolon, just append
                 return f"{sql_query} {limit_clause}"
         
         if original_limit is not None:
-            # We have an original LIMIT - must respect it
             if offset >= original_limit:
-                # Offset exceeds original limit - no results
                 # Return a query that will return no results
                 sql_without_limit = re.sub(r'\s+LIMIT\s+\d+(\s+OFFSET\s+\d+)?', '', sql, flags=re.IGNORECASE)
                 paginated_sql = _insert_pagination_clause(sql_without_limit, "LIMIT 0")
                 return paginated_sql, 0
             
-            # Calculate effective limit within bounds
             effective_limit = min(page_size, original_limit - offset)
             
-            # Replace existing LIMIT with new LIMIT/OFFSET
             sql_without_limit = re.sub(r'\s+LIMIT\s+\d+(\s+OFFSET\s+\d+)?', '', sql, flags=re.IGNORECASE)
             paginated_sql = _insert_pagination_clause(sql_without_limit, f"LIMIT {effective_limit} OFFSET {offset}")
             return paginated_sql, effective_limit
         else:
-            # No original LIMIT - standard pagination
-            # Remove any existing LIMIT/OFFSET (shouldn't be any)
             sql = re.sub(r'\s+LIMIT\s+\d+(\s+OFFSET\s+\d+)?', '', sql, flags=re.IGNORECASE)
             paginated_sql = _insert_pagination_clause(sql, f"LIMIT {page_size} OFFSET {offset}")
             return paginated_sql, page_size
@@ -375,10 +365,8 @@ class PaginatedQueryService:
                 logger.debug(f"Using cached count for query: {entry.result} rows")
                 return entry.result
         
-        # If there's an original LIMIT <= 1000, execute the query and count results
         if original_limit is not None and original_limit <= 1000:
             try:
-                # Execute the original query with its LIMIT
                 result = self.dbmanager.execute_sql(
                     sql=sql,
                     params={},
@@ -396,8 +384,6 @@ class PaginatedQueryService:
                 log_error(f"Error getting count for limited query: {e}")
                 return 0
         
-        # For queries without LIMIT or with LIMIT > 1000, use COUNT(*)
-        # Remove any existing LIMIT/OFFSET from the SQL before counting
         sql_for_count = re.sub(r'\s+LIMIT\s+\d+(\s+OFFSET\s+\d+)?', '', sql, flags=re.IGNORECASE)
         
         # Create count query
@@ -428,7 +414,6 @@ class PaginatedQueryService:
                 # Ensure it's an integer
                 total = int(total) if total is not None else 0
                 
-                # If there's an original limit > 1000, cap the total at that limit
                 if original_limit is not None and original_limit > 1000:
                     total = min(total, original_limit)
                 
@@ -458,7 +443,6 @@ class PaginatedQueryService:
             PaginationResponse with paginated results
         """
         try:
-            # Extract original LIMIT from SQL if present
             original_limit = self._extract_limit_from_sql(request.sql)
             logger.debug(f"Detected original LIMIT: {original_limit}")
             
@@ -468,15 +452,12 @@ class PaginatedQueryService:
             # Apply sorting
             sorted_sql = self._apply_sorting(filtered_sql, request.sort_model)
             
-            # Decide pagination strategy based on original LIMIT
             if original_limit is not None and original_limit <= 1000:
                 logger.debug(f"Using in-memory pagination for LIMIT {original_limit}")
-                # Use in-memory pagination for small limits
                 return self._execute_with_memory_pagination(
                     sorted_sql, request, original_limit
                 )
             else:
-                # Use SQL-based pagination for large limits or no limit
                 return self._execute_with_sql_pagination(
                     sorted_sql, request, original_limit
                 )
@@ -500,7 +481,6 @@ class PaginatedQueryService:
         Execute query with in-memory pagination for queries with LIMIT <= 1000
         """
         try:
-            # Execute the query as-is (with its original LIMIT)
             logger.debug(f"Executing query with in-memory pagination (LIMIT {original_limit})")
             
             # Check cache
@@ -597,7 +577,6 @@ class PaginatedQueryService:
         Execute query with SQL-based pagination for queries without LIMIT or with LIMIT > 1000
         """
         try:
-            # Get total count (respecting original limit if present)
             total_rows = self._get_total_count(sql, request.workspace_id, original_limit)
             
             # Apply pagination to SQL
