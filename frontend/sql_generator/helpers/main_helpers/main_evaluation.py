@@ -16,7 +16,6 @@ Autonomous evaluation system for SQL candidates.
 Runs evaluators in parallel with fixed temperature to achieve 100% evaluation reliability.
 """
 
-import asyncio
 import logging
 from typing import List, Tuple, Any
 from pydantic_ai.settings import ModelSettings

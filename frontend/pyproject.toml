@@ -134,10 +134,12 @@ dev-dependencies = [
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "DJ"]
 ignore = ["E501", "S101", "DJ01"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "*/migrations/*" = ["E501", "N806", "N999"]
 "*/tests/*" = ["S101", "S106"]
 

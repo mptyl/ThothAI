@@ -22,12 +22,11 @@ usage, performance metrics, and escalation events for analysis and debugging.
 import logging
 import json
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from datetime import datetime
 from enum import Enum
 
 from agents.core.agent_result_models import EnhancedEvaluationResult, EvaluationStatus
-from model.generator_type import GeneratorType
 
 logger = logging.getLogger(__name__)
 

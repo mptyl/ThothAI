@@ -14,13 +14,14 @@
 Utility per la gestione delle configurazioni del progetto
 """
 
+
 def get_vectordb_config(db: dict) -> dict:
     """
     Ottiene la configurazione del database vettoriale
-    
+
     Args:
         db (dict): Dizionario con le informazioni del database
-        
+
     Returns:
         dict: Configurazione del database vettoriale
     """
@@ -33,5 +34,5 @@ def get_vectordb_config(db: dict) -> dict:
         "vector_db_type": vect_type,
         "host": host,
         "port": port,
-        "collection_name": index
+        "collection_name": index,
     }

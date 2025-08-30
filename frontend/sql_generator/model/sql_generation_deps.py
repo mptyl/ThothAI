@@ -16,7 +16,6 @@ These classes are designed to be fully pickleable for parallel execution.
 """
 
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
 
 
 class SqlGenerationDeps(BaseModel):

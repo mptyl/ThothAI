@@ -22,9 +22,8 @@ from ..core.agent_result_models import SqlResponse, InvalidRequest
 from model.sql_generation_deps import SqlGenerationDeps
 # Temporarily comment out to resolve import issues
 # from model.sql_meta_info import SQLMetaInfo
-from helpers.sql_compatibility import ensure_postgres_compatibility
 from helpers.logging_config import get_logger
-from helpers.dual_logger import log_info, log_warning, log_error
+from helpers.dual_logger import log_info
 
 logger = get_logger(__name__)
 
@@ -425,7 +424,6 @@ class SqlValidators:
             # Handle OFFSET with OFFSET...ROWS FETCH NEXT...ROWS ONLY
             offset_match = re.search(r'\bOFFSET\s+(\d+)\b', sanitized_sql, re.IGNORECASE)
             if offset_match:
-                offset_value = offset_match.group(1)
                 # SQL Server requires ORDER BY with OFFSET
                 if 'ORDER BY' not in sanitized_sql.upper():
                     raise ValueError(f"SQL Server requires ORDER BY clause when using OFFSET. Please add an ORDER BY clause to your query.")

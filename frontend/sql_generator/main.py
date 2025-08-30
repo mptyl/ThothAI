@@ -19,37 +19,26 @@ This module provides the main FastAPI application for handling SQL generation re
 It exposes a single API endpoint: generate_sql that receives question and workspace.
 """
 
-import json
 import logging
 import os
 import time
-import sqlparse
 import logfire
 
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from typing import Dict, Any, Optional
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, PlainTextResponse
 from pydantic import BaseModel, Field
-from pydantic_ai.settings import ModelSettings
-from datetime import datetime
-from tzlocal import get_localzone
 
 from agents.core.agent_manager import ThothAgentManager
-from thoth_dbmanager import ThothDbFactory
-from thoth_qdrant import VectorStoreFactory
-from helpers.vectordb_config_utils import extract_vector_db_config_from_workspace, build_vector_db_params
-from helpers.main_helpers.main_methods import  _initialize_vdbmanager, _initialize_dbmanager, _get_workspace_config, _get_workspace, initialize_database_plugins, _is_positive, build_not_ready_error_details 
-from helpers.template_preparation import TemplateLoader
-from model.system_state import SystemState
+from helpers.main_helpers.main_methods import  _get_workspace, initialize_database_plugins 
 from model.sql_explanation import SqlExplanationRequest, SqlExplanationResponse
 from services.paginated_query_service import PaginatedQueryService, PaginationRequest, PaginationResponse
 from helpers.session_cache import ensure_cached_setup
-from helpers.dual_logger import log_info, log_error, log_warning, log_debug
-from helpers.db_info import get_db_schema
+from helpers.dual_logger import log_error, log_debug
 from helpers.main_helpers.main_request_initialization import _initialize_request_state
 from helpers.main_helpers.main_preprocessing_phases import (
     _validate_question_phase,
@@ -61,16 +50,9 @@ from helpers.main_helpers.main_generation_phases import (
     _evaluate_and_select_phase
 )
 from helpers.main_helpers.main_response_preparation import (
-    _prepare_final_response_phase,
-    WORKSPACE_STATES
+    _prepare_final_response_phase
 )
-from helpers.main_helpers.main_keyword_extraction import extract_keywords
-from helpers.main_helpers.main_schema_extraction_from_vectordb import extract_schema_via_vector_db, format_schema_for_display
-from helpers.main_helpers.main_generate_mschema import create_filtered_schema, to_mschema
-from helpers.thoth_log_api import send_thoth_log
 from helpers.main_helpers.main_methods import _setup_dbmanager_and_agents
-from helpers.main_helpers.main_schema_link_strategy import decide_schema_link_strategy
-from helpers.main_helpers.main_sql_generation import generate_sql_units
 
 
 

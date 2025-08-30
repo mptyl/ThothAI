@@ -58,7 +58,8 @@ def get_db_schema(db_id: str, db_schema:str) -> Dict[str, Dict[str, Any]]:
         for table in table_list:
             table_name = table["name"]
             table_description = table.get("description", "")
-            table_comment = table.get("generated_comment", "")
+            # table_comment is available in the data but not currently used
+            # table_comment = table.get("generated_comment", "")
             
             # Initialize table with separate table_description and columns
             schema[table_name] = {

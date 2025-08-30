@@ -26,7 +26,7 @@ Cases:
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Tuple
 import time
 
 from agents.core.agent_result_models import EnhancedEvaluationResult, EvaluationStatus
@@ -34,11 +34,8 @@ from agents.core.agent_initializer import AgentInitializer
 from agents.test_reducer_agent import run_test_reducer
 from agents.sql_selector_agent import run_sql_selector  
 from agents.evaluator_supervisor_agent import run_evaluator_supervisor
-from helpers.main_helpers.escalation_manager import EscalationManager, EscalationReason
-from helpers.main_helpers.evaluation_logger import create_evaluation_logger, EvaluationEventType, LogLevel
+from helpers.main_helpers.evaluation_logger import create_evaluation_logger
 from model.generator_type import GeneratorType
-from model.evaluator_deps import EvaluatorDeps
-from helpers.template_preparation import TemplateLoader
 from helpers.main_helpers.main_evaluation import evaluate_sql_candidates
 
 logger = logging.getLogger(__name__)

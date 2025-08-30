@@ -11,6 +11,7 @@
 # limitations under the License.
 
 from django.utils.deprecation import MiddlewareMixin
+
 # Assuming your Workspace model is in thoth_core.models
 # Adjust the import if your Workspace model is located elsewhere
 try:
@@ -21,8 +22,10 @@ except ImportError:
     # if not found, prompting for the correct location.
     Workspace = None
 
-import logging # Added import
-logger = logging.getLogger(__name__) # Added logger instance
+import logging  # Added import
+
+logger = logging.getLogger(__name__)  # Added logger instance
+
 
 class WorkspaceMiddleware(MiddlewareMixin):
     def process_request(self, request):
@@ -33,43 +36,57 @@ class WorkspaceMiddleware(MiddlewareMixin):
         If not in session, it tries the user's model default.
         """
         request.current_workspace = None
-        if request.user.is_authenticated and Workspace: # Ensure Workspace model is loaded
-            selected_workspace_id = request.session.get('selected_workspace_id')
-            
+        if (
+            request.user.is_authenticated and Workspace
+        ):  # Ensure Workspace model is loaded
+            selected_workspace_id = request.session.get("selected_workspace_id")
+
             if selected_workspace_id:
                 try:
                     # Ensure the workspace from session belongs to the user
-                    workspace_from_session = Workspace.objects.get(id=selected_workspace_id, users=request.user)
+                    workspace_from_session = Workspace.objects.get(
+                        id=selected_workspace_id, users=request.user
+                    )
                     request.current_workspace = workspace_from_session
                 except Workspace.DoesNotExist:
-                    logger.warning(f"User {request.user.username} - Invalid workspace_id {selected_workspace_id} in session or user lacks access. Clearing from session.")
-                    request.session.pop('selected_workspace_id', None)
+                    logger.warning(
+                        f"User {request.user.username} - Invalid workspace_id {selected_workspace_id} in session or user lacks access. Clearing from session."
+                    )
+                    request.session.pop("selected_workspace_id", None)
                     # Fall through to set model default if any
-            
+
             # If no valid workspace from session, try to set user's model default
             if not request.current_workspace:
                 # default_workspaces is the related_name from User to Workspace's default_workspace field
                 default_ws_from_model = request.user.default_workspaces.first()
                 if default_ws_from_model:
                     # Verify this model default is also in the user's general accessible workspaces
-                    if request.user.workspaces.filter(pk=default_ws_from_model.pk).exists():
+                    if request.user.workspaces.filter(
+                        pk=default_ws_from_model.pk
+                    ).exists():
                         request.current_workspace = default_ws_from_model
                         # Optionally, you might want to set this in the session if you want it to "stick"
                         # request.session['selected_workspace_id'] = default_ws_from_model.id
                     else:
-                        logger.warning(f"User {request.user.username}'s model default workspace (ID: {default_ws_from_model.pk}, Name: {default_ws_from_model.name}) is not in their accessible workspaces (user.workspaces).")
+                        logger.warning(
+                            f"User {request.user.username}'s model default workspace (ID: {default_ws_from_model.pk}, Name: {default_ws_from_model.name}) is not in their accessible workspaces (user.workspaces)."
+                        )
                 # else:
-                    # Optional: If still no current_workspace (no session, no model default),
-                    # you could pick the first available workspace for the user.
-                    # first_available = request.user.workspaces.order_by('name').first()
-                    # if first_available:
-                    #     request.current_workspace = first_available
-                    #     logger.debug(f"User {request.user.username} - Workspace from first available: {first_available.name}")
-                        # request.session['selected_workspace_id'] = first_available.id
-            
-            if request.current_workspace:
-                logger.info(f"User {request.user.username} - Current workspace set to: {request.current_workspace.name} (ID: {request.current_workspace.pk})")
-            else:
-                logger.info(f"User {request.user.username} - No current workspace could be determined.")
+                # Optional: If still no current_workspace (no session, no model default),
+                # you could pick the first available workspace for the user.
+                # first_available = request.user.workspaces.order_by('name').first()
+                # if first_available:
+                #     request.current_workspace = first_available
+                #     logger.debug(f"User {request.user.username} - Workspace from first available: {first_available.name}")
+                # request.session['selected_workspace_id'] = first_available.id
 
-        return None # Continue processing the request
+            if request.current_workspace:
+                logger.info(
+                    f"User {request.user.username} - Current workspace set to: {request.current_workspace.name} (ID: {request.current_workspace.pk})"
+                )
+            else:
+                logger.info(
+                    f"User {request.user.username} - No current workspace could be determined."
+                )
+
+        return None  # Continue processing the request

@@ -20,7 +20,6 @@ avoiding the relative import issues.
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add current directory to Python path so all imports work as absolute imports

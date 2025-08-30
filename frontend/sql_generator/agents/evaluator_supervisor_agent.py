@@ -25,7 +25,7 @@ from typing import Dict, Any, Optional, List
 from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings
 
-from agents.core.agent_result_models import EvaluatorSupervisorResult, EvaluationStatus
+from agents.core.agent_result_models import EvaluatorSupervisorResult
 from model.evaluator_deps import EvaluatorDeps
 from helpers.template_preparation import TemplateLoader, clean_template_for_llm
 

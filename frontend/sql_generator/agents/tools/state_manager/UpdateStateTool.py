@@ -18,7 +18,6 @@ This tool allows agents to modify state fields like question, original_question,
 """
 
 import logging
-from typing import Any
 from pydantic_ai.tools import RunContext
 from model.system_state import SystemState
 

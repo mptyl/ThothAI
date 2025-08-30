@@ -123,7 +123,7 @@ async def _extract_keywords_phase(
     has_kw_agent = bool(getattr(state.agents_and_tools, 'keyword_extraction_agent', None))
     if has_kw_agent:
         state.keywords = await extract_keywords(state, state.question, state.agents_and_tools.keyword_extraction_agent)
-        readable = ", ".join(state.keywords) if state.keywords else "(none)"
+        # Keywords are now stored in state.keywords
     else:
         # Critical: keyword extraction is required for the process
         error_details = {

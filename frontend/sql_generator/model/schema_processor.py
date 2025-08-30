@@ -21,7 +21,7 @@ schema processing logic into a dedicated, focused class.
 
 import logging
 from typing import Dict, Any, List, Tuple
-from helpers.dual_logger import log_error, log_info
+from helpers.dual_logger import log_error
 from .exceptions import SchemaProcessingError, VectorDatabaseError
 
 

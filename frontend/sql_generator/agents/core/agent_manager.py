@@ -22,7 +22,6 @@ from .base_agent_manager import BaseAgentManager
 from .agent_initializer import AgentInitializer
 from ..validators.sql_validators import SqlValidators
 from ..validators.test_validators import TestValidators
-from ..validators.explanation_validators import ExplanationValidators
 from .agent_pools import AgentPools
 
 logger = get_logger(__name__)
@@ -121,7 +120,6 @@ class ThothAgentManager(BaseAgentManager):
         # Use the same configuration as the question validator agent
         translator_config = self.workspace.get("question_validator")
         default_model_config = self.workspace.get("default_model")
-        use_default = translator_config is None
         # No fallback to default_agent - use question_validator config for translation
         
         # Create the question translator agent with standard configuration
@@ -481,10 +479,10 @@ class ThothAgentManager(BaseAgentManager):
     
     def _configure_test_validators(self):
         """Configure validators for test generation and execution agents."""
-        test_gen_validator = self.test_validators.create_test_gen_validator()
-        test_exec_validator = self.test_validators.create_test_exec_validator()
-        
         # Validators disabled for test generation agents - we handle output directly
+        # Previously created but unused - removed:
+        # test_gen_validator = self.test_validators.create_test_gen_validator()
+        # test_exec_validator = self.test_validators.create_test_exec_validator()
         # if self.test_gen_agent_1:
         #     self.test_gen_agent_1.output_validator(test_gen_validator)
         # if self.test_gen_agent_2:

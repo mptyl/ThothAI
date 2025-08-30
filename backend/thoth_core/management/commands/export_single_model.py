@@ -15,31 +15,32 @@ from django.apps import apps
 import csv
 import os
 
+
 class Command(BaseCommand):
-    help = 'Export a single model data to a CSV file in IO_DIR'
+    help = "Export a single model data to a CSV file in IO_DIR"
 
     def add_arguments(self, parser):
-        parser.add_argument('model_name', type=str, help='Name of the model to export')
+        parser.add_argument("model_name", type=str, help="Name of the model to export")
 
     def handle(self, *args, **options):
-        io_dir = os.getenv('IO_DIR', 'exports')
-        model_name = options['model_name']
+        io_dir = os.getenv("IO_DIR", "exports")
+        model_name = options["model_name"]
 
         if not io_dir:
-            self.stdout.write(self.style.ERROR('IO_DIR not set in .env file'))
+            self.stdout.write(self.style.ERROR("IO_DIR not set in .env file"))
             return
 
         os.makedirs(io_dir, exist_ok=True)
 
         try:
-            Model = apps.get_model('toth_be', model_name)
+            Model = apps.get_model("toth_be", model_name)
         except LookupError:
-            self.stdout.write(self.style.ERROR(f'Model {model_name} not found'))
+            self.stdout.write(self.style.ERROR(f"Model {model_name} not found"))
             return
 
         file_path = os.path.join(io_dir, f"{model_name.lower()}.csv")
 
-        with open(file_path, 'w', newline='') as csvfile:
+        with open(file_path, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             fields = [f.original_column_name for f in Model._meta.fields]
             m2m_fields = [f.original_column_name for f in Model._meta.many_to_many]
@@ -49,15 +50,15 @@ class Command(BaseCommand):
                 row = []
                 for field in fields:
                     value = getattr(obj, field)
-                    if field.endswith('_id'):
+                    if field.endswith("_id"):
                         row.append(value)
-                    elif hasattr(value, 'pk'):
+                    elif hasattr(value, "pk"):
                         row.append(value.pk)
                     else:
                         row.append(value)
                 for m2m_field in m2m_fields:
                     related_objects = getattr(obj, m2m_field).all()
-                    row.append(','.join(str(related.pk) for related in related_objects))
+                    row.append(",".join(str(related.pk) for related in related_objects))
                 writer.writerow(row)
 
-        self.stdout.write(self.style.SUCCESS(f'Exported {model_name} to {file_path}'))
+        self.stdout.write(self.style.SUCCESS(f"Exported {model_name} to {file_path}"))

@@ -9,7 +9,7 @@ Provides a single, clean interface for loading and formatting all templates.
 
 import os
 import itertools
-from typing import Dict, Optional
+from typing import Dict
 
 from .agents_utils import get_project_root
 

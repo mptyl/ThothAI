@@ -10,7 +10,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import AsyncGenerator
 from helpers.template_preparation import TemplateLoader
 from helpers.dual_logger import log_debug, log_info, log_error
 from model.state_factory import StateFactory

@@ -19,38 +19,42 @@ This script reads the CSV description files and creates a T-SQL schema with exte
 
 import csv
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 # Paths
-DESCRIPTIONS_DIR = "/Users/mp/thoth_data/dev_databases/california_schools/database_description"
+DESCRIPTIONS_DIR = (
+    "/Users/mp/thoth_data/dev_databases/california_schools/database_description"
+)
 OUTPUT_FILE = "/Users/mp/DjangoExperimental/Thoth/sqlserver-init/01-create-schema.sql"
+
 
 def read_column_descriptions(csv_file: str) -> Dict[str, str]:
     """Read column descriptions from CSV file"""
     descriptions = {}
     csv_path = os.path.join(DESCRIPTIONS_DIR, csv_file)
-    
+
     if not os.path.exists(csv_path):
         print(f"Warning: CSV file not found: {csv_path}")
         return descriptions
-    
+
     try:
-        with open(csv_path, 'r', encoding='utf-8-sig') as file:  # utf-8-sig handles BOM
+        with open(csv_path, "r", encoding="utf-8-sig") as file:  # utf-8-sig handles BOM
             reader = csv.DictReader(file)
-            
+
             for row in reader:
-                original_column_name = row.get('original_column_name', '').strip()
-                column_description = row.get('column_description', '').strip()
-                
+                original_column_name = row.get("original_column_name", "").strip()
+                column_description = row.get("column_description", "").strip()
+
                 if original_column_name and column_description:
                     # Escape single quotes for SQL
                     escaped_description = column_description.replace("'", "''")
                     descriptions[original_column_name] = escaped_description
-                    
+
     except Exception as e:
         print(f"Error reading {csv_file}: {e}")
-    
+
     return descriptions
+
 
 def generate_extended_properties(table_name: str, descriptions: Dict[str, str]) -> str:
     """Generate SQL Server extended properties for column descriptions"""
@@ -63,23 +67,26 @@ EXEC sp_addextendedproperty
     @level0type = N'SCHEMA', @level0name = N'dbo', 
     @level1type = N'TABLE', @level1name = N'{table_name}', 
     @level2type = N'COLUMN', @level2name = N'{column_name}';""")
-    return '\n'.join(properties)
+    return "\n".join(properties)
+
 
 def generate_schema():
     """Generate the SQL Server schema with extended properties"""
-    
+
     # Read descriptions for each table
-    schools_desc = read_column_descriptions('schools.csv')
-    frpm_desc = read_column_descriptions('frpm.csv')
-    satscores_desc = read_column_descriptions('satscores.csv')
-    
-    print(f"Loaded descriptions: Schools={len(schools_desc)}, FRPM={len(frpm_desc)}, SAT={len(satscores_desc)}")
-    
+    schools_desc = read_column_descriptions("schools.csv")
+    frpm_desc = read_column_descriptions("frpm.csv")
+    satscores_desc = read_column_descriptions("satscores.csv")
+
+    print(
+        f"Loaded descriptions: Schools={len(schools_desc)}, FRPM={len(frpm_desc)}, SAT={len(satscores_desc)}"
+    )
+
     # Generate extended properties
-    schools_properties = generate_extended_properties('schools', schools_desc)
-    frpm_properties = generate_extended_properties('frpm', frpm_desc)
-    satscores_properties = generate_extended_properties('satscores', satscores_desc)
-    
+    schools_properties = generate_extended_properties("schools", schools_desc)
+    frpm_properties = generate_extended_properties("frpm", frpm_desc)
+    satscores_properties = generate_extended_properties("satscores", satscores_desc)
+
     schema_sql = f"""-- SQL Server schema for California Schools database with extended properties
 -- Generated from SQLite schema with descriptions from CSV files
 
@@ -252,16 +259,17 @@ GO
 -- Add extended properties for satscores table columns
 {satscores_properties}
 """.format(
-        schools_properties=generate_extended_properties('schools', schools_desc),
-        frpm_properties=generate_extended_properties('frpm', frpm_desc),
-        satscores_properties=generate_extended_properties('satscores', satscores_desc)
+        schools_properties=generate_extended_properties("schools", schools_desc),
+        frpm_properties=generate_extended_properties("frpm", frpm_desc),
+        satscores_properties=generate_extended_properties("satscores", satscores_desc),
     )
-    
+
     # Write the schema to file
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(schema_sql)
-    
+
     print(f"SQL Server schema with extended properties generated: {OUTPUT_FILE}")
+
 
 if __name__ == "__main__":
     generate_schema()
