@@ -105,7 +105,7 @@ def make_lsh(
         progress_bar = (
             tqdm(total=total_unique_values, desc="Creating LSH") if verbose else None
         )
-        
+
         processed_items = 0
         successful_items = 0
         failed_items = 0
@@ -128,17 +128,20 @@ def make_lsh(
 
                     if verbose:
                         progress_bar.update(1)
-                    
+
                     processed_items += 1
                     successful_items += 1
-                    
+
                     # Update progress tracker if workspace_id is provided
-                    if workspace_id and processed_items % 100 == 0:  # Update every 100 items to reduce overhead
+                    if (
+                        workspace_id and processed_items % 100 == 0
+                    ):  # Update every 100 items to reduce overhead
                         ProgressTracker.update_progress(
-                            workspace_id, 'preprocessing',
+                            workspace_id,
+                            "preprocessing",
                             processed_items_offset + processed_items,
                             processed_items_offset + successful_items,
-                            failed_items
+                            failed_items,
                         )
 
         if verbose:
@@ -172,15 +175,17 @@ def make_db_lsh(db, db_directory_path, db_name, **kwargs) -> int:
     logging.info("Saved unique values")
 
     # Extract workspace_id if present in kwargs
-    workspace_id = kwargs.pop('workspace_id', None)
-    
-    lsh, minhashes = make_lsh(unique_values, **kwargs, workspace_id=workspace_id, processed_items_offset=0)
+    workspace_id = kwargs.pop("workspace_id", None)
+
+    lsh, minhashes = make_lsh(
+        unique_values, **kwargs, workspace_id=workspace_id, processed_items_offset=0
+    )
 
     with open(preprocessed_path / f"{db_name}_lsh.pkl", "wb") as file:
         pickle.dump(lsh, file)
     with open(preprocessed_path / f"{db_name}_minhashes.pkl", "wb") as file:
         pickle.dump(minhashes, file)
-    
+
     # Return the number of processed items
     total_unique_values = sum(
         len(column_values)

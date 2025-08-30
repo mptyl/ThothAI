@@ -22,7 +22,7 @@ This module provides a centralized error handling system with:
 
 import logging
 import traceback
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any
 from enum import Enum
 from dataclasses import dataclass
 from helpers.logging_config import log_error, log_warning, log_info

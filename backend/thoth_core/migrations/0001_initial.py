@@ -19,266 +19,1016 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
+        ("auth", "0012_alter_user_first_name_max_length"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AiModel',
+            name="AiModel",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('specific_model', models.CharField(default='', max_length=100)),
-                ('name', models.CharField(max_length=100, null=True)),
-                ('url', models.URLField(blank=True, null=True)),
-                ('temperature_allowed', models.BooleanField(default=True)),
-                ('temperature', models.DecimalField(decimal_places=2, default=0.8, help_text='\n        What sampling temperature to use, between 0 and 2. \n        Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. \n        We generally recommend altering this or top_p, not both simultaneously.\n        ', max_digits=3, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(2)], verbose_name='Temperature')),
-                ('top_p', models.DecimalField(decimal_places=2, default=0.9, help_text='\n        Top-P changes how the model selects tokens for output. Tokens are selected from the most (see top-K) to least probable until the sum of their probabilities equals the top-P value. For example, if tokens A, B, and C have a probability of 0.3, 0.2, and 0.1 and the top-P value is 0.5, then the model will select either A or B as the next token by using temperature and excludes C as a candidate.\n        Specify a lower value for less random responses and a higher value for more random responses.\n        ', max_digits=3, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(1)], verbose_name='Top P [0.00 .. 1.00] - (0.90)')),
-                ('max_tokens', models.IntegerField(default=1280, help_text='\n        Maximum number of tokens that can be generated in the response. \n        A token is approximately four characters. 100 tokens correspond to roughly 60-80 words.\n        Specify a lower value for shorter responses and a higher value for potentially longer responses.', validators=[django.core.validators.MinValueValidator(128), django.core.validators.MaxValueValidator(16000)], verbose_name='Max Tokens [-2 .. 16000] (128)')),
-                ('timeout', models.FloatField(default=45.0, help_text='\n        Timeouts take place if this threshold, expressed in seconds, is exceeded:', validators=[django.core.validators.MinValueValidator(1.0), django.core.validators.MaxValueValidator(3600.0)], verbose_name='Timeout')),
-                ('context_size', models.IntegerField(default=32768, help_text='\n        Maximum context window size (in tokens) that the model can handle. \n        This includes both input and output tokens.', validators=[django.core.validators.MinValueValidator(512), django.core.validators.MaxValueValidator(2000000)], verbose_name='Context Size')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("specific_model", models.CharField(default="", max_length=100)),
+                ("name", models.CharField(max_length=100, null=True)),
+                ("url", models.URLField(blank=True, null=True)),
+                ("temperature_allowed", models.BooleanField(default=True)),
+                (
+                    "temperature",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.8,
+                        help_text="\n        What sampling temperature to use, between 0 and 2. \n        Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. \n        We generally recommend altering this or top_p, not both simultaneously.\n        ",
+                        max_digits=3,
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(2),
+                        ],
+                        verbose_name="Temperature",
+                    ),
+                ),
+                (
+                    "top_p",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.9,
+                        help_text="\n        Top-P changes how the model selects tokens for output. Tokens are selected from the most (see top-K) to least probable until the sum of their probabilities equals the top-P value. For example, if tokens A, B, and C have a probability of 0.3, 0.2, and 0.1 and the top-P value is 0.5, then the model will select either A or B as the next token by using temperature and excludes C as a candidate.\n        Specify a lower value for less random responses and a higher value for more random responses.\n        ",
+                        max_digits=3,
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(1),
+                        ],
+                        verbose_name="Top P [0.00 .. 1.00] - (0.90)",
+                    ),
+                ),
+                (
+                    "max_tokens",
+                    models.IntegerField(
+                        default=1280,
+                        help_text="\n        Maximum number of tokens that can be generated in the response. \n        A token is approximately four characters. 100 tokens correspond to roughly 60-80 words.\n        Specify a lower value for shorter responses and a higher value for potentially longer responses.",
+                        validators=[
+                            django.core.validators.MinValueValidator(128),
+                            django.core.validators.MaxValueValidator(16000),
+                        ],
+                        verbose_name="Max Tokens [-2 .. 16000] (128)",
+                    ),
+                ),
+                (
+                    "timeout",
+                    models.FloatField(
+                        default=45.0,
+                        help_text="\n        Timeouts take place if this threshold, expressed in seconds, is exceeded:",
+                        validators=[
+                            django.core.validators.MinValueValidator(1.0),
+                            django.core.validators.MaxValueValidator(3600.0),
+                        ],
+                        verbose_name="Timeout",
+                    ),
+                ),
+                (
+                    "context_size",
+                    models.IntegerField(
+                        default=32768,
+                        help_text="\n        Maximum context window size (in tokens) that the model can handle. \n        This includes both input and output tokens.",
+                        validators=[
+                            django.core.validators.MinValueValidator(512),
+                            django.core.validators.MaxValueValidator(2000000),
+                        ],
+                        verbose_name="Context Size",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='BasicAiModel',
+            name="BasicAiModel",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True)),
-                ('description', models.TextField(blank=True)),
-                ('provider', models.CharField(choices=[('OPENAI', 'OpenAI'), ('ANTHROPIC', 'Anthropic'), ('CODESTRAL', 'Codestral'), ('DEEPSEEK', 'DeepSeek'), ('META', 'LLama'), ('LMSTUDIO', 'LM Studio'), ('MISTRAL', 'Mistral'), ('OLLAMA', 'Ollama'), ('OPENROUTER', 'OpenRouter'), ('GEMINI', 'Gemini')], default='ANTHROPIC', max_length=100)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, unique=True)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "provider",
+                    models.CharField(
+                        choices=[
+                            ("OPENAI", "OpenAI"),
+                            ("ANTHROPIC", "Anthropic"),
+                            ("CODESTRAL", "Codestral"),
+                            ("DEEPSEEK", "DeepSeek"),
+                            ("META", "LLama"),
+                            ("LMSTUDIO", "LM Studio"),
+                            ("MISTRAL", "Mistral"),
+                            ("OLLAMA", "Ollama"),
+                            ("OPENROUTER", "OpenRouter"),
+                            ("GEMINI", "Gemini"),
+                        ],
+                        default="ANTHROPIC",
+                        max_length=100,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
         ),
         migrations.CreateModel(
-            name='SqlDb',
+            name="SqlDb",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('db_host', models.CharField(blank=True, max_length=255)),
-                ('db_type', models.CharField(choices=[('MariaDB', 'MariaDB'), ('MySQL', 'MySQL'), ('Oracle', 'Oracle'), ('PostgreSQL', 'PostgreSQL'), ('SQLServer', 'SQLServer'), ('SQLite', 'SQLite')], default='PostgreSQL', max_length=255)),
-                ('db_name', models.CharField(max_length=255)),
-                ('db_port', models.IntegerField(blank=True, null=True)),
-                ('schema', models.CharField(blank=True, max_length=255)),
-                ('user_name', models.CharField(blank=True, max_length=255)),
-                ('password', models.CharField(blank=True, max_length=255)),
-                ('db_mode', models.CharField(choices=[('dev', 'dev'), ('test', 'test'), ('prod', 'prod')], default='dev', max_length=255)),
-                ('language', models.CharField(blank=True, default='English', max_length=50)),
-                ('scope', models.TextField(blank=True, null=True)),
-                ('scope_json', models.TextField(blank=True, null=True)),
-                ('last_columns_update', models.DateTimeField(blank=True, null=True)),
-                ('erd', models.TextField(blank=True, null=True)),
-                ('directives', models.TextField(blank=True, null=True, verbose_name='Directives')),
-                ('gdpr_report', models.JSONField(blank=True, null=True)),
-                ('gdpr_scan_date', models.DateTimeField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("db_host", models.CharField(blank=True, max_length=255)),
+                (
+                    "db_type",
+                    models.CharField(
+                        choices=[
+                            ("MariaDB", "MariaDB"),
+                            ("MySQL", "MySQL"),
+                            ("Oracle", "Oracle"),
+                            ("PostgreSQL", "PostgreSQL"),
+                            ("SQLServer", "SQLServer"),
+                            ("SQLite", "SQLite"),
+                        ],
+                        default="PostgreSQL",
+                        max_length=255,
+                    ),
+                ),
+                ("db_name", models.CharField(max_length=255)),
+                ("db_port", models.IntegerField(blank=True, null=True)),
+                ("schema", models.CharField(blank=True, max_length=255)),
+                ("user_name", models.CharField(blank=True, max_length=255)),
+                ("password", models.CharField(blank=True, max_length=255)),
+                (
+                    "db_mode",
+                    models.CharField(
+                        choices=[("dev", "dev"), ("test", "test"), ("prod", "prod")],
+                        default="dev",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "language",
+                    models.CharField(blank=True, default="English", max_length=50),
+                ),
+                ("scope", models.TextField(blank=True, null=True)),
+                ("scope_json", models.TextField(blank=True, null=True)),
+                ("last_columns_update", models.DateTimeField(blank=True, null=True)),
+                ("erd", models.TextField(blank=True, null=True)),
+                (
+                    "directives",
+                    models.TextField(blank=True, null=True, verbose_name="Directives"),
+                ),
+                ("gdpr_report", models.JSONField(blank=True, null=True)),
+                ("gdpr_scan_date", models.DateTimeField(blank=True, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='VectorDb',
+            name="VectorDb",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text='Name used as collection name (Qdrant, ChromaDB, Milvus) or database name (PGVector)', max_length=255, verbose_name='Collection/Index/Database Name')),
-                ('vect_type', models.CharField(choices=[('ChromaDB', 'ChromaDB'), ('Milvus', 'Milvus'), ('PGVector', 'PGVector'), ('Qdrant', 'Qdrant')], default='Qdrant', max_length=255)),
-                ('host', models.CharField(blank=True, max_length=255)),
-                ('port', models.IntegerField(blank=True, null=True)),
-                ('username', models.CharField(blank=True, max_length=255)),
-                ('password', models.CharField(blank=True, max_length=255)),
-                ('path', models.CharField(blank=True, max_length=500)),
-                ('tenant', models.CharField(blank=True, max_length=255)),
-                ('url', models.URLField(blank=True, help_text='Complete URL for cloud services')),
-                ('environment', models.CharField(blank=True, help_text='Optional environment identifier', max_length=255)),
-                ('embedding_provider', models.CharField(choices=[('openai', 'OpenAI'), ('cohere', 'Cohere'), ('mistral', 'Mistral AI'), ('huggingface', 'HuggingFace API'), ('anthropic', 'Anthropic')], default='openai', help_text='External embedding service provider (REQUIRED)', max_length=50, verbose_name='Embedding Provider')),
-                ('embedding_model', models.CharField(default='text-embedding-3-small', help_text='Model name (e.g., text-embedding-3-small for OpenAI, embed-multilingual-v3.0 for Cohere)', max_length=100, verbose_name='Embedding Model')),
-                ('embedding_base_url', models.URLField(blank=True, help_text='Custom base URL for the embedding service (optional, for custom endpoints)', verbose_name='Embedding Base URL')),
-                ('embedding_batch_size', models.PositiveIntegerField(default=100, help_text='Number of texts to process in a single batch (affects performance and rate limits)', verbose_name='Embedding Batch Size')),
-                ('embedding_timeout', models.PositiveIntegerField(default=30, help_text='Request timeout for embedding API calls', verbose_name='Embedding Timeout (seconds)')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="Name used as collection name (Qdrant, ChromaDB, Milvus) or database name (PGVector)",
+                        max_length=255,
+                        verbose_name="Collection/Index/Database Name",
+                    ),
+                ),
+                (
+                    "vect_type",
+                    models.CharField(
+                        choices=[
+                            ("ChromaDB", "ChromaDB"),
+                            ("Milvus", "Milvus"),
+                            ("PGVector", "PGVector"),
+                            ("Qdrant", "Qdrant"),
+                        ],
+                        default="Qdrant",
+                        max_length=255,
+                    ),
+                ),
+                ("host", models.CharField(blank=True, max_length=255)),
+                ("port", models.IntegerField(blank=True, null=True)),
+                ("username", models.CharField(blank=True, max_length=255)),
+                ("password", models.CharField(blank=True, max_length=255)),
+                ("path", models.CharField(blank=True, max_length=500)),
+                ("tenant", models.CharField(blank=True, max_length=255)),
+                (
+                    "url",
+                    models.URLField(
+                        blank=True, help_text="Complete URL for cloud services"
+                    ),
+                ),
+                (
+                    "environment",
+                    models.CharField(
+                        blank=True,
+                        help_text="Optional environment identifier",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "embedding_provider",
+                    models.CharField(
+                        choices=[
+                            ("openai", "OpenAI"),
+                            ("cohere", "Cohere"),
+                            ("mistral", "Mistral AI"),
+                            ("huggingface", "HuggingFace API"),
+                            ("anthropic", "Anthropic"),
+                        ],
+                        default="openai",
+                        help_text="External embedding service provider (REQUIRED)",
+                        max_length=50,
+                        verbose_name="Embedding Provider",
+                    ),
+                ),
+                (
+                    "embedding_model",
+                    models.CharField(
+                        default="text-embedding-3-small",
+                        help_text="Model name (e.g., text-embedding-3-small for OpenAI, embed-multilingual-v3.0 for Cohere)",
+                        max_length=100,
+                        verbose_name="Embedding Model",
+                    ),
+                ),
+                (
+                    "embedding_base_url",
+                    models.URLField(
+                        blank=True,
+                        help_text="Custom base URL for the embedding service (optional, for custom endpoints)",
+                        verbose_name="Embedding Base URL",
+                    ),
+                ),
+                (
+                    "embedding_batch_size",
+                    models.PositiveIntegerField(
+                        default=100,
+                        help_text="Number of texts to process in a single batch (affects performance and rate limits)",
+                        verbose_name="Embedding Batch Size",
+                    ),
+                ),
+                (
+                    "embedding_timeout",
+                    models.PositiveIntegerField(
+                        default=30,
+                        help_text="Request timeout for embedding API calls",
+                        verbose_name="Embedding Timeout (seconds)",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Agent',
+            name="Agent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('agent_type', models.CharField(choices=[('EXTRACTKEYWORDS', 'Keywords Extractor'), ('SQLBASIC', 'SQL Generator - Basic'), ('SQLADVANCED', 'SQL Generator - Advanced'), ('SQLEXPERT', 'SQL Generator - Expert'), ('TESTGENERATORBASIC', 'Test Generator - Basic'), ('TESTGENERATORADVANCED', 'Test Generator - Advanced'), ('TESTGENERATOREXPERT', 'Test Generator - Expert'), ('TESTEXECUTOR', 'Test Executor'), ('EXPLAINSQL', 'SQL Explainer'), ('ASKFORHUMANHELP', 'Human Help Requester'), ('VALIDATEQUESTION', 'Question Validator')], default='EXTRACTKEYWORDS', max_length=255)),
-                ('temperature', models.DecimalField(decimal_places=2, default=0.8, help_text='\n        What sampling temperature to use, between 0 and 2. \n        Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. \n        We generally recommend altering this or top_p, not both simultaneously.\n        ', max_digits=3, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(2)], verbose_name='Temperature')),
-                ('top_p', models.DecimalField(decimal_places=2, default=0.95, help_text='\n        Top-P changes how the model selects tokens for output.', max_digits=3, validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(1)])),
-                ('max_tokens', models.IntegerField(default=1280, help_text='\n        The maximum number of tokens to generate.')),
-                ('timeout', models.FloatField(default=45.0, help_text='\n        Timeouts take place if this threshold, expressed in seconds, is exceeded:\n        ', validators=[django.core.validators.MinValueValidator(1.0), django.core.validators.MaxValueValidator(3600.0)], verbose_name='Timeout')),
-                ('retries', models.IntegerField(default=5)),
-                ('ai_model', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='agents', to='thoth_core.aimodel')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                (
+                    "agent_type",
+                    models.CharField(
+                        choices=[
+                            ("EXTRACTKEYWORDS", "Keywords Extractor"),
+                            ("SQLBASIC", "SQL Generator - Basic"),
+                            ("SQLADVANCED", "SQL Generator - Advanced"),
+                            ("SQLEXPERT", "SQL Generator - Expert"),
+                            ("TESTGENERATORBASIC", "Test Generator - Basic"),
+                            ("TESTGENERATORADVANCED", "Test Generator - Advanced"),
+                            ("TESTGENERATOREXPERT", "Test Generator - Expert"),
+                            ("TESTEXECUTOR", "Test Executor"),
+                            ("EXPLAINSQL", "SQL Explainer"),
+                            ("ASKFORHUMANHELP", "Human Help Requester"),
+                            ("VALIDATEQUESTION", "Question Validator"),
+                        ],
+                        default="EXTRACTKEYWORDS",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "temperature",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.8,
+                        help_text="\n        What sampling temperature to use, between 0 and 2. \n        Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. \n        We generally recommend altering this or top_p, not both simultaneously.\n        ",
+                        max_digits=3,
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(2),
+                        ],
+                        verbose_name="Temperature",
+                    ),
+                ),
+                (
+                    "top_p",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.95,
+                        help_text="\n        Top-P changes how the model selects tokens for output.",
+                        max_digits=3,
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(1),
+                        ],
+                    ),
+                ),
+                (
+                    "max_tokens",
+                    models.IntegerField(
+                        default=1280,
+                        help_text="\n        The maximum number of tokens to generate.",
+                    ),
+                ),
+                (
+                    "timeout",
+                    models.FloatField(
+                        default=45.0,
+                        help_text="\n        Timeouts take place if this threshold, expressed in seconds, is exceeded:\n        ",
+                        validators=[
+                            django.core.validators.MinValueValidator(1.0),
+                            django.core.validators.MaxValueValidator(3600.0),
+                        ],
+                        verbose_name="Timeout",
+                    ),
+                ),
+                ("retries", models.IntegerField(default=5)),
+                (
+                    "ai_model",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="agents",
+                        to="thoth_core.aimodel",
+                    ),
+                ),
             ],
         ),
         migrations.AddField(
-            model_name='aimodel',
-            name='basic_model',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='ai_models', to='thoth_core.basicaimodel'),
+            model_name="aimodel",
+            name="basic_model",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="ai_models",
+                to="thoth_core.basicaimodel",
+            ),
         ),
         migrations.CreateModel(
-            name='GroupProfile',
+            name="GroupProfile",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('show_sql', models.BooleanField(default=False, help_text='Show SQL queries to group members')),
-                ('explain_generated_query', models.BooleanField(default=True, help_text='Explain generated SQL query to group members')),
-                ('group', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to='auth.group')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "show_sql",
+                    models.BooleanField(
+                        default=False, help_text="Show SQL queries to group members"
+                    ),
+                ),
+                (
+                    "explain_generated_query",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Explain generated SQL query to group members",
+                    ),
+                ),
+                (
+                    "group",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="profile",
+                        to="auth.group",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Group Profile',
-                'verbose_name_plural': 'Group Profiles',
+                "verbose_name": "Group Profile",
+                "verbose_name_plural": "Group Profiles",
             },
         ),
         migrations.CreateModel(
-            name='Setting',
+            name="Setting",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('theme', models.CharField(blank=True, max_length=50, null=True)),
-                ('language', models.CharField(max_length=50)),
-                ('example_rows_for_comment', models.PositiveIntegerField(default=5, help_text='Number of example rows to use for comment generation')),
-                ('system_prompt', models.TextField(blank=True, null=True)),
-                ('signature_size', models.IntegerField(default=30, help_text='Size of the signature - LSH')),
-                ('n_grams', models.IntegerField(default=3, help_text='Number of n-grams - LSH')),
-                ('threshold', models.FloatField(default=0.01, help_text='Threshold value for similarity comparison - LSH')),
-                ('verbose', models.BooleanField(default=True, help_text='Enable verbose mode for LHS preprocessing')),
-                ('use_value_description', models.BooleanField(default=True, help_text='Enable verbose mode for similarity comparison - LSH')),
-                ('max_columns_before_schema_linking', models.IntegerField(default=30000, help_text='Maximum number of columns before schema linking is required')),
-                ('max_context_usage_before_linking', models.IntegerField(default=40, help_text='Maximum percentage of context window usage before schema linking is required (0-99)', validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(99)])),
-                ('lsh_top_n', models.IntegerField(default=25, help_text='Number of top results to retrieve from LSH search (query-time parameter)')),
-                ('edit_distance_threshold', models.FloatField(default=0.2, help_text='Minimum edit distance similarity for LSH results (0.0-1.0, query-time parameter)')),
-                ('embedding_similarity_threshold', models.FloatField(default=0.4, help_text='Minimum embedding similarity for LSH results (0.0-1.0, query-time parameter)')),
-                ('max_examples_per_column', models.IntegerField(default=10, help_text='Maximum number of example values to retain per column (query-time parameter)')),
-                ('comment_model', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='setting_comment_models', to='thoth_core.aimodel')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("theme", models.CharField(blank=True, max_length=50, null=True)),
+                ("language", models.CharField(max_length=50)),
+                (
+                    "example_rows_for_comment",
+                    models.PositiveIntegerField(
+                        default=5,
+                        help_text="Number of example rows to use for comment generation",
+                    ),
+                ),
+                ("system_prompt", models.TextField(blank=True, null=True)),
+                (
+                    "signature_size",
+                    models.IntegerField(
+                        default=30, help_text="Size of the signature - LSH"
+                    ),
+                ),
+                (
+                    "n_grams",
+                    models.IntegerField(default=3, help_text="Number of n-grams - LSH"),
+                ),
+                (
+                    "threshold",
+                    models.FloatField(
+                        default=0.01,
+                        help_text="Threshold value for similarity comparison - LSH",
+                    ),
+                ),
+                (
+                    "verbose",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Enable verbose mode for LHS preprocessing",
+                    ),
+                ),
+                (
+                    "use_value_description",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Enable verbose mode for similarity comparison - LSH",
+                    ),
+                ),
+                (
+                    "max_columns_before_schema_linking",
+                    models.IntegerField(
+                        default=30000,
+                        help_text="Maximum number of columns before schema linking is required",
+                    ),
+                ),
+                (
+                    "max_context_usage_before_linking",
+                    models.IntegerField(
+                        default=40,
+                        help_text="Maximum percentage of context window usage before schema linking is required (0-99)",
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(99),
+                        ],
+                    ),
+                ),
+                (
+                    "lsh_top_n",
+                    models.IntegerField(
+                        default=25,
+                        help_text="Number of top results to retrieve from LSH search (query-time parameter)",
+                    ),
+                ),
+                (
+                    "edit_distance_threshold",
+                    models.FloatField(
+                        default=0.2,
+                        help_text="Minimum edit distance similarity for LSH results (0.0-1.0, query-time parameter)",
+                    ),
+                ),
+                (
+                    "embedding_similarity_threshold",
+                    models.FloatField(
+                        default=0.4,
+                        help_text="Minimum embedding similarity for LSH results (0.0-1.0, query-time parameter)",
+                    ),
+                ),
+                (
+                    "max_examples_per_column",
+                    models.IntegerField(
+                        default=10,
+                        help_text="Maximum number of example values to retain per column (query-time parameter)",
+                    ),
+                ),
+                (
+                    "comment_model",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="setting_comment_models",
+                        to="thoth_core.aimodel",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='SqlTable',
+            name="SqlTable",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('generated_comment', models.TextField(blank=True)),
-                ('sql_db', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tables', to='thoth_core.sqldb')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("description", models.TextField(blank=True)),
+                ("generated_comment", models.TextField(blank=True)),
+                (
+                    "sql_db",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="tables",
+                        to="thoth_core.sqldb",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='SqlColumn',
+            name="SqlColumn",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('original_column_name', models.CharField(max_length=255)),
-                ('column_name', models.CharField(blank=True, max_length=255)),
-                ('data_format', models.CharField(choices=[('INT', 'INT'), ('FLOAT', 'FLOAT'), ('DOUBLE', 'DOUBLE'), ('DECIMAL', 'DECIMAL'), ('VARCHAR', 'VARCHAR'), ('CHAR', 'CHAR'), ('DATE', 'DATE'), ('TIME', 'TIME'), ('TIMESTAMP', 'TIMESTAMP'), ('BOOLEAN', 'BOOLEAN'), ('ENUM', 'ENUM')], default='VARCHAR', max_length=255)),
-                ('column_description', models.TextField(blank=True)),
-                ('generated_comment', models.TextField(blank=True)),
-                ('value_description', models.TextField(blank=True)),
-                ('pk_field', models.TextField(blank=True)),
-                ('fk_field', models.TextField(blank=True)),
-                ('sql_table', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='columns', to='thoth_core.sqltable')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("original_column_name", models.CharField(max_length=255)),
+                ("column_name", models.CharField(blank=True, max_length=255)),
+                (
+                    "data_format",
+                    models.CharField(
+                        choices=[
+                            ("INT", "INT"),
+                            ("FLOAT", "FLOAT"),
+                            ("DOUBLE", "DOUBLE"),
+                            ("DECIMAL", "DECIMAL"),
+                            ("VARCHAR", "VARCHAR"),
+                            ("CHAR", "CHAR"),
+                            ("DATE", "DATE"),
+                            ("TIME", "TIME"),
+                            ("TIMESTAMP", "TIMESTAMP"),
+                            ("BOOLEAN", "BOOLEAN"),
+                            ("ENUM", "ENUM"),
+                        ],
+                        default="VARCHAR",
+                        max_length=255,
+                    ),
+                ),
+                ("column_description", models.TextField(blank=True)),
+                ("generated_comment", models.TextField(blank=True)),
+                ("value_description", models.TextField(blank=True)),
+                ("pk_field", models.TextField(blank=True)),
+                ("fk_field", models.TextField(blank=True)),
+                (
+                    "sql_table",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="columns",
+                        to="thoth_core.sqltable",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Relationship',
+            name="Relationship",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('source_column', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='source_columns', to='thoth_core.sqlcolumn')),
-                ('target_column', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='target_columns', to='thoth_core.sqlcolumn')),
-                ('source_table', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='source_tables', to='thoth_core.sqltable')),
-                ('target_table', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='target_tables', to='thoth_core.sqltable')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "source_column",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="source_columns",
+                        to="thoth_core.sqlcolumn",
+                    ),
+                ),
+                (
+                    "target_column",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="target_columns",
+                        to="thoth_core.sqlcolumn",
+                    ),
+                ),
+                (
+                    "source_table",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="source_tables",
+                        to="thoth_core.sqltable",
+                    ),
+                ),
+                (
+                    "target_table",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="target_tables",
+                        to="thoth_core.sqltable",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='ThothLog',
+            name="ThothLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('username', models.CharField(max_length=150)),
-                ('workspace', models.CharField(max_length=255)),
-                ('started_at', models.DateTimeField()),
-                ('terminated_at', models.DateTimeField(blank=True, null=True)),
-                ('question', models.TextField()),
-                ('db_language', models.CharField(max_length=50)),
-                ('question_language', models.CharField(max_length=50)),
-                ('translated_question', models.TextField(blank=True)),
-                ('keywords_list', models.TextField(blank=True)),
-                ('evidences', models.TextField(blank=True)),
-                ('similar_questions', models.TextField(blank=True)),
-                ('reduced_schema', models.TextField(blank=True)),
-                ('used_mschema', models.TextField(blank=True)),
-                ('generated_tests', models.TextField(blank=True)),
-                ('evaluation_results', models.TextField(blank=True)),
-                ('evaluation_count', models.IntegerField(default=0)),
-                ('pool_of_generated_sql', models.TextField(blank=True)),
-                ('generated_sql', models.TextField(blank=True)),
-                ('sql_explanation', models.TextField(blank=True)),
-                ('directives', models.TextField(blank=True, default='')),
-                ('sql_generation_failure_message', models.TextField(blank=True, null=True)),
-                ('available_context_tokens', models.IntegerField(blank=True, null=True)),
-                ('full_schema_tokens_count', models.IntegerField(blank=True, null=True)),
-                ('schema_link_strategy', models.TextField(blank=True, default='')),
-                ('similar_columns', models.TextField(blank=True, default='')),
-                ('schema_with_examples', models.TextField(blank=True, default='')),
-                ('schema_from_vector_db', models.TextField(blank=True, default='')),
-                ('selection_metrics', models.TextField(blank=True, default='')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("username", models.CharField(max_length=150)),
+                ("workspace", models.CharField(max_length=255)),
+                ("started_at", models.DateTimeField()),
+                ("terminated_at", models.DateTimeField(blank=True, null=True)),
+                ("question", models.TextField()),
+                ("db_language", models.CharField(max_length=50)),
+                ("question_language", models.CharField(max_length=50)),
+                ("translated_question", models.TextField(blank=True)),
+                ("keywords_list", models.TextField(blank=True)),
+                ("evidences", models.TextField(blank=True)),
+                ("similar_questions", models.TextField(blank=True)),
+                ("reduced_schema", models.TextField(blank=True)),
+                ("used_mschema", models.TextField(blank=True)),
+                ("generated_tests", models.TextField(blank=True)),
+                ("evaluation_results", models.TextField(blank=True)),
+                ("evaluation_count", models.IntegerField(default=0)),
+                ("pool_of_generated_sql", models.TextField(blank=True)),
+                ("generated_sql", models.TextField(blank=True)),
+                ("sql_explanation", models.TextField(blank=True)),
+                ("directives", models.TextField(blank=True, default="")),
+                (
+                    "sql_generation_failure_message",
+                    models.TextField(blank=True, null=True),
+                ),
+                (
+                    "available_context_tokens",
+                    models.IntegerField(blank=True, null=True),
+                ),
+                (
+                    "full_schema_tokens_count",
+                    models.IntegerField(blank=True, null=True),
+                ),
+                ("schema_link_strategy", models.TextField(blank=True, default="")),
+                ("similar_columns", models.TextField(blank=True, default="")),
+                ("schema_with_examples", models.TextField(blank=True, default="")),
+                ("schema_from_vector_db", models.TextField(blank=True, default="")),
+                ("selection_metrics", models.TextField(blank=True, default="")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['-started_at'],
-                'indexes': [models.Index(fields=['-started_at'], name='thoth_core__started_232492_idx'), models.Index(fields=['username'], name='thoth_core__usernam_86f943_idx'), models.Index(fields=['workspace'], name='thoth_core__workspa_d71996_idx')],
+                "ordering": ["-started_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["-started_at"], name="thoth_core__started_232492_idx"
+                    ),
+                    models.Index(
+                        fields=["username"], name="thoth_core__usernam_86f943_idx"
+                    ),
+                    models.Index(
+                        fields=["workspace"], name="thoth_core__workspa_d71996_idx"
+                    ),
+                ],
             },
         ),
         migrations.AddField(
-            model_name='sqldb',
-            name='vector_db',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='thoth_core.vectordb'),
+            model_name="sqldb",
+            name="vector_db",
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="thoth_core.vectordb",
+            ),
         ),
         migrations.CreateModel(
-            name='Workspace',
+            name="Workspace",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('level', models.CharField(choices=[('BASIC', 'Basic'), ('ADVANCED', 'Advanced'), ('EXPERT', 'Expert')], default='BASIC', max_length=20)),
-                ('description', models.TextField(blank=True)),
-                ('last_preprocess', models.DateTimeField(blank=True, null=True)),
-                ('last_evidence_load', models.DateTimeField(blank=True, null=True)),
-                ('last_sql_loaded', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True, null=True)),
-                ('updated_at', models.DateTimeField(auto_now=True, null=True)),
-                ('number_of_tests_to_generate', models.IntegerField(default=5, help_text='Total number of tests to generate for a question.', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(100)])),
-                ('number_of_sql_to_generate', models.IntegerField(default=10, help_text='Number of SQL queries to generate for a question.', validators=[django.core.validators.MinValueValidator(1), django.core.validators.MaxValueValidator(50)])),
-                ('evaluation_threshold', models.IntegerField(default=90, help_text='Minimum percentage of tests that a SQL must pass to be considered acceptable (0-100).', validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(100)])),
-                ('preprocessing_status', models.CharField(choices=[('IDLE', 'Idle'), ('RUNNING', 'Running'), ('COMPLETED', 'Completed'), ('FAILED', 'Failed')], default='IDLE', max_length=20)),
-                ('task_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('last_preprocess_log', models.TextField(blank=True, null=True)),
-                ('preprocessing_start_time', models.DateTimeField(blank=True, null=True)),
-                ('preprocessing_end_time', models.DateTimeField(blank=True, null=True)),
-                ('table_comment_status', models.CharField(choices=[('IDLE', 'Idle'), ('RUNNING', 'Running'), ('COMPLETED', 'Completed'), ('FAILED', 'Failed')], default='IDLE', max_length=20)),
-                ('table_comment_task_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('table_comment_log', models.TextField(blank=True, null=True)),
-                ('table_comment_start_time', models.DateTimeField(blank=True, null=True)),
-                ('table_comment_end_time', models.DateTimeField(blank=True, null=True)),
-                ('column_comment_status', models.CharField(choices=[('IDLE', 'Idle'), ('RUNNING', 'Running'), ('COMPLETED', 'Completed'), ('FAILED', 'Failed')], default='IDLE', max_length=20)),
-                ('column_comment_task_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('column_comment_log', models.TextField(blank=True, null=True)),
-                ('column_comment_start_time', models.DateTimeField(blank=True, null=True)),
-                ('column_comment_end_time', models.DateTimeField(blank=True, null=True)),
-                ('ask_human_help_agent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_ask_human', to='thoth_core.agent')),
-                ('default_model', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_default_model', to='thoth_core.aimodel')),
-                ('default_workspace', models.ManyToManyField(blank=True, related_name='default_workspaces', to=settings.AUTH_USER_MODEL)),
-                ('explain_sql_agent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_explain_sql', to='thoth_core.agent')),
-                ('kw_sel_agent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_kw', to='thoth_core.agent')),
-                ('question_validator', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_question_validator', to='thoth_core.agent')),
-                ('setting', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces', to='thoth_core.setting')),
-                ('sql_advanced_agent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_sql_advanced', to='thoth_core.agent')),
-                ('sql_basic_agent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_sql_basic', to='thoth_core.agent')),
-                ('sql_db', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces', to='thoth_core.sqldb')),
-                ('sql_expert_agent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_sql_expert', to='thoth_core.agent')),
-                ('test_exec_agent', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_test_exec', to='thoth_core.agent')),
-                ('test_gen_agent_1', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_test_gen_1', to='thoth_core.agent')),
-                ('test_gen_agent_2', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_test_gen_2', to='thoth_core.agent')),
-                ('test_gen_agent_3', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='workspaces_test_gen_3', to='thoth_core.agent')),
-                ('users', models.ManyToManyField(related_name='workspaces', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                (
+                    "level",
+                    models.CharField(
+                        choices=[
+                            ("BASIC", "Basic"),
+                            ("ADVANCED", "Advanced"),
+                            ("EXPERT", "Expert"),
+                        ],
+                        default="BASIC",
+                        max_length=20,
+                    ),
+                ),
+                ("description", models.TextField(blank=True)),
+                ("last_preprocess", models.DateTimeField(blank=True, null=True)),
+                ("last_evidence_load", models.DateTimeField(blank=True, null=True)),
+                ("last_sql_loaded", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True, null=True)),
+                ("updated_at", models.DateTimeField(auto_now=True, null=True)),
+                (
+                    "number_of_tests_to_generate",
+                    models.IntegerField(
+                        default=5,
+                        help_text="Total number of tests to generate for a question.",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(100),
+                        ],
+                    ),
+                ),
+                (
+                    "number_of_sql_to_generate",
+                    models.IntegerField(
+                        default=10,
+                        help_text="Number of SQL queries to generate for a question.",
+                        validators=[
+                            django.core.validators.MinValueValidator(1),
+                            django.core.validators.MaxValueValidator(50),
+                        ],
+                    ),
+                ),
+                (
+                    "evaluation_threshold",
+                    models.IntegerField(
+                        default=90,
+                        help_text="Minimum percentage of tests that a SQL must pass to be considered acceptable (0-100).",
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(100),
+                        ],
+                    ),
+                ),
+                (
+                    "preprocessing_status",
+                    models.CharField(
+                        choices=[
+                            ("IDLE", "Idle"),
+                            ("RUNNING", "Running"),
+                            ("COMPLETED", "Completed"),
+                            ("FAILED", "Failed"),
+                        ],
+                        default="IDLE",
+                        max_length=20,
+                    ),
+                ),
+                ("task_id", models.CharField(blank=True, max_length=255, null=True)),
+                ("last_preprocess_log", models.TextField(blank=True, null=True)),
+                (
+                    "preprocessing_start_time",
+                    models.DateTimeField(blank=True, null=True),
+                ),
+                ("preprocessing_end_time", models.DateTimeField(blank=True, null=True)),
+                (
+                    "table_comment_status",
+                    models.CharField(
+                        choices=[
+                            ("IDLE", "Idle"),
+                            ("RUNNING", "Running"),
+                            ("COMPLETED", "Completed"),
+                            ("FAILED", "Failed"),
+                        ],
+                        default="IDLE",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "table_comment_task_id",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                ("table_comment_log", models.TextField(blank=True, null=True)),
+                (
+                    "table_comment_start_time",
+                    models.DateTimeField(blank=True, null=True),
+                ),
+                ("table_comment_end_time", models.DateTimeField(blank=True, null=True)),
+                (
+                    "column_comment_status",
+                    models.CharField(
+                        choices=[
+                            ("IDLE", "Idle"),
+                            ("RUNNING", "Running"),
+                            ("COMPLETED", "Completed"),
+                            ("FAILED", "Failed"),
+                        ],
+                        default="IDLE",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "column_comment_task_id",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                ("column_comment_log", models.TextField(blank=True, null=True)),
+                (
+                    "column_comment_start_time",
+                    models.DateTimeField(blank=True, null=True),
+                ),
+                (
+                    "column_comment_end_time",
+                    models.DateTimeField(blank=True, null=True),
+                ),
+                (
+                    "ask_human_help_agent",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_ask_human",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "default_model",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_default_model",
+                        to="thoth_core.aimodel",
+                    ),
+                ),
+                (
+                    "default_workspace",
+                    models.ManyToManyField(
+                        blank=True,
+                        related_name="default_workspaces",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "explain_sql_agent",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_explain_sql",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "kw_sel_agent",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_kw",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "question_validator",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_question_validator",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "setting",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces",
+                        to="thoth_core.setting",
+                    ),
+                ),
+                (
+                    "sql_advanced_agent",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_sql_advanced",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "sql_basic_agent",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_sql_basic",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "sql_db",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces",
+                        to="thoth_core.sqldb",
+                    ),
+                ),
+                (
+                    "sql_expert_agent",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_sql_expert",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "test_exec_agent",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_test_exec",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "test_gen_agent_1",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_test_gen_1",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "test_gen_agent_2",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_test_gen_2",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "test_gen_agent_3",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="workspaces_test_gen_3",
+                        to="thoth_core.agent",
+                    ),
+                ),
+                (
+                    "users",
+                    models.ManyToManyField(
+                        related_name="workspaces", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
             ],
         ),
     ]

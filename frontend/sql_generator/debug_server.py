@@ -18,12 +18,11 @@ Debug server for SQL Generator with integrated Python debugger support.
 
 import uvicorn
 import sys
-import logging
 import os
 
 if __name__ == "__main__":
     # Import qui per poter mettere breakpoint nel modulo main
-    from main import app, log_level
+    from main import app
     
     # Priority: command line arg > PORT env > default 8180
     port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.getenv('PORT', '8180'))

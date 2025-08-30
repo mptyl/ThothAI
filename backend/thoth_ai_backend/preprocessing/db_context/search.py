@@ -22,15 +22,14 @@ from thoth_qdrant import BaseThothDocument, ThothType, VectorStoreInterface
 logger = logging.getLogger(__name__)
 
 # Configura l'ambiente Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ThothBE.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ThothBE.settings")
 django.setup()
 
 from thoth_core.models import SqlDb
 
+
 def query_vector_db(
-        document_store: VectorStoreInterface,
-        query: str,
-        top_k: int
+    document_store: VectorStoreInterface, query: str, top_k: int
 ) -> List[BaseThothDocument]:
     """
     Queries the vector database for the most relevant documents based on the query.
@@ -44,12 +43,10 @@ def query_vector_db(
         List[BaseThothDocument]: A list of documents containing query results and metadata.
     """
     similars = document_store.search_similar(
-        query=query, 
-        doc_type=ThothType.COLUMN_NAME, 
-        top_k=top_k, 
-        score_threshold=0.5
+        query=query, doc_type=ThothType.COLUMN_NAME, top_k=top_k, score_threshold=0.5
     )
     return similars
+
 
 def get_vector_db_config(db: SqlDb) -> Dict:
     """
@@ -58,36 +55,38 @@ def get_vector_db_config(db: SqlDb) -> Dict:
     vector_db = db.vector_db
     if not vector_db:
         raise ValueError(f"No vector database associated with SqlDb '{db.name}'")
-    
+
     # Get collection name based on schema and db_name
     collection_name = db.get_collection_name()
-    
+
     return {
-        'collection_name': collection_name,
-        'host': vector_db.host,
-        'port': vector_db.port,
-        'vector_db_type': vector_db.vect_type,
+        "collection_name": collection_name,
+        "host": vector_db.host,
+        "port": vector_db.port,
+        "vector_db_type": vector_db.vect_type,
         # Add other necessary fields from your VectorDb model
     }
+
 
 if __name__ == "__main__":
     db_name = "california_schools"
     try:
         # Get the SqlDb object from the database
         db = SqlDb.objects.get(name=db_name)
-        
+
         # Get vector database configuration
         vector_db_config = get_vector_db_config(db)
-        
+
         # Initialize the vector store using the new plugin system
         from thoth_qdrant import VectorStoreFactory
+
         document_store = VectorStoreFactory.create(
-            'qdrant',
-            collection=vector_db_config['collection_name'],
-            host=vector_db_config['host'],
-            port=vector_db_config['port']
+            "qdrant",
+            collection=vector_db_config["collection_name"],
+            host=vector_db_config["host"],
+            port=vector_db_config["port"],
         )
-        
+
         # Execute the query
         query = "schools"
         results = query_vector_db(document_store, query, 5)
@@ -103,7 +102,7 @@ if __name__ == "__main__":
                 logger.info(f"Descrizione colonna: {doc.column_description}")
             if doc.value_description:
                 logger.info(f"Descrizione valori: {doc.value_description}")
-            if hasattr(doc, 'score'):
+            if hasattr(doc, "score"):
                 logger.info(f"Score: {doc.score:.4f}")
             logger.info("-" * 50)
     except SqlDb.DoesNotExist:

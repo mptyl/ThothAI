@@ -16,10 +16,8 @@ import re
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-from functools import lru_cache
 import hashlib
 
-from sqlalchemy import text
 from pydantic import BaseModel, Field
 from helpers.dual_logger import log_error
 
@@ -190,8 +188,6 @@ class PaginatedQueryService:
         
         if order_by_match:
             # SQL already has ORDER BY - we need to modify it based on AG-Grid sorting
-            existing_order = order_by_match.group(1).strip()
-            
             # Parse existing ORDER BY to understand current sorting
             # For now, we'll replace the entire ORDER BY with AG-Grid's sorting
             # This is because AG-Grid manages the complete sort state

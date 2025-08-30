@@ -14,6 +14,7 @@ from django.contrib.auth.signals import user_logged_in
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
+
 @receiver(user_logged_in)
 def set_default_workspace_on_login(sender, user, request, **kwargs):
     """
@@ -22,8 +23,8 @@ def set_default_workspace_on_login(sender, user, request, **kwargs):
     """
     default_ws = user.default_workspaces.first()
     if default_ws:
-        request.session['selected_workspace_id'] = default_ws.pk
-    
+        request.session["selected_workspace_id"] = default_ws.pk
+
     # Get or create token for the user and save it in session
     token, created = Token.objects.get_or_create(user=user)
-    request.session['auth_token'] = token.key
+    request.session["auth_token"] = token.key

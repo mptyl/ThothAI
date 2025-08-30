@@ -14,13 +14,12 @@
 Validators for SQL explanation agents.
 """
 
-from typing import Optional
 from pydantic_ai import RunContext, ModelRetry
 from pydantic import ValidationError
 
 from model.agent_dependencies import SqlExplanationDeps
 from helpers.logging_config import get_logger
-from helpers.dual_logger import log_info, log_warning, log_error
+from helpers.dual_logger import log_info, log_warning
 
 logger = get_logger(__name__)
 

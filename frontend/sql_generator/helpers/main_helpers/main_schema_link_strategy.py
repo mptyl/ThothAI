@@ -13,7 +13,6 @@
 """Schema link strategy decision module."""
 
 import logging
-from typing import Optional
 from model.system_state import SystemState
 from helpers.token_counter import count_mschema_tokens, estimate_context_usage
 from helpers.main_helpers.main_generate_mschema import to_mschema

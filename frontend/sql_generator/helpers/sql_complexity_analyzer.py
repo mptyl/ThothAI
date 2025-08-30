@@ -11,7 +11,6 @@
 # limitations under the License.
 
 import sqlparse
-from sqlparse.sql import Statement, Token, TokenList
 from sqlparse.tokens import Keyword, Name
 
 class SQLComplexityAnalyzer:

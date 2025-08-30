@@ -16,7 +16,7 @@
 Helper functions for schema extraction from vector database
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 from model.system_state import SystemState
 from helpers.vectordb_context_retrieval import find_most_similar_columns
 from helpers.logging_config import get_logger

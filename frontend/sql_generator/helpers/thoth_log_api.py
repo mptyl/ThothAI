@@ -19,7 +19,6 @@ import logging
 import httpx
 from typing import Dict, Any, Optional
 from datetime import datetime
-import pytz
 import json
 
 logger = logging.getLogger(__name__)

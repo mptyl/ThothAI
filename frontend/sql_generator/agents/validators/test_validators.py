@@ -16,7 +16,7 @@
 Test validators for test generation and execution agents.
 """
 
-from typing import List, Any, Optional
+from typing import List, Any
 import logging
 
 logger = logging.getLogger(__name__)

@@ -28,9 +28,6 @@ def test_system_state_creation():
     
     try:
         from model.state_factory import StateFactory
-        from model.system_state import SystemState
-        from datetime import datetime
-        from tzlocal import get_localzone
         
         # Test minimal creation
         state = StateFactory.create_minimal("How many active users are there?")

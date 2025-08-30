@@ -14,9 +14,8 @@
 Base class for agent management functionality.
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 from abc import ABC, abstractmethod
-from pydantic_ai import Agent
 
 class BaseAgentManager(ABC):
     """

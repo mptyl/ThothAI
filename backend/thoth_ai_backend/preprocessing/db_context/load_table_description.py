@@ -15,7 +15,10 @@ from typing import Dict
 from django.db.models import Prefetch
 from thoth_core.models import SqlDb, SqlTable, SqlColumn
 
-def load_tables_description(db_id: int, **kwargs) -> Dict[str, Dict[str, Dict[str, str]]]:
+
+def load_tables_description(
+    db_id: int, **kwargs
+) -> Dict[str, Dict[str, Dict[str, str]]]:
     """
     Loads table descriptions directly from the Django models for a given database.
 
@@ -33,7 +36,11 @@ def load_tables_description(db_id: int, **kwargs) -> Dict[str, Dict[str, Dict[st
 
         # Prefetch related SqlTables and SqlColumns to optimize queries
         tables = SqlTable.objects.filter(sql_db=db).prefetch_related(
-            Prefetch('columns', queryset=SqlColumn.objects.all(), to_attr='prefetched_columns')
+            Prefetch(
+                "columns",
+                queryset=SqlColumn.objects.all(),
+                to_attr="prefetched_columns",
+            )
         )
 
         for table in tables:
@@ -62,7 +69,10 @@ def load_tables_description(db_id: int, **kwargs) -> Dict[str, Dict[str, Dict[st
 
     return table_description
 
-def load_tables_concatenated_description(db_id: int, **kwargs) -> Dict[str, Dict[str, str]]:
+
+def load_tables_concatenated_description(
+    db_id: int, **kwargs
+) -> Dict[str, Dict[str, str]]:
     """
     Loads and concatenates table descriptions directly from the Django models for a given database.
 
@@ -85,7 +95,11 @@ def load_tables_concatenated_description(db_id: int, **kwargs) -> Dict[str, Dict
 
         # Prefetch related SqlTables and SqlColumns to optimize queries
         tables = SqlTable.objects.filter(sql_db=db).prefetch_related(
-            Prefetch('columns', queryset=SqlColumn.objects.all(), to_attr='prefetched_columns')
+            Prefetch(
+                "columns",
+                queryset=SqlColumn.objects.all(),
+                to_attr="prefetched_columns",
+            )
         )
 
         for table in tables:
@@ -104,7 +118,7 @@ def load_tables_concatenated_description(db_id: int, **kwargs) -> Dict[str, Dict
                         if kwargs.get("use_value_description", True)
                         else ""
                     ),
-                    ]
+                ]
 
                 concatenated_description = ", ".join(
                     part for part in description_parts if part

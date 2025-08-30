@@ -15,9 +15,9 @@ Agent initialization utilities and factory methods.
 """
 
 from typing import Optional, Dict, Any
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent
 
-from .agent_ai_model_factory import get_agent_llm_model, create_fallback_model
+from .agent_ai_model_factory import create_fallback_model
 from helpers.template_preparation import TemplateLoader, clean_template_for_llm
 from .agent_result_models import (
     AskHumanResult,
@@ -31,7 +31,6 @@ from .agent_result_models import (
     EvaluatorSupervisorResult,
     SqlResponse
 )
-from model.system_state import SystemState
 from model.sql_generation_deps import SqlGenerationDeps
 from model.evaluator_deps import EvaluatorDeps
 from model.agent_dependencies import (

@@ -24,7 +24,7 @@ import re
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Tuple, TypedDict, Union, Optional
+from typing import Any, Dict, List, Tuple, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai import RunContext
 from thoth_qdrant import ThothType
@@ -43,7 +43,6 @@ from .contexts import (
 
 from .types import TableInfo  # Centralized type definition
 from .exceptions import (
-    SchemaProcessingError, 
     VectorDatabaseError, 
     DatabaseConnectionError,
     ValidationError,

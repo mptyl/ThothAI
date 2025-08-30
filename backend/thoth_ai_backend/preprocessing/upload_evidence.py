@@ -17,6 +17,7 @@ import sys
 import django
 from pathlib import Path
 from django.utils import timezone
+
 # Import new vector store plugin architecture
 from thoth_qdrant import ThothType, EvidenceDocument
 from thoth_qdrant import VectorStoreFactory
@@ -26,7 +27,7 @@ project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
 # Set up Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Thoth.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings")
 django.setup()
 
 # Now you can import Django models
@@ -34,6 +35,7 @@ from thoth_core.models import Workspace
 
 from thoth_ai_backend.backend_utils.vectordb_config_utils import get_vectordb_config
 from thoth_ai_backend.utils.progress_tracker import ProgressTracker
+
 
 def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
     """
@@ -51,18 +53,18 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
     3. Reads evidence from data/dev_databases/dev.json
     4. Creates and uploads EvidenceDocuments for each evidence where db_id matches the workspace's collection
     5. Updates the workspace's last_evidence_load timestamp
-    
+
     Args:
         workspace_id (int, optional): The ID of the workspace to determine the collection name
             and database connections. Must be provided.
-        
+
     Raises:
         ValueError: If workspace_id is not provided, if the workspace doesn't exist,
             if the workspace has no SQL database configured, or if the SQL database
             has no vector database configured.
         NotImplementedError: If the vector database type is not supported (currently only Qdrant).
         IOError: If the dev.json file cannot be read.
-    
+
     Returns:
         tuple: A tuple of (successful_uploads, total_items) for progress tracking.
     """
@@ -71,7 +73,7 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
         error_msg = "Workspace ID is required"
         logging.error(error_msg)
         raise ValueError(error_msg)
-    
+
     # Get workspace and extract configuration
     try:
         workspace = Workspace.objects.get(id=workspace_id)
@@ -79,15 +81,15 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
         error_msg = f"Workspace with ID {workspace_id} not found"
         logging.error(error_msg)
         raise ValueError(error_msg)
-    
+
     # Check if SQL DB is configured
     if not workspace.sql_db:
         error_msg = f"Workspace {workspace_id} has no SQL database configured"
         logging.error(error_msg)
         raise ValueError(error_msg)
-    
+
     sql_db = workspace.sql_db
-    
+
     # Convert Django model to dictionary for compatibility with existing code
     sql_db_params = {
         "name": sql_db.name,
@@ -101,13 +103,13 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
         "db_mode": sql_db.db_mode,
         "language": sql_db.language,
     }
-    
+
     # Check if vector DB is configured
     if not sql_db.vector_db:
         error_msg = f"SQL DB {sql_db.name} has no vector database configured"
         logging.error(error_msg)
         raise ValueError(error_msg)
-    
+
     vector_db_obj = sql_db.vector_db
     sql_db_params["vector_db"] = {
         "name": vector_db_obj.name,
@@ -118,50 +120,60 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
         "password": vector_db_obj.password,
         "tenant": vector_db_obj.tenant,
     }
-    
+
     # Get vector database configuration
     vector_db_config = get_vectordb_config(sql_db_params)
-    
+
     # Initialize the appropriate vector store using new plugin factory
     vector_backend_mapping = {
-        'Qdrant': 'qdrant',
-        'Chroma': 'chroma',
-        'PGVector': 'pgvector',
-        'Milvus': 'milvus',
+        "Qdrant": "qdrant",
+        "Chroma": "chroma",
+        "PGVector": "pgvector",
+        "Milvus": "milvus",
     }
-    
+
     backend = vector_backend_mapping.get(vector_db_config["vector_db_type"])
     if not backend:
-        error_msg = f"Unsupported vector database type: {vector_db_config['vector_db_type']}"
+        error_msg = (
+            f"Unsupported vector database type: {vector_db_config['vector_db_type']}"
+        )
         logging.error(error_msg)
         raise NotImplementedError(error_msg)
-    
+
     # Create vector store using factory
-    vector_params = {'collection': vector_db_config.get('collection_name')}
-    if backend == 'qdrant':
-        vector_params.update({
-            'host': vector_db_config.get('host'),
-            'port': vector_db_config.get('port'),
-        })
-    
+    vector_params = {"collection": vector_db_config.get("collection_name")}
+    if backend == "qdrant":
+        vector_params.update(
+            {
+                "host": vector_db_config.get("host"),
+                "port": vector_db_config.get("port"),
+            }
+        )
+
     vector_db = VectorStoreFactory.create(backend, **vector_params)
-    
+
     # Delete existing collection before uploading new evidence
     try:
-        if hasattr(vector_db, 'delete_collection'):
+        if hasattr(vector_db, "delete_collection"):
             vector_db.delete_collection(thoth_type=ThothType.EVIDENCE)
-            logging.info(f"Deleted existing EVIDENCE collection for {vector_db_config.get('collection_name')}")
+            logging.info(
+                f"Deleted existing EVIDENCE collection for {vector_db_config.get('collection_name')}"
+            )
     except Exception as e:
         logging.warning(f"Could not delete existing EVIDENCE collection: {e}")
 
-    logging.info(f"Using vector database: {vector_db_config['vector_db_type']}, "
-                 f"collection: {vector_db_config.get('collection_name')}, "
-                 f"host: {vector_db_config.get('host')}, "
-                 f"port: {vector_db_config.get('port')}")
+    logging.info(
+        f"Using vector database: {vector_db_config['vector_db_type']}, "
+        f"collection: {vector_db_config.get('collection_name')}, "
+        f"host: {vector_db_config.get('host')}, "
+        f"port: {vector_db_config.get('port')}"
+    )
 
     # Ensure collection exists before attempting operations
     try:
-        logging.info(f"Calling ensure_collection_exists on vector_db: {type(vector_db)}")
+        logging.info(
+            f"Calling ensure_collection_exists on vector_db: {type(vector_db)}"
+        )
         vector_db.ensure_collection_exists()
         logging.info("ensure_collection_exists completed successfully")
     except Exception as e:
@@ -176,77 +188,90 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
         evidence_ids = [doc.id for doc in existing_evidence]
         vector_db.delete_documents(evidence_ids)
         logging.info(f"Deleted {len(evidence_ids)} existing evidence documents")
-    
+
     # Read dev.json file
     project_root = Path(__file__).resolve().parents[2]
-    
+
     # Check for DB_ROOT_PATH environment variable
     db_root_path_val = os.getenv("DB_ROOT_PATH")
     if not db_root_path_val:
         error_msg = "Environment variable DB_ROOT_PATH is not set."
         logging.error(error_msg)
         raise ValueError(error_msg)
-        
+
     # Check if the base directory specified in DB_ROOT_PATH exists
     db_root_dir = Path(db_root_path_val)
     if not db_root_dir.is_dir():
-        error_msg = f"The directory specified by DB_ROOT_PATH does not exist: {db_root_dir}"
+        error_msg = (
+            f"The directory specified by DB_ROOT_PATH does not exist: {db_root_dir}"
+        )
         logging.error(error_msg)
         raise ValueError(error_msg)
-        
+
     db_mode_val = sql_db.db_mode
     dev_json_path = db_root_dir / f"{db_mode_val}_databases" / f"{db_mode_val}.json"
-    
+
     # Check if dev_json_path exists and is a file
     if not dev_json_path.is_file():
-        error_msg = f"The JSON file specified by dev_json_path does not exist: {dev_json_path}"
+        error_msg = (
+            f"The JSON file specified by dev_json_path does not exist: {dev_json_path}"
+        )
         logging.error(error_msg)
         raise ValueError(error_msg)
 
     try:
-        with open(dev_json_path, 'r', encoding='utf-8') as f:
+        with open(dev_json_path, "r", encoding="utf-8") as f:
             dev_data = json.load(f)
     except json.JSONDecodeError as e:
         error_msg = f"Failed to decode JSON from {dev_json_path}: {str(e)}"
         logging.error(error_msg)
-        raise ValueError(error_msg) # Changed from IOError to ValueError for consistency
-    except Exception as e: # Catch other potential IOErrors
+        raise ValueError(
+            error_msg
+        )  # Changed from IOError to ValueError for consistency
+    except Exception as e:  # Catch other potential IOErrors
         error_msg = f"Failed to read dev.json file at {dev_json_path}: {str(e)}"
         logging.error(error_msg)
         raise IOError(error_msg)
-    
+
     # Use collection name as db_id for filtering
     db_id = sql_db.db_name
-    
+
     # First, count total items to process
-    total_items = sum(1 for entry in dev_data if entry.get("db_id") == db_id and entry.get("evidence") and isinstance(entry.get("evidence"), str))
+    total_items = sum(
+        1
+        for entry in dev_data
+        if entry.get("db_id") == db_id
+        and entry.get("evidence")
+        and isinstance(entry.get("evidence"), str)
+    )
     logging.info(f"Found {total_items} evidence items to process for db_id: {db_id}")
-    
+
     # Update progress tracking with the actual total (it was initialized with 0 in the view)
-    progress = ProgressTracker.get_progress(workspace_id, 'evidence')
+    progress = ProgressTracker.get_progress(workspace_id, "evidence")
     if progress:
         # Update the total items count now that we know the actual number
-        ProgressTracker.update_progress(workspace_id, 'evidence', 0, 0, 0)
+        ProgressTracker.update_progress(workspace_id, "evidence", 0, 0, 0)
         # Now update with the correct total
-        progress = ProgressTracker.get_progress(workspace_id, 'evidence')
+        progress = ProgressTracker.get_progress(workspace_id, "evidence")
         if progress:
             from django.core.cache import cache
-            progress['total_items'] = total_items
-            cache_key = ProgressTracker.get_cache_key(workspace_id, 'evidence')
+
+            progress["total_items"] = total_items
+            cache_key = ProgressTracker.get_cache_key(workspace_id, "evidence")
             cache.set(cache_key, json.dumps(progress), timeout=3600)
     else:
         # Fallback: initialize if somehow it doesn't exist yet
-        ProgressTracker.init_progress(workspace_id, 'evidence', total_items)
-    
+        ProgressTracker.init_progress(workspace_id, "evidence", total_items)
+
     successful_uploads = 0
     failed_uploads = 0
     processed_items = 0
-    
+
     # Process each entry, filtering for the specified db_id
     for entry in dev_data:
         if entry.get("db_id") != db_id:
             continue
-            
+
         evidence = entry.get("evidence")
         if not evidence or not isinstance(evidence, str):
             logging.warning(f"Skipping invalid evidence entry: {entry}")
@@ -254,7 +279,7 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
 
         evidence_doc = EvidenceDocument(
             evidence=evidence.strip(),
-            text=evidence.strip()  # Use evidence as the text for searching
+            text=evidence.strip(),  # Use evidence as the text for searching
         )
 
         try:
@@ -262,44 +287,71 @@ def upload_evidence_to_vectordb(workspace_id=None) -> tuple:
             successful_uploads += 1
             processed_items += 1
             # Update progress tracker
-            ProgressTracker.update_progress(workspace_id, 'evidence', processed_items, successful_uploads, failed_uploads)
-            progress_percentage = int((processed_items / total_items) * 100) if total_items > 0 else 0
-            logging.info(f"Successfully uploaded evidence ({processed_items}/{total_items} - {progress_percentage}%): {evidence[:100]}...")
+            ProgressTracker.update_progress(
+                workspace_id,
+                "evidence",
+                processed_items,
+                successful_uploads,
+                failed_uploads,
+            )
+            progress_percentage = (
+                int((processed_items / total_items) * 100) if total_items > 0 else 0
+            )
+            logging.info(
+                f"Successfully uploaded evidence ({processed_items}/{total_items} - {progress_percentage}%): {evidence[:100]}..."
+            )
         except Exception as e:
             failed_uploads += 1
             processed_items += 1
             # Update progress tracker
-            ProgressTracker.update_progress(workspace_id, 'evidence', processed_items, successful_uploads, failed_uploads)
-            logging.error(f"Failed to upload evidence: {evidence[:100]}... Error: {str(e)}")
+            ProgressTracker.update_progress(
+                workspace_id,
+                "evidence",
+                processed_items,
+                successful_uploads,
+                failed_uploads,
+            )
+            logging.error(
+                f"Failed to upload evidence: {evidence[:100]}... Error: {str(e)}"
+            )
 
     # Clear the cache to ensure fresh data on next retrieval
-    #get_cached_training_data.clear(ThothType.EVIDENCE) - sostituire con equivalente streamlit free
+    # get_cached_training_data.clear(ThothType.EVIDENCE) - sostituire con equivalente streamlit free
 
     # Update the last_evidence_load timestamp in the workspace
     workspace.last_evidence_load = timezone.now()
     workspace.save()
-    logging.info(f"Updated last_evidence_load timestamp for workspace {workspace.name} (ID: {workspace_id})")
+    logging.info(
+        f"Updated last_evidence_load timestamp for workspace {workspace.name} (ID: {workspace_id})"
+    )
 
     # Log summary
-    logging.info(f"Evidence upload complete. Successful: {successful_uploads}, Failed: {failed_uploads}, Total: {total_items}")
-    
+    logging.info(
+        f"Evidence upload complete. Successful: {successful_uploads}, Failed: {failed_uploads}, Total: {total_items}"
+    )
+
     # Don't clear progress here - let the check_progress view do it after showing completion
     # The progress view needs the completion status to show the success message
     # ProgressTracker.clear_progress(workspace_id, 'evidence')
-    
+
     return successful_uploads, total_items
+
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Upload evidence to vector database")
-    parser.add_argument("--workspace_id", type=int, required=True, help="Workspace ID to determine collection name")
+    parser.add_argument(
+        "--workspace_id",
+        type=int,
+        required=True,
+        help="Workspace ID to determine collection name",
+    )
 
     args = parser.parse_args()
 
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
     try:

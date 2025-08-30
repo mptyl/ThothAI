@@ -19,8 +19,6 @@ MIGRATED: Now uses native thoth-qdrant with multilingual support.
 All embedding operations are handled transparently by the VectorStoreInterface.
 """
 
-import logging
-import os
 from .dual_logger import log_info, log_error
 from typing import Dict
 

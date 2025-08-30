@@ -14,5 +14,5 @@ from django.apps import AppConfig
 
 
 class ThothBackendConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'thoth_ai_backend'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "thoth_ai_backend"

@@ -15,7 +15,6 @@ Performance improvement verification test for Phase 4 completion.
 """
 
 import sys
-import pickle
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -28,7 +27,6 @@ def test_memory_usage_comparison():
     
     try:
         from model.state_factory import StateFactory
-        from model.system_state import SystemState
         
         # Create a realistic SystemState with data
         state = StateFactory.create_minimal("How many active users are there?")
@@ -126,9 +124,10 @@ def test_dependency_creation_performance():
         iterations = 1000
         
         for _ in range(iterations):
-            sql_deps = StateFactory.create_agent_deps(state, "sql_generation")
-            kw_deps = StateFactory.create_agent_deps(state, "keyword_extraction")
-            val_deps = StateFactory.create_agent_deps(state, "question_validation")
+            # Test creation performance for different dep types
+            _ = StateFactory.create_agent_deps(state, "sql_generation")
+            _ = StateFactory.create_agent_deps(state, "keyword_extraction")
+            _ = StateFactory.create_agent_deps(state, "question_validation")
         
         end_time = time.time()
         total_time = end_time - start_time

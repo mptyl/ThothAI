@@ -1,4 +1,4 @@
-def get_columns_prompt()->str:
+def get_columns_prompt() -> str:
     return """
 ###   TASK :
 Context - Generate Column Descriptions for the table {{table}} of a relational database, to give users a better understanding of what data is present in the columns.

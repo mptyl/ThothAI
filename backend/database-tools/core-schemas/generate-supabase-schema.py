@@ -19,67 +19,81 @@ This script reads the CSV description files and creates PostgreSQL SQL with COMM
 
 import csv
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 # Paths
-DESCRIPTIONS_DIR = "/Users/mp/thoth_data/dev_databases/california_schools/database_description"
+DESCRIPTIONS_DIR = (
+    "/Users/mp/thoth_data/dev_databases/california_schools/database_description"
+)
 OUTPUT_FILE = "/Users/mp/DjangoExperimental/Thoth/supabase-init/01-create-schema.sql"
+
 
 def read_column_descriptions(csv_file: str) -> Dict[str, str]:
     """Read column descriptions from CSV file"""
     descriptions = {}
     csv_path = os.path.join(DESCRIPTIONS_DIR, csv_file)
-    
+
     if not os.path.exists(csv_path):
         print(f"Warning: CSV file not found: {csv_path}")
         return descriptions
-    
+
     try:
-        with open(csv_path, 'r', encoding='utf-8-sig') as file:  # utf-8-sig handles BOM
+        with open(csv_path, "r", encoding="utf-8-sig") as file:  # utf-8-sig handles BOM
             reader = csv.DictReader(file)
-            
+
             for row in reader:
-                original_column_name = row.get('original_column_name', '').strip()
-                column_description = row.get('column_description', '').strip()
-                
+                original_column_name = row.get("original_column_name", "").strip()
+                column_description = row.get("column_description", "").strip()
+
                 if original_column_name and column_description:
                     # Escape single quotes for SQL
                     escaped_description = column_description.replace("'", "''")
                     descriptions[original_column_name] = escaped_description
-                    
+
     except Exception as e:
         print(f"Error reading {csv_file}: {e}")
-    
+
     return descriptions
+
 
 def generate_column_comments(table_name: str, descriptions: Dict[str, str]) -> str:
     """Generate PostgreSQL COMMENT ON COLUMN statements"""
     comments = []
     for column_name, description in descriptions.items():
         # PostgreSQL column names with spaces need to be quoted
-        if ' ' in column_name or '(' in column_name or ')' in column_name or '%' in column_name:
+        if (
+            " " in column_name
+            or "(" in column_name
+            or ")" in column_name
+            or "%" in column_name
+        ):
             quoted_column = f'"{column_name}"'
         else:
             # For regular column names, quote them to preserve case
             quoted_column = f'"{column_name}"'
-        comments.append(f"COMMENT ON COLUMN {table_name}.{quoted_column} IS '{description}';")
-    return '\n'.join(comments)
+        comments.append(
+            f"COMMENT ON COLUMN {table_name}.{quoted_column} IS '{description}';"
+        )
+    return "\n".join(comments)
+
 
 def generate_schema():
     """Generate the PostgreSQL schema with column comments"""
-    
+
     # Read descriptions for each table
-    schools_desc = read_column_descriptions('schools.csv')
-    frpm_desc = read_column_descriptions('frpm.csv')
-    satscores_desc = read_column_descriptions('satscores.csv')
-    
-    print(f"Loaded descriptions: Schools={len(schools_desc)}, FRPM={len(frpm_desc)}, SAT={len(satscores_desc)}")
-    
+    schools_desc = read_column_descriptions("schools.csv")
+    frpm_desc = read_column_descriptions("frpm.csv")
+    satscores_desc = read_column_descriptions("satscores.csv")
+
+    print(
+        f"Loaded descriptions: Schools={len(schools_desc)}, FRPM={len(frpm_desc)}, SAT={len(satscores_desc)}"
+    )
+
     # Generate column comments
-    schools_comments = generate_column_comments('schools', schools_desc)
-    frpm_comments = generate_column_comments('frpm', frpm_desc)
-    satscores_comments = generate_column_comments('satscores', satscores_desc)
-    
+    schools_comments = generate_column_comments("schools", schools_desc)
+    frpm_comments = generate_column_comments("frpm", frpm_desc)
+    satscores_comments = generate_column_comments("satscores", satscores_desc)
+
     schema_sql = f"""-- Supabase PostgreSQL schema for California Schools database with column comments
 -- Generated from SQLite schema with descriptions from CSV files
 
@@ -265,12 +279,13 @@ CREATE POLICY "Allow read access to satscores" ON satscores FOR SELECT USING (tr
 -- Add column comments for satscores table
 {satscores_comments}
 """
-    
+
     # Write the schema to file
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(schema_sql)
-    
+
     print(f"PostgreSQL/Supabase schema with column comments generated: {OUTPUT_FILE}")
+
 
 if __name__ == "__main__":
     generate_schema()

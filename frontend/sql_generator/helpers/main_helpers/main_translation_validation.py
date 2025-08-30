@@ -29,7 +29,6 @@ from ..template_preparation import (
     check_question_template,
 )
 from ..dual_logger import log_info, log_error
-from model.system_state import SystemState
 from model.state_factory import StateFactory
 
 
@@ -295,13 +294,6 @@ async def run_question_validation(agents_and_tools, state, workspace) -> tuple[s
     # Prepare the check question template (now without parameters - it uses dependency injection)
     check_template = check_question_template()
     
-    # Create validation dependencies with the data needed for template injection
-    validation_deps = QuestionValidationDeps(
-        question=state.question,
-        scope=scope,
-        language=language
-    )
-
     # Run the question validator agent with lightweight dependencies  
     log_info("Running question validity check...")
     

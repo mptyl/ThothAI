@@ -15,7 +15,7 @@ Helper functions for retrieving context from vector database.
 Replaces the previous RetrieveContextTool class with simpler functions.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List
 from helpers.vectordb_utils import query_vector_db_for_columns_data
 from helpers.logging_config import get_logger
 from helpers.dual_logger import log_info, log_error

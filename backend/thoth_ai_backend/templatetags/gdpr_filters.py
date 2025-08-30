@@ -14,16 +14,18 @@ from django import template
 
 register = template.Library()
 
+
 @register.filter
 def replace_underscore(value):
     """Replace underscores with spaces in a string."""
     if value:
-        return str(value).replace('_', ' ')
+        return str(value).replace("_", " ")
     return value
+
 
 @register.filter
 def format_category_name(value):
     """Format category names by replacing underscores and capitalizing."""
     if value:
-        return str(value).replace('_', ' ').title()
+        return str(value).replace("_", " ").title()
     return value
