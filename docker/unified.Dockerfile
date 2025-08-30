@@ -4,6 +4,7 @@
 
 # === UNIFIED THOTH DOCKER IMAGE ===
 # Single image containing all services for easy deployment
+# Build from project root: docker build -f docker/unified.Dockerfile .
 
 FROM python:3.13-slim AS python-builder
 
@@ -50,12 +51,13 @@ RUN npm run build
 # === Final Image ===
 FROM python:3.13-slim
 
-# Install system dependencies
+# Install system dependencies including PostgreSQL
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     curl \
     nginx \
     supervisor \
-    postgresql-client \
+    postgresql \
+    postgresql-contrib \
     nodejs \
     npm \
     cron \
@@ -63,10 +65,10 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app user
+# Create app user and directories
 RUN useradd -m -u 1000 thoth && \
-    mkdir -p /app /data /logs /exports && \
-    chown -R thoth:thoth /app /data /logs /exports
+    mkdir -p /app /data /logs /exports /vol/static /vol/media && \
+    chown -R thoth:thoth /app /data /logs /exports /vol
 
 WORKDIR /app
 
@@ -77,7 +79,7 @@ COPY --from=python-builder /build/sql-generator/.venv /app/sql-generator/.venv
 # Copy backend
 COPY --chown=thoth:thoth backend/ /app/backend/
 
-# Copy frontend
+# Copy frontend built files
 COPY --from=node-builder --chown=thoth:thoth /build/.next /app/frontend/.next
 COPY --from=node-builder --chown=thoth:thoth /build/public /app/frontend/public
 COPY --from=node-builder --chown=thoth:thoth /build/package*.json /app/frontend/
@@ -87,7 +89,7 @@ COPY --from=node-builder --chown=thoth:thoth /build/node_modules /app/frontend/n
 COPY --chown=thoth:thoth frontend/sql_generator/ /app/sql-generator/
 
 # Copy configuration files
-COPY --chown=thoth:thoth scripts/ /app/scripts/
+COPY --chown=thoth:thoth docker/scripts/ /app/scripts/
 COPY --chown=thoth:thoth docker/nginx.conf /etc/nginx/nginx.conf
 COPY --chown=thoth:thoth docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
@@ -95,65 +97,27 @@ COPY --chown=thoth:thoth docker/supervisord.conf /etc/supervisor/conf.d/supervis
 ENV PATH="/app/backend/.venv/bin:/app/sql-generator/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     NODE_ENV=production \
-    DOCKER_ENV=1
+    DOCKER_ENV=1 \
+    IS_DOCKER=True
 
-# Create startup script
-RUN cat > /app/start-all.sh << 'EOF'
-#!/bin/bash
-set -e
-
-echo "Starting ThothAI Unified Container..."
-
-# Start PostgreSQL (if not using external)
-if [ -z "$POSTGRES_HOST" ]; then
-    echo "Starting embedded PostgreSQL..."
-    su - postgres -c "pg_ctl start -D /var/lib/postgresql/data"
-    sleep 5
-    su - postgres -c "createdb thoth || true"
-fi
-
-# Start Qdrant
-echo "Starting Qdrant vector database..."
-/usr/local/bin/qdrant --storage-path /data/qdrant &
-
-# Wait for services
-sleep 10
-
-# Run Django migrations
-echo "Running database migrations..."
-cd /app/backend
-python manage.py migrate --noinput
-
-# Create superuser if needed
-python manage.py shell << END
-from django.contrib.auth import get_user_model
-User = get_user_model()
-if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@thoth.ai', 'admin')
-END
-
-# Collect static files
-python manage.py collectstatic --noinput
-
-# Start all services with supervisor
-echo "Starting all services..."
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
-EOF
-
+# Copy startup script
+COPY --chown=thoth:thoth docker/scripts/start-unified.sh /app/start-all.sh
 RUN chmod +x /app/start-all.sh
 
 # Expose ports
+# 80: nginx proxy
+# 8040: backend
+# 3001: frontend 
+# 8005: sql-generator
+# 6333: qdrant
 EXPOSE 80 8040 3001 8005 6333
 
 # Volumes
-VOLUME ["/data", "/logs", "/exports"]
+VOLUME ["/data", "/logs", "/exports", "/var/lib/postgresql/data"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
-    CMD curl -f http://localhost/health || exit 1
+    CMD curl -f http://localhost/health || curl -f http://localhost:8040/admin/login/ || exit 1
 
-# Switch to app user
-USER thoth
-
-# Start command
+# Start command (run as root for service management)
 CMD ["/app/start-all.sh"]
