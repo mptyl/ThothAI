@@ -13,9 +13,10 @@
 import secrets
 from django.core.management.base import BaseCommand
 
+
 class Command(BaseCommand):
-    help = 'Generate a new API key for authentication'
+    help = "Generate a new API key for authentication"
 
     def handle(self, *args, **kwargs):
         api_key = secrets.token_urlsafe(32)
-        self.stdout.write(self.style.SUCCESS(f'Generated API Key: {api_key}'))
+        self.stdout.write(self.style.SUCCESS(f"Generated API Key: {api_key}"))

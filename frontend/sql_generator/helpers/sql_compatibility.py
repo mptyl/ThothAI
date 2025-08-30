@@ -16,8 +16,7 @@ SQL compatibility utilities for ensuring PostgreSQL syntax.
 Requires: sqlglot (https://github.com/tobymao/sqlglot)
 """
 
-import sqlglot
-from sqlglot import transpile, parse_one, errors
+from sqlglot import transpile, errors
 
 def ensure_postgres_compatibility(sql: str) -> str:
     """

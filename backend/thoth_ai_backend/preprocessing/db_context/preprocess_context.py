@@ -13,19 +13,21 @@
 import logging
 
 from dotenv import load_dotenv
-from typing import Type
 
 # Define DuplicatePolicy locally since we're not using Haystack anymore
 from enum import Enum
 
+
 class DuplicatePolicy(Enum):
     """Policy for handling duplicate documents."""
+
     OVERWRITE = "overwrite"
     SKIP = "skip"
     FAIL = "fail"
 
+
 # Import new vector store plugin architecture
-from thoth_qdrant import ColumnNameDocument, ThothType
+from thoth_qdrant import ColumnNameDocument
 from thoth_ai_backend.utils.progress_tracker import ProgressTracker
 
 from .load_table_description import load_tables_description
@@ -84,49 +86,50 @@ def make_db_context_vec_db(document_store, db_params, **kwargs) -> int:
         document_store.delete_documents(doc_ids)
 
     # Extract workspace_id from kwargs if provided
-    workspace_id = kwargs.get('workspace_id', None)
-    
+    workspace_id = kwargs.get("workspace_id", None)
+
     # Count total columns for progress tracking
     total_columns = sum(len(columns) for columns in table_description.values())
     processed_items = 0
     successful_items = 0
-    
+
     # Get the number of unique values processed previously (from make_db_lsh)
     # This is used as an offset for progress tracking
     from thoth_core.models import SqlDb
+
     try:
         sql_db = SqlDb.objects.get(id=db_params["id"])
         # Estimate unique values count (we'll use this as offset)
-        from thoth_dbmanager import ThothDbFactory
-        
+
         # We don't have the exact count here, so we'll use an estimate or fetch from cache
-        processed_items_offset = kwargs.get('processed_items_offset', 0)
+        processed_items_offset = kwargs.get("processed_items_offset", 0)
     except:
         processed_items_offset = 0
-    
+
     # Then proceed with creating new documents
     for table_name, columns in table_description.items():
         for column_name, column_info in columns.items():
-            column_description=ColumnNameDocument(
+            column_description = ColumnNameDocument(
                 table_name=table_name,
                 column_name=column_info.get("column_name", ""),
                 original_column_name=column_info.get("original_column_name", ""),
                 column_description=column_info.get("column_description", ""),
                 value_description=column_info.get("value_description", ""),
-                text=f"{table_name}.{column_info.get('column_name', '')}: {column_info.get('column_description', '')}"  # Use descriptive text for searching
+                text=f"{table_name}.{column_info.get('column_name', '')}: {column_info.get('column_description', '')}",  # Use descriptive text for searching
             )
             docs.append(column_description)
-            
+
             processed_items += 1
             successful_items += 1
-            
+
             # Update progress tracker if workspace_id is provided
             if workspace_id and processed_items % 10 == 0:  # Update every 10 columns
                 ProgressTracker.update_progress(
-                    workspace_id, 'preprocessing',
+                    workspace_id,
+                    "preprocessing",
                     processed_items_offset + processed_items,
                     processed_items_offset + successful_items,
-                    0  # No failed items in this process
+                    0,  # No failed items in this process
                 )
 
     # Upload of documents to the vector store.
@@ -136,14 +139,15 @@ def make_db_context_vec_db(document_store, db_params, **kwargs) -> int:
     if docs:
         document_store.bulk_add_documents(docs, policy=DuplicatePolicy.OVERWRITE)
     logging.info(f"Context vector database created at {db_name}")
-    
+
     # Final progress update
     if workspace_id:
         ProgressTracker.update_progress(
-            workspace_id, 'preprocessing',
+            workspace_id,
+            "preprocessing",
             processed_items_offset + processed_items,
             processed_items_offset + successful_items,
-            0
+            0,
         )
-    
+
     return processed_items

@@ -221,7 +221,8 @@ def test_state_factory_performance():
             # Create different dependency types in each iteration
             agent_types = ["keyword_extraction", "sql_generation", "question_validation", "test_generation"]
             for agent_type in agent_types:
-                deps = StateFactory.create_agent_deps(state, agent_type)
+                # Create deps to test factory performance
+                _ = StateFactory.create_agent_deps(state, agent_type)
         
         end_time = time.time()
         total_time = end_time - start_time
@@ -252,7 +253,6 @@ def test_helper_function_integration():
     
     try:
         from model.state_factory import StateFactory
-        from helpers.main_helpers.main_keyword_extraction import extract_keywords
         
         # Create state
         state = StateFactory.create_minimal("Test query for helper integration")

@@ -16,7 +16,7 @@ Example usage of the centralized configuration manager.
 This file demonstrates how to use the configuration system in different parts of the application.
 """
 
-from helpers.config_manager import get_config, ThothConfig
+from helpers.config_manager import get_config
 import httpx
 
 

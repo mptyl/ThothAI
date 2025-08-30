@@ -14,7 +14,6 @@ import logging
 import pickle
 from pathlib import Path
 import os
-import sys
 from typing import Dict, List, Tuple
 
 from datasketch import MinHash, MinHashLSH
@@ -110,7 +109,7 @@ def query_lsh(
 
     similar_values_trimmed: Dict[str, Dict[str, List[str]]] = {}
     for result, similarity in similarities:
-        table_name, column_name, value = minhashes[result][1:] #type: ignore
+        table_name, column_name, value = minhashes[result][1:]  # type: ignore
         if table_name not in similar_values_trimmed:
             similar_values_trimmed[table_name] = {}
         if column_name not in similar_values_trimmed[table_name]:
@@ -125,15 +124,17 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
-    
+
     # Get the project root directory (2 levels up from this file)
     project_root = Path(__file__).resolve().parents[3]
-    
+
     # Use the data directory from the project root
-    db_directory_path = os.path.join(project_root, "data", "dev_databases", "california_schools")
-    
+    db_directory_path = os.path.join(
+        project_root, "data", "dev_databases", "california_schools"
+    )
+
     logger.info(f"Using database directory: {db_directory_path}")
-    
+
     try:
         lsh, minhashes = load_db_lsh(db_directory_path)
         query = "lowest three"

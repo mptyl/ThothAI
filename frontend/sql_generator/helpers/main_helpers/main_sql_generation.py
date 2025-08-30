@@ -16,10 +16,8 @@ SQL generation orchestration for parallel SQL generation.
 
 import asyncio
 import logging
-import random
-from typing import List, Tuple, Any, Optional
+from typing import List, Tuple
 from pydantic_ai.settings import ModelSettings
-from model.sql_generation_deps import SqlGenerationDeps
 from model.state_factory import StateFactory
 from helpers.template_preparation import format_example_shots
 from helpers.main_helpers.main_generate_mschema import generate_dynamic_mschema
@@ -220,7 +218,7 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         )
         
         # Run the agent with lightweight deps and specified temperature
-        result = await agent.run(
+        await agent.run(
             user_prompt,
             deps=sql_deps,
             model_settings=ModelSettings(temperature=temperature)

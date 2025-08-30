@@ -19,8 +19,6 @@ for the SQL generation pipeline.
 
 import json
 from typing import Optional, Tuple, TYPE_CHECKING
-from datetime import datetime
-from tzlocal import get_localzone
 from fastapi import Request
 from fastapi.responses import PlainTextResponse
 

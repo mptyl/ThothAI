@@ -44,7 +44,7 @@ from .agent_dependencies import (
     SqlExplanationDeps,
     AskHumanDeps
 )
-from .exceptions import StateFactoryError, AgentExecutionError
+from .exceptions import AgentExecutionError
 
 
 class StateFactory:

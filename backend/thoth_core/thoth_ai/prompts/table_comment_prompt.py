@@ -1,4 +1,4 @@
-def get_table_prompt()->str:
+def get_table_prompt() -> str:
     return """
 ###   TASK :
 Context - Generate Table Description for the table {{table}} of a relational database,to give users an easier time understanding what data is present in the tables.

@@ -111,10 +111,10 @@ test = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/mptyl/thoth_be"
-"Bug Tracker" = "https://github.com/mptyl/thoth_be/issues"
-"Documentation" = "https://github.com/mptyl/thoth_be#readme"
-"Source Code" = "https://github.com/mptyl/thoth_be"
+"Homepage" = "https://github.com/mptyl/ThothAI"
+"Bug Tracker" = "https://github.com/mptyl/ThothAI/issues"
+"Documentation" = "https://github.com/mptyl/ThothAI#readme"
+"Source Code" = "https://github.com/mptyl/ThothAI"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -169,3 +169,8 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.11",
+]

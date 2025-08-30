@@ -19,38 +19,44 @@ This script reads the CSV description files and creates a schema with COMMENT at
 
 import csv
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 # Paths
-DESCRIPTIONS_DIR = "/Users/mp/thoth_data/dev_databases/california_schools/database_description"
-OUTPUT_FILE = "/Users/mp/DjangoExperimental/Thoth/mariadb-init/01-create-schema-with-comments.sql"
+DESCRIPTIONS_DIR = (
+    "/Users/mp/thoth_data/dev_databases/california_schools/database_description"
+)
+OUTPUT_FILE = (
+    "/Users/mp/DjangoExperimental/Thoth/mariadb-init/01-create-schema-with-comments.sql"
+)
+
 
 def read_column_descriptions(csv_file: str) -> Dict[str, str]:
     """Read column descriptions from CSV file"""
     descriptions = {}
     csv_path = os.path.join(DESCRIPTIONS_DIR, csv_file)
-    
+
     if not os.path.exists(csv_path):
         print(f"Warning: CSV file not found: {csv_path}")
         return descriptions
-    
+
     try:
-        with open(csv_path, 'r', encoding='utf-8-sig') as file:  # utf-8-sig handles BOM
+        with open(csv_path, "r", encoding="utf-8-sig") as file:  # utf-8-sig handles BOM
             reader = csv.DictReader(file)
-            
+
             for row in reader:
-                original_column_name = row.get('original_column_name', '').strip()
-                column_description = row.get('column_description', '').strip()
-                
+                original_column_name = row.get("original_column_name", "").strip()
+                column_description = row.get("column_description", "").strip()
+
                 if original_column_name and column_description:
                     # Escape single quotes for SQL
                     escaped_description = column_description.replace("'", "\\'")
                     descriptions[original_column_name] = escaped_description
-                    
+
     except Exception as e:
         print(f"Error reading {csv_file}: {e}")
-    
+
     return descriptions
+
 
 def format_comment(description: str) -> str:
     """Format description as SQL COMMENT"""
@@ -58,16 +64,19 @@ def format_comment(description: str) -> str:
         return ""
     return f" COMMENT '{description}'"
 
+
 def generate_schema():
     """Generate the enhanced schema with column comments"""
-    
+
     # Read descriptions for each table
-    schools_desc = read_column_descriptions('schools.csv')
-    frpm_desc = read_column_descriptions('frpm.csv')
-    satscores_desc = read_column_descriptions('satscores.csv')
-    
-    print(f"Loaded descriptions: Schools={len(schools_desc)}, FRPM={len(frpm_desc)}, SAT={len(satscores_desc)}")
-    
+    schools_desc = read_column_descriptions("schools.csv")
+    frpm_desc = read_column_descriptions("frpm.csv")
+    satscores_desc = read_column_descriptions("satscores.csv")
+
+    print(
+        f"Loaded descriptions: Schools={len(schools_desc)}, FRPM={len(frpm_desc)}, SAT={len(satscores_desc)}"
+    )
+
     schema_sql = """-- Enhanced MariaDB schema for California Schools database with column comments
 -- Generated from SQLite schema with descriptions from CSV files
 
@@ -218,106 +227,133 @@ WHERE s.StatusType = 'Active'
   AND f.`Enrollment (K-12)` > 0;
 """.format(
         # Schools table comments
-        cds_comment=format_comment(schools_desc.get('CDSCode', '')),
-        ncesdist_comment=format_comment(schools_desc.get('NCESDist', '')),
-        ncesschool_comment=format_comment(schools_desc.get('NCESSchool', '')),
-        statustype_comment=format_comment(schools_desc.get('StatusType', '')),
-        county_comment=format_comment(schools_desc.get('County', '')),
-        district_comment=format_comment(schools_desc.get('District', '')),
-        school_comment=format_comment(schools_desc.get('School', '')),
-        street_comment=format_comment(schools_desc.get('Street', '')),
-        streetabr_comment=format_comment(schools_desc.get('StreetAbr', '')),
-        city_comment=format_comment(schools_desc.get('City', '')),
-        zip_comment=format_comment(schools_desc.get('Zip', '')),
-        state_comment=format_comment(schools_desc.get('State', '')),
-        mailstreet_comment=format_comment(schools_desc.get('MailStreet', '')),
-        mailstrabr_comment=format_comment(schools_desc.get('MailStrAbr', '')),
-        mailcity_comment=format_comment(schools_desc.get('MailCity', '')),
-        mailzip_comment=format_comment(schools_desc.get('MailZip', '')),
-        mailstate_comment=format_comment(schools_desc.get('MailState', '')),
-        phone_comment=format_comment(schools_desc.get('Phone', '')),
-        ext_comment=format_comment(schools_desc.get('Ext', '')),
-        website_comment=format_comment(schools_desc.get('Website', '')),
-        opendate_comment=format_comment(schools_desc.get('OpenDate', '')),
-        closeddate_comment=format_comment(schools_desc.get('ClosedDate', '')),
-        charter_comment=format_comment(schools_desc.get('Charter', '')),
-        charternum_comment=format_comment(schools_desc.get('CharterNum', '')),
-        fundingtype_comment=format_comment(schools_desc.get('FundingType', '')),
-        doc_comment=format_comment(schools_desc.get('DOC', '')),
-        doctype_comment=format_comment(schools_desc.get('DOCType', '')),
-        soc_comment=format_comment(schools_desc.get('SOC', '')),
-        soctype_comment=format_comment(schools_desc.get('SOCType', '')),
-        edopscode_comment=format_comment(schools_desc.get('EdOpsCode', '')),
-        edopsname_comment=format_comment(schools_desc.get('EdOpsName', '')),
-        eilcode_comment=format_comment(schools_desc.get('EILCode', '')),
-        eilname_comment=format_comment(schools_desc.get('EILName', '')),
-        gsoffered_comment=format_comment(schools_desc.get('GSoffered', '')),
-        gsserved_comment=format_comment(schools_desc.get('GSserved', '')),
-        virtual_comment=format_comment(schools_desc.get('Virtual', '')),
-        magnet_comment=format_comment(schools_desc.get('Magnet', '')),
-        latitude_comment=format_comment(schools_desc.get('Latitude', '')),
-        longitude_comment=format_comment(schools_desc.get('Longitude', '')),
-        admfname1_comment=format_comment(schools_desc.get('AdmFName1', '')),
-        admlname1_comment=format_comment(schools_desc.get('AdmLName1', '')),
-        admemail1_comment=format_comment(schools_desc.get('AdmEmail1', '')),
-        admfname2_comment=format_comment(schools_desc.get('AdmFName2', '')),
-        admlname2_comment=format_comment(schools_desc.get('AdmLName2', '')),
-        admemail2_comment=format_comment(schools_desc.get('AdmEmail2', '')),
-        admfname3_comment=format_comment(schools_desc.get('AdmFName3', '')),
-        admlname3_comment=format_comment(schools_desc.get('AdmLName3', '')),
-        admemail3_comment=format_comment(schools_desc.get('AdmEmail3', '')),
-        lastupdate_comment=format_comment(schools_desc.get('LastUpdate', '')),
-        
+        cds_comment=format_comment(schools_desc.get("CDSCode", "")),
+        ncesdist_comment=format_comment(schools_desc.get("NCESDist", "")),
+        ncesschool_comment=format_comment(schools_desc.get("NCESSchool", "")),
+        statustype_comment=format_comment(schools_desc.get("StatusType", "")),
+        county_comment=format_comment(schools_desc.get("County", "")),
+        district_comment=format_comment(schools_desc.get("District", "")),
+        school_comment=format_comment(schools_desc.get("School", "")),
+        street_comment=format_comment(schools_desc.get("Street", "")),
+        streetabr_comment=format_comment(schools_desc.get("StreetAbr", "")),
+        city_comment=format_comment(schools_desc.get("City", "")),
+        zip_comment=format_comment(schools_desc.get("Zip", "")),
+        state_comment=format_comment(schools_desc.get("State", "")),
+        mailstreet_comment=format_comment(schools_desc.get("MailStreet", "")),
+        mailstrabr_comment=format_comment(schools_desc.get("MailStrAbr", "")),
+        mailcity_comment=format_comment(schools_desc.get("MailCity", "")),
+        mailzip_comment=format_comment(schools_desc.get("MailZip", "")),
+        mailstate_comment=format_comment(schools_desc.get("MailState", "")),
+        phone_comment=format_comment(schools_desc.get("Phone", "")),
+        ext_comment=format_comment(schools_desc.get("Ext", "")),
+        website_comment=format_comment(schools_desc.get("Website", "")),
+        opendate_comment=format_comment(schools_desc.get("OpenDate", "")),
+        closeddate_comment=format_comment(schools_desc.get("ClosedDate", "")),
+        charter_comment=format_comment(schools_desc.get("Charter", "")),
+        charternum_comment=format_comment(schools_desc.get("CharterNum", "")),
+        fundingtype_comment=format_comment(schools_desc.get("FundingType", "")),
+        doc_comment=format_comment(schools_desc.get("DOC", "")),
+        doctype_comment=format_comment(schools_desc.get("DOCType", "")),
+        soc_comment=format_comment(schools_desc.get("SOC", "")),
+        soctype_comment=format_comment(schools_desc.get("SOCType", "")),
+        edopscode_comment=format_comment(schools_desc.get("EdOpsCode", "")),
+        edopsname_comment=format_comment(schools_desc.get("EdOpsName", "")),
+        eilcode_comment=format_comment(schools_desc.get("EILCode", "")),
+        eilname_comment=format_comment(schools_desc.get("EILName", "")),
+        gsoffered_comment=format_comment(schools_desc.get("GSoffered", "")),
+        gsserved_comment=format_comment(schools_desc.get("GSserved", "")),
+        virtual_comment=format_comment(schools_desc.get("Virtual", "")),
+        magnet_comment=format_comment(schools_desc.get("Magnet", "")),
+        latitude_comment=format_comment(schools_desc.get("Latitude", "")),
+        longitude_comment=format_comment(schools_desc.get("Longitude", "")),
+        admfname1_comment=format_comment(schools_desc.get("AdmFName1", "")),
+        admlname1_comment=format_comment(schools_desc.get("AdmLName1", "")),
+        admemail1_comment=format_comment(schools_desc.get("AdmEmail1", "")),
+        admfname2_comment=format_comment(schools_desc.get("AdmFName2", "")),
+        admlname2_comment=format_comment(schools_desc.get("AdmLName2", "")),
+        admemail2_comment=format_comment(schools_desc.get("AdmEmail2", "")),
+        admfname3_comment=format_comment(schools_desc.get("AdmFName3", "")),
+        admlname3_comment=format_comment(schools_desc.get("AdmLName3", "")),
+        admemail3_comment=format_comment(schools_desc.get("AdmEmail3", "")),
+        lastupdate_comment=format_comment(schools_desc.get("LastUpdate", "")),
         # FRPM table comments
-        frpm_cdscode_comment=format_comment(frpm_desc.get('CDSCode', '')),
-        academic_year_comment=format_comment(frpm_desc.get('Academic Year', '')),
-        county_code_comment=format_comment(frpm_desc.get('County Code', '')),
-        district_code_comment=format_comment(frpm_desc.get('District Code', '')),
-        school_code_comment=format_comment(frpm_desc.get('School Code ', '')),
-        county_name_comment=format_comment(frpm_desc.get('County Name', '')),
-        district_name_comment=format_comment(frpm_desc.get('District Name ', '')),
-        school_name_comment=format_comment(frpm_desc.get('School Name', '')),
-        district_type_comment=format_comment(frpm_desc.get('District Type', '')),
-        school_type_comment=format_comment(frpm_desc.get('School Type ', '')),
-        educational_option_type_comment=format_comment(frpm_desc.get('Educational Option Type', '')),
-        nslp_provision_status_comment=format_comment(frpm_desc.get('NSLP Provision Status', '')),
-        charter_school_yn_comment=format_comment(frpm_desc.get('Charter School (Y/N)', '')),
-        charter_school_number_comment=format_comment(frpm_desc.get('Charter School Number', '')),
-        charter_funding_type_comment=format_comment(frpm_desc.get('Charter Funding Type', '')),
-        irc_comment=format_comment(frpm_desc.get('IRC', '')),
-        low_grade_comment=format_comment(frpm_desc.get('Low Grade', '')),
-        high_grade_comment=format_comment(frpm_desc.get('High Grade', '')),
-        enrollment_k12_comment=format_comment(frpm_desc.get('Enrollment (K-12)', '')),
-        free_meal_count_k12_comment=format_comment(frpm_desc.get('Free Meal Count (K-12)', '')),
-        percent_eligible_free_k12_comment=format_comment(frpm_desc.get('Percent (%) Eligible Free (K-12)', '')),
-        frpm_count_k12_comment=format_comment(frpm_desc.get('FRPM Count (K-12)', '')),
-        percent_eligible_frpm_k12_comment=format_comment(frpm_desc.get('Percent (%) Eligible FRPM (K-12)', '')),
-        enrollment_ages_5_17_comment=format_comment(frpm_desc.get('Enrollment (Ages 5-17)', '')),
-        free_meal_count_ages_5_17_comment=format_comment(frpm_desc.get('Free Meal Count (Ages 5-17)', '')),
-        percent_eligible_free_ages_5_17_comment=format_comment(frpm_desc.get(' Percent (%) Eligible Free (Ages 5-17)', '')),
-        frpm_count_ages_5_17_comment=format_comment(frpm_desc.get('FRPM Count (Ages 5-17)', '')),
-        percent_eligible_frpm_ages_5_17_comment=format_comment(frpm_desc.get('Percent (%) Eligible FRPM (Ages 5-17)', '')),
-        calpads_certification_comment=format_comment(frpm_desc.get('2013-14 CALPADS Fall 1 Certification Status', '')),
-        
+        frpm_cdscode_comment=format_comment(frpm_desc.get("CDSCode", "")),
+        academic_year_comment=format_comment(frpm_desc.get("Academic Year", "")),
+        county_code_comment=format_comment(frpm_desc.get("County Code", "")),
+        district_code_comment=format_comment(frpm_desc.get("District Code", "")),
+        school_code_comment=format_comment(frpm_desc.get("School Code ", "")),
+        county_name_comment=format_comment(frpm_desc.get("County Name", "")),
+        district_name_comment=format_comment(frpm_desc.get("District Name ", "")),
+        school_name_comment=format_comment(frpm_desc.get("School Name", "")),
+        district_type_comment=format_comment(frpm_desc.get("District Type", "")),
+        school_type_comment=format_comment(frpm_desc.get("School Type ", "")),
+        educational_option_type_comment=format_comment(
+            frpm_desc.get("Educational Option Type", "")
+        ),
+        nslp_provision_status_comment=format_comment(
+            frpm_desc.get("NSLP Provision Status", "")
+        ),
+        charter_school_yn_comment=format_comment(
+            frpm_desc.get("Charter School (Y/N)", "")
+        ),
+        charter_school_number_comment=format_comment(
+            frpm_desc.get("Charter School Number", "")
+        ),
+        charter_funding_type_comment=format_comment(
+            frpm_desc.get("Charter Funding Type", "")
+        ),
+        irc_comment=format_comment(frpm_desc.get("IRC", "")),
+        low_grade_comment=format_comment(frpm_desc.get("Low Grade", "")),
+        high_grade_comment=format_comment(frpm_desc.get("High Grade", "")),
+        enrollment_k12_comment=format_comment(frpm_desc.get("Enrollment (K-12)", "")),
+        free_meal_count_k12_comment=format_comment(
+            frpm_desc.get("Free Meal Count (K-12)", "")
+        ),
+        percent_eligible_free_k12_comment=format_comment(
+            frpm_desc.get("Percent (%) Eligible Free (K-12)", "")
+        ),
+        frpm_count_k12_comment=format_comment(frpm_desc.get("FRPM Count (K-12)", "")),
+        percent_eligible_frpm_k12_comment=format_comment(
+            frpm_desc.get("Percent (%) Eligible FRPM (K-12)", "")
+        ),
+        enrollment_ages_5_17_comment=format_comment(
+            frpm_desc.get("Enrollment (Ages 5-17)", "")
+        ),
+        free_meal_count_ages_5_17_comment=format_comment(
+            frpm_desc.get("Free Meal Count (Ages 5-17)", "")
+        ),
+        percent_eligible_free_ages_5_17_comment=format_comment(
+            frpm_desc.get(" Percent (%) Eligible Free (Ages 5-17)", "")
+        ),
+        frpm_count_ages_5_17_comment=format_comment(
+            frpm_desc.get("FRPM Count (Ages 5-17)", "")
+        ),
+        percent_eligible_frpm_ages_5_17_comment=format_comment(
+            frpm_desc.get("Percent (%) Eligible FRPM (Ages 5-17)", "")
+        ),
+        calpads_certification_comment=format_comment(
+            frpm_desc.get("2013-14 CALPADS Fall 1 Certification Status", "")
+        ),
         # SAT Scores table comments
-        sat_cds_comment=format_comment(satscores_desc.get('cds', '')),
-        rtype_comment=format_comment(satscores_desc.get('rtype', '')),
-        sname_comment=format_comment(satscores_desc.get('sname', '')),
-        dname_comment=format_comment(satscores_desc.get('dname', '')),
-        cname_comment=format_comment(satscores_desc.get('cname', '')),
-        enroll12_comment=format_comment(satscores_desc.get('enroll12', '')),
-        numtsttakr_comment=format_comment(satscores_desc.get('NumTstTakr', '')),
-        avgscrread_comment=format_comment(satscores_desc.get('AvgScrRead', '')),
-        avgscrmath_comment=format_comment(satscores_desc.get('AvgScrMath', '')),
-        avgscrwrite_comment=format_comment(satscores_desc.get('AvgScrWrite', '')),
-        numge1500_comment=format_comment(satscores_desc.get('NumGE1500', ''))
+        sat_cds_comment=format_comment(satscores_desc.get("cds", "")),
+        rtype_comment=format_comment(satscores_desc.get("rtype", "")),
+        sname_comment=format_comment(satscores_desc.get("sname", "")),
+        dname_comment=format_comment(satscores_desc.get("dname", "")),
+        cname_comment=format_comment(satscores_desc.get("cname", "")),
+        enroll12_comment=format_comment(satscores_desc.get("enroll12", "")),
+        numtsttakr_comment=format_comment(satscores_desc.get("NumTstTakr", "")),
+        avgscrread_comment=format_comment(satscores_desc.get("AvgScrRead", "")),
+        avgscrmath_comment=format_comment(satscores_desc.get("AvgScrMath", "")),
+        avgscrwrite_comment=format_comment(satscores_desc.get("AvgScrWrite", "")),
+        numge1500_comment=format_comment(satscores_desc.get("NumGE1500", "")),
     )
-    
+
     # Write the schema to file
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(schema_sql)
-    
+
     print(f"Enhanced schema with comments generated: {OUTPUT_FILE}")
+
 
 if __name__ == "__main__":
     generate_schema()

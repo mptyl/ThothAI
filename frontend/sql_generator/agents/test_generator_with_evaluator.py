@@ -18,9 +18,9 @@ This agent creates test units and evaluates SQL candidates in one go.
 """
 
 import logging
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List, Tuple, Dict, Any
 from pydantic_ai import Agent, RunContext
-from agents.core.agent_result_models import TestUnitGeneratorResult, EvaluationResult
+from agents.core.agent_result_models import TestUnitGeneratorResult
 from model.evaluator_deps import EvaluatorDeps
 from helpers.template_preparation import TemplateLoader
 

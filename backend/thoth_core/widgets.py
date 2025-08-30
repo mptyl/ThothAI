@@ -19,26 +19,26 @@ class PasswordInputWithToggle(forms.PasswordInput):
     A password input widget with a toggle button to show/hide the password.
     Fully compatible with Django admin.
     """
-    
+
     def render(self, name, value, attrs=None, renderer=None):
         # Generate a unique ID for this widget instance
         if attrs is None:
             attrs = {}
-        
+
         # Ensure we have an ID for the input
-        if 'id' not in attrs:
-            attrs['id'] = f'id_{name}'
-        
+        if "id" not in attrs:
+            attrs["id"] = f"id_{name}"
+
         # Set a wider size for the password field
-        if 'size' not in attrs:
-            attrs['size'] = '60'  # Double the default width
-        
-        input_id = attrs['id']
-        toggle_id = f'{input_id}_toggle'
-        
+        if "size" not in attrs:
+            attrs["size"] = "60"  # Double the default width
+
+        input_id = attrs["id"]
+        toggle_id = f"{input_id}_toggle"
+
         # Render the standard password input
         html = super().render(name, value, attrs, renderer)
-        
+
         # Add the toggle button and JavaScript
         toggle_html = f'''
         <div style="position: relative; display: inline-block; width: 500px; max-width: 100%;">
@@ -75,5 +75,5 @@ class PasswordInputWithToggle(forms.PasswordInput):
             }}
         </style>
         '''
-        
+
         return mark_safe(toggle_html)

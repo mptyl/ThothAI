@@ -16,7 +16,7 @@ Example usage of the unified error handling system.
 This file demonstrates how to use the error handling system in different scenarios.
 """
 
-from helpers.error_handling import ErrorHandler, safe_execute, safe_execute_async
+from helpers.error_handling import ErrorHandler, safe_execute
 
 # Example 1: Database connection error
 def connect_to_database(config):
@@ -78,7 +78,7 @@ def search_vector_db(query, vdb_manager):
         results = vdb_manager.search(query)
         return results
     except Exception as e:
-        error = ErrorHandler.handle_vector_db_error(
+        ErrorHandler.handle_vector_db_error(
             message="Failed to search vector database",
             operation="similarity_search",
             exception=e,
@@ -121,7 +121,7 @@ def load_workspace_config(workspace_id):
         
         return {"id": workspace_id, "name": f"Workspace {workspace_id}"}
     except Exception as e:
-        error = ErrorHandler.handle_configuration_error(
+        ErrorHandler.handle_configuration_error(
             message=f"Failed to load workspace configuration",
             details=f"Workspace ID: {workspace_id}",
             exception=e,
@@ -141,7 +141,7 @@ async def fetch_from_api(url):
             response.raise_for_status()
             return response.json()
     except Exception as e:
-        error = ErrorHandler.handle_network_error(
+        ErrorHandler.handle_network_error(
             message="Failed to fetch data from API",
             url=url,
             exception=e

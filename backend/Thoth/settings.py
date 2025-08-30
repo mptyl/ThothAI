@@ -21,9 +21,9 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,36 +33,45 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # load_dotenv(BASE_DIR / '.env')  # Deprecated - use root .env.local
 # load_dotenv(BASE_DIR / '_env')  # Deprecated - use root .env.docker
 
-APPEND_SLASH=False
+APPEND_SLASH = False
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
-ALLOWED_HOSTS = ['thoth-be', 'thoth-be-proxy', 'backend', 'backend:8000', 'thoth-sql-generator', 'sql-generator', 'localhost', '127.0.0.1']
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+ALLOWED_HOSTS = [
+    "thoth-be",
+    "thoth-be-proxy",
+    "backend",
+    "backend:8000",
+    "thoth-sql-generator",
+    "sql-generator",
+    "localhost",
+    "127.0.0.1",
+]
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'corsheaders',  # Add CORS headers support
-    'thoth_core',
-    'thoth_ai_backend',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "corsheaders",  # Add CORS headers support
+    "thoth_core",
+    "thoth_ai_backend",
     "rest_framework",
     "rest_framework.authtoken",
-    'crispy_forms',
-    'crispy_bootstrap5',
-    'allauth',
-    'allauth.account',
+    "crispy_forms",
+    "crispy_bootstrap5",
+    "allauth",
+    "allauth.account",
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
@@ -71,71 +80,70 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Verify that REST_FRAMEWORK is configured correctly
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
         # Other authentication methods...
     ],
     # Other configurations...
 }
 
 if DEBUG:
-    INSTALLED_APPS.append('django_browser_reload')
+    INSTALLED_APPS.append("django_browser_reload")
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Add CORS middleware first
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'thoth_core.middleware.WorkspaceMiddleware', # Added Workspace Middleware
-    'thoth_core.cache_middleware.NoCacheMiddleware', # Added No-Cache Middleware
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",  # Add CORS middleware first
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "thoth_core.middleware.WorkspaceMiddleware",  # Added Workspace Middleware
+    "thoth_core.cache_middleware.NoCacheMiddleware",  # Added No-Cache Middleware
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
 
 if DEBUG:
-    MIDDLEWARE.append('django_browser_reload.middleware.BrowserReloadMiddleware')
+    MIDDLEWARE.append("django_browser_reload.middleware.BrowserReloadMiddleware")
 
-ROOT_URLCONF = 'Thoth.urls'
+ROOT_URLCONF = "Thoth.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'thoth_core.context_processors.workspace_context', # Add workspace context
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "thoth_core.context_processors.workspace_context",  # Add workspace context
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'Thoth.wsgi.application'
+WSGI_APPLICATION = "Thoth.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-IS_DOCKER = os.environ.get('IS_DOCKER', 'False') == 'True'
+IS_DOCKER = os.environ.get("IS_DOCKER", "False") == "True"
 if IS_DOCKER:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.environ.get('DB_NAME_DOCKER', '/app/data/db.sqlite3'),
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.environ.get("DB_NAME_DOCKER", "/app/data/db.sqlite3"),
         }
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / os.environ.get('DB_NAME_LOCAL', 'db.sqlite3'),
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / os.environ.get("DB_NAME_LOCAL", "db.sqlite3"),
         }
     }
 
@@ -145,16 +153,16 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -162,9 +170,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'Europe/Rome'
+TIME_ZONE = "Europe/Rome"
 
 USE_I18N = True
 
@@ -174,7 +182,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
@@ -184,100 +192,104 @@ STATIC_ROOT = "/vol/static/"
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Django Allauth settings
-ACCOUNT_SESSION_REMEMBER = None  # Show "remember me" checkbox but don't check it by default
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # Session cookie expires after 30 days when "remember me" is checked
+ACCOUNT_SESSION_REMEMBER = (
+    None  # Show "remember me" checkbox but don't check it by default
+)
+SESSION_COOKIE_AGE = (
+    60 * 60 * 24 * 30
+)  # Session cookie expires after 30 days when "remember me" is checked
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'thoth.log'),
-            'formatter': 'verbose',
-            'when': 'midnight',
-            'interval': 1,
-            'backupCount': 0,  # We'll handle cleanup with our custom command
-            'encoding': 'utf-8',
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
         },
     },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": os.path.join(BASE_DIR, "logs", "thoth.log"),
+            "formatter": "verbose",
+            "when": "midnight",
+            "interval": 1,
+            "backupCount": 0,  # We'll handle cleanup with our custom command
+            "encoding": "utf-8",
+        },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': False,
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
         },
-        'thoth_core': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "thoth_core": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
         },
-        'thoth_core.authentication': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "thoth_core.authentication": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
         },
-        'thoth_core.permissions': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "thoth_core.permissions": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": False,
         },
         # Reduce plugin registration spam
-        'thoth_dbmanager': {
-            'handlers': ['file'],  # Only to file, not console
-            'level': 'WARNING',    # Reduce plugin registration messages
-            'propagate': False,
+        "thoth_dbmanager": {
+            "handlers": ["file"],  # Only to file, not console
+            "level": "WARNING",  # Reduce plugin registration messages
+            "propagate": False,
         },
-        'thoth_sqldb2': {
-            'handlers': ['file'],
-            'level': 'WARNING',
-            'propagate': False,
+        "thoth_sqldb2": {
+            "handlers": ["file"],
+            "level": "WARNING",
+            "propagate": False,
         },
     },
 }
 
 # Ensure logs directory exists
-os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
 
 # Cache configuration - using database cache for thread safety
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'thoth_cache_table',
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "thoth_cache_table",
     }
 }
 
 # Load API key from environment or secrets volume
-API_KEY = os.environ.get('DJANGO_API_KEY')
+API_KEY = os.environ.get("DJANGO_API_KEY")
 if not API_KEY:
     try:
         # Try to load from secrets volume if in Docker
-        api_key_file = '/vol/secrets/django_api_key'
+        api_key_file = "/vol/secrets/django_api_key"
         if os.path.exists(api_key_file):
-            with open(api_key_file, 'r') as f:
+            with open(api_key_file, "r") as f:
                 API_KEY = f.read().strip()
     except Exception:
         pass  # If loading fails, API_KEY remains None
@@ -307,24 +319,24 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Allow specific headers
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'x-api-key',  # For API key authentication
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-api-key",  # For API key authentication
 ]
 
 # Allow specific methods
 CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
 ]

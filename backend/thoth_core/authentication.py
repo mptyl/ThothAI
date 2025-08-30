@@ -17,22 +17,34 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
 class ApiKeyAuthentication(BaseAuthentication):
     """
     Custom authentication class that authenticates requests based on API key.
     """
+
     def authenticate(self, request):
         # Force immediate logging to stderr to bypass Django logging
         import sys
+
         print("=" * 50, file=sys.stderr)
         print("ApiKeyAuthentication.authenticate() CALLED", file=sys.stderr)
         print(f"Request type: {type(request)}", file=sys.stderr)
-        print(f"Request headers attribute exists: {hasattr(request, 'headers')}", file=sys.stderr)
-        
-        api_key = request.headers.get('X-API-KEY')
-        print(f"API key from headers: {api_key[:10] if api_key else 'None'}...", file=sys.stderr)
-        print(f"Settings API_KEY: {settings.API_KEY[:10] if settings.API_KEY else 'None'}...", file=sys.stderr)
-        
+        print(
+            f"Request headers attribute exists: {hasattr(request, 'headers')}",
+            file=sys.stderr,
+        )
+
+        api_key = request.headers.get("X-API-KEY")
+        print(
+            f"API key from headers: {api_key[:10] if api_key else 'None'}...",
+            file=sys.stderr,
+        )
+        print(
+            f"Settings API_KEY: {settings.API_KEY[:10] if settings.API_KEY else 'None'}...",
+            file=sys.stderr,
+        )
+
         if not api_key:
             print("No API key in headers, returning None", file=sys.stderr)
             return None
@@ -40,7 +52,7 @@ class ApiKeyAuthentication(BaseAuthentication):
         if api_key != settings.API_KEY:
             print(f"Invalid API key! Received: {api_key}", file=sys.stderr)
             print(f"Expected: {settings.API_KEY}", file=sys.stderr)
-            raise AuthenticationFailed('Invalid API key')
+            raise AuthenticationFailed("Invalid API key")
 
         print("Valid API key! Returning (None, True)", file=sys.stderr)
         return (None, True)

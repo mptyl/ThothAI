@@ -19,17 +19,17 @@ import os
 
 
 class Command(BaseCommand):
-    help = 'Import a single CSV file into the corresponding Django model'
+    help = "Import a single CSV file into the corresponding Django model"
 
     def add_arguments(self, parser):
-        parser.add_argument('model_name', type=str, help='Name of the model to import')
+        parser.add_argument("model_name", type=str, help="Name of the model to import")
 
     def handle(self, *args, **options):
-        model_name = options['model_name']
-        Model = apps.get_model('toth_be', model_name)
-        file_path = os.path.join('exports', f"{model_name.lower()}.csv")
+        model_name = options["model_name"]
+        Model = apps.get_model("toth_be", model_name)
+        file_path = os.path.join("exports", f"{model_name.lower()}.csv")
 
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             reader = csv.DictReader(file)
             for row in reader:
                 with transaction.atomic():
@@ -40,24 +40,33 @@ class Command(BaseCommand):
                         field = Model._meta.get_field(field_name)
                         if isinstance(field, (ForeignKey, OneToOneField)):
                             if value.strip():
-                                instance_data[field_name] = field.related_model.objects.get(pk=value.strip())
+                                instance_data[field_name] = (
+                                    field.related_model.objects.get(pk=value.strip())
+                                )
                         elif isinstance(field, ManyToManyField):
                             if value.strip():
-                                m2m_data[field_name] = [int(id.strip()) for id in value.split(',') if id.strip()]
+                                m2m_data[field_name] = [
+                                    int(id.strip())
+                                    for id in value.split(",")
+                                    if id.strip()
+                                ]
                         else:
                             instance_data[field_name] = value
 
                     pk_field = Model._meta.pk.original_column_name
-                    pk_value = instance_data.get(pk_field, '').strip()
+                    pk_value = instance_data.get(pk_field, "").strip()
                     if pk_value:
                         instance, _ = Model.objects.update_or_create(
-                            **{pk_field: pk_value},
-                            defaults=instance_data
+                            **{pk_field: pk_value}, defaults=instance_data
                         )
                     else:
-                        instance = Model.objects.create(**{k: v for k, v in instance_data.items() if k != pk_field})
+                        instance = Model.objects.create(
+                            **{k: v for k, v in instance_data.items() if k != pk_field}
+                        )
 
                     for field_name, ids in m2m_data.items():
                         getattr(instance, field_name).set(ids)
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully imported data for {model_name}'))
+        self.stdout.write(
+            self.style.SUCCESS(f"Successfully imported data for {model_name}")
+        )

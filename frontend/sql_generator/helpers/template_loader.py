@@ -8,9 +8,8 @@ Generic Template Loader
 This module provides a unified template loading system to reduce code duplication.
 """
 
-import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict
 import logging
 
 logger = logging.getLogger(__name__)

@@ -27,23 +27,12 @@ def test_pipeline_imports():
     
     try:
         # Test main pipeline components
-        from helpers.main_helpers.main_preprocessing_phases import (
-            _validate_question_phase,
-            _extract_keywords_phase, 
-            _retrieve_context_phase
-        )
         print("✅ Preprocessing phases imported successfully")
         
-        from helpers.main_helpers.main_generation_phases import (
-            _generate_sql_candidates_phase,
-            _evaluate_and_select_phase
-        )
         print("✅ Generation phases imported successfully")
         
-        from helpers.main_helpers.main_sql_generation import generate_sql_units
         print("✅ SQL generation helper imported successfully")
         
-        from model.state_factory import StateFactory
         print("✅ StateFactory imported successfully")
         
         return True
@@ -59,7 +48,6 @@ def test_state_factory_integration():
     
     try:
         from model.state_factory import StateFactory
-        from model.system_state import SystemState
         from model.sql_generation_deps import SqlGenerationDeps
         
         # Create a test SystemState

@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Dict
 
 # New plugin-based imports
-from thoth_dbmanager import ThothDbFactory
 from thoth_dbmanager.core.interfaces import DbPlugin
 from dotenv import load_dotenv
 
@@ -32,14 +31,16 @@ project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
 # Set up Django environment
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Thoth.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings")
 django.setup()
 
 # Now you can import Django models
-from thoth_core.models import SqlDb, Setting, VectorDb
+from thoth_core.models import SqlDb, Setting
 
 from thoth_ai_backend.backend_utils.vectordb_config_utils import get_vectordb_config
-from thoth_ai_backend.preprocessing.db_context.preprocess_context import make_db_context_vec_db
+from thoth_ai_backend.preprocessing.db_context.preprocess_context import (
+    make_db_context_vec_db,
+)
 from thoth_ai_backend.preprocessing.db_values.preprocess_values import make_db_lsh
 from thoth_ai_backend.utils.progress_tracker import ProgressTracker
 
@@ -48,21 +49,22 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+
 def preprocess(
-        db: DbPlugin,
-        document_store: VectorStoreInterface,
-        db_params: Dict,
-        setting: Dict,
-        lsh_root_arg: str = None,
-        workspace_id: int = None
+    db: DbPlugin,
+    document_store: VectorStoreInterface,
+    db_params: Dict,
+    setting: Dict,
+    lsh_root_arg: str = None,
+    workspace_id: int = None,
 ) -> None:
     """
     Preprocesses a database by creating Locality-Sensitive Hashing (LSH) signatures and context vectors.
-    
+
     This function handles the complete preprocessing workflow for a database, including:
     1. Creating LSH signatures for database elements
     2. Generating context vectors and storing them in the vector database
-    
+
     Args:
         db (ThothDbManager): Database manager instance for accessing the database
         document_store (VectorStoreInterface): Vector store for saving context vectors
@@ -79,14 +81,14 @@ def preprocess(
         lsh_root_arg (str, optional): Root directory path for storing LSH data.
             If None, will use DB_ROOT_PATH environment variable. Defaults to None.
         workspace_id (int, optional): Workspace ID for progress tracking.
-            
+
     Returns:
         None
-        
+
     Raises:
         ValueError: If no LSH root directory is specified via argument or environment variable
     """
-    #preprocess(sql_db, vector_db, sql_db_params, setting)
+    # preprocess(sql_db, vector_db, sql_db_params, setting)
 
     signature_size = setting["signature_size"]
     n_gram = setting["n_grams"]
@@ -100,7 +102,9 @@ def preprocess(
     # Determine LSH root directory: argument > DB_ROOT_PATH env
     lsh_root_path = lsh_root_arg or os.getenv("DB_ROOT_PATH")
     if not lsh_root_path:
-        raise ValueError("No LSH root directory specified via --lsh_root or DB_ROOT_PATH environment variable.")
+        raise ValueError(
+            "No LSH root directory specified via --lsh_root or DB_ROOT_PATH environment variable."
+        )
 
     # Create path with db_mode_databases/db_name structure
     db_directory_path = os.path.join(lsh_root_path, f"{db_mode}_databases", db_name)
@@ -116,20 +120,23 @@ def preprocess(
                 for table_values in unique_values.values()
                 for column_values in table_values.values()
             )
-            
+
             # Get tables and columns count for context vectors
             from thoth_core.models import SqlDb, SqlTable, SqlColumn
+
             sql_db = SqlDb.objects.get(id=db_params["id"])
             tables_count = SqlTable.objects.filter(sql_db=sql_db).count()
             columns_count = SqlColumn.objects.filter(sql_table__sql_db=sql_db).count()
-            
+
             # Total items: unique values for LSH + columns for context vectors
             total_items = total_unique_values + columns_count
-            
-            logging.info(f"Preprocessing will process {total_items} items ({total_unique_values} unique values, {columns_count} columns)")
-            
+
+            logging.info(
+                f"Preprocessing will process {total_items} items ({total_unique_values} unique values, {columns_count} columns)"
+            )
+
             # Initialize progress tracking
-            ProgressTracker.init_progress(workspace_id, 'preprocessing', total_items)
+            ProgressTracker.init_progress(workspace_id, "preprocessing", total_items)
         except Exception as e:
             logging.warning(f"Could not initialize progress tracking: {e}")
             total_items = 0
@@ -147,16 +154,21 @@ def preprocess(
         verbose=verbose,
         workspace_id=workspace_id,
     )
-    logging.info(f"LSH for {db_name} created. Processed {lsh_processed_items} unique values.")
+    logging.info(
+        f"LSH for {db_name} created. Processed {lsh_processed_items} unique values."
+    )
     logging.info(f"Creating context vectors for {db_name}")
 
     columns_processed = make_db_context_vec_db(
-        document_store, db_params, 
-        use_value_description=use_value_description, 
+        document_store,
+        db_params,
+        use_value_description=use_value_description,
         workspace_id=workspace_id,
-        processed_items_offset=lsh_processed_items  # Pass the LSH items as offset
+        processed_items_offset=lsh_processed_items,  # Pass the LSH items as offset
     )
-    logging.info(f"Columns vector points for {db_name} created. Processed {columns_processed} columns.")
+    logging.info(
+        f"Columns vector points for {db_name} created. Processed {columns_processed} columns."
+    )
 
 
 if __name__ == "__main__":
@@ -165,7 +177,10 @@ if __name__ == "__main__":
         "--db_name", type=str, help="Name of the database to preprocess"
     )
     parser.add_argument(
-        "--lsh_root", type=str, default=None, help="Root directory for LSH data (overrides DB_ROOT_PATH)"
+        "--lsh_root",
+        type=str,
+        default=None,
+        help="Root directory for LSH data (overrides DB_ROOT_PATH)",
     )
     args = parser.parse_args()
 
@@ -224,10 +239,10 @@ if __name__ == "__main__":
             db_root_path = os.getenv("DB_ROOT_PATH")
             db_mode = sql_db_params["db_mode"]
             db_name = sql_db_params["db_name"]
-            
+
             # Construct the full path to the database file
             db_directory_path = os.path.join(db_root_path, f"{db_mode}_databases")
-            
+
             sql_db = ThothSqliteManager(
                 db_id=db_name,
                 db_root_path=db_directory_path,
@@ -256,16 +271,18 @@ if __name__ == "__main__":
         try:
             vector_db = VectorStoreFactory.create_vector_store(
                 vector_store_type=vector_db_config["vector_db_type"],
-                collection_name=vector_db_config.get('collection_name'),
-                host=vector_db_config.get('host'),
-                port=vector_db_config.get('port')
+                collection_name=vector_db_config.get("collection_name"),
+                host=vector_db_config.get("host"),
+                port=vector_db_config.get("port"),
             )
         except Exception as e:
             logging.error(f"Failed to create vector store: {e}")
             sys.exit(1)
 
         # Run the preprocessing
-        preprocess(sql_db, vector_db, sql_db_params, setting, lsh_root_arg=args.lsh_root)
+        preprocess(
+            sql_db, vector_db, sql_db_params, setting, lsh_root_arg=args.lsh_root
+        )
         logging.info("Preprocessing is complete.")
 
     except SqlDb.DoesNotExist:
