@@ -1,14 +1,17 @@
-# Copyright (c) 2025 Marco Pancotti
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Unless required by applicable law or agreed to in writing, software
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
 Helper module for schema extraction phase (Phase 4) of the SQL generation process.
 This module contains all methods related to schema extraction via LSH, vector similarity, and full schema retrieval.
@@ -35,14 +38,14 @@ logger = logging.getLogger(__name__)
 
 def format_full_schema_for_display(full_schema: Dict[str, Dict[str, Any]]) -> str:
     """
-    Formatta il full_schema dello stato in una stringa human-readable.
+    Format the full_schema state into a human-readable string.
     
     Args:
-        full_schema: Il dizionario completo dello schema dal database
-                    Con struttura: {"table": {"table_description": str, "columns": {...}}}
+        full_schema: The complete schema dictionary from the database
+                    With structure: {"table": {"table_description": str, "columns": {...}}}
         
     Returns:
-        Stringa formattata per visualizzazione human-readable
+        Formatted string for human-readable display
     """
     if not full_schema:
         return "(no schema available)"
@@ -124,7 +127,7 @@ def extract_schema_via_lsh(state: SystemState) -> tuple[Dict[str, List[str]], Di
     # Concatena le tre evidence come specificato nelle istruzioni
     evidence = " ".join(state.evidence) if state.evidence else ""
     
-    # Ottieni lo schema dal dbmanager usando la funzione corretta
+    # Get the schema from dbmanager using the correct function
     tentative_schema = get_db_schema(state.dbmanager.db_id, state.dbmanager.schema)
     
     # Semplifica lo schema per uso interno (copia da RetrieveEntityTool._simplify_schema)
@@ -164,7 +167,7 @@ def extract_schema_via_lsh(state: SystemState) -> tuple[Dict[str, List[str]], Di
     
     # Parameters are now configured from workspace settings (see above)
     
-    # 1. Ottieni similar_columns (copia da _get_similar_columns)
+    # 1. Get similar_columns (copy from _get_similar_columns)
     similar_columns = _get_similar_columns_lsh(
         keywords=state.keywords, 
         question=state.question, 
@@ -173,7 +176,7 @@ def extract_schema_via_lsh(state: SystemState) -> tuple[Dict[str, List[str]], Di
         embedding_function=embedding_function
     )
     
-    # 2. Ottieni schema_with_examples con parametri configurabili
+    # 2. Get schema_with_examples with configurable parameters
     raw_schema_with_examples = _get_similar_entities_lsh(
         keywords=state.keywords,
         dbmanager=state.dbmanager,
@@ -273,8 +276,8 @@ def _get_similar_columns_no_embed_lsh(
 
 def _column_value_lsh(string: str) -> tuple[Optional[str], Optional[str]]:
     """
-    Divide una stringa in parti di colonna e valore se contiene '='.
-    Copiato da RetrieveEntityTool._column_value
+    Split a string into column and value parts if it contains '='.
+    Copied from RetrieveEntityTool._column_value
     """
     if "=" in string:
         left_equal = string.find("=")
@@ -310,8 +313,8 @@ def _does_keyword_match_column_lsh(
     keyword: str, column_name: str, threshold: float = 0.9
 ) -> bool:
     """
-    Verifica se una parola chiave corrisponde a un nome di colonna in base alla similarità.
-    Copiato da RetrieveEntityTool._does_keyword_match_column
+    Check if a keyword matches a column name based on similarity.
+    Copied from RetrieveEntityTool._does_keyword_match_column
     """
     keyword = keyword.lower().replace(" ", "").replace("_", "").rstrip("s")
     column_name = column_name.lower().replace(" ", "").replace("_", "").rstrip("s")
@@ -329,7 +332,7 @@ def _get_similar_column_names_lsh(
     """
     schema = simplified_schema
     if not schema:
-        return []  # Restituisci una lista vuota se lo schema è vuoto
+        return []  # Return an empty list if the schema is empty
 
     potential_column_names = []
     for keyword in keywords:
@@ -353,13 +356,13 @@ def _get_similar_column_names_lsh(
     ]
 
     if not column_strings:
-        return []  # Restituisci una lista vuota se non sono state trovate colonne
+        return []  # Return an empty list if no columns were found
 
     question_evidence_string = f"{question} {evidence}"
 
     to_embed_strings = column_strings + [question_evidence_string]
 
-    # Ottieni gli embedding
+    # Get the embeddings
     embeddings = embedding_function.encode(to_embed_strings)
 
     # Separa gli embedding
@@ -397,7 +400,7 @@ def _get_similar_entities_lsh(
     embedding_function
 ) -> Dict[str, Dict[str, List[str]]]:
     """
-    Ottieni entità simili usando LSH con parametri configurabili.
+    Get similar entities using LSH with configurable parameters.
     """
     to_search_values = _get_to_search_values_lsh(keywords)
     similar_entities_via_LSH = _get_similar_entities_via_LSH_lsh(
@@ -485,7 +488,7 @@ def _get_similar_entities_via_LSH_lsh(
     lsh_top_n: int
 ) -> List[Dict[str, Any]]:
     """
-    Ottieni entità simili via LSH con parametri configurabili.
+    Get similar entities via LSH with configurable parameters.
     """
     similar_entities_via_LSH = []
     

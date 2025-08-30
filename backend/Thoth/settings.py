@@ -1,6 +1,14 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of Thoth and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """
 Django settings for Thoth project.
@@ -20,9 +28,10 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env file (local) or _env file (docker)
-load_dotenv(BASE_DIR / '.env')
-load_dotenv(BASE_DIR / '_env')
+# Environment variables are now loaded from root .env.local or .env.docker
+# No need to load local env files as they are managed centrally
+# load_dotenv(BASE_DIR / '.env')  # Deprecated - use root .env.local
+# load_dotenv(BASE_DIR / '_env')  # Deprecated - use root .env.docker
 
 APPEND_SLASH=False
 
@@ -60,13 +69,13 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
-# Verifica che REST_FRAMEWORK sia configurato correttamente
+# Verify that REST_FRAMEWORK is configured correctly
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
-        # Altri metodi di autenticazione...
+        # Other authentication methods...
     ],
-    # Altre configurazioni...
+    # Other configurations...
 }
 
 if DEBUG:

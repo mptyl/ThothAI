@@ -1,14 +1,17 @@
-# Copyright (c) 2025 Marco Pancotti
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Unless required by applicable law or agreed to in writing, software
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
 Helper module for M-Schema generation.
 Contains functions to create filtered schemas and convert them to M-Schema format.
@@ -145,7 +148,6 @@ def to_mschema(candidate_schema: Dict[str, Any]) -> str:
             # Add examples if available from LSH or vector DB
             examples = col_info.get("examples", [])
             if examples and isinstance(examples, list):
-                # Limit to first 5 examples and clean them
                 clean_examples = []
                 for ex in examples[:5]:
                     if ex is not None and str(ex).strip():
