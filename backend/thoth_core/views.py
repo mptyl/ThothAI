@@ -1,6 +1,14 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of Thoth and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import logging
 import os
@@ -88,10 +96,10 @@ def api_login(request):
                 {"error": "Username and password are required"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        # Ottieni l'utente o restituisci 404
+        # Get the user or return 404
         user = get_object_or_404(User, username=request.data['username'])
 
-        # Verifica la password
+        # Verify the password
         if not user.check_password(request.data['password']):
             return Response(
                 {"error": "Invalid credentials"}, 
@@ -153,10 +161,9 @@ def get_user_workspaces(request):
             'setting__comment_model__basic_model'
         ).prefetch_related('users', 'default_workspace').all()
     elif hasattr(request, 'user') and request.user is not None and request.user.is_authenticated:
-        # Autenticazione tramite token o sessione
         user = request.user
         logger.info(f"Getting workspaces for authenticated user {user.username}")
-        # Recupera tutti i Workspaces associati all'utente con ottimizzazione delle query
+        # Retrieve all Workspaces associated with the user with query optimization
         workspaces = Workspace.objects.filter(users=user).select_related(
             'sql_db__vector_db',
             'default_model__basic_model',
@@ -204,17 +211,16 @@ def get_user_workspaces_list(request):
         logger.info("Getting all workspaces list for API key authentication")
         workspaces = Workspace.objects.prefetch_related('users', 'default_workspace').all()
     elif hasattr(request, 'user') and request.user is not None and request.user.is_authenticated:
-        # Autenticazione tramite token o sessione
         user = request.user
         logger.info(f"Getting workspaces list for authenticated user {user.username}")
-        # Recupera tutti i Workspaces associati all'utente
+        # Retrieve all Workspaces associated with the user
         workspaces = Workspace.objects.filter(users=user).prefetch_related('users', 'default_workspace')
     else:
         logger.warning("Unexpected authentication state in get_user_workspaces_list")
         return Response({"error": "Authentication failed"}, status=status.HTTP_401_UNAUTHORIZED)
     
     logger.info(f"Found {len(workspaces)} workspaces for list")
-    # Serializza i dati dei Workspaces usando il serializer semplificato
+    # Serialize Workspaces data using the simplified serializer
     serializer = WorkspaceListSerializer(workspaces, many=True)
     
     # Return serialized data (anti-cache headers handled by middleware)

@@ -1,6 +1,14 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of ThothAI and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import sqlparse
 from sqlparse.sql import Statement, Token, TokenList
@@ -49,7 +57,7 @@ class SQLComplexityAnalyzer:
         return score
     
     def _count_tokens(self, parsed):
-        """Conta il numero totale di token significativi"""
+        """Count the total number of significant tokens"""
         count = 0
         for token in parsed.flatten():
             if not token.is_whitespace and token.ttype is not sqlparse.tokens.Punctuation:
@@ -57,7 +65,7 @@ class SQLComplexityAnalyzer:
         return count
     
     def _count_joins(self, parsed):
-        """Conta il numero di JOIN nella query"""
+        """Count the number of JOINs in the query"""
         count = 0
         for token in parsed.flatten():
             if token.ttype is Keyword and 'JOIN' in str(token).upper():
@@ -65,7 +73,7 @@ class SQLComplexityAnalyzer:
         return count
     
     def _count_subqueries(self, parsed):
-        """Conta il numero di subquery"""
+        """Count the number of subqueries"""
         count = 0
         def count_parenthesis(token_list):
             nonlocal count
@@ -79,7 +87,7 @@ class SQLComplexityAnalyzer:
         return count
     
     def _count_where_conditions(self, parsed):
-        """Conta le condizioni WHERE approssimative"""
+        """Count approximate WHERE conditions"""
         where_clause = None
         for token in parsed.tokens:
             if hasattr(token, 'tokens'):
@@ -91,8 +99,8 @@ class SQLComplexityAnalyzer:
         if not where_clause:
             return 0
         
-        # Conta AND/OR come indicatori di condizioni multiple
-        conditions = 1  # Almeno una condizione se c'è WHERE
+        # Count AND/OR as indicators of multiple conditions
+        conditions = 1  # At least one condition if there's WHERE
         for token in where_clause.flatten():
             if token.ttype is Keyword and str(token).upper() in ['AND', 'OR']:
                 conditions += 1
@@ -100,22 +108,22 @@ class SQLComplexityAnalyzer:
         return conditions
     
     def _count_group_by(self, parsed):
-        """Verifica la presenza di GROUP BY"""
+        """Check for the presence of GROUP BY"""
         sql_str = str(parsed).upper()
         return 1 if 'GROUP BY' in sql_str else 0
     
     def _count_order_by(self, parsed):
-        """Verifica la presenza di ORDER BY"""
+        """Check for the presence of ORDER BY"""
         sql_str = str(parsed).upper()
         return 1 if 'ORDER BY' in sql_str else 0
     
     def _count_having(self, parsed):
-        """Verifica la presenza di HAVING"""
+        """Check for the presence of HAVING"""
         sql_str = str(parsed).upper()
         return 1 if 'HAVING' in sql_str else 0
     
     def _count_functions(self, parsed):
-        """Conta il numero di funzioni SQL"""
+        """Count the number of SQL functions"""
         count = 0
         sql_functions = ['COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'UPPER', 'LOWER', 'SUBSTRING', 'CONCAT']
         

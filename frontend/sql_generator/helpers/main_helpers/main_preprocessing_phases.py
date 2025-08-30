@@ -1,6 +1,14 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of ThothAI and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """
 Preprocessing phases helper for SQL Generator.
@@ -114,7 +122,6 @@ async def _extract_keywords_phase(
     yield "THOTHLOG:Extracting keywords...\n"
     has_kw_agent = bool(getattr(state.agents_and_tools, 'keyword_extraction_agent', None))
     if has_kw_agent:
-        # Run extraction and emit final human-readable keywords line
         state.keywords = await extract_keywords(state, state.question, state.agents_and_tools.keyword_extraction_agent)
         readable = ", ".join(state.keywords) if state.keywords else "(none)"
     else:
