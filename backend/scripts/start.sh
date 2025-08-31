@@ -30,7 +30,7 @@ export PATH="/app/.venv/bin:$PATH"
 
 # Check SQLite database
 echo "Checking SQLite database..."
-python -c "
+/app/.venv/bin/python -c "
 import os
 import sqlite3
 from pathlib import Path
@@ -62,21 +62,21 @@ except Exception as e:
 "
 
 echo "Running makemigrations..."
-python manage.py makemigrations
+/app/.venv/bin/python manage.py makemigrations
 
 echo "Running migrate..."
-python manage.py migrate
+/app/.venv/bin/python manage.py migrate
 
 # Create cache table if it doesn't exist
 echo "Creating cache table..."
-python manage.py createcachetable || echo "Cache table already exists"
+/app/.venv/bin/python manage.py createcachetable || echo "Cache table already exists"
 
 # Check migration status for debugging
 echo "Checking migration status..."
-python manage.py showmigrations thoth_core
+/app/.venv/bin/python manage.py showmigrations thoth_core
 
 echo "Running collectstatic..."
-python manage.py collectstatic --noinput
+/app/.venv/bin/python manage.py collectstatic --noinput
 echo "Collectstatic finished."
 
 echo "Startup script completed successfully."
@@ -91,4 +91,4 @@ export DJANGO_API_KEY
 export SECRET_KEY
 
 # Start Django with environment variables available
-exec python manage.py runserver 0.0.0.0:8000
+exec /app/.venv/bin/python manage.py runserver 0.0.0.0:8000

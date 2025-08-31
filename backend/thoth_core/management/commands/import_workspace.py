@@ -37,9 +37,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Starting Workspace CSV import"))
 
         source = options.get("source", "local")
-        csv_path = os.path.join(settings.BASE_DIR, "setup_csv", "workspace.csv")
+        # setup_csv is part of the project root, copied during Docker build
+        csv_path = os.path.join(settings.BASE_DIR.parent, "setup_csv", "workspace.csv")
         source_specific_path = os.path.join(
-            settings.BASE_DIR, "setup_csv", source, "workspace.csv"
+            settings.BASE_DIR.parent, "setup_csv", source, "workspace.csv"
         )
 
         if os.path.exists(source_specific_path):
@@ -87,7 +88,8 @@ class Command(BaseCommand):
                         "sql_expert_agent",
                         "test_gen_agent_1",
                         "test_gen_agent_2",
-                        "test_exec_agent",
+                        "test_gen_agent_3",
+                        "test_evaluator_agent",
                         "explain_sql_agent",
                         "ask_human_help_agent",
                     ]
@@ -190,7 +192,8 @@ class Command(BaseCommand):
                         obj.sql_expert_agent = agents.get("sql_expert_agent")
                         obj.test_gen_agent_1 = agents.get("test_gen_agent_1")
                         obj.test_gen_agent_2 = agents.get("test_gen_agent_2")
-                        obj.test_exec_agent = agents.get("test_exec_agent")
+                        obj.test_gen_agent_3 = agents.get("test_gen_agent_3")
+                        obj.test_evaluator_agent = agents.get("test_evaluator_agent")
                         obj.explain_sql_agent = agents.get("explain_sql_agent")
                         obj.ask_human_help_agent = agents.get("ask_human_help_agent")
                         obj.setting = setting
@@ -282,7 +285,8 @@ class Command(BaseCommand):
                             sql_expert_agent=agents.get("sql_expert_agent"),
                             test_gen_agent_1=agents.get("test_gen_agent_1"),
                             test_gen_agent_2=agents.get("test_gen_agent_2"),
-                            test_exec_agent=agents.get("test_exec_agent"),
+                            test_gen_agent_3=agents.get("test_gen_agent_3"),
+                            test_evaluator_agent=agents.get("test_evaluator_agent"),
                             explain_sql_agent=agents.get("explain_sql_agent"),
                             ask_human_help_agent=agents.get("ask_human_help_agent"),
                             setting=setting,

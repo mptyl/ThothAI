@@ -37,9 +37,10 @@ class Command(BaseCommand):
         source = options.get("source", "local")
         self.stdout.write(self.style.SUCCESS("Starting BasicAiModel CSV import"))
 
-        csv_path = os.path.join(settings.BASE_DIR, "setup_csv", "basicaimodel.csv")
+        # setup_csv is part of the project root, copied during Docker build
+        csv_path = os.path.join(settings.BASE_DIR.parent, "setup_csv", "basicaimodel.csv")
         source_specific_path = os.path.join(
-            settings.BASE_DIR, "setup_csv", source, "basicaimodel.csv"
+            settings.BASE_DIR.parent, "setup_csv", source, "basicaimodel.csv"
         )
 
         if os.path.exists(source_specific_path):

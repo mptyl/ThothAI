@@ -15,9 +15,16 @@ else
     exit 1
 fi
 
+# Initialize shared data volume
+if [ -f "/app/scripts/init-shared-data.sh" ]; then
+    echo "Initializing shared data volume..."
+    /app/scripts/init-shared-data.sh
+fi
+
 # Get the port from environment or use default
 PORT=${PORT:-8001}
 
 # Run the SQL Generator with environment variables
 cd /app
-exec env DJANGO_API_KEY="$DJANGO_API_KEY" python run_server.py $PORT
+# Activate the virtual environment created by uv and run the server
+exec env DJANGO_API_KEY="$DJANGO_API_KEY" /app/.venv/bin/python run_server.py $PORT

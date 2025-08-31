@@ -30,7 +30,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         source = options.get("source", "local")
-        io_dir = "setup_csv"
+        
+        # setup_csv is part of the project, copied during Docker build
+        from django.conf import settings
+        io_dir = os.path.join(settings.BASE_DIR.parent, "setup_csv")
         file_path = os.path.join(io_dir, "users.csv")
 
         # Check for source-specific file

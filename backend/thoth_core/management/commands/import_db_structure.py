@@ -46,7 +46,8 @@ class Command(BaseCommand):
             return None
 
     def handle(self, *args, **options):
-        import_dir = os.path.join(settings.BASE_DIR, options["import_dir"])
+        # setup_csv is part of the project root, copied during Docker build
+        import_dir = os.path.join(settings.BASE_DIR.parent, options["import_dir"])
         source = options.get("source", "local")
         self.stdout.write(
             self.style.SUCCESS(f"Starting database structure import from {import_dir}")

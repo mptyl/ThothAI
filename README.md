@@ -40,7 +40,7 @@ docker-compose up -d
 docker run -d \
   --name thoth \
   -p 80:80 \
-  -v $(pwd)/exports:/app/exports \
+  -v $(pwd)/data_exchange:/app/data_exchange \
   -v $(pwd)/logs:/app/logs \
   -v $(pwd)/data:/app/data \
   -e OPENAI_API_KEY=your-key \
@@ -60,13 +60,45 @@ docker run -d \
 ```
 ThothAI/
 ├── backend/          # Django backend (API & Admin)
+│   └── logs/        # Backend service logs (local)
 ├── frontend/         # Next.js frontend
+│   ├── logs/        # Frontend service logs (local)
+│   └── sql_generator/
+│       └── logs/    # SQL generator logs (local)
 ├── docker/           # Dockerfiles
 ├── scripts/          # Utility scripts
-├── exports/          # Data exports
-├── logs/            # Application logs
-└── data/            # Persistent data
+├── setup_csv/        # Initial configuration data
+├── data_exchange/    # Runtime import/export directory
+└── data/            # Shared data between services
 ```
+
+### Shared Directories
+
+The project uses several shared directories that are bind-mounted in Docker containers:
+
+#### setup_csv/
+- **Purpose**: Initial system configuration data for `load_defaults` command
+- **Usage**: Contains CSV files with default models, users, settings, and database structures
+- **Docker**: Copied into container during build (not a volume)
+- **Structure**: Includes `local/` and `docker/` subdirectories for environment-specific configs
+
+#### data_exchange/
+- **Purpose**: Runtime data import/export directory
+- **Usage**: 
+  - CSV exports from Django admin actions
+  - Generated PDF documentation
+  - Qdrant vector database backups
+  - User-provided import files
+- **Docker**: Bind-mounted at `/app/data_exchange`
+- **Access**: Read/write for both host and containers
+
+#### data/
+- **Purpose**: Shared data between services
+- **Usage**: Inter-service data exchange and temporary storage
+- **Docker**: Bind-mounted at `/app/data`
+- **Access**: Read/write
+
+**Note**: The `data_exchange/` and `data/` directories are excluded from version control and created automatically on first run. Service logs are stored locally in each service's `logs/` directory and are not shared between host and containers.
 
 ### Services
 
@@ -103,6 +135,81 @@ Default ports (configurable in .env):
 - Backend API: 8040
 - Frontend: 3001
 - SQL Generator: 8005
+
+## 🔐 Gestione Configurazione Ambiente
+
+### Struttura File di Configurazione
+
+ThothAI utilizza un sistema di configurazione multi-livello per gestire diversi ambienti di deployment:
+
+#### File di Configurazione
+
+1. **`config.yml.local`** - Configurazione master per installazione Docker
+   - Contiene tutte le configurazioni (API keys, porte, database, monitoring)
+   - Usato da `install.sh` per generare `.env.docker`
+   - NON committato nel repository (gitignore)
+
+2. **`.env.docker`** - Generato automaticamente per Docker
+   - Creato da `installer.py` basandosi su `config.yml.local`
+   - Contiene variabili d'ambiente per Docker Compose
+   - Rigenerato ad ogni esecuzione di `install.sh`
+
+3. **`.env.local`** - Configurazione per sviluppo locale
+   - Usato da `start-all.sh` per sviluppo locale
+   - Contiene le stesse configurazioni ma con porte locali
+   - Variabili esportate nell'ambiente per tutti i servizi
+
+4. **`.env.template`** - Template di esempio
+   - File di riferimento con tutte le variabili necessarie
+   - Da copiare e personalizzare per creare `.env.local`
+
+### Flussi di Configurazione
+
+#### Deploy Docker (install.sh)
+
+```
+config.yml.local → installer.py → .env.docker → docker-compose.yml
+                ↓                      ↓
+         pyproject.toml.local    Variabili ambiente container
+```
+
+Il processo:
+1. `install.sh` verifica prerequisiti e valida `config.yml.local`
+2. `installer.py` legge `config.yml.local` e genera:
+   - `.env.docker` con tutte le variabili d'ambiente
+   - `pyproject.toml.local` per dipendenze database
+3. Docker Compose usa `.env.docker` per configurare i container
+
+#### Sviluppo Locale (start-all.sh)
+
+```
+.env.local → export variabili → Processi ereditano ambiente
+           ↓                            ↓
+    (filtro PORT=)              Django, SQL Gen, Frontend
+```
+
+Il processo:
+1. `start-all.sh` carica `.env.local` (escluso PORT generico)
+2. Esporta variabili nell'ambiente shell
+3. Ogni servizio eredita le variabili:
+   - Django: usa direttamente le variabili
+   - SQL Generator: riceve PORT specifico (8180)
+   - Frontend: riceve PORT specifico (3200)
+
+### Gestione Python con uv
+
+Il progetto usa `uv` per gestire Python in modo consistente:
+
+- **Python versione**: 3.13.5 (gestito da uv, non sistema)
+- **File `.python-version`**: in ogni directory per specificare versione
+- **Virtual environments**: creati con `uv venv` usando Python gestito
+
+### Best Practices
+
+1. **Non committare mai** file con credenziali (`.env*`, `config.yml.local`)
+2. **Usare config.yml.local** per Docker, `.env.local` per sviluppo locale
+3. **Non modificare** `.env.docker` manualmente (rigenerato automaticamente)
+4. **Backup delle configurazioni** prima di aggiornamenti maggiori
 
 ## 🛠️ Development
 

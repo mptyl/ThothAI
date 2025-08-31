@@ -18,5 +18,11 @@ fi
 
 echo "Secrets volume verified - keys are available"
 
+# Initialize shared data volume
+if [ -f "/app/scripts/init-shared-data.sh" ]; then
+    echo "Initializing shared data volume..."
+    /app/scripts/init-shared-data.sh
+fi
+
 # Run the original entrypoint (start.sh will load the secrets)
 exec /start.sh
