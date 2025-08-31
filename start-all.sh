@@ -3,11 +3,11 @@
 # This file is part of ThothAI and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-# Start essential ThothAI backend services
-# This script starts Django backend, Qdrant, and SQL Generator services
+# Start all ThothAI services
+# This script starts Frontend, Django backend, Qdrant, and SQL Generator services
 
-echo "Starting ThothAI Backend Services..."
-echo "===================================="
+echo "Starting ThothAI Services..."
+echo "============================="
 
 # Configuration
 SQL_GEN_DIR="frontend/sql_generator"
@@ -32,6 +32,7 @@ QDRANT_PORT=6334
 DJANGO_PID=""
 QDRANT_CONTAINER=""
 SQL_GEN_PID=""
+FRONTEND_PID=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -74,11 +75,11 @@ cleanup_sql_generator() {
 }
 
 # Main script starts here
-echo -e "${BLUE}ThothAI Backend Service Startup Script${NC}"
-echo "======================================="
+echo -e "${BLUE}ThothAI Service Startup Script${NC}"
+echo "==============================="
 
-# Step 1: Check and start all required backend services
-echo -e "\n${YELLOW}Step 1: Starting backend services...${NC}"
+# Step 1: Check and start all required services
+echo -e "\n${YELLOW}Step 1: Starting all services...${NC}"
 
 # Check and start Django backend
 if check_port $BACKEND_LOCAL_PORT; then
@@ -97,7 +98,8 @@ else
             if command -v uv &> /dev/null; then
                 echo -e "${GREEN}Starting Django with uv...${NC}"
                 # Django will use environment variables already exported from root .env.local
-                uv run python manage.py runserver $BACKEND_LOCAL_PORT &
+                # Unset VIRTUAL_ENV to avoid conflicts with uv's environment detection
+                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_LOCAL_PORT) &
                 DJANGO_PID=$!
             else
                 # Fallback to regular Python
@@ -110,7 +112,7 @@ else
             echo -e "${YELLOW}Creating virtual environment for Django backend...${NC}"
             if command -v uv &> /dev/null; then
                 uv sync
-                uv run python manage.py runserver $BACKEND_LOCAL_PORT &
+                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_LOCAL_PORT) &
                 DJANGO_PID=$!
             else
                 python -m venv .venv
@@ -205,14 +207,14 @@ cd "$SQL_GEN_DIR"
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
     echo -e "${YELLOW}Creating virtual environment for SQL Generator...${NC}"
-    uv sync --isolated
+    (unset VIRTUAL_ENV && uv sync)
 else
     echo -e "${YELLOW}Updating SQL Generator dependencies...${NC}"
-    uv sync --isolated
+    (unset VIRTUAL_ENV && uv sync)
 fi
 
 # Start SQL Generator
-PORT=$SQL_GEN_LOCAL_PORT uv run python main.py &
+(unset VIRTUAL_ENV && PORT=$SQL_GEN_LOCAL_PORT uv run python main.py) &
 SQL_GEN_PID=$!
 cd ../..
 
@@ -231,10 +233,54 @@ if ! check_port $SQL_GEN_LOCAL_PORT; then
     exit 1
 fi
 
+# Check and start Frontend (Next.js)
+echo -e "${YELLOW}Checking Frontend on port $FRONTEND_LOCAL_PORT...${NC}"
+if check_port $FRONTEND_LOCAL_PORT; then
+    echo -e "${GREEN}✓ Frontend is already running on port $FRONTEND_LOCAL_PORT${NC}"
+else
+    echo -e "${YELLOW}Frontend is NOT running on port $FRONTEND_LOCAL_PORT${NC}"
+    echo -e "${YELLOW}Starting Frontend...${NC}"
+    
+    # Check if frontend directory exists
+    if [ -d "frontend" ]; then
+        cd frontend
+        
+        # Check if node_modules exists
+        if [ ! -d "node_modules" ]; then
+            echo -e "${YELLOW}Installing Frontend dependencies...${NC}"
+            npm install
+        fi
+        
+        # Start Frontend
+        npm run dev &
+        FRONTEND_PID=$!
+        cd ..
+        
+        # Wait for Frontend to start
+        echo -e "${YELLOW}Waiting for Frontend to start...${NC}"
+        for i in {1..30}; do
+            if check_port $FRONTEND_LOCAL_PORT; then
+                echo -e "${GREEN}✓ Frontend started successfully on port $FRONTEND_LOCAL_PORT${NC}"
+                break
+            fi
+            sleep 1
+        done
+        
+        if ! check_port $FRONTEND_LOCAL_PORT; then
+            echo -e "${RED}Failed to start Frontend${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}Frontend directory not found!${NC}"
+        exit 1
+    fi
+fi
+
 # Display service information
-echo -e "\n${GREEN}All backend services started!${NC}"
+echo -e "\n${GREEN}All services started successfully!${NC}"
 echo "==========================================="
 echo -e "${BLUE}Service URLs:${NC}"
+echo -e "   Frontend App:     ${GREEN}http://localhost:$FRONTEND_LOCAL_PORT${NC}"
 echo -e "   Django Admin:     ${GREEN}http://localhost:$BACKEND_LOCAL_PORT/admin${NC}"
 echo -e "   SQL Generator:    ${GREEN}http://localhost:$SQL_GEN_LOCAL_PORT${NC}"
 echo -e "   API Docs:         ${GREEN}http://localhost:$SQL_GEN_LOCAL_PORT/docs${NC}"
@@ -243,6 +289,12 @@ echo -e "   Qdrant UI:        ${GREEN}http://localhost:$QDRANT_PORT/dashboard${N
 # Function to handle cleanup
 cleanup() {
     echo -e "\n${YELLOW}Stopping services...${NC}"
+    
+    # Stop Frontend
+    if [ ! -z "$FRONTEND_PID" ]; then
+        kill $FRONTEND_PID 2>/dev/null
+        echo -e "${GREEN}✓ Frontend stopped${NC}"
+    fi
     
     # Stop SQL Generator
     if [ ! -z "$SQL_GEN_PID" ]; then
@@ -277,7 +329,7 @@ cleanup() {
 trap cleanup INT
 
 echo -e "\n${BLUE}===========================================${NC}"
-echo -e "${GREEN}Backend services are running. Press Ctrl+C to stop all services.${NC}"
+echo -e "${GREEN}All services are running. Press Ctrl+C to stop all services.${NC}"
 echo -e "${BLUE}===========================================${NC}"
 
 # Wait for services
