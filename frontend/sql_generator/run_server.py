@@ -34,7 +34,7 @@ if __name__ == "__main__":
     from main import app, log_level
     
     # Get port from command line argument or use default
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8001
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8180
     
     # Configure uvicorn logging to match our app's logging level
     uvicorn_log_config = uvicorn.config.LOGGING_CONFIG

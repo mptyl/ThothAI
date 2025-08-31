@@ -84,7 +84,7 @@ services:
       - PORT=3000
       - HOSTNAME=0.0.0.0
       - DJANGO_SERVER=http://proxy:80
-      - SQL_GENERATOR_URL=http://sql-generator:8005
+      - SQL_GENERATOR_URL=http://sql-generator:8020
       - DOCKER_CONTAINER=true
       - HOST_IP=host.docker.internal
       - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT:-8040}
@@ -108,7 +108,7 @@ services:
     container_name: thoth-sql-generator
     restart: always
     ports:
-      - "${SQL_GENERATOR_PORT:-8020}:8005"
+      - "${SQL_GENERATOR_PORT:-8020}:8020"
     volumes:
       - ./data:/app/data
       - ./logs/sql-generator:/app/logs
@@ -117,7 +117,7 @@ services:
     environment:
       - DOCKER_CONTAINER=true
       - HOST_IP=host.docker.internal
-      - PORT=8005
+      - PORT=8020
       - DJANGO_SERVER=http://backend:8000
       - VECTOR_DB_HOST=thoth-qdrant
       - VECTOR_DB_PORT=6333
@@ -149,7 +149,7 @@ services:
       - FRONTEND_HOST=frontend
       - FRONTEND_PORT=3000
       - SQL_GEN_HOST=sql-generator
-      - SQL_GEN_PORT=8005
+      - SQL_GEN_PORT=8020
       - DEBUG=False
     networks:
       - thoth-network

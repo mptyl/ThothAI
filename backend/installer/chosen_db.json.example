@@ -1,9 +1,0 @@
-{
-  "databases": [
-    "sqlite",
-    "postgresql"
-  ],
-  "vectordbs": [
-    "qdrant"
-  ]
-}
