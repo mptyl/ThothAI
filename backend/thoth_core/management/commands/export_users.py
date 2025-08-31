@@ -20,9 +20,16 @@ class Command(BaseCommand):
     help = "Download Django auth users to a CSV file"
 
     def handle(self, *args, **options):
-        io_dir = os.getenv("IO_DIR", "exports")
+        # Use data_exchange directory
+        if os.getenv("IS_DOCKER"):
+            io_dir = "/app/data_exchange"
+        else:
+            from django.conf import settings
+            io_dir = os.path.join(settings.BASE_DIR.parent, "data_exchange")
+        
         file_path = os.path.join(io_dir, "users.csv")
-
+        
+        # Ensure directory exists
         os.makedirs(io_dir, exist_ok=True)
 
         with open(file_path, "w", newline="") as csvfile:
