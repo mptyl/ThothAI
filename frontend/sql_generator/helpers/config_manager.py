@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class ServerConfig:
     """Server configuration settings."""
     host: str = "0.0.0.0"
-    port: int = 8001
+    port: int = 8180
     reload: bool = False
     workers: int = 1
     log_level: str = "info"
@@ -44,7 +44,7 @@ class ServerConfig:
         """Load server configuration from environment."""
         return cls(
             host=os.getenv('SERVER_HOST', '0.0.0.0'),
-            port=int(os.getenv('SERVER_PORT', '8001')),
+            port=int(os.getenv('SERVER_PORT', os.getenv('PORT', '8180'))),
             reload=os.getenv('SERVER_RELOAD', 'false').lower() == 'true',
             workers=int(os.getenv('SERVER_WORKERS', '1')),
             log_level=os.getenv('SERVER_LOG_LEVEL', 'info').lower()

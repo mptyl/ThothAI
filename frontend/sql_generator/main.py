@@ -176,8 +176,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Next.js frontend (dev)
-        "http://localhost:3001",  # Next.js frontend (Docker)
+        "http://localhost:3200",  # Next.js frontend (local dev)
+        "http://localhost:3040",  # Next.js frontend (Docker)
     ],
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
     allow_credentials=True,

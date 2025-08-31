@@ -295,16 +295,16 @@ if not API_KEY:
         pass  # If loading fails, API_KEY remains None
 
 # CORS Configuration for Frontend Integration
-# Allow requests from Next.js frontend (localhost:3000 for development, localhost:3001 for Docker)
+# Allow requests from Next.js frontend (localhost:3200 for local dev, localhost:3040 for Docker)
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",  # Docker frontend
-    "http://127.0.0.1:3001",  # Docker frontend
-    "http://localhost:3040",  # Docker frontend custom port
-    "http://127.0.0.1:3040",  # Docker frontend custom port
-    "http://localhost:8040",  # Nginx proxy
-    "http://127.0.0.1:8040",  # Nginx proxy
+    "http://localhost:3200",  # Local development frontend
+    "http://127.0.0.1:3200",  # Local development frontend
+    "http://localhost:3040",  # Docker frontend port
+    "http://127.0.0.1:3040",  # Docker frontend port
+    "http://localhost:8040",  # Backend Docker port (via proxy)
+    "http://127.0.0.1:8040",  # Backend Docker port (via proxy)
+    "http://localhost:80",    # Web proxy port
+    "http://127.0.0.1:80",    # Web proxy port
 ]
 
 # For development, allow all origins from localhost
