@@ -26,10 +26,10 @@ class WorkspaceAdminForm(forms.ModelForm):
             "sql_basic_agent": "Basic SQL Generator Agent",
             "sql_advanced_agent": "Advanced SQL Generator Agent",
             "sql_expert_agent": "Expert SQL Generator Agent",
-            "test_exec_agent": "Test Executor Agent",
             "test_gen_agent_1": "Basic Test Generator Agent",
             "test_gen_agent_2": "Advanced Test Generator Agent",
             "test_gen_agent_3": "Expert Test Generator Agent",
+            "test_evaluator_agent": "Test Evaluator Agent",
         }
         help_texts = {
             "name": "Unique name for this workspace (REQUIRED)",
@@ -148,13 +148,13 @@ class WorkspaceAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Test Generation & Execution Agents",
+            "Test Generation & Evaluation Agents",
             {
                 "fields": (
                     "test_gen_agent_1",
                     "test_gen_agent_2",
                     "test_gen_agent_3",
-                    "test_exec_agent",
+                    "test_evaluator_agent",
                     "number_of_tests_to_generate",
                     "evaluation_threshold",
                 ),
@@ -241,7 +241,6 @@ class WorkspaceAdmin(admin.ModelAdmin):
             "test_gen_agent_1",
             "test_gen_agent_2",
             "test_gen_agent_3",
-            "test_exec_agent",
             "explain_sql_agent",
             "ask_human_help_agent",
         ]:

@@ -907,7 +907,7 @@ export default function ChatPage() {
                 }}
                 placeholder="Ask me a question about your data..."
                 rows={1}
-                className="w-full bg-card text-foreground text-lg border border-white rounded-2xl px-6 py-4 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-white min-h-[56px] max-h-[200px] overflow-hidden transition-all group-hover:border-white"
+                className="w-full bg-card text-foreground text-lg border-2 dark:border dark:border-white border-gray-400 rounded-2xl px-6 py-4 pr-16 resize-none focus:outline-none focus:ring-2 focus:ring-primary/50 dark:focus:border-white focus:border-gray-500 min-h-[56px] max-h-[200px] overflow-hidden transition-all dark:group-hover:border-white group-hover:border-gray-500"
                 style={{ height: 'auto' }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {

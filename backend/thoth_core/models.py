@@ -25,7 +25,7 @@ class AgentChoices(models.TextChoices):
     TESTGENERATORBASIC = "TESTGENERATORBASIC", "Test Generator - Basic"
     TESTGENERATORADVANCED = "TESTGENERATORADVANCED", "Test Generator - Advanced"
     TESTGENERATOREXPERT = "TESTGENERATOREXPERT", "Test Generator - Expert"
-    TESTEXECUTOR = "TESTEXECUTOR", "Test Executor"
+    TESTEVALUATOR = "TESTEVALUATOR", "Test Evaluator"
     EXPLAINSQL = "EXPLAINSQL", "SQL Explainer"
     ASKFORHUMANHELP = "ASKFORHUMANHELP", "Human Help Requester"
     VALIDATEQUESTION = "VALIDATEQUESTION", "Question Validator"
@@ -636,8 +636,11 @@ class Workspace(models.Model):
         null=True,
         related_name="workspaces_test_gen_3",
     )
-    test_exec_agent = models.ForeignKey(
-        Agent, on_delete=models.SET_NULL, null=True, related_name="workspaces_test_exec"
+    test_evaluator_agent = models.ForeignKey(
+        Agent,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="workspaces_test_evaluator",
     )
     explain_sql_agent = models.ForeignKey(
         Agent,
@@ -727,19 +730,15 @@ class GroupProfile(models.Model):
         return f"{self.group.name} Profile"
 
 
-# Signal handler to automatically create GroupProfile when Group is created
+# Signal handler to automatically create or update GroupProfile when Group is saved
 @receiver(post_save, sender=Group)
-def create_group_profile(sender, instance, created, **kwargs):
-    if created:
-        GroupProfile.objects.create(group=instance)
-
-
-@receiver(post_save, sender=Group)
-def save_group_profile(sender, instance, **kwargs):
-    if hasattr(instance, "profile"):
+def create_or_update_group_profile(sender, instance, created, **kwargs):
+    # Skip if we're in the admin (the inline will handle it)
+    if created and not hasattr(instance, '_from_admin'):
+        # Use get_or_create to avoid duplicate creation
+        GroupProfile.objects.get_or_create(group=instance)
+    elif hasattr(instance, "profile") and not created:
         instance.profile.save()
-    else:
-        GroupProfile.objects.create(group=instance)
 
 
 class ThothLog(models.Model):
