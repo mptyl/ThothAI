@@ -2,54 +2,37 @@
 # This file is part of Thoth and is released under the MIT License.
 # See the LICENSE.md file in the project root for full license information.
 
-# === MULTI-STAGE BUILD FOR SQL GENERATOR ===
+# === SINGLE-STAGE BUILD FOR SQL GENERATOR ===
 
-# Stage 1: Builder
-FROM python:3.13-slim AS builder
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-WORKDIR /build
-
-# Install build dependencies
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-    curl \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && mv /root/.local/bin/uv /usr/local/bin/uv \
-    && chmod +x /usr/local/bin/uv
-
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
-
-# Install Python packages
-RUN uv sync --frozen --quiet
-
-# Stage 2: Runtime
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DOCKER_CONTAINER=true \
-    PATH="/app/.venv/bin:$PATH"
+    UV_SYSTEM_PYTHON=1
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies and uv
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     curl \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/uv \
+    && chmod +x /usr/local/bin/uv
 
-# Copy virtual environment from builder
-COPY --from=builder /build/.venv /app/.venv
+# Copy dependency files first for better caching
+COPY frontend/sql_generator/pyproject.toml frontend/sql_generator/uv.lock ./
+
+# Install Python packages using uv with system Python
+RUN uv sync --frozen --no-cache
 
 # Copy application code
-COPY . .
+COPY frontend/sql_generator/ .
+
+# Copy data directory into image
+COPY data/ /app/data_static
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data /vol/secrets \
@@ -57,14 +40,14 @@ RUN mkdir -p /app/logs /app/data /vol/secrets \
     && chmod 700 /vol/secrets
 
 # Copy entrypoint script  
-COPY entrypoint-sql-generator.sh /entrypoint.sh
+COPY frontend/sql_generator/entrypoint-sql-generator.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 8005
+EXPOSE 8020
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8005/health || exit 1
+    CMD curl -f http://localhost:8020/health || exit 1
 
 # Use custom entrypoint
 ENTRYPOINT ["/entrypoint.sh"]

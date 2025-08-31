@@ -479,7 +479,13 @@ class ThothInstaller:
         print("  View logs:    docker compose logs -f")
         print("  Stop:         docker compose down")
         print("  Restart:      docker compose restart")
-        print("  Update:       git pull && ./install.sh")
+        
+        # Platform-specific update command
+        import platform
+        if platform.system() == "Windows":
+            print("  Update:       git pull && .\\install.ps1")
+        else:
+            print("  Update:       git pull && ./install.sh")
 
 
 if __name__ == "__main__":

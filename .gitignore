@@ -101,15 +101,20 @@ docker-compose.override.yml
 .docker/
 
 # === Application Specific ===
-exports/*
-!exports/.gitkeep
-logs/*
-!logs/.gitkeep
+# Shared data directories (bind mounts)
+data_exchange/
 data/*
 !data/.gitkeep
+exports/*
+!exports/.gitkeep
 qdrant_storage/
 postgres_data/
 .pypi-token
+
+# Service-specific logs (not shared)
+backend/logs/
+frontend/logs/
+frontend/sql_generator/logs/
 
 # === Configuration Files ===
 config.yml.local

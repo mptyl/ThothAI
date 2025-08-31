@@ -15,7 +15,8 @@ SQL_GEN_DIR="frontend/sql_generator"
 # Load environment variables from root .env.local
 if [ -f .env.local ]; then
     echo -e "${GREEN}Loading environment from .env.local${NC}"
-    export $(grep -v '^#' .env.local | xargs)
+    # Export all variables except PORT to avoid conflicts
+    export $(grep -v '^#' .env.local | grep -v '^PORT=' | xargs)
 else
     echo -e "${RED}Error: .env.local not found in root directory${NC}"
     echo -e "${YELLOW}Please create .env.local from .env.template${NC}"
@@ -251,8 +252,8 @@ else
             npm install
         fi
         
-        # Start Frontend
-        npm run dev &
+        # Start Frontend with specific port
+        PORT=$FRONTEND_LOCAL_PORT npm run dev &
         FRONTEND_PID=$!
         cd ..
         
