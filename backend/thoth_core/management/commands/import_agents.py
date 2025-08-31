@@ -36,9 +36,9 @@ class Command(BaseCommand):
         source = options.get("source", "local")
         self.stdout.write(self.style.SUCCESS("Starting Agent CSV import"))
 
-        csv_path = os.path.join(settings.BASE_DIR, "setup_csv", "agent.csv")
+        csv_path = os.path.join(settings.BASE_DIR.parent, "setup_csv", "agent.csv")
         source_specific_path = os.path.join(
-            settings.BASE_DIR, "setup_csv", source, "agent.csv"
+            settings.BASE_DIR.parent, "setup_csv", source, "agent.csv"
         )
 
         if os.path.exists(source_specific_path):

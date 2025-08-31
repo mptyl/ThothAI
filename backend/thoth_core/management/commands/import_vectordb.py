@@ -36,9 +36,9 @@ class Command(BaseCommand):
         source = options.get("source", "local")
         self.stdout.write(self.style.SUCCESS("Starting VectorDb CSV import"))
 
-        csv_path = os.path.join(settings.BASE_DIR, "setup_csv", "vectordb.csv")
+        csv_path = os.path.join(settings.BASE_DIR.parent, "setup_csv", "vectordb.csv")
         source_specific_path = os.path.join(
-            settings.BASE_DIR, "setup_csv", source, "vectordb.csv"
+            settings.BASE_DIR.parent, "setup_csv", source, "vectordb.csv"
         )
 
         if os.path.exists(source_specific_path):

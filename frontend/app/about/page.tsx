@@ -260,7 +260,7 @@ export default function AboutPage() {
         <CardContent>
           <div className="space-y-4">
             <p className="leading-relaxed">
-              ThothAI's text-to-SQL methodology is inspired by the CHESS framework:
+              ThothAI&apos;s text-to-SQL methodology is inspired by the CHESS framework:
             </p>
             
             <div className="bg-muted rounded-lg p-4">
@@ -297,8 +297,8 @@ export default function AboutPage() {
         <CardContent>
           <div className="space-y-4">
             <p className="leading-relaxed">
-              We'd love to hear from you! Whether you have questions about ThothAI, need technical support, 
-              or are interested in collaboration opportunities, please don't hesitate to reach out.
+              We&apos;d love to hear from you! Whether you have questions about ThothAI, need technical support, 
+              or are interested in collaboration opportunities, please don&apos;t hesitate to reach out.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">

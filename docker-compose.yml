@@ -20,11 +20,26 @@ services:
       - init
     restart: "no"
 
+  # === DATA INITIALIZATION SERVICE ===
+  init-data:
+    build:
+      context: .
+      dockerfile: docker/init-data.Dockerfile
+    image: thoth-init-data:latest
+    container_name: thoth-init-data
+    volumes:
+      - thoth-shared-data:/shared_data
+    networks:
+      - thoth-network
+    profiles:
+      - init
+    restart: "no"
+
   # === BACKEND SERVICE ===
   backend:
     build:
-      context: ./backend
-      dockerfile: ../docker/backend.Dockerfile
+      context: .
+      dockerfile: docker/backend.Dockerfile
       args:
         DOCKER_BUILDKIT: 1
         BUILDKIT_INLINE_CACHE: 1
@@ -34,10 +49,8 @@ services:
     ports:
       - "${BACKEND_PORT:-8040}:8000"
     volumes:
-      - ./exports:/app/exports
-      - ./logs/backend:/app/logs
-      - ./data:/app/data
-      - ./backend/setup_csv:/app/setup_csv
+      - ./data_exchange:/app/data_exchange
+      - thoth-shared-data:/app/shared_data
       - backend-static:/vol/static
       - backend-media:/vol/media
       - thoth-secrets:/secrets
@@ -74,10 +87,10 @@ services:
     ports:
       - "${FRONTEND_PORT:-3040}:3000"
     volumes:
-      - ./logs/frontend:/app/logs
       - frontend-cache:/app/.next/cache
       - ./frontend/public:/app/public:ro
       - thoth-secrets:/secrets
+      - ./data_exchange:/app/data_exchange:ro
     env_file: .env.docker
     environment:
       - NODE_ENV=production
@@ -100,8 +113,8 @@ services:
   # === SQL GENERATOR SERVICE ===
   sql-generator:
     build:
-      context: ./frontend/sql_generator
-      dockerfile: ../../docker/sql-generator.Dockerfile
+      context: .
+      dockerfile: docker/sql-generator.Dockerfile
       args:
         BUILDKIT_INLINE_CACHE: 1
     image: thoth-sql-generator:latest
@@ -110,8 +123,8 @@ services:
     ports:
       - "${SQL_GENERATOR_PORT:-8020}:8020"
     volumes:
-      - ./data:/app/data
-      - ./logs/sql-generator:/app/logs
+      - thoth-shared-data:/app/shared_data
+      - ./data_exchange:/app/data_exchange
       - thoth-secrets:/secrets
     env_file: .env.docker
     environment:
@@ -142,7 +155,7 @@ services:
     volumes:
       - backend-static:/vol/static:ro
       - backend-media:/vol/media:ro
-      - ./exports:/vol/exports:ro
+      - ./data_exchange:/vol/data_exchange:ro
     environment:
       - APP_HOST=backend
       - APP_PORT=8000
@@ -190,6 +203,8 @@ volumes:
     name: thoth-qdrant-data
   thoth-secrets:
     name: thoth-secrets
+  thoth-shared-data:
+    name: thoth-shared-data
 
 networks:
   thoth-network:
