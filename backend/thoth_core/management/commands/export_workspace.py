@@ -23,12 +23,20 @@ class Command(BaseCommand):
         parser.add_argument(
             "--output-dir",
             type=str,
-            default="exports",
-            help="Output directory for CSV files (default: exports)",
+            default=None,
+            help="Output directory for CSV files (default: data_exchange)",
         )
 
     def handle(self, *args, **options):
-        output_dir = options.get("output_dir", "exports")
+        # Use data_exchange directory unless overridden
+        output_dir = options.get("output_dir")
+        if not output_dir:
+            if os.getenv("IS_DOCKER"):
+                output_dir = "/app/data_exchange"
+            else:
+                from django.conf import settings
+                output_dir = os.path.join(settings.BASE_DIR.parent, "data_exchange")
+        
         self.stdout.write(self.style.SUCCESS("Starting Workspace CSV export"))
 
         # Ensure output directory exists

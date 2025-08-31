@@ -23,13 +23,16 @@ class Command(BaseCommand):
         parser.add_argument("model_name", type=str, help="Name of the model to export")
 
     def handle(self, *args, **options):
-        io_dir = os.getenv("IO_DIR", "exports")
+        # Use data_exchange directory
+        if os.getenv("IS_DOCKER"):
+            io_dir = "/app/data_exchange"
+        else:
+            from django.conf import settings
+            io_dir = os.path.join(settings.BASE_DIR.parent, "data_exchange")
+        
         model_name = options["model_name"]
-
-        if not io_dir:
-            self.stdout.write(self.style.ERROR("IO_DIR not set in .env file"))
-            return
-
+        
+        # Ensure directory exists
         os.makedirs(io_dir, exist_ok=True)
 
         try:

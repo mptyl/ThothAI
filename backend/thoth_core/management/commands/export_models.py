@@ -20,12 +20,14 @@ class Command(BaseCommand):
     help = "Export all model data to CSV files in IO_DIR"
 
     def handle(self, *args, **options):
-        io_dir = os.getenv("IO_DIR", "exports")
-
-        if not io_dir:
-            self.stdout.write(self.style.ERROR("IO_DIR not set in .env file"))
-            return
-
+        # Use data_exchange directory
+        if os.getenv("IS_DOCKER"):
+            io_dir = "/app/data_exchange"
+        else:
+            from django.conf import settings
+            io_dir = os.path.join(settings.BASE_DIR.parent, "data_exchange")
+        
+        # Ensure directory exists
         os.makedirs(io_dir, exist_ok=True)
 
         app_models = apps.get_app_config("thoth_core").get_models()
