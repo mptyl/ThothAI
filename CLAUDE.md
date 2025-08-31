@@ -146,7 +146,7 @@ npm run format
 
 ### Vector Databases
 - Primary: Qdrant (via thoth-qdrant library)
-- Stores: hints, question/SQL pairs, table descriptions, semantic documentation
+- Stores: evidence, question/SQL pairs, table descriptions, semantic documentation
 - Collections automatically created matching SQL database names
 
 ## AI Agent System
