@@ -212,7 +212,8 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     sql_expert_agent = AgentSerializer()
     test_gen_agent_1 = AgentSerializer()
     test_gen_agent_2 = AgentSerializer()
-    test_exec_agent = AgentSerializer()
+    test_gen_agent_3 = AgentSerializer()
+    test_evaluator_agent = AgentSerializer()
     explain_sql_agent = AgentSerializer()
     ask_human_help_agent = AgentSerializer()
     setting = SettingSerializer()
@@ -234,7 +235,8 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             "sql_expert_agent",
             "test_gen_agent_1",
             "test_gen_agent_2",
-            "test_exec_agent",
+            "test_gen_agent_3",
+            "test_evaluator_agent",
             "explain_sql_agent",
             "ask_human_help_agent",
             "default_workspace",
