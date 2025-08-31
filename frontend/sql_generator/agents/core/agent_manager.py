@@ -242,12 +242,21 @@ class ThothAgentManager(BaseAgentManager):
         
         # test_exec_agent creation removed - no longer used in workflow
         
-        # Create evaluator agent using same config as test_gen_agent_1 but with evaluator templates
+        # Create evaluator agent using dedicated test_evaluator_agent config from workspace
+        test_evaluator_config = self.workspace.get("test_evaluator_agent")
+        use_default_evaluator = test_evaluator_config is None
+        
+        # If no test_evaluator_agent configured, fallback to test_gen_agent_1 config for backward compatibility
+        if not test_evaluator_config:
+            test_evaluator_config = test_gen_1_config
+            if test_evaluator_config:
+                logger.info("No test_evaluator_agent configured, using test_gen_agent_1 config for backward compatibility")
+        
         self.evaluator_agent = AgentInitializer.create_evaluator_agent(
-            test_gen_1_config,  # Use same model config as test_gen_agent_1
+            test_evaluator_config,
             default_model_config,
-            self.get_retries(test_gen_1_config),
-            force_default_prompt=False  # Always use evaluator system template
+            self.get_retries(test_evaluator_config),
+            force_default_prompt=use_default_evaluator  # Use default if no specific config
         )
     
     def _create_ask_humans_agent(self):

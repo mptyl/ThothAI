@@ -23,16 +23,29 @@ from thoth_core.utilities.utils import export_csv, import_csv
 class GroupProfileInline(admin.StackedInline):
     model = GroupProfile
     max_num = 1
-    min_num = 1
+    min_num = 1  # Always show the form
     can_delete = False
-    extra = 0
+    extra = 1  # Show one form for new groups
     verbose_name = "Group Profile Settings"
     verbose_name_plural = "Group Profile Settings"
     fields = [
         "show_sql",
         "explain_generated_query",
     ]
-    # metodi custom da copiare qui dal file originale
+    
+    def get_extra(self, request, obj=None, **kwargs):
+        """Show extra form only for new groups."""
+        if obj:
+            # Existing group - check if profile exists
+            if not hasattr(obj, 'profile'):
+                return 1
+            return 0
+        # New group
+        return 1
+    
+    def get_min_num(self, request, obj=None, **kwargs):
+        """Always require at least one profile."""
+        return 0 if obj and hasattr(obj, 'profile') else 1
 
 
 class GroupAdmin(BaseGroupAdmin):
@@ -40,6 +53,11 @@ class GroupAdmin(BaseGroupAdmin):
     actions = [export_csv, import_csv]
     # BaseGroupAdmin.fieldsets is None, so we need to define our own
     fieldsets = ((None, {"fields": ("name", "permissions")}),)
+    
+    def save_model(self, request, obj, form, change):
+        """Mark that we're saving from admin to skip signal."""
+        obj._from_admin = True
+        super().save_model(request, obj, form, change)
 
 
 # Unregister the default Group admin and register our custom one
