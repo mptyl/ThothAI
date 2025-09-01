@@ -44,6 +44,9 @@ RUN uv sync --frozen
 # Copy data directory into image
 COPY data/ /app/data_static
 
+# Copy setup CSV files for initial data loading
+COPY setup_csv/ /setup_csv/
+
 # Ensure scripts are executable
 RUN chmod +x /app/scripts/*.sh || true
 
