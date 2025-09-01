@@ -54,8 +54,11 @@ class Command(BaseCommand):
 
         # Find all log files (including rotated ones)
         log_patterns = [
-            os.path.join(logs_dir, "thoth.log.*"),  # Rotated logs
+            os.path.join(logs_dir, "thoth.log.*"),  # Backend rotated logs
+            os.path.join(logs_dir, "sql-generator.log.*"),  # SQL-Generator rotated logs
+            os.path.join(logs_dir, "sql-generator-app.log.*"),  # SQL-Generator app logs
             os.path.join(logs_dir, "*.log.*"),  # Any other rotated logs
+            os.path.join(logs_dir, "*.log.gz"),  # Compressed logs
         ]
 
         deleted_count = 0

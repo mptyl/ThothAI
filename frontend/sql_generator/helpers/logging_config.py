@@ -21,8 +21,8 @@ _loggers = {}
 
 # Get logging level from environment variable
 def get_logging_level():
-    """Get logging level from environment variable LOGGING_LEVEL."""
-    level_str = os.getenv('LOGGING_LEVEL', 'INFO').upper()
+    """Get logging level from environment variable FRONTEND_LOGGING_LEVEL or LOGGING_LEVEL."""
+    level_str = os.getenv('FRONTEND_LOGGING_LEVEL', os.getenv('LOGGING_LEVEL', 'INFO')).upper()
     level_mapping = {
         'DEBUG': logging.DEBUG,
         'INFO': logging.INFO,
@@ -80,21 +80,26 @@ def setup_logger(name, level=None):
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     
-    # Add file handler if running locally
+    # Always add file handler (both Docker and local)
     if is_running_locally():
         log_dir = Path("logs/temp")
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
         log_file = log_dir / f"{name}.log"
-        file_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=10*1024*1024,  # 10 MB
-            backupCount=5,
-            encoding='utf-8'
-        )
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+    else:
+        # Docker environment
+        log_dir = Path("/app/logs")
+        log_file = log_dir / "sql-generator.log"
+    
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=10*1024*1024,  # 10 MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
     
     # Prevent propagation to parent loggers
     logger.propagate = False
@@ -138,23 +143,28 @@ def configure_root_logger():
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
     
-    # Add file handler if running locally
+    # Always add file handler (both Docker and local)
     if is_running_locally():
         log_dir = Path("logs/temp")
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        
         log_file = log_dir / "thoth_app.log"
-        file_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=10*1024*1024,  # 10 MB
-            backupCount=5,
-            encoding='utf-8'
-        )
-        file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
-        root_logger.addHandler(file_handler)
+    else:
+        # Docker environment
+        log_dir = Path("/app/logs")
+        log_file = log_dir / "sql-generator-app.log"
+    
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=10*1024*1024,  # 10 MB
+        backupCount=5,
+        encoding='utf-8'
+    )
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
     
     # Suppress noisy modules when log level is WARNING or higher
     if level >= logging.WARNING:

@@ -20,20 +20,6 @@ services:
       - init
     restart: "no"
 
-  # === DATA INITIALIZATION SERVICE ===
-  init-data:
-    build:
-      context: .
-      dockerfile: docker/init-data.Dockerfile
-    image: thoth-init-data:latest
-    container_name: thoth-init-data
-    volumes:
-      - thoth-shared-data:/shared_data
-    networks:
-      - thoth-network
-    profiles:
-      - init
-    restart: "no"
 
   # === BACKEND SERVICE ===
   backend:
@@ -49,8 +35,10 @@ services:
     ports:
       - "${BACKEND_PORT:-8040}:8000"
     volumes:
+      - thoth-backend-db:/app/backend_db
+      - ./data:/app/data
       - ./data_exchange:/app/data_exchange
-      - thoth-shared-data:/app/shared_data
+      - thoth-logs:/app/logs
       - backend-static:/vol/static
       - backend-media:/vol/media
       - thoth-secrets:/secrets
@@ -59,6 +47,7 @@ services:
       - IS_DOCKER=True
       - HOST_IP=host.docker.internal
       - DOCKER_ENV=1
+      - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
     networks:
       - thoth-network
     extra_hosts:
@@ -123,8 +112,9 @@ services:
     ports:
       - "${SQL_GENERATOR_PORT:-8020}:8020"
     volumes:
-      - thoth-shared-data:/app/shared_data
+      - ./data:/app/data
       - ./data_exchange:/app/data_exchange
+      - thoth-logs:/app/logs
       - thoth-secrets:/secrets
     env_file: .env.docker
     environment:
@@ -134,6 +124,7 @@ services:
       - DJANGO_SERVER=http://backend:8000
       - VECTOR_DB_HOST=thoth-qdrant
       - VECTOR_DB_PORT=6333
+      - DB_ROOT_PATH=/app/data
     networks:
       - thoth-network
     extra_hosts:
@@ -203,8 +194,10 @@ volumes:
     name: thoth-qdrant-data
   thoth-secrets:
     name: thoth-secrets
-  thoth-shared-data:
-    name: thoth-shared-data
+  thoth-backend-db:
+    name: thoth-backend-db
+  thoth-logs:
+    name: thoth-logs
 
 networks:
   thoth-network:
