@@ -43,6 +43,10 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+
+# Logging configuration from environment
+BACKEND_LOG_LEVEL = os.environ.get("BACKEND_LOGGING_LEVEL", "INFO").upper()
+
 ALLOWED_HOSTS = [
     "thoth-be",
     "thoth-be-proxy",
@@ -234,7 +238,7 @@ LOGGING = {
     },
     "root": {
         "handlers": ["console", "file"],
-        "level": "INFO",
+        "level": BACKEND_LOG_LEVEL,
     },
     "loggers": {
         "django": {

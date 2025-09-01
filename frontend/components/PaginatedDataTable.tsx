@@ -20,6 +20,12 @@ import { QueryExecutorAPI } from '../lib/api/query-executor';
 // Register AG-Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+// Validate critical environment variables at component load
+if (!process.env.NEXT_PUBLIC_SQL_GENERATOR_URL) {
+  console.error('❌ FATAL: PaginatedDataTable cannot function without NEXT_PUBLIC_SQL_GENERATOR_URL');
+  throw new Error('Missing required environment configuration for query execution');
+}
+
 interface PaginatedDataTableProps {
   sql: string;
   workspaceId: number;
