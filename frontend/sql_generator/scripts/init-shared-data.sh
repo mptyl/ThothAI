@@ -3,17 +3,18 @@
 # This file is part of Thoth and is released under the MIT License.
 # See the LICENSE.md file in the project root for full license information.
 
-# Initialize shared data from static copy if needed
-if [ ! -d "/app/shared_data/dev_databases" ]; then
-    echo "SQL Generator: Initializing shared data from static copy..."
-    cp -r /app/data_static/* /app/shared_data/ 2>/dev/null || true
-    echo "SQL Generator: Shared data initialization complete."
+# Since we now use thoth-shared-data volume mounted at /app/data,
+# this script only needs to verify the data is accessible
+echo "SQL Generator: Checking shared data volume..."
+
+if [ -f "/app/data/dev_databases/dev.json" ]; then
+    echo "SQL Generator: Shared data volume is properly mounted and contains dev.json"
+    echo "SQL Generator: Data directory contents:"
+    ls -la /app/data/dev_databases/ | head -5
+else
+    echo "SQL Generator: WARNING - dev.json not found in shared data volume"
+    echo "SQL Generator: Available at /app/data:"
+    ls -la /app/data/ 2>/dev/null || echo "Data directory not accessible"
 fi
 
-# Create symlink for backward compatibility
-if [ ! -L "/app/data" ]; then
-    echo "SQL Generator: Creating symlink for backward compatibility..."
-    rm -rf /app/data 2>/dev/null || true
-    ln -sfn /app/shared_data /app/data
-    echo "SQL Generator: Symlink created: /app/data -> /app/shared_data"
-fi
+# No symlinks needed - /app/data is the mounted volume

@@ -41,7 +41,9 @@ RUN rm -rf /app/.venv
 # This creates a fresh .venv with all dependencies
 RUN uv sync --frozen
 
-# Note: data/ directory will be mounted from host at runtime
+# Copy data directory to temporary location for initialization
+# This will be copied to the volume on first run by init-shared-data.sh
+COPY data/ /app/data_temp/
 
 # Copy setup CSV files for initial data loading
 COPY setup_csv/ /setup_csv/
