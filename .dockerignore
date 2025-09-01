@@ -43,3 +43,6 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+
+# Backend data directory (we copy from main data/ instead)
+backend/data/

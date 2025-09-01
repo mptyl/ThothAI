@@ -35,7 +35,7 @@ services:
     # Port removed - backend only accessible through proxy
     volumes:
       - thoth-backend-db:/app/backend_db
-      - ./data:/app/data:ro
+      - thoth-shared-data:/app/data
       - ./data_exchange:/app/data_exchange
       - thoth-logs:/app/logs
       - backend-static:/vol/static
@@ -112,7 +112,7 @@ services:
     ports:
       - "${SQL_GENERATOR_PORT:-8020}:8020"
     volumes:
-      - ./data:/app/data:ro
+      - thoth-shared-data:/app/data
       - ./data_exchange:/app/data_exchange
       - thoth-logs:/app/logs
       - thoth-secrets:/secrets
@@ -203,6 +203,9 @@ volumes:
     name: thoth-backend-db
   thoth-logs:
     name: thoth-logs
+  thoth-shared-data:
+    name: thoth-shared-data
+    external: true
 
 networks:
   thoth-network:
