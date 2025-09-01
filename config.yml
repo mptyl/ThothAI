@@ -101,9 +101,9 @@ monitoring:
 # Service Ports Configuration
 ports:
   frontend: 3040      # Next.js frontend port
-  backend: 8040       # Django backend API port
+  backend: 8000       # Django backend internal port
   sql_generator: 8020 # SQL generation service port
-  nginx: 8040         # Main nginx proxy port
+  nginx: 8040         # Main nginx proxy port (external access)
   qdrant: 6333        # Qdrant vector database port
 
 # Docker Configuration
