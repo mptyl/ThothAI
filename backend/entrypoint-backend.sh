@@ -5,6 +5,9 @@
 
 set -e
 
+# Set Django settings module
+export DJANGO_SETTINGS_MODULE=Thoth.settings
+
 # Verify secrets volume is mounted and contains required files
 if [ ! -f "/secrets/django_secret_key" ]; then
     echo "ERROR: Django SECRET_KEY not found at /secrets/django_secret_key"

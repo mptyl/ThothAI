@@ -186,14 +186,19 @@ services:
 volumes:
   backend-static:
     name: thoth-backend-static
+    external: true
   backend-media:
     name: thoth-backend-media
+    external: true
   frontend-cache:
     name: thoth-frontend-cache
+    external: true
   qdrant-data:
     name: thoth-qdrant-data
+    external: true
   thoth-secrets:
     name: thoth-secrets
+    external: true
   thoth-backend-db:
     name: thoth-backend-db
   thoth-logs:

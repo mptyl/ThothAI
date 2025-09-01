@@ -9,11 +9,11 @@ ThothAI is an AI-powered natural language to SQL conversion platform that enable
 ## Architecture
 
 ### Docker Services
-- **backend**: Django REST API managing configuration, metadata, and AI workflow (port 8040)
+- **backend**: Django REST API managing configuration, metadata, and AI workflow (internal port 8000)
 - **frontend**: Next.js web interface (port 3040)
 - **sql-generator**: FastAPI service for SQL generation using PydanticAI agents (port 8020)
 - **thoth-qdrant**: Vector database storing metadata, hints, and query examples (port 6333)
-- **proxy**: Nginx reverse proxy (port 80)
+- **proxy**: Nginx reverse proxy (external port 8040, internal port 80)
 
 ### Key Components
 - **thoth_core**: Core Django models, admin interface, database management
@@ -131,11 +131,11 @@ npm run format
 - Qdrant: 6334
 
 ### Port Configuration (Docker)
-- Backend: 8040
+- Backend: 8000 (internal, accessed via proxy at 8040)
 - Frontend: 3040
 - SQL Generator: 8020
 - Qdrant: 6333
-- Web Proxy: 80
+- Web Proxy: 8040 (external), 80 (internal)
 
 ## Database Architecture
 
