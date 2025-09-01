@@ -41,8 +41,7 @@ RUN rm -rf /app/.venv
 # This creates a fresh .venv with all dependencies
 RUN uv sync --frozen
 
-# Copy data directory into image
-COPY data/ /app/data_static
+# Note: data/ directory will be mounted from host at runtime
 
 # Copy setup CSV files for initial data loading
 COPY setup_csv/ /setup_csv/
@@ -51,8 +50,9 @@ COPY setup_csv/ /setup_csv/
 RUN chmod +x /app/scripts/*.sh || true
 
 # Create necessary directories including secrets
-RUN mkdir -p /app/logs /app/exports /app/data /vol/static /vol/media /vol/secrets \
-    && chmod 755 /app/logs /app/exports /app/data /vol/static /vol/media \
+# Note: /app/data will be mounted from host, don't create it here
+RUN mkdir -p /app/logs /app/exports /vol/static /vol/media /vol/secrets \
+    && chmod 755 /app/logs /app/exports /vol/static /vol/media \
     && chmod 700 /vol/secrets
 
 # Collect static files to the volume mount point
