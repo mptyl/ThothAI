@@ -32,11 +32,14 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
 # Copy dependency files first (for better caching)
 COPY backend/pyproject.toml backend/uv.lock ./
 
-# Install Python packages in the container
-RUN uv sync --frozen
-
-# Copy application code
+# Copy application code (before installing dependencies to use cache better)
+# But exclude .venv if it exists locally
 COPY backend/ .
+RUN rm -rf /app/.venv
+
+# Install Python packages in the container
+# This creates a fresh .venv with all dependencies
+RUN uv sync --frozen
 
 # Copy data directory into image
 COPY data/ /app/data_static

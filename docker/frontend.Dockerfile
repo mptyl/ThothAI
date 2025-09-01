@@ -27,6 +27,9 @@ ARG NEXT_PUBLIC_SQL_GENERATOR_URL
 ENV NEXT_PUBLIC_DJANGO_SERVER=$NEXT_PUBLIC_DJANGO_SERVER
 ENV NEXT_PUBLIC_SQL_GENERATOR_URL=$NEXT_PUBLIC_SQL_GENERATOR_URL
 
+# Create empty .env.local to prevent dotenv errors
+RUN touch ../.env.local
+
 # Build Next.js application
 RUN npm run build
 

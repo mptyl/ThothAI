@@ -26,6 +26,7 @@ from thoth_core.utilities.utils import (
     ensure_exports_directory,
     get_docker_friendly_error_message,
 )
+from thoth_core.utilities.shared_paths import get_export_path
 
 # No external imports needed - using local function
 
@@ -927,7 +928,7 @@ def generate_db_documentation(modeladmin, request, queryset):
                 return
 
             # Create database-named directory
-            db_dir = os.path.join(settings.BASE_DIR, io_dir, db.name)
+            db_dir = get_export_path(db.name)
             try:
                 os.makedirs(db_dir, exist_ok=True)
             except (OSError, PermissionError) as e:
@@ -965,7 +966,7 @@ def generate_db_documentation(modeladmin, request, queryset):
                 success_msg = (
                     f"Successfully generated documentation for database '{db.name}':\n"
                 )
-                success_msg += f"- HTML: {io_dir}/{db.name}/{html_filename}\n"
+                success_msg += f"- HTML: data_exchange/{db.name}/{html_filename}\n"
                 success_msg += "- ERD Mermaid diagram saved to database field"
 
                 modeladmin.message_user(request, success_msg, level=messages.SUCCESS)

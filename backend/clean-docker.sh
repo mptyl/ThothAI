@@ -63,13 +63,13 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     docker volume rm thoth-shared-data 2>/dev/null
     
     # Also remove local storage directories
-    read -p "Remove local storage directories (qdrant_storage, logs, exports)? (y/N): " -n 1 -r
+    read -p "Remove local storage directories (qdrant_storage, logs, data_exchange)? (y/N): " -n 1 -r
     echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}📁 Removing local storage directories...${NC}"
         rm -rf qdrant_storage 2>/dev/null
         rm -rf logs/* 2>/dev/null
-        rm -rf exports/* 2>/dev/null
+        rm -rf ../data_exchange/* 2>/dev/null
         echo "Local directories cleaned."
     fi
 fi

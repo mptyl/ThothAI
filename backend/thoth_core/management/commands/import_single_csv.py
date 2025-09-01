@@ -25,9 +25,11 @@ class Command(BaseCommand):
         parser.add_argument("model_name", type=str, help="Name of the model to import")
 
     def handle(self, *args, **options):
+        from thoth_core.utilities.shared_paths import get_import_path
+        
         model_name = options["model_name"]
         Model = apps.get_model("toth_be", model_name)
-        file_path = os.path.join("exports", f"{model_name.lower()}.csv")
+        file_path = get_import_path(f"{model_name.lower()}.csv")
 
         with open(file_path, "r") as file:
             reader = csv.DictReader(file)

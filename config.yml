@@ -87,6 +87,12 @@ admin:
   username: "admin"  # Default admin username
   password: ""  # Admin password (min 8 chars) - if empty, will be requested interactively
 
+ Admin User Configuration
+demo:
+  email: ""  # Optional - admin email address
+  username: "demo"  # Default admin username
+  password: ""  # Admin password (min 8 chars) - if empty, will be requested interactively
+
 # Monitoring Configuration
 monitoring:
   enabled: true  # Enable application monitoring
