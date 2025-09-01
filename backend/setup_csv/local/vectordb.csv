@@ -1,8 +1,0 @@
-id,name,vect_type,host,port,username,password,path,tenant,url,environment,embedding_provider,embedding_model,embedding_base_url,embedding_batch_size,embedding_timeout
-6,cs_sqlite,Qdrant,thoth-qdrant,6333,,,,,,,openai,text-embedding-3-small,,100,30
-10,european_football_2,Qdrant,thoth-qdrant,6333,,,,,,,openai,text-embedding-3-small,,100,30
-12,formula_1,Qdrant,thoth-qdrant,6333,,,,,,,openai,text-embedding-3-small,,100,30
-13,polluce,Qdrant,thoth-qdrant,6333,,,,,,,openai,text-embedding-3-small,,100,30
-7,procurement,Qdrant,thoth-qdrant,6333,,,,,,,openai,text-embedding-3-small,,100,30
-8,staging,Qdrant,thoth-qdrant,6333,,,,,,,openai,text-embedding-3-small,,100,30
-9,staging_copy,Qdrant,thoth-qdrant,6333,,,,,,,openai,text-embedding-3-small,,100,30
