@@ -25,11 +25,14 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
 # Copy dependency files first for better caching
 COPY frontend/sql_generator/pyproject.toml frontend/sql_generator/uv.lock ./
 
-# Install Python packages using uv with system Python
-RUN uv sync --frozen --no-cache
-
-# Copy application code
+# Copy application code (before installing dependencies to use cache better)
+# But exclude .venv if it exists locally
 COPY frontend/sql_generator/ .
+RUN rm -rf /app/.venv
+
+# Install Python packages using uv with system Python
+# This creates a fresh .venv with all dependencies
+RUN uv sync --frozen --no-cache
 
 # Copy data directory into image
 COPY data/ /app/data_static

@@ -25,7 +25,7 @@ fi
 
 # Create necessary directories
 echo "Creating necessary directories..."
-mkdir -p logs exports setup_csv qdrant_storage
+mkdir -p logs setup_csv qdrant_storage ../data_exchange
 
 # Check if _env file exists
 if [ ! -f "_env" ]; then
