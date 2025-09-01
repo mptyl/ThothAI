@@ -1,0 +1,2 @@
+id,name,theme,language,example_rows_for_comment,system_prompt,comment_model,signature_size,n_grams,threshold,verbose,use_value_description,max_columns_before_schema_linking,max_context_usage_before_linking,lsh_top_n,edit_distance_threshold,embedding_similarity_threshold,max_examples_per_column
+1,Default,dark,English,5,,22,30,3,0.35,True,True,1000,40,25,0.2,0.4,4
