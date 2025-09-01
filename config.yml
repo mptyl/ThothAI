@@ -87,7 +87,7 @@ admin:
   username: "admin"  # Default admin username
   password: ""  # Admin password (min 8 chars) - if empty, will be requested interactively
 
- Admin User Configuration
+# Demo User Configuration
 demo:
   email: ""  # Optional - admin email address
   username: "demo"  # Default admin username
@@ -103,7 +103,7 @@ ports:
   frontend: 3040      # Next.js frontend port
   backend: 8040       # Django backend API port
   sql_generator: 8020 # SQL generation service port
-  nginx: 80           # Main nginx proxy port
+  nginx: 8040         # Main nginx proxy port
   qdrant: 6333        # Qdrant vector database port
 
 # Docker Configuration
