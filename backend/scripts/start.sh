@@ -9,6 +9,9 @@ set -e
 # Set Django settings module
 export DJANGO_SETTINGS_MODULE=Thoth.settings
 
+# Set DB_ROOT_PATH for evidence and Gold SQL loading
+export DB_ROOT_PATH=/app/data
+
 echo "=== Starting Thoth Application ==="
 
 # Load secrets from Docker volume if available
