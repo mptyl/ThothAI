@@ -60,16 +60,16 @@ docker run -d \
 ```
 ThothAI/
 ├── backend/          # Django backend (API & Admin)
-│   └── logs/        # Backend service logs (local)
+│   └── logs/        # Backend service logs
 ├── frontend/         # Next.js frontend
-│   ├── logs/        # Frontend service logs (local)
 │   └── sql_generator/
-│       └── logs/    # SQL generator logs (local)
+│       └── logs/    # SQL generator logs
 ├── docker/           # Dockerfiles
 ├── scripts/          # Utility scripts
 ├── setup_csv/        # Initial configuration data
 ├── data_exchange/    # Runtime import/export directory
-└── data/            # Shared data between services
+├── data/            # User databases (SQLite)
+└── logs/            # Centralized logs (Docker volume)
 ```
 
 ### Shared Directories
@@ -269,6 +269,8 @@ docker login
 - [Configuration Guide](docs/CONFIGURATION.md)
 - [API Documentation](docs/API.md)
 - [Development Guide](docs/DEVELOPMENT.md)
+- [Logging - Local Development](docs/LOGGING_LOCAL.md)
+- [Logging - Docker](docs/LOGGING_DOCKER.md)
 
 ## 🔒 Security
 

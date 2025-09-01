@@ -28,6 +28,9 @@ fi
 # Activate virtual environment
 export PATH="/app/.venv/bin:$PATH"
 
+# Ensure backend database directory exists
+mkdir -p /app/backend_db
+
 # Check SQLite database
 echo "Checking SQLite database..."
 /app/.venv/bin/python -c "
@@ -36,7 +39,7 @@ import sqlite3
 from pathlib import Path
 
 # Get database path from environment
-db_path = os.environ.get('DB_NAME_DOCKER', '/app/data/db.sqlite3')
+db_path = os.environ.get('DB_NAME_DOCKER', '/app/backend_db/db.sqlite3')
 db_dir = os.path.dirname(db_path)
 
 # Create directory if it doesn't exist
