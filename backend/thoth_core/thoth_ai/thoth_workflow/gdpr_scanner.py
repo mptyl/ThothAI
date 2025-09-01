@@ -686,6 +686,7 @@ def generate_gdpr_html(report: Dict[str, Any]) -> str:
             <tr>
                 <th>Table</th>
                 <th>Column</th>
+                <th>Description</th>
                 <th>Data Type</th>
                 <th>Category</th>
                 <th>Sensitivity</th>
@@ -698,10 +699,19 @@ def generate_gdpr_html(report: Dict[str, Any]) -> str:
             if table["has_sensitive_data"]:
                 for column in table["sensitive_columns"]:
                     sensitivity_class = column["sensitivity"].lower()
+                    column_description = column.get("description", "")
+                    # Format column name with description if available
+                    column_display = f"{column['column_name']}"
+                    if column_description:
+                        description_display = column_description
+                    else:
+                        description_display = "<em style='color: #999;'>No description</em>"
+                    
                     html += f"""
             <tr>
                 <td><strong>{table["table_name"]}</strong></td>
-                <td>{column["column_name"]}</td>
+                <td>{column_display}</td>
+                <td>{description_display}</td>
                 <td><code>{column["data_type"]}</code></td>
                 <td>{column["category"]}</td>
                 <td class="{sensitivity_class}">{column["sensitivity"]}</td>
