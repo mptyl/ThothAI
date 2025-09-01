@@ -1,2 +1,0 @@
-id,password,last_login,is_superuser,username,first_name,last_name,email,is_staff,is_active,date_joined,groups,user_permissions
-2,pbkdf2_sha256$1000000$6nldWAwtbAj7a46KPhUpl9$eoPOCRdbYAskrH8XsO0tXCJUm/mYhqCR63N0STi3ZdM=,2025-08-26 05:38:20.860976+00:00,True,marco,Marco,Pancotti,mp@tylconsulting.it,True,True,2024-08-24 16:09:20+00:00,"2,3",

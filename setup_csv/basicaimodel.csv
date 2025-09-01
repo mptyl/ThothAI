@@ -1,0 +1,21 @@
+id,name,description,provider,created_at,updated_at
+1,Anthropic,"Anthropic Models
+- Haiku x.y
+- Sonnet x.y
+- Opus x.y",ANTHROPIC,2025-07-15 10:19:03.965602+00:00,2025-08-31 21:29:26.030900+00:00
+2,DeepSeek,Deepseek Vx and Ry Models,DEEPSEEK,2025-07-15 10:19:03.965325+00:00,2025-08-31 21:29:26.031275+00:00
+3,Gemini,"Google Gemini Models
+- x.y Flash
+- x.y Pro",GEMINI,2025-07-15 10:19:03.964636+00:00,2025-08-31 21:29:26.032043+00:00
+4,LM Studio,Local provider        using LMStudio (on Mac) at localhost:1234. (/v1),LMSTUDIO,2025-07-20 14:46:36.796807+00:00,2025-08-31 21:29:26.032423+00:00
+5,Mistral,"Mistral Models
+- Mistral
+- Devstral
+- Codestral
+- Mixtral",MISTRAL,2025-07-15 10:19:03.965870+00:00,2025-08-31 21:29:26.030333+00:00
+6,Ollama,Ollama provided models,OLLAMA,2025-07-15 10:19:03.966142+00:00,2025-08-31 21:29:26.029759+00:00
+7,OpenAi,"OppenAi Models
+- Gpt 4.x
+- o1-xxx
+- o3-xxx",OPENAI,2025-07-15 10:19:03.966407+00:00,2025-08-31 21:29:26.029012+00:00
+8,OpenRouter,Proxy to many Models,OPENROUTER,2025-07-15 10:19:03.965032+00:00,2025-08-31 21:29:26.031643+00:00
