@@ -65,12 +65,13 @@ def get_workspace_excluded_fields():
 def get_exports_directory():
     """
     Determine the directory for import/export admin actions.
-    Uses the IO_DIR environment variable if present, otherwise 'exports'.
+    Now uses the centralized data_exchange directory.
 
     Returns:
         str: The directory path for import/export
     """
-    return os.getenv("IO_DIR", "exports")
+    from .shared_paths import get_data_exchange_path
+    return get_data_exchange_path()
 
 
 def get_docker_friendly_error_message(error):
@@ -87,15 +88,15 @@ def get_docker_friendly_error_message(error):
 
     if "permission denied" in error_str:
         return (
-            "Docker volume permissions issue. The exports directory is not writable. "
+            "Docker volume permissions issue. The data_exchange directory is not writable. "
             "Check that the Docker volume is properly mounted with write permissions. "
-            "Try: 'chmod 755 ./exports' on the host system."
+            "Try: 'chmod 755 ./data_exchange' on the host system."
         )
     elif "read-only file system" in error_str:
         return (
             "Docker volume not properly mounted as writable. "
             "Check your docker-compose.yml configuration. "
-            "The exports volume should be mounted as: './exports:/app/exports:rw'"
+            "The data_exchange volume should be mounted as: './data_exchange:/app/data_exchange:rw'"
         )
     elif "no space left" in error_str:
         return (
@@ -105,7 +106,7 @@ def get_docker_friendly_error_message(error):
     elif "no such file or directory" in error_str:
         return (
             "Docker volume mount path issue. "
-            "Ensure the exports directory exists on the host system: 'mkdir -p ./exports'"
+            "Ensure the data_exchange directory exists on the host system: 'mkdir -p ./data_exchange'"
         )
     else:
         return f"File system error: {str(error)}. Check Docker volume configuration and permissions."
@@ -113,7 +114,7 @@ def get_docker_friendly_error_message(error):
 
 def ensure_exports_directory():
     """
-    Verify and create the exports directory with complete error handling for Docker.
+    Verify and create the data_exchange directory with complete error handling for Docker.
 
     Returns:
         tuple: (directory_path, error_message) - error_message is None if everything is ok
@@ -253,7 +254,7 @@ def export_csv(modeladmin, request, queryset):
 
     messages.success(
         request,
-        f"CSV export for {model_name} completed successfully. The file is available in the exports directory at {io_dir}/{file_name}.",
+        f"CSV export for {model_name} completed successfully. The file is available in the data_exchange directory at {io_dir}/{file_name}.",
     )
     return HttpResponseRedirect(
         reverse(f"admin:{model._meta.app_label}_{model._meta.model_name}_changelist")
@@ -282,7 +283,7 @@ def import_csv(modeladmin, request, queryset):
     if not default_storage.exists(file_path):
         modeladmin.message_user(
             request,
-            f"CSV file for {model_name} not found in exports directory '{io_dir}'. Make sure to export the data first or check Docker volume mounting.",
+            f"CSV file for {model_name} not found in data_exchange directory '{io_dir}'. Make sure to export the data first or check Docker volume mounting.",
             level="error",
         )
         return
@@ -391,7 +392,7 @@ def import_csv(modeladmin, request, queryset):
 
     modeladmin.message_user(
         request,
-        f"CSV import from exports directory completed. {success_count} rows imported successfully, {error_count} rows failed.",
+        f"CSV import from data_exchange directory completed. {success_count} rows imported successfully, {error_count} rows failed.",
     )
 
 

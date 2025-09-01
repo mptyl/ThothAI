@@ -64,7 +64,7 @@ if [ $? -eq 0 ]; then
     print_status "Image published to ${REGISTRY}/thoth:${VERSION}"
     echo ""
     echo "To run the image:"
-    echo "  docker run -d -p 80:80 -v \$(pwd)/exports:/app/exports --env-file .env ${REGISTRY}/thoth:${VERSION}"
+    echo "  docker run -d -p 80:80 -v \$(pwd)/data_exchange:/app/data_exchange --env-file .env ${REGISTRY}/thoth:${VERSION}"
 else
     print_error "Build failed!"
     exit 1

@@ -78,6 +78,94 @@ echo "Creating cache table..."
 echo "Checking migration status..."
 /app/.venv/bin/python manage.py showmigrations thoth_core
 
+# Create initial users from config.yml.local if available
+echo "Creating initial users..."
+if [ -f "/app/config.yml.local" ]; then
+    echo "Loading user configuration from config.yml.local..."
+    
+    # Extract admin user details from config
+    ADMIN_USERNAME=$(/app/.venv/bin/python -c "
+import yaml
+try:
+    with open('/app/config.yml.local', 'r') as f:
+        config = yaml.safe_load(f)
+        print(config.get('admin', {}).get('username', 'admin'))
+except:
+    print('admin')
+")
+    
+    ADMIN_EMAIL=$(/app/.venv/bin/python -c "
+import yaml
+try:
+    with open('/app/config.yml.local', 'r') as f:
+        config = yaml.safe_load(f)
+        email = config.get('admin', {}).get('email', '')
+        print(email if email else 'admin@example.com')
+except:
+    print('admin@example.com')
+")
+    
+    ADMIN_PASSWORD=$(/app/.venv/bin/python -c "
+import yaml
+try:
+    with open('/app/config.yml.local', 'r') as f:
+        config = yaml.safe_load(f)
+        print(config.get('admin', {}).get('password', 'admin123'))
+except:
+    print('admin123')
+")
+    
+    # Extract demo user details from config
+    DEMO_USERNAME=$(/app/.venv/bin/python -c "
+import yaml
+try:
+    with open('/app/config.yml.local', 'r') as f:
+        config = yaml.safe_load(f)
+        print(config.get('demo', {}).get('username', 'demo'))
+except:
+    print('demo')
+")
+    
+    DEMO_EMAIL=$(/app/.venv/bin/python -c "
+import yaml
+try:
+    with open('/app/config.yml.local', 'r') as f:
+        config = yaml.safe_load(f)
+        email = config.get('demo', {}).get('email', '')
+        print(email if email else 'demo@example.com')
+except:
+    print('demo@example.com')
+")
+    
+    DEMO_PASSWORD=$(/app/.venv/bin/python -c "
+import yaml
+try:
+    with open('/app/config.yml.local', 'r') as f:
+        config = yaml.safe_load(f)
+        print(config.get('demo', {}).get('password', 'demo1234'))
+except:
+    print('demo1234')
+")
+    
+    # Create admin superuser
+    echo "Creating admin superuser..."
+    DJANGO_SUPERUSER_USERNAME="$ADMIN_USERNAME" \
+    DJANGO_SUPERUSER_EMAIL="$ADMIN_EMAIL" \
+    DJANGO_SUPERUSER_PASSWORD="$ADMIN_PASSWORD" \
+    /app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Admin user '$ADMIN_USERNAME' already exists"
+    
+    # Create demo superuser
+    echo "Creating demo superuser..."
+    DJANGO_SUPERUSER_USERNAME="$DEMO_USERNAME" \
+    DJANGO_SUPERUSER_EMAIL="$DEMO_EMAIL" \
+    DJANGO_SUPERUSER_PASSWORD="$DEMO_PASSWORD" \
+    /app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Demo user '$DEMO_USERNAME' already exists"
+    
+    echo "User creation completed."
+else
+    echo "config.yml.local not found, skipping user creation"
+fi
+
 echo "Running collectstatic..."
 /app/.venv/bin/python manage.py collectstatic --noinput
 echo "Collectstatic finished."
