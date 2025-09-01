@@ -118,7 +118,6 @@ frontend/sql_generator/logs/
 
 # === Configuration Files ===
 config.yml.local
-config.yaml.local
 *.local
 pyproject.toml.local
 pyproject.toml.merged
