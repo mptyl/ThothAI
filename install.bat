@@ -66,9 +66,11 @@ if %errorlevel% equ 0 (
 )
 
 REM Check Python version
-%PYTHON_CMD% -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>nul
-if %errorlevel% neq 0 (
+for /f "tokens=*" %%i in ('%PYTHON_CMD% -c "import sys; print('OK' if sys.version_info ^>= (3, 9) else 'OLD')" 2^>nul') do set PY_VERSION=%%i
+if not "!PY_VERSION!"=="OK" (
     echo Error: Python 3.9+ is required
+    echo Current Python version:
+    %PYTHON_CMD% --version
     exit /b 1
 )
 

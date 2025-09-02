@@ -36,10 +36,12 @@ function Test-PythonVersion {
         # Try python3 first, then python
         $result = $null
         if (Test-Command "python3") {
-            $result = python3 -c "import sys; print('OK' if sys.version_info >= (3, 9) else 'OLD')" 2>$null
+            $output = & python3 -c "import sys; print('OK' if sys.version_info >= (3, 9) else 'OLD')" 2>$null
+            $result = $output -join ""
         }
         elseif (Test-Command "python") {
-            $result = python -c "import sys; print('OK' if sys.version_info >= (3, 9) else 'OLD')" 2>$null
+            $output = & python -c "import sys; print('OK' if sys.version_info >= (3, 9) else 'OLD')" 2>$null
+            $result = $output -join ""
         }
         return $result -eq "OK"
     }
@@ -109,6 +111,8 @@ function Main {
     # Check Python version
     if (-not (Test-PythonVersion)) {
         Write-Color "Error: Python 3.9+ is required" "Red"
+        Write-Color "Current Python version:" "Yellow"
+        & $pythonCmd --version
         exit 1
     }
     
