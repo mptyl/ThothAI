@@ -48,6 +48,14 @@ interface Message {
   usedSchema?: string;
   evidence?: string[];
   chainOfThought?: string;
+  // Critical error handling
+  criticalError?: {
+    type: string;
+    component?: string;
+    message: string;
+    impact?: string;
+    action?: string;
+  };
 }
 
 // Function to convert markdown-style formatting to HTML
@@ -308,6 +316,25 @@ export default function ChatPage() {
     e.preventDefault();
     const cleanMessage = message.trim();
     
+    // Check if workspace is selected
+    if (!selectedWorkspace || !selectedWorkspace.id) {
+      // Add error message to chat
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        type: 'system',
+        content: '',
+        timestamp: new Date(),
+        criticalError: {
+          type: 'workspace_required',
+          message: 'No workspace selected',
+          impact: 'Cannot generate SQL without selecting a workspace',
+          action: 'Please select a workspace from the sidebar before submitting your question'
+        }
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      return;
+    }
+    
     if (cleanMessage && !isProcessing) {
       setIsProcessing(true);
       
@@ -500,6 +527,28 @@ export default function ChatPage() {
                   // Don't add this line to filteredChunk - the error message was already sent
                 } catch (e) {
                   console.error('Failed to parse SQL generation failure:', e);
+                }
+                
+              } else if (line.startsWith('CRITICAL_ERROR:')) {
+                // Handle critical errors with structured formatting
+                const errorJson = line.substring(15).trim(); // Remove 'CRITICAL_ERROR:' prefix
+                try {
+                  const errorData = JSON.parse(errorJson);
+                  // Update message with critical error data
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === streamingMessageId 
+                        ? { 
+                            ...msg, 
+                            criticalError: errorData,
+                            isProcessing: false
+                          }
+                        : msg
+                    )
+                  );
+                  // Don't add the raw JSON to the display
+                } catch (e) {
+                  console.error('Failed to parse critical error:', e);
                 }
                 
               } else {
@@ -707,6 +756,7 @@ export default function ChatPage() {
                     /* AI/System message - only show if there's content to display based on flags */
                     (msg.content.trim() || 
                      msg.isProcessing || 
+                     msg.criticalError ||
                      (msg.formattedSql && flags.show_sql)) ? (
                       <OutputBlock>
                         <div>
@@ -717,8 +767,45 @@ export default function ChatPage() {
                             </div>
                           )}
                           
-                          {/* Content display - skip SQL if it's in formattedSql */}
-                          {!msg.formattedSql && (msg.content.includes('SELECT') || msg.content.includes('FROM')) ? (
+                          {/* Critical Error Display */}
+                          {msg.criticalError && (
+                            <div className="space-y-3 p-4 rounded-lg bg-background/10 border border-border/30">
+                              {/* Part 1: Extract TEST code and show as Validation Error - In evidenza */}
+                              <div className="text-lg font-bold">
+                                {(() => {
+                                  // Extract TEST code from message if present
+                                  const match = msg.criticalError.message?.match(/^(TEST\d+):/);
+                                  return match ? `${match[1]} - Validation Error` : 'Validation Error';
+                                })()}
+                              </div>
+                              
+                              {/* Part 2: Message (remove TEST code prefix if present) */}
+                              <div className="text-base">
+                                {(() => {
+                                  // Remove TEST code prefix from message
+                                  const message = msg.criticalError.message || '';
+                                  return message.replace(/^TEST\d+:\s*/, '');
+                                })()}
+                              </div>
+                              
+                              {/* Part 3: Impact */}
+                              {msg.criticalError.impact && (
+                                <div className="text-base">
+                                  {msg.criticalError.impact}
+                                </div>
+                              )}
+                              
+                              {/* Part 4: Action - In evidenza */}
+                              {msg.criticalError.action && (
+                                <div className="text-base font-bold pt-2">
+                                  {msg.criticalError.action}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Content display - skip SQL if it's in formattedSql, skip if critical error */}
+                          {!msg.criticalError && !msg.formattedSql && (msg.content.includes('SELECT') || msg.content.includes('FROM')) ? (
                             // Legacy support - only show inline SQL if no formattedSql available
                             <div className="space-y-3">
                               <div className="bg-slate-900 dark:bg-slate-950 rounded-lg font-mono text-sm overflow-x-auto">
@@ -747,7 +834,7 @@ export default function ChatPage() {
                                 </code>
                               </div>
                             </div>
-                          ) : msg.content.trim() ? (
+                          ) : !msg.criticalError && msg.content.trim() ? (
                             <div className="space-y-2">
                               {msg.content.split('\n').map((paragraph, i) => (
                                 <p key={i} className="text-base leading-relaxed text-foreground">
