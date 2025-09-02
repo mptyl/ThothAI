@@ -317,17 +317,17 @@ else:
         
         # Generate database scope
         echo "1. Generating database scope..."
-        /app/.venv/bin/python manage.py generate_db_scope_demo 2>&1 || echo "Warning: Scope generation failed or skipped"
+        /app/.venv/bin/python manage.py generate_scope --workspace 1 2>&1 || echo "Warning: Scope generation failed or skipped"
         echo ""
         
         # Generate database documentation  
         echo "2. Generating database documentation..."
-        /app/.venv/bin/python manage.py generate_db_documentation_demo 2>&1 || echo "Warning: Documentation generation failed or skipped"
+        /app/.venv/bin/python manage.py generate_documentation --workspace 1 2>&1 || echo "Warning: Documentation generation failed or skipped"
         echo ""
         
         # Run GDPR scan
         echo "3. Scanning for GDPR-sensitive data..."
-        /app/.venv/bin/python manage.py scan_gdpr_demo 2>&1 || echo "Warning: GDPR scan failed or skipped"
+        /app/.venv/bin/python manage.py scan_gdpr --workspace 1 2>&1 || echo "Warning: GDPR scan failed or skipped"
         echo ""
         
         echo "=========================================="
