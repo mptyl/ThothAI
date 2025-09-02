@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "test -f lib/contexts/workspace-context.tsx || (echo 'ERROR: workspace-context.tsx not found!' && exit 1)",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
