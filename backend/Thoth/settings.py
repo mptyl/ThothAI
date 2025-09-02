@@ -207,6 +207,17 @@ SESSION_COOKIE_AGE = (
     60 * 60 * 24 * 30
 )  # Session cookie expires after 30 days when "remember me" is checked
 
+# Session cookie configuration for frontend/backend sharing
+SESSION_COOKIE_NAME = 'thoth_sessionid'
+SESSION_COOKIE_DOMAIN = None  # Will be set dynamically based on environment
+SESSION_COOKIE_PATH = '/'
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = False  # Allow JavaScript access for frontend
+SESSION_COOKIE_SAMESITE = 'Lax'  # Allow cross-origin requests from frontend
+CSRF_COOKIE_NAME = 'thoth_csrftoken'
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
