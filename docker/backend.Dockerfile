@@ -30,7 +30,9 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && chmod +x /usr/local/bin/uv
 
 # Copy dependency files first (for better caching)
-COPY backend/pyproject.toml backend/uv.lock ./
+# Use the merged pyproject.toml that includes database driver dependencies
+COPY backend/pyproject.toml.merged ./pyproject.toml
+COPY backend/uv.lock ./
 
 # Copy application code (before installing dependencies to use cache better)
 # But exclude .venv if it exists locally
