@@ -13,9 +13,11 @@
 from django.urls import path
 from . import views
 from .views import TableColumnsDetailView, ThothLogListCreateView, ThothLogDetailView
+from .auth_callback import AdminCallbackView
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("auth/admin-callback/", AdminCallbackView.as_view(), name="admin_callback"),
     path("api/login", views.api_login, name="api_login"),
     path("api/user", views.get_current_user, name="get_current_user"),
     path("api/test_token", views.test_token),

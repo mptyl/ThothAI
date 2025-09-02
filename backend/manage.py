@@ -21,7 +21,13 @@ from dotenv import load_dotenv
 
 def main():
     """Run administrative tasks."""
-    load_dotenv()
+    # Load .env.local if it exists, otherwise load .env
+    from pathlib import Path
+    env_local = Path(__file__).parent.parent / '.env.local'
+    if env_local.exists():
+        load_dotenv(env_local)
+    else:
+        load_dotenv()
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings")
     try:
         from django.core.management import execute_from_command_line
