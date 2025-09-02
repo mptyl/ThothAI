@@ -43,13 +43,8 @@ RUN mkdir -p /app/logs /app/data /vol/secrets \
     && chmod 700 /vol/secrets
 
 # Copy entrypoint script
-# Debug: List files to ensure entrypoint exists
-RUN ls -la frontend/sql_generator/ || echo "Directory not found during build"
 COPY frontend/sql_generator/entrypoint-sql-generator.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && \
-    # Verify the file was copied and check first line
-    ls -la /entrypoint.sh && \
-    head -1 /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8020
 
