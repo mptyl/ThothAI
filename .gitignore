@@ -103,8 +103,6 @@ docker-compose.override.yml
 # === Application Specific ===
 # Shared data directories (bind mounts)
 data_exchange/
-data/*
-!data/.gitkeep
 exports/*
 !exports/.gitkeep
 qdrant_storage/
