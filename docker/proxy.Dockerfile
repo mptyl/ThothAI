@@ -24,7 +24,8 @@ RUN chmod +x /start.sh
 RUN mkdir -p /vol/static /vol/media /vol/exports
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+# Extended start-period to 20 minutes for initial installation when AI operations take time
+HEALTHCHECK --interval=10s --timeout=5s --start-period=1200s --retries=5 \
     CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
 
 EXPOSE 80 8040 3000 8001
