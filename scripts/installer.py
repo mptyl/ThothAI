@@ -72,6 +72,14 @@ class ThothInstaller:
         if not self.docker_compose_up():
             return False
             
+        # Step 10: Wait for backend to be ready
+        if not self.wait_for_backend():
+            return False
+            
+        # Step 11: Run initial setup commands if greenfield
+        if not self.run_initial_setup_commands():
+            return False
+            
         print("\nInstallation completed successfully!")
         self.print_access_info()
         return True
@@ -563,6 +571,136 @@ class ThothInstaller:
             return False
         
         print("All services started successfully")
+        return True
+    
+    def wait_for_backend(self) -> bool:
+        """Wait for backend container to be ready"""
+        print("\nWaiting for backend to be ready...")
+        import time
+        
+        compose_file = self.config.get('docker', {}).get('compose_file', 'docker-compose.yml')
+        max_attempts = 30
+        
+        for i in range(max_attempts):
+            result = subprocess.run(
+                ['docker', 'compose', '-f', compose_file, 'exec', '-T', 'backend', 
+                 'python', '-c', 'print("ready")'],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                print("Backend is ready")
+                return True
+            
+            time.sleep(2)
+            if i > 0 and i % 5 == 0:
+                print(f"Still waiting... ({i}/{max_attempts})")
+        
+        print("Warning: Backend may not be fully ready")
+        return True  # Continue anyway
+    
+    def run_initial_setup_commands(self) -> bool:
+        """Run initial setup commands for greenfield installation"""
+        print("\nChecking for initial setup...")
+        
+        compose_file = self.config.get('docker', {}).get('compose_file', 'docker-compose.yml')
+        
+        # Check if this is a greenfield installation
+        result = subprocess.run(
+            ['docker', 'compose', '-f', compose_file, 'exec', '-T', 'backend', 'python', 
+             '-c', 'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings"); '
+                   'import django; django.setup(); from thoth_core.models import Workspace; '
+                   'print(Workspace.objects.count())'],
+            capture_output=True,
+            text=True
+        )
+        
+        try:
+            workspace_count = int(result.stdout.strip()) if result.returncode == 0 and result.stdout.strip() else -1
+        except ValueError:
+            workspace_count = -1
+        
+        if workspace_count == 0:
+            print("Greenfield installation detected. Running initial setup commands...")
+            print("=" * 60)
+            
+            # Check if any AI provider is configured
+            providers = self.config.get('ai_providers', {})
+            ai_configured = any(
+                provider.get('enabled') and provider.get('api_key')
+                for provider in providers.values()
+            )
+            
+            if ai_configured:
+                print("AI provider configured. Running automated analysis for demo database...")
+                print("")
+                
+                # 1. Generate database scope
+                print("1. Generating database scope...")
+                result = subprocess.run(
+                    ['docker', 'compose', '-f', compose_file, 'exec', '-T', 'backend', 
+                     'python', 'manage.py', 'generate_db_scope_demo'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode != 0:
+                    print(f"Warning: Scope generation failed or skipped")
+                    if result.stderr:
+                        print(f"Details: {result.stderr}")
+                else:
+                    print("Database scope generated successfully")
+                print("")
+                
+                # 2. Generate database documentation
+                print("2. Generating database documentation...")
+                result = subprocess.run(
+                    ['docker', 'compose', '-f', compose_file, 'exec', '-T', 'backend',
+                     'python', 'manage.py', 'generate_db_documentation_demo'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode != 0:
+                    print(f"Warning: Documentation generation failed or skipped")
+                    if result.stderr:
+                        print(f"Details: {result.stderr}")
+                else:
+                    print("Database documentation generated successfully")
+                print("")
+                
+                # 3. Run GDPR scan
+                print("3. Scanning for GDPR-sensitive data...")
+                result = subprocess.run(
+                    ['docker', 'compose', '-f', compose_file, 'exec', '-T', 'backend',
+                     'python', 'manage.py', 'scan_gdpr_demo'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode != 0:
+                    print(f"Warning: GDPR scan failed or skipped")
+                    if result.stderr:
+                        print(f"Details: {result.stderr}")
+                else:
+                    print("GDPR scan completed successfully")
+                
+                print("")
+                print("=" * 60)
+                print("AI-assisted analysis completed for demo workspace.")
+                print("=" * 60)
+            else:
+                print("No AI provider API keys configured.")
+                print("Skipping automated scope, documentation, and GDPR scan.")
+                print("To enable AI features, configure one of these in config.yml.local:")
+                print("  - OPENAI_API_KEY")
+                print("  - ANTHROPIC_API_KEY")
+                print("  - GEMINI_API_KEY")
+                print("  - MISTRAL_API_KEY")
+                print("  - DEEPSEEK_API_KEY")
+                print("=" * 60)
+        elif workspace_count > 0:
+            print(f"Found {workspace_count} workspace(s). Skipping initial setup.")
+        else:
+            print("Could not determine workspace count. Skipping initial setup.")
+        
         return True
     
     def print_access_info(self):
