@@ -158,7 +158,7 @@ class ThothConfigManager:
     """Gestione centralizzata configurazione ThothAI."""
     
     def __init__(self):
-        self.is_docker = os.getenv('IS_DOCKER', 'False') == 'True'
+        self.docker_env = os.getenv('DOCKER_ENV', None)
         self.config = self._load_config()
         self._validate_config()
     

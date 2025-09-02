@@ -25,9 +25,8 @@ services:
       - ./logs:/app/logs
     environment:
       - DEBUG=False
-      - IS_DOCKER=True
       - HOST_IP=host.docker.internal
-      - DOCKER_ENV=1
+      - DOCKER_ENV=development
     env_file:
       - _env
     networks:
