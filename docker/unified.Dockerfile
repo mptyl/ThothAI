@@ -97,8 +97,7 @@ COPY --chown=thoth:thoth docker/supervisord.conf /etc/supervisor/conf.d/supervis
 ENV PATH="/app/backend/.venv/bin:/app/sql-generator/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     NODE_ENV=production \
-    DOCKER_ENV=1 \
-    IS_DOCKER=True
+    DOCKER_ENV=production
 
 # Copy startup script
 COPY --chown=thoth:thoth docker/scripts/start-unified.sh /app/start-all.sh

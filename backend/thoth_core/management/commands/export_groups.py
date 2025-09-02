@@ -21,9 +21,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Use data_exchange directory
-        if os.getenv("IS_DOCKER"):
+        if os.getenv("DOCKER_ENV"):  # Running in Docker
             io_dir = "/app/data_exchange"
-        else:
+        else:  # Running locally
             from django.conf import settings
             io_dir = os.path.join(settings.BASE_DIR.parent, "data_exchange")
         

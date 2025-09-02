@@ -135,15 +135,16 @@ WSGI_APPLICATION = "Thoth.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-IS_DOCKER = os.environ.get("IS_DOCKER", "False") == "True"
-if IS_DOCKER:
+# Using DOCKER_ENV to determine if running in Docker (development/production) or locally (None)
+DOCKER_ENV = os.environ.get("DOCKER_ENV", None)
+if DOCKER_ENV:  # Running in Docker
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": os.environ.get("DB_NAME_DOCKER", "/app/data/db.sqlite3"),
         }
     }
-else:
+else:  # Running locally
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",

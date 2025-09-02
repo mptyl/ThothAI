@@ -31,9 +31,9 @@ class Command(BaseCommand):
         # Use data_exchange directory unless overridden
         output_dir = options.get("output_dir")
         if not output_dir:
-            if os.getenv("IS_DOCKER"):
+            if os.getenv("DOCKER_ENV"):  # Running in Docker
                 output_dir = "/app/data_exchange"
-            else:
+            else:  # Running locally
                 from django.conf import settings
                 output_dir = os.path.join(settings.BASE_DIR.parent, "data_exchange")
         

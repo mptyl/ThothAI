@@ -5,22 +5,6 @@
 version: '3.8'
 
 services:
-  # === SECRETS INITIALIZATION SERVICE ===
-  init-secrets:
-    build:
-      context: .
-      dockerfile: docker/init-secrets.Dockerfile
-    image: thoth-init-secrets:latest
-    container_name: thoth-init-secrets
-    volumes:
-      - thoth-secrets:/secrets
-    networks:
-      - thoth-network
-    profiles:
-      - init
-    restart: "no"
-
-
   # === BACKEND SERVICE ===
   backend:
     build:
@@ -44,20 +28,20 @@ services:
       - ./config.yml.local:/app/config.yml.local:ro
     env_file: .env.docker
     environment:
-      - IS_DOCKER=True
       - HOST_IP=host.docker.internal
-      - DOCKER_ENV=1
+      - DOCKER_ENV=development
       - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
+      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
     networks:
       - thoth-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 180s
+      start_period: 30s
     depends_on:
       - thoth-qdrant
 

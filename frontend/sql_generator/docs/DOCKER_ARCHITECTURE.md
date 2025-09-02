@@ -77,13 +77,12 @@ services:
 env_file:
   - .env.docker
 environment:
-  - IS_DOCKER=True
-  - DOCKER_ENV=1
+  - DOCKER_ENV=development
   - HOST_IP=host.docker.internal
 ```
 **Scelte:**
 - File `.env.docker` esterno
-- Flag IS_DOCKER per runtime detection
+- Flag DOCKER_ENV per runtime detection (development/production)
 - Host access per sviluppo
 
 **Motivazioni:**

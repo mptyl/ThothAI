@@ -17,9 +17,9 @@ def get_data_exchange_path():
     Returns:
         str: Absolute path to data_exchange directory
     """
-    if os.getenv("IS_DOCKER"):
+    if os.getenv("DOCKER_ENV"):  # Running in Docker
         return "/app/data_exchange"
-    else:
+    else:  # Running locally
         return os.path.join(settings.BASE_DIR.parent, "data_exchange")
 
 
@@ -30,9 +30,9 @@ def get_shared_data_path():
     Returns:
         str: Absolute path to shared data directory
     """
-    if os.getenv("IS_DOCKER"):
+    if os.getenv("DOCKER_ENV"):  # Running in Docker
         return "/app/data"
-    else:
+    else:  # Running locally
         return os.path.join(settings.BASE_DIR.parent, "data")
 
 

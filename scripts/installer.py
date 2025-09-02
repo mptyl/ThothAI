@@ -15,6 +15,8 @@ import subprocess
 import shutil
 import getpass
 import hashlib
+import secrets
+import string
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import toml
@@ -58,7 +60,15 @@ class ThothInstaller:
         if not self.create_docker_network():
             return False
             
-        # Step 7: Build and start Docker containers
+        # Step 7: Create Docker volumes if needed
+        if not self.create_docker_volumes():
+            return False
+            
+        # Step 8: Generate Django secrets if needed
+        if not self.generate_django_secrets():
+            return False
+            
+        # Step 9: Build and start Docker containers
         if not self.docker_compose_up():
             return False
             
@@ -398,6 +408,98 @@ class ThothInstaller:
         env_path.chmod(0o600)
         
         print(f"Generated {env_path}")
+        return True
+    
+    def create_docker_volumes(self) -> bool:
+        """Create required Docker volumes if they don't exist"""
+        print("\nSetting up Docker volumes...")
+        
+        volumes = [
+            'thoth-secrets',
+            'thoth-backend-static',
+            'thoth-backend-media',
+            'thoth-frontend-cache',
+            'thoth-qdrant-data',
+            'thoth-shared-data'
+        ]
+        
+        for volume_name in volumes:
+            # Check if volume exists
+            result = subprocess.run(
+                ['docker', 'volume', 'ls', '--format', '{{.Name}}'],
+                capture_output=True,
+                text=True
+            )
+            
+            if volume_name in result.stdout.split('\n'):
+                print(f"Volume '{volume_name}' already exists")
+            else:
+                result = subprocess.run(
+                    ['docker', 'volume', 'create', volume_name],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode != 0:
+                    print(f"Error: Failed to create volume '{volume_name}': {result.stderr}")
+                    return False
+                print(f"Created volume '{volume_name}'")
+        
+        return True
+    
+    def generate_django_secrets(self) -> bool:
+        """Generate Django secret key and API key if they don't exist"""
+        print("\nGenerating Django secrets...")
+        
+        def generate_secret_key(length=50):
+            """Generate a Django-compatible secret key"""
+            chars = string.ascii_letters + string.digits + '!@#$%^&*(-_=+)'
+            return ''.join(secrets.choice(chars) for _ in range(length))
+        
+        def generate_api_key(length=32):
+            """Generate a secure API key using URL-safe base64 encoding"""
+            return secrets.token_urlsafe(length)
+        
+        # Check if secrets already exist in the volume
+        check_cmd = [
+            'docker', 'run', '--rm', 
+            '-v', 'thoth-secrets:/secrets',
+            'alpine', 'ls', '/secrets/'
+        ]
+        
+        result = subprocess.run(check_cmd, capture_output=True, text=True)
+        existing_files = result.stdout.split('\n') if result.returncode == 0 else []
+        
+        secrets_to_generate = []
+        
+        if 'django_secret_key' not in existing_files:
+            secret_key = generate_secret_key()
+            secrets_to_generate.append(('django_secret_key', secret_key))
+            print("Generating new Django SECRET_KEY")
+        else:
+            print("Django SECRET_KEY already exists")
+        
+        if 'django_api_key' not in existing_files:
+            api_key = generate_api_key()
+            secrets_to_generate.append(('django_api_key', api_key))
+            print("Generating new Django API_KEY")
+        else:
+            print("Django API_KEY already exists")
+        
+        # Write secrets to volume if needed
+        for filename, content in secrets_to_generate:
+            write_cmd = [
+                'docker', 'run', '--rm',
+                '-v', 'thoth-secrets:/secrets',
+                'alpine', 'sh', '-c',
+                f'echo "{content}" > /secrets/{filename} && chmod 640 /secrets/{filename}'
+            ]
+            
+            result = subprocess.run(write_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"Error: Failed to write {filename}: {result.stderr}")
+                return False
+            print(f"Successfully generated {filename}")
+        
         return True
     
     def create_docker_network(self) -> bool:
