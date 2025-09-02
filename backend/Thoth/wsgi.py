@@ -21,10 +21,16 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 from django.core.wsgi import get_wsgi_application
 
-load_dotenv()
+# Load .env.local if it exists, otherwise load .env
+env_local = Path(__file__).parent.parent.parent / '.env.local'
+if env_local.exists():
+    load_dotenv(env_local)
+else:
+    load_dotenv()
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings")
 
 application = get_wsgi_application()

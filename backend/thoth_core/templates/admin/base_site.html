@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Thoth Admin{% endblock %}
+
+{% block branding %}
+<div id="branding">
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">Thoth Administration</a>
+    </h1>
+</div>
+{% endblock %}
+
+{% block userlinks %}
+    {% if site_url %}
+        <a href="{{ site_url }}" style="color: white; margin-right: 10px;">View site</a> /
+    {% endif %}
+    {% if has_permission %}
+        {% if user.is_active and user.is_staff %}
+            {% url 'django-admindocs-docroot' as docsroot %}
+            {% if docsroot %}
+                <a href="{{ docsroot }}" style="color: white; margin-right: 10px;">Documentation</a> /
+            {% endif %}
+        {% endif %}
+        <a href="javascript:void(0);" onclick="goToFrontend()" style="color: white; margin-right: 10px; font-weight: bold;">
+            To Frontend →
+        </a> /
+        {% if user.has_usable_password %}
+            <a href="{% url 'admin:password_change' %}" style="color: white; margin-right: 10px;">Change password</a> /
+        {% endif %}
+        <form id="logout-form" method="post" action="{% url 'admin:logout' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" style="background: none; border: none; color: white; cursor: pointer; text-decoration: underline;">
+                Log out
+            </button>
+        </form>
+    {% endif %}
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+function goToFrontend() {
+    // Get the frontend URL from context
+    const frontendUrl = "{{ frontend_url|default:'http://localhost:3040' }}";
+    
+    // Get current auth token if available
+    const authToken = "{{ auth_token|default:'' }}";
+    
+    // Open frontend with auth token in URL if available
+    if (authToken) {
+        // Pass token to frontend auth callback for authentication
+        window.location.href = `${frontendUrl}/auth/callback?token=${authToken}`;
+    } else {
+        // Just open frontend
+        window.location.href = frontendUrl;
+    }
+}
+</script>
+{% endblock %}
