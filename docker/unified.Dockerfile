@@ -25,12 +25,16 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
 
 # Build backend virtual environment
 WORKDIR /build/backend
-COPY backend/pyproject.toml backend/uv.lock ./
+# Use the merged pyproject.toml that includes database driver dependencies
+COPY backend/pyproject.toml.merged ./pyproject.toml
+COPY backend/uv.lock ./
 RUN uv sync --frozen --quiet
 
 # Build SQL generator virtual environment
 WORKDIR /build/sql-generator
-COPY frontend/sql_generator/pyproject.toml frontend/sql_generator/uv.lock ./
+# Use the merged pyproject.toml that includes database driver dependencies
+COPY frontend/sql_generator/pyproject.toml.merged ./pyproject.toml
+COPY frontend/sql_generator/uv.lock ./
 RUN uv sync --frozen --quiet
 
 # === Node.js Builder ===
