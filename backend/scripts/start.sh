@@ -420,5 +420,27 @@ echo "DEBUG: SECRET_KEY value is: ${SECRET_KEY:0:20}..."
 export DJANGO_API_KEY
 export SECRET_KEY
 
-# Start Django with environment variables available
-exec /app/.venv/bin/python manage.py runserver 0.0.0.0:8000
+# Start Django with Gunicorn for production
+echo "Starting Gunicorn production server..."
+
+# Check if gunicorn is installed
+if [ ! -f "/app/.venv/bin/gunicorn" ]; then
+    echo "Gunicorn not found, installing..."
+    /app/.venv/bin/pip install gunicorn
+fi
+
+# Start Gunicorn with environment variables available
+exec /app/.venv/bin/gunicorn \
+    --bind 0.0.0.0:8000 \
+    --workers 4 \
+    --threads 2 \
+    --worker-class sync \
+    --worker-tmp-dir /dev/shm \
+    --access-logfile /app/logs/access.log \
+    --error-logfile /app/logs/error.log \
+    --log-level info \
+    --timeout 120 \
+    --graceful-timeout 30 \
+    --max-requests 1000 \
+    --max-requests-jitter 50 \
+    Thoth.wsgi:application
