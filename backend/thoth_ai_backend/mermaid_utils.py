@@ -46,8 +46,11 @@ def check_mermaid_service_status() -> bool:
     try:
         # Test with a simple diagram to verify mermaid.ink is working
         test_url = f"{MERMAID_INK_SERVICE}/svg/Z3JhcGggVEQKICAgIEFbVGVzdF0gLS0+IEJbU2VydmljZV0="
-        response = requests.get(test_url, timeout=10)
+        response = requests.get(test_url, timeout=5)  # Quick check
         return response.status_code == 200
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        logger.warning("mermaid.ink service temporarily unavailable")
+        return False
     except requests.exceptions.RequestException as e:
         logger.error(f"Error checking mermaid.ink service: {e}")
         return False
@@ -311,7 +314,7 @@ def generate_mermaid_image(
             content_type = "image/png"
 
         # Make HTTP request to mermaid.ink
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=20)  # Changed from 30 to 20
 
         if response.status_code != 200:
             error_msg = f"mermaid.ink returned status {response.status_code}"
@@ -340,6 +343,14 @@ def generate_mermaid_image(
         )
         return True, output_path, None
 
+    except requests.exceptions.Timeout:
+        error_msg = "Diagram generation service is temporarily unavailable. Please try again later."
+        logger.warning("mermaid.ink service timeout")
+        return False, None, error_msg
+    except requests.exceptions.ConnectionError:
+        error_msg = "Diagram generation service is temporarily unavailable. Please try again later."
+        logger.warning("mermaid.ink service connection error")
+        return False, None, error_msg
     except requests.exceptions.RequestException as e:
         error_msg = f"HTTP request to mermaid.ink failed: {str(e)}"
         logger.error(error_msg)

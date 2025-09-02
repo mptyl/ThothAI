@@ -266,7 +266,7 @@ def generate_mermaid_image(mermaid_code, output_path):
         url = f"https://mermaid.ink/img/{encoded_diagram}"
 
         # Make HTTP request to mermaid.ink
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=20)  # Changed from 30 to 20
 
         if response.status_code != 200:
             error_msg = f"mermaid.ink returned status {response.status_code}"
@@ -280,6 +280,10 @@ def generate_mermaid_image(mermaid_code, output_path):
 
         return output_path, None
 
+    except requests.exceptions.Timeout:
+        return None, "Diagram generation service is temporarily unavailable. Please try again later."
+    except requests.exceptions.ConnectionError:
+        return None, "Diagram generation service is temporarily unavailable. Please try again later."
     except requests.exceptions.RequestException as e:
         return None, f"HTTP request to mermaid.ink failed: {str(e)}"
     except Exception as e:
