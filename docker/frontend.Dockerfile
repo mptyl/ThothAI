@@ -21,6 +21,13 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Ensure lib directory is present (fix for Windows/WSL case sensitivity)
+RUN ls -la /app/lib/contexts/ || echo "contexts directory missing" && \
+    # Additional check for file existence
+    test -f /app/lib/contexts/workspace-context.tsx || echo "workspace-context.tsx missing" && \
+    # List all files to debug if needed
+    find /app -name "*.tsx" -path "*/contexts/*" | head -10 || true
+
 # Build arguments for public URLs
 ARG NEXT_PUBLIC_DJANGO_SERVER
 ARG NEXT_PUBLIC_SQL_GENERATOR_URL
