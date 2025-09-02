@@ -304,6 +304,47 @@ else:
     print('Warning: Demo user not found')
 "
     
+    # 6. Run AI-assisted operations for demo workspace (if API keys are configured)
+    echo ""
+    echo "=========================================="
+    echo "Checking for AI configuration..."
+    echo "=========================================="
+    
+    # Check if any LLM API key is configured
+    if [ -n "$OPENAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ] || [ -n "$MISTRAL_API_KEY" ] || [ -n "$DEEPSEEK_API_KEY" ]; then
+        echo "AI provider configured. Running automated analysis for demo database..."
+        echo ""
+        
+        # Generate database scope
+        echo "1. Generating database scope..."
+        /app/.venv/bin/python manage.py generate_db_scope_demo 2>&1 || echo "Warning: Scope generation failed or skipped"
+        echo ""
+        
+        # Generate database documentation  
+        echo "2. Generating database documentation..."
+        /app/.venv/bin/python manage.py generate_db_documentation_demo 2>&1 || echo "Warning: Documentation generation failed or skipped"
+        echo ""
+        
+        # Run GDPR scan
+        echo "3. Scanning for GDPR-sensitive data..."
+        /app/.venv/bin/python manage.py scan_gdpr_demo 2>&1 || echo "Warning: GDPR scan failed or skipped"
+        echo ""
+        
+        echo "=========================================="
+        echo "AI-assisted analysis completed for demo workspace."
+        echo "=========================================="
+    else
+        echo "No AI provider API keys configured."
+        echo "Skipping automated scope, documentation, and GDPR scan."
+        echo "To enable AI features, configure one of these environment variables:"
+        echo "  - OPENAI_API_KEY"
+        echo "  - ANTHROPIC_API_KEY" 
+        echo "  - GOOGLE_API_KEY"
+        echo "  - MISTRAL_API_KEY"
+        echo "  - DEEPSEEK_API_KEY"
+        echo "=========================================="
+    fi
+    
     # 6. Load evidence, Gold SQL and run preprocessing for demo workspace
     echo "Loading evidence, Gold SQL and running preprocessing for demo workspace..."
     /app/.venv/bin/python -c "
