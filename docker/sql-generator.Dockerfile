@@ -28,9 +28,8 @@ COPY frontend/sql_generator/pyproject.toml.merged ./pyproject.toml
 COPY frontend/sql_generator/uv.lock ./
 
 # Copy application code (before installing dependencies to use cache better)
-# But exclude .venv if it exists locally
+# .venv is excluded via .dockerignore
 COPY frontend/sql_generator/ .
-RUN rm -rf /app/.venv
 
 # Install Python packages using uv with system Python
 # This creates a fresh .venv with all dependencies

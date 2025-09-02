@@ -19,8 +19,11 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     build-essential \
     cron \
     unixodbc \
+    unixodbc-dev \
     freetds-bin \
+    freetds-dev \
     libmariadb3 \
+    libmariadb-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -37,11 +40,12 @@ COPY backend/uv.lock ./
 # Copy application code (before installing dependencies to use cache better)
 # But exclude .venv if it exists locally
 COPY backend/ .
-RUN rm -rf /app/.venv
+RUN rm -rf /app/.venv || true
 
 # Install Python packages in the container
 # This creates a fresh .venv with all dependencies
-RUN uv sync --frozen
+# Include optional database drivers using --extra flags
+RUN uv sync --frozen --extra mariadb --extra sqlserver
 
 # Copy data directory to temporary location for initialization
 # This will be copied to the volume on first run by init-shared-data.sh
