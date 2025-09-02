@@ -204,6 +204,12 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
     2. Sets up dbmanager and agent pool based on workspace ID
     3. Returns streaming response with query results, hints, and agent config
     """
+    # TEST INJECTION - Remove this block after testing
+    from helpers.main_helpers.test_error_injector import inject_test_error
+    test_error = await inject_test_error(request.question, request.workspace_id)
+    if test_error:
+        return test_error
+    
     # Initialize and validate request state
     state, error_response = await _initialize_request_state(request, http_request)
     if error_response:
