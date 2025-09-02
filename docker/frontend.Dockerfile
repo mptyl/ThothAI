@@ -18,15 +18,31 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy source code in stages to ensure all directories are included
+# First copy package files (already done above)
+# Then copy configuration files
+COPY tsconfig.json ./
+COPY next.config.js ./
+COPY postcss.config.js ./
+COPY tailwind.config.js ./
+COPY .eslintrc.json ./
 
-# Ensure lib directory is present (fix for Windows/WSL case sensitivity)
-RUN ls -la /app/lib/contexts/ || echo "contexts directory missing" && \
-    # Additional check for file existence
-    test -f /app/lib/contexts/workspace-context.tsx || echo "workspace-context.tsx missing" && \
-    # List all files to debug if needed
-    find /app -name "*.tsx" -path "*/contexts/*" | head -10 || true
+# Copy all source directories explicitly
+COPY app ./app
+COPY components ./components
+COPY lib ./lib
+COPY public ./public
+COPY styles ./styles
+
+# Debug: List the lib directory structure
+RUN echo "=== Checking lib directory structure ===" && \
+    ls -la /app/ && \
+    echo "=== lib directory ===" && \
+    ls -la /app/lib/ || echo "lib directory missing" && \
+    echo "=== lib/contexts directory ===" && \
+    ls -la /app/lib/contexts/ || echo "contexts directory missing" && \
+    echo "=== Verifying workspace-context.tsx ===" && \
+    cat /app/lib/contexts/workspace-context.tsx | head -5 || echo "Could not read workspace-context.tsx"
 
 # Build arguments for public URLs
 ARG NEXT_PUBLIC_DJANGO_SERVER

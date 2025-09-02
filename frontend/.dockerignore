@@ -81,9 +81,6 @@ data/dev_databases/
 !.env.template
 !.env.docker
 
-# Explicitly include lib directory (fix for Windows/WSL)
-!lib/
-!lib/**/*
 
 # IDE and editor files
 .vscode/
