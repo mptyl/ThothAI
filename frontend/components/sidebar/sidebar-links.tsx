@@ -8,9 +8,9 @@ import React from 'react';
 import Link from 'next/link';
 
 export function SidebarLinks() {
-  const adminUrl = process.env.DJANGO_SERVER 
-    ? `${process.env.DJANGO_SERVER}/`
-    : 'http://localhost:8200/';
+  const adminUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER 
+    ? `${process.env.NEXT_PUBLIC_DJANGO_SERVER}/admin/`
+    : 'http://localhost:8200/admin/';
 
   return (
     <div className="space-y-2">

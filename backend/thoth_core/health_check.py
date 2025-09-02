@@ -58,7 +58,7 @@ class HealthChecker:
             "uptime": self._get_uptime(),
             "environment": {
                 "debug": settings.DEBUG,
-                "is_docker": os.environ.get("IS_DOCKER", "False") == "True",
+                "docker_env": os.environ.get("DOCKER_ENV", None),
                 "profile": os.environ.get("PROFILE", "Unknown"),
                 "python_version": f"{psutil.sys.version_info.major}.{psutil.sys.version_info.minor}.{psutil.sys.version_info.micro}",
             },

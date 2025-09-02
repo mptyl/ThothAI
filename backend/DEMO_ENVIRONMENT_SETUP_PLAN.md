@@ -68,7 +68,7 @@ Aggiungere dopo la creazione degli utenti (riga ~164):
 
 ```bash
 # Load system defaults if in Docker environment
-if [ "$IS_DOCKER" = "True" ] && [ -f "/app/setup_csv/docker/groups.csv" ]; then
+if [ -n "$DOCKER_ENV" ] && [ -f "/app/setup_csv/docker/groups.csv" ]; then
     echo "Loading system defaults for Docker environment..."
     
     # 1. Import groups
