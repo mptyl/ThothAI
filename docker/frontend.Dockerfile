@@ -23,7 +23,6 @@ RUN npm ci
 # Then copy configuration files
 COPY tsconfig.json ./
 COPY next.config.js ./
-COPY next-env.d.ts ./
 COPY postcss.config.js ./
 COPY tailwind.config.js ./
 COPY .eslintrc.json ./
