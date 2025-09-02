@@ -35,13 +35,17 @@ COPY frontend/sql_generator/ .
 # This creates a fresh .venv with all dependencies
 RUN uv sync --frozen --no-cache
 
-# Copy data directory into image
+# Copy data directory into image (for reference/backup)
 COPY data/ /app/data_static
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data /vol/secrets \
     && chmod 755 /app/logs /app/data \
     && chmod 700 /vol/secrets
+
+# Copy database files to the working data directory
+# This ensures databases are available even if volume is empty
+COPY data/dev_databases /app/data/dev_databases
 
 # Copy entrypoint script
 COPY frontend/sql_generator/entrypoint-sql-generator.sh /entrypoint.sh
