@@ -235,4 +235,3 @@ The SQL generation follows a multi-agent pattern:
 - **Dependencies**: Use `uv sync` to resolve Python dependency issues
 - **Qdrant**: Ensure port 6334 (local) or 6333 (Docker) is available
 - **Test containers**: Use `docker ps` to check if test containers are running
-- in /Users/mp/Thoth/thoth_docs c'è un mkdocs di documentazione in italiano. utte le volte che ti dico di documentare o di mettere in documentazione voglio che aggiorni la pagina di quel mkdocs, o la crei se non esiste, con il contenuto da me indicato
