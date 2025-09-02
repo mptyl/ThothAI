@@ -33,16 +33,6 @@ COPY components ./components
 COPY lib ./lib
 COPY public ./public
 
-# Debug: List the lib directory structure
-RUN echo "=== Checking lib directory structure ===" && \
-    ls -la /app/ && \
-    echo "=== lib directory ===" && \
-    ls -la /app/lib/ || echo "lib directory missing" && \
-    echo "=== lib/contexts directory ===" && \
-    ls -la /app/lib/contexts/ || echo "contexts directory missing" && \
-    echo "=== Verifying workspace-context.tsx ===" && \
-    cat /app/lib/contexts/workspace-context.tsx | head -5 || echo "Could not read workspace-context.tsx"
-
 # Build arguments for public URLs
 ARG NEXT_PUBLIC_DJANGO_SERVER
 ARG NEXT_PUBLIC_SQL_GENERATOR_URL
