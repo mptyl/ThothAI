@@ -1,10 +1,12 @@
 id,name,agent_type,ai_model,temperature,top_p,max_tokens,timeout,retries
 1,Human Help Requester - OR - Kimi K2,ASKFORHUMANHELP,25,0.80,0.95,1280,45.0,5
-2,Keyword Extractor - Open Router - Gemini Flash 2.5,EXTRACTKEYWORDS,22,0.80,0.95,1280,45.0,5
-3,Keyword Extractor - OpenRouter - Kimi K2,EXTRACTKEYWORDS,25,0.80,0.95,1280,45.0,3
-4,Question Validator - Open Router - Kimi K2,VALIDATEQUESTION,25,0.80,0.95,1280,45.0,5
-5,Question Validator - OpenRouter - Gemini Flash 2.5,VALIDATEQUESTION,22,0.80,0.95,1280,45.0,5
-6,SQL Explainer - OpenRouter - Kimi K2,EXPLAINSQL,25,0.80,0.95,1280,45.0,5
+2,Keyword Extractor - OR - Gemini Flash 2.5,EXTRACTKEYWORDS,22,0.80,0.95,1280,45.0,5
+3,Keyword Extractor - OR - Mistral Small,EXTRACTKEYWORDS,7,0.80,0.95,1280,45.0,3
+4,Question Validator - OR - Kimi K2,VALIDATEQUESTION,25,0.80,0.95,1280,45.0,5
+5,Question Validator - OR- Gemini Flash 2.5,VALIDATEQUESTION,22,0.80,0.95,1280,45.0,5
+26,SQL Explainer - OR - Gemini 2.5 Flash,EXPLAINSQL,22,0.80,0.95,1280,45.0,5
+6,SQL Explainer - OR - Mistral Medium,EXPLAINSQL,28,0.80,0.95,1280,45.0,5
+16,SQL Generator - Adv - OR - Devstral Medium,SQLADVANCED,20,0.80,0.95,1280,45.0,5
 7,SQL Generator - Adv - OR - Kimi K2,SQLADVANCED,25,0.80,0.95,1280,45.0,5
 8,SQL Generator - Adv - OR - Sonnet 3.7,SQLADVANCED,15,0.80,0.95,1280,45.0,5
 9,SQL Generator - Basic - OR - Codestral,SQLBASIC,17,0.80,0.95,1280,45.0,5
@@ -14,13 +16,12 @@ id,name,agent_type,ai_model,temperature,top_p,max_tokens,timeout,retries
 13,SQL Generator - Expert - OR - Claude Sonnet 4,SQLEXPERT,16,0.80,0.95,1280,45.0,5
 14,SQL Generator - Expert - OR - GPT-5,SQLEXPERT,24,0.20,0.95,1280,45.0,5
 15,SQL Generator - Expert - OR - Gemini 2.5 pro,SQLEXPERT,23,0.80,0.95,1280,45.0,5
-16,Sql Generator - Adv - Devstral Medium,SQLADVANCED,20,0.80,0.95,1280,45.0,5
 17,Test Evaluator - OR - Claude Sonnet 4,TESTEVALUATOR,16,0.80,0.95,1280,45.0,5
 18,Test Evaluator - OR - GPT-5,TESTEVALUATOR,24,0.80,0.95,1280,45.0,5
-19,Test Evaluator - OR - Gemini 2.5 pro,TESTEVALUATOR,23,0.80,0.95,1280,45.0,5
-20,Test Generator,TESTGENERATOREXPERT,24,0.80,0.95,1280,45.0,5
-21,Test Generator - Adv - OpenRouter - Kimi K2,TESTGENERATORADVANCED,25,0.80,0.95,1280,45.0,5
-22,Test Generator - Basic - Gemini Flash,TESTGENERATORBASIC,22,0.80,0.95,1280,45.0,5
-23,Test Generator - Basic - OpenRouter - Kimi K2,TESTGENERATORBASIC,25,0.80,0.95,1280,45.0,5
-24,Test Generator - Exp - OpenRouter - Kimi K2,TESTGENERATOREXPERT,25,0.80,0.95,1280,45.0,5
-25,Test Generator - Expert - OR - Claude 3.7,EXTRACTKEYWORDS,16,0.80,0.95,1280,45.0,5
+19,Test Evaluator - OR - Kimi K2,TESTEVALUATOR,25,0.80,0.95,1280,45.0,5
+21,Test Generator - Adv - OR - Kimi K2,TESTGENERATORADVANCED,25,0.80,0.95,1280,45.0,5
+27,Test Generator - Adv - OR - Sonnet 4,TESTGENERATORADVANCED,16,0.80,0.95,1280,45.0,5
+22,Test Generator - Basic - OR - Gemini 2.5 Flash,TESTGENERATORBASIC,22,0.80,0.95,1280,45.0,5
+23,Test Generator - Basic - OR - Sonnet 3.7,TESTGENERATORBASIC,15,0.80,0.95,1280,45.0,5
+20,Test Generator - Exp - OR - Gpt 5,TESTGENERATOREXPERT,24,0.80,0.95,1280,45.0,5
+25,Test Generator - Exp - OR - Opus 4,TESTGENERATOREXPERT,14,0.80,0.95,1280,45.0,5
