@@ -117,6 +117,8 @@ def test_api_key(request):
 @authentication_classes([])  # Empty list means no authentication required
 @permission_classes([])  # Empty list means no permissions required
 def api_login(request):
+    from django.contrib.auth import login
+    
     try:
         # Verify that username and password are present in the request
         if "username" not in request.data or "password" not in request.data:
@@ -134,9 +136,13 @@ def api_login(request):
             )
         token, created = Token.objects.get_or_create(user=user)
 
+        # Create Django session for admin access
+        login(request, user)
+        
         # Save token in session for frontend redirect
         if hasattr(request, "session"):
             request.session["auth_token"] = token.key
+            request.session.save()
 
         serializer = UserSerializer(user)
         return Response({"token": token.key, "user": serializer.data})
