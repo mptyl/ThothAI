@@ -800,6 +800,10 @@ class ThothLog(models.Model):
     selection_metrics = models.TextField(
         blank=True, default=""
     )  # JSON with selection metrics and test details
+    # Enhanced evaluation selected SQL - from enhanced_workflow branch
+    enhanced_evaluation_selected_sql = models.TextField(
+        blank=True, null=True, default=""
+    )  # Selected SQL after enhanced evaluation
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
