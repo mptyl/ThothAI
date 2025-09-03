@@ -73,6 +73,17 @@ class ExecutionState(BaseModel):
         description="Token count required for the full M-Schema representation"
     )
     
+    # Escalation tracking
+    escalation_attempts: int = Field(
+        default=0,
+        description="Number of escalation attempts from BASIC to ADVANCED/EXPERT"
+    )
+    
+    escalation_context: Optional[str] = Field(
+        default=None,
+        description="Context information from previous escalation attempts"
+    )
+    
     class Config:
         """Pydantic configuration"""
         arbitrary_types_allowed = False  # Only simple types

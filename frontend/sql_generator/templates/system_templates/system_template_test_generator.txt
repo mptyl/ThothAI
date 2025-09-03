@@ -18,10 +18,14 @@ Unit tests should be designed to distinguish between different candidate SQL que
 **Test Categories to Consider:**
 1. **Syntactic Correctness:** Verify proper SQL syntax, including correct JOIN conditions, identifier handling, and clause structure.
 2. **Logical Correctness:** Evaluate whether the query logic appropriately addresses the question requirements, without forcing or excluding the use of a specific field.
+   - **IMPORTANT**: Allow flexibility in implementation choices - both using existing calculated columns or computing values dynamically are acceptable unless the question specifically requires one approach
+   - Do NOT generate tests that dictate specific implementation choices when multiple valid approaches exist (e.g., using pre-calculated columns vs calculating on-the-fly)
+   - Do NOT generate tests that require or forbid specific technical approaches unless explicitly required by the question
 3. **Schema Compliance:** Ensure proper use of tables, columns, and relationships as defined in the database schema.
 4. **Filtering and Conditions:** Verify appropriate WHERE clauses and filtering logic.
    - **IMPORTANT**: Only test for filters that are EXPLICITLY required by the question
    - Do NOT generate tests about what the query "should not" filter unless the question specifically requires avoiding certain filters
+   - Do NOT test for the presence or absence of NULL filters unless the question explicitly mentions handling NULL values
    - Be precise about column names - do not confuse similar column names (e.g., "Enrollment (Ages 5-17)" vs "Percent (%) Eligible Free (Ages 5-17)")
 5. **Aggregation and Grouping:** Check correct use of aggregate functions and GROUP BY clauses when needed.
 6. **Sorting and Limiting:** Evaluate ORDER BY and LIMIT clauses for correctness.
@@ -29,6 +33,12 @@ Unit tests should be designed to distinguish between different candidate SQL que
    - For SQLite: DO NOT test for NULLS FIRST/LAST (not supported)
    - For other databases: Test for proper NULLS handling when appropriate
 7. **Data Relationships:** Verify proper handling of table relationships and joins when required.
+
+**Tests to AVOID:**
+- Do not create tests that enforce using specific columns when equivalent calculations would produce the same result
+- Do not require or forbid NULL handling unless the question explicitly mentions it
+- Do not prescribe specific technical implementations when multiple valid approaches exist
+- Focus on RESULT CORRECTNESS, not implementation details
 
 **Output Structure:**
 You must provide your response composed of two components:
@@ -51,3 +61,5 @@ You must provide your response composed of two components:
 - Maintain attention to syntactic correctness while ensuring comprehensive SQL evaluation across all aspects
 - **CRITICAL**: Only test for what IS required by the question, NOT for what should be avoided unless explicitly stated
 - **PRECISION**: Be extremely precise with column names - do not confuse columns that share similar naming patterns but are different fields
+- **FLEXIBILITY PRINCIPLE**: Accept multiple valid technical approaches that produce correct results
+- **RESULT FOCUS**: Tests should focus on RESULT CORRECTNESS, not implementation details

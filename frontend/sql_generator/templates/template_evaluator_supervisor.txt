@@ -8,7 +8,7 @@
 **Database Schema:**
 {DATABASE_SCHEMA}
 
-**Borderline SQL Candidates (90-99% Pass Rate):**
+**Borderline SQL Candidates ({EVALUATION_THRESHOLD}-99% Pass Rate):**
 {BORDERLINE_SQLS}
 
 **Initial Evaluation Results:**
@@ -23,7 +23,7 @@
 **Initial Evaluator Thinking:**
 {INITIAL_THINKING}
 
-You are performing deep reevaluation of SQL candidates that scored between 90-99% on initial testing. These are borderline cases that require careful analysis to determine if they should be promoted to GOLD status or rejected as FAILED.
+You are performing deep reevaluation of SQL candidates that scored between {EVALUATION_THRESHOLD}-99% on initial testing. These are borderline cases that require careful analysis to determine if they should be promoted to GOLD status or rejected as FAILED.
 
 **Your Extended Analysis Must Address:**
 

@@ -344,6 +344,24 @@ class SystemState(BaseModel):
         self.generation.generated_tests_json = value
         
     @property
+    def filtered_tests(self) -> List[str]:
+        return self.generation.filtered_tests
+    
+    @filtered_tests.setter
+    def filtered_tests(self, value: List[str]):
+        import json
+        self.generation.filtered_tests = value
+        self.generation.filtered_tests_json = json.dumps(value, ensure_ascii=False)
+        
+    @property
+    def filtered_tests_json(self) -> str:
+        return self.generation.filtered_tests_json
+    
+    @filtered_tests_json.setter
+    def filtered_tests_json(self, value: str):
+        self.generation.filtered_tests_json = value
+        
+    @property
     def generated_sqls_json(self) -> str:
         return self.generation.generated_sqls_json
     
@@ -407,6 +425,54 @@ class SystemState(BaseModel):
     def sql_explanation(self, value: Optional[str]):
         self.generation.sql_explanation = value
     
+    @property
+    def enhanced_evaluation_result(self):
+        return self.generation.enhanced_evaluation_result
+    
+    @enhanced_evaluation_result.setter
+    def enhanced_evaluation_result(self, value):
+        self.generation.enhanced_evaluation_result = value
+    
+    @property
+    def enhanced_evaluation_status(self) -> Optional[str]:
+        return self.generation.enhanced_evaluation_status
+    
+    @enhanced_evaluation_status.setter
+    def enhanced_evaluation_status(self, value: Optional[str]):
+        self.generation.enhanced_evaluation_status = value
+    
+    @property
+    def enhanced_evaluation_selected_sql(self) -> Optional[str]:
+        return self.generation.enhanced_evaluation_selected_sql
+    
+    @enhanced_evaluation_selected_sql.setter
+    def enhanced_evaluation_selected_sql(self, value: Optional[str]):
+        self.generation.enhanced_evaluation_selected_sql = value
+    
+    @property
+    def enhanced_evaluation_case(self) -> Optional[str]:
+        return self.generation.enhanced_evaluation_case
+    
+    @enhanced_evaluation_case.setter
+    def enhanced_evaluation_case(self, value: Optional[str]):
+        self.generation.enhanced_evaluation_case = value
+    
+    @property
+    def enhanced_evaluation_selected_sql_index(self) -> Optional[int]:
+        return self.generation.enhanced_evaluation_selected_sql_index
+    
+    @enhanced_evaluation_selected_sql_index.setter
+    def enhanced_evaluation_selected_sql_index(self, value: Optional[int]):
+        self.generation.enhanced_evaluation_selected_sql_index = value
+        
+    @property
+    def evaluation_logs(self) -> Optional[str]:
+        return self.generation.evaluation_logs
+    
+    @evaluation_logs.setter
+    def evaluation_logs(self, value: Optional[str]):
+        self.generation.evaluation_logs = value
+    
     # Execution state properties
     @property
     def last_SQL(self) -> str:
@@ -463,6 +529,22 @@ class SystemState(BaseModel):
     @schema_link_strategy.setter
     def schema_link_strategy(self, value: Optional[str]):
         self.execution.schema_link_strategy = value
+    
+    @property
+    def escalation_attempts(self) -> int:
+        return self.execution.escalation_attempts
+    
+    @escalation_attempts.setter
+    def escalation_attempts(self, value: int):
+        self.execution.escalation_attempts = value
+    
+    @property
+    def escalation_context(self) -> Optional[str]:
+        return self.execution.escalation_context
+    
+    @escalation_context.setter
+    def escalation_context(self, value: Optional[str]):
+        self.execution.escalation_context = value
     
     # External services properties
     @property

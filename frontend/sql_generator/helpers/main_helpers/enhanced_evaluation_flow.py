@@ -21,13 +21,14 @@ approach that reduces false negatives and improves SQL selection accuracy.
 Cases:
 - Case A: Single SQL with 100% pass rate → Direct GOLD selection
 - Case B: Multiple SQLs with 100% pass rate → SqlSelector for best choice  
-- Case C: SQLs with 90-99% pass rate → EvaluatorSupervisor for deep analysis
-- Case D: All SQLs < 90% pass rate → Escalation to next functionality level
+- Case C: SQLs with borderline pass rate → EvaluatorSupervisor for deep analysis
+- Case D: All SQLs below threshold → Escalation to next functionality level
 """
 
 import logging
 from typing import Dict, Any, List, Tuple
 import time
+import json
 
 from agents.core.agent_result_models import EnhancedEvaluationResult, EvaluationStatus
 from agents.core.agent_initializer import AgentInitializer
@@ -44,11 +45,13 @@ logger = logging.getLogger(__name__)
 class EnhancedEvaluationFlow:
     """Enhanced evaluation flow with 4-case decision logic and auxiliary agents"""
     
-    def __init__(self, agents_and_tools, session_id: str = None):
+    def __init__(self, agents_and_tools, session_id: str = None, evaluation_threshold: int = 90):
         self.agents_and_tools = agents_and_tools
         self.auxiliary_agents = {}
         self.processing_start_time = None
         self.eval_logger = create_evaluation_logger(session_id)
+        self.evaluation_threshold = evaluation_threshold
+        self.threshold_ratio = evaluation_threshold / 100.0
         
     async def initialize_auxiliary_agents(self) -> bool:
         """
@@ -71,17 +74,20 @@ class EnhancedEvaluationFlow:
         try:
             # Create TestReducer agent
             self.auxiliary_agents['test_reducer'] = AgentInitializer.create_test_reducer_agent(
-                evaluator_model_config
+                evaluator_model_config,
+                default_model_config=None
             )
             
             # Create SqlSelector agent  
             self.auxiliary_agents['sql_selector'] = AgentInitializer.create_sql_selector_agent(
-                evaluator_model_config
+                evaluator_model_config,
+                default_model_config=None
             )
             
             # Create EvaluatorSupervisor agent
             self.auxiliary_agents['evaluator_supervisor'] = AgentInitializer.create_evaluator_supervisor_agent(
-                evaluator_model_config
+                evaluator_model_config,
+                default_model_config=None
             )
             
             # Verify all agents created
@@ -148,13 +154,13 @@ class EnhancedEvaluationFlow:
             Tuple of (case, perfect_sqls, borderline_sqls, failed_sqls)
         """
         perfect_sqls = []      # 100% pass rate
-        borderline_sqls = []   # 90-99% pass rate  
-        failed_sqls = []       # < 90% pass rate
+        borderline_sqls = []   # threshold% to 99% pass rate  
+        failed_sqls = []       # < threshold% pass rate
         
         for sql_id, pass_rate in pass_rates.items():
             if pass_rate >= 1.0:
                 perfect_sqls.append(sql_id)
-            elif pass_rate >= 0.9:
+            elif pass_rate >= self.threshold_ratio:
                 borderline_sqls.append(sql_id)
             else:
                 failed_sqls.append(sql_id)
@@ -165,11 +171,11 @@ class EnhancedEvaluationFlow:
         elif len(perfect_sqls) > 1:
             case = "B"  # Multiple perfect SQLs
         elif len(borderline_sqls) > 0:
-            case = "C"  # Borderline SQLs (90-99%)
+            case = "C"  # Borderline SQLs (threshold% to 99%)
         else:
-            case = "D"  # All failed (< 90%)
+            case = "D"  # All failed (< threshold%)
             
-        logger.info(f"Evaluation Case {case}: {len(perfect_sqls)} perfect, {len(borderline_sqls)} borderline, {len(failed_sqls)} failed")
+        logger.info(f"Evaluation Case {case}: {len(perfect_sqls)} perfect, {len(borderline_sqls)} borderline, {len(failed_sqls)} failed (threshold: {self.evaluation_threshold}%)")
         
         return case, perfect_sqls, borderline_sqls, failed_sqls
     
@@ -244,7 +250,7 @@ class EnhancedEvaluationFlow:
         return result
     
     async def handle_case_c(self, borderline_sqls: List[str], state: Any, evaluation_answers: List[str], evaluation_thinking: str) -> EnhancedEvaluationResult:
-        """Handle Case C: SQLs with 90-99% pass rate"""
+        f"""Handle Case C: SQLs with {self.evaluation_threshold}-99% pass rate"""
         logger.info(f"Processing Case C: {len(borderline_sqls)} borderline SQLs → EvaluatorSupervisor")
         
         if not self.auxiliary_agents.get('evaluator_supervisor'):
@@ -275,7 +281,8 @@ class EnhancedEvaluationFlow:
             "\n".join(evaluation_answers),
             f"Borderline SQLs: {', '.join(borderline_sqls)}",
             evaluation_thinking,
-            getattr(state, 'gold_sql_examples', [])
+            getattr(state, 'gold_sql_examples', []),
+            evaluation_threshold=self.evaluation_threshold
         )
         
         if supervisor_result:
@@ -322,20 +329,20 @@ class EnhancedEvaluationFlow:
         return result
     
     async def handle_case_d(self, state: Any, pass_rates: Dict[str, float]) -> EnhancedEvaluationResult:
-        """Handle Case D: All SQLs < 90% pass rate"""
-        logger.info("Processing Case D: All SQLs failed → Escalation required")
+        f"""Handle Case D: All SQLs < {self.evaluation_threshold}% pass rate"""
+        logger.info(f"Processing Case D: All SQLs failed → Escalation required (threshold: {self.evaluation_threshold}%)")
         
         best_pass_rate = max(pass_rates.values()) if pass_rates else 0.0
         
         result = EnhancedEvaluationResult(
-            thinking=f"Case D: All SQLs below 90% threshold (best: {best_pass_rate:.1%})",
+            thinking=f"Case D: All SQLs below {self.evaluation_threshold}% threshold (best: {best_pass_rate:.1%})",
             answers=[f"SQL #{i+1}: FAILED - Below threshold" for i in range(len(state.generated_sqls))],
             status=EvaluationStatus.FAILED,
             evaluation_case="D",
             auxiliary_agents_used=[],
             best_pass_rate=best_pass_rate,
             requires_escalation=True,
-            escalation_context=f"All {len(pass_rates)} SQL candidates failed to meet 90% pass rate threshold"
+            escalation_context=f"All {len(pass_rates)} SQL candidates failed to meet {self.evaluation_threshold}% pass rate threshold"
         )
         
         return result
@@ -396,8 +403,8 @@ class EnhancedEvaluationFlow:
                     
                     if reducer_result and len(reducer_result.reduced_tests) < len(original_tests):
                         logger.info(f"TestReducer reduced tests from {len(original_tests)} to {len(reducer_result.reduced_tests)}")
-                        # Update state with reduced tests
-                        state.generated_tests = [(reducer_result.thinking, reducer_result.reduced_tests)]
+                        # Update state with reduced tests as single list format
+                        state.generated_tests_json = json.dumps(reducer_result.reduced_tests, ensure_ascii=False)
             
             # Step 3: Run standard evaluation to get baseline results
             logger.info("Running standard evaluation for baseline results")
@@ -503,7 +510,7 @@ class EnhancedEvaluationFlow:
             return error_result
 
 
-async def run_enhanced_evaluation_flow(state: Any, agents_and_tools: Any, session_id: str = None) -> Tuple[EnhancedEvaluationResult, Dict[str, Any]]:
+async def run_enhanced_evaluation_flow(state: Any, agents_and_tools: Any, session_id: str = None, evaluation_threshold: int = None) -> Tuple[EnhancedEvaluationResult, Dict[str, Any]]:
     """
     Entry point for enhanced evaluation flow with comprehensive logging.
     
@@ -511,11 +518,16 @@ async def run_enhanced_evaluation_flow(state: Any, agents_and_tools: Any, sessio
         state: System state containing generated SQLs and test data
         agents_and_tools: Agent manager with evaluator and other agents
         session_id: Optional session identifier for logging
+        evaluation_threshold: Minimum percentage threshold for SQL evaluation (0-100)
         
     Returns:
         Tuple of (EnhancedEvaluationResult, evaluation_logs_summary)
     """
-    flow = EnhancedEvaluationFlow(agents_and_tools, session_id)
+    # Get evaluation threshold from state.workspace if not provided
+    if evaluation_threshold is None:
+        evaluation_threshold = getattr(state, 'workspace', {}).get('evaluation_threshold', 90)
+    
+    flow = EnhancedEvaluationFlow(agents_and_tools, session_id, evaluation_threshold)
     result = await flow.run_enhanced_evaluation(state)
     
     # Return both result and logging summary
