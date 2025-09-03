@@ -1,6 +1,6 @@
 # ThothAI – Installazione Docker con dati demo pre-caricati
 
-Questa guida spiega, passo per passo, la procedura di installazione Docker avviata dallo script `install.sh`. Alla fine dell’installazione avrai uno stack completo (backend, frontend, SQL Generator, proxy Nginx, Qdrant) in esecuzione, con i dati demo del database `california_schools` pre-caricati e un utente demo già pronto all’uso.
+Questa guida spiega, passo per passo, la procedura di installazione Docker avviata dallo script `install.sh` (`install.ps1`o `install.bat`per Windows). Alla fine dell’installazione avrai uno stack completo (backend, frontend, SQL Generator, proxy Nginx, Qdrant) in esecuzione, con i dati demo del database `california_schools` pre-caricati e un utente `demo` già pronto all’uso.
 
 —
 
@@ -11,7 +11,7 @@ Assicurati di avere installato e funzionante:
 - Docker e Docker Compose
 - Python 3.9+
 
-Lo script `install.sh` (`install.ps1`o `install.bat`per Windows verifica automaticamente la presenza dei prerequisiti e interrompe la procedura se qualcosa manca.
+Lo script `install.sh` (`install.ps1`o `install.bat`per Windows) verifica automaticamente la presenza dei prerequisiti e interrompe la procedura se qualcosa manca.
 
 —
 
@@ -19,18 +19,18 @@ Lo script `install.sh` (`install.ps1`o `install.bat`per Windows verifica automat
 
 Alla prima esecuzione, se non trova `config.yml.local`, lo script crea una copia da `config.yml` e chiede di compilarla. La validazione della configurazione avviene tramite `scripts/validate_config.py` che controlla:
 
-- Provider AI in `ai_providers` (almeno uno abilitato e con API key, eccezioni: `ollama`, `lm_studio`)
-- Impostazioni embedding (`embedding.provider`, `embedding.model`, e relativa API key o fallback a quella del provider)
-- Configurazione database (`databases`, con SQLite sempre abilitato)
-- Sezione `admin` (almeno `username`, l’email è facoltativa)
+- Provider AI in `ai_providers`. Aalmeno un provider deve essere abilitato e con API key. Suggerisco ovviamente OpenRouter perchè tutta la configurazione del workspace demo è pasata su OpenRouter.
+- Impostazioni embedding (`embedding.provider`, `embedding.model`, e relativa API key o fallback a quella del provider). Deve esserci almeno un provider embedding abilitato. Suggerisco di iniziare con OpenAI ed usare la mia apikey fino a quando non abbiamo avuto tempo di provare Cohere. L'uso di Cohere però richiede di ricostruire la collection su Qdrant, per cui preferirei prima stablizzare la situazione.
+- Configurazione database (`databases`, con SQLite sempre abilitato). il config.yml base ha già tutti i database che ti servono
+- Sezione `admin` (almeno `username`, l’email è facoltativa). Suggerisco password admin123. Poi serve `demo` con password=demo1234
 - Sezione `monitoring` (se abilitata, richiede `logfire_token`)
-- Sezione `ports` con porte non duplicate e nel range 1024–65535
+- Sezione `ports` con porte non duplicate e nel range 1024–65535. Lascia le default
 
 File di riferimento: `scripts/validate_config.py`.
 
 —
 
-## 3) Esecuzione di `install.sh`: pipeline
+## 3) Esecuzione di `install.sh`:
 
 Il flusso principale è implementato in `scripts/installer.py` ed è richiamato da `install.sh`. Le fasi chiave:
 
