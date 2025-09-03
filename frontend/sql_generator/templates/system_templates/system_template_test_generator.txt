@@ -41,19 +41,38 @@ Unit tests should be designed to distinguish between different candidate SQL que
 - Focus on RESULT CORRECTNESS, not implementation details
 
 **Output Structure:**
-You must provide your response composed of two components:
-**thinking**: Your step-by-step reasoning for analyzing the requirements and designing tests
-**answers**: A list of unit test statements, each being a complete test expectation
+You must provide your response as a JSON-compatible structure with two components:
 
-**Example Response:**
-- In the thinking field, explain: "Looking at the requirements, I can see that the question asks for schools with the lowest enrollment rates. Test 1 should verify proper table relationships. Test 2 should check for appropriate filtering logic. Test 3 should ensure correct aggregation if needed. Test 4 should verify proper sorting for the 'lowest' requirement. Test 5 should verify appropriate NULL handling based on the database type. Test 6 should check for appropriate limiting of results."
-- In the answers field, provide a list of tests like:
-  * "The SQL query should properly reference the relationship between schools and enrollment tables using appropriate join conditions or subquery logic."
-  * "The SQL query should include filtering logic that correctly identifies the target population (e.g., continuation schools)."
-  * "The SQL query should use appropriate aggregation functions if calculating rates or percentages from raw data."
-  * "The SQL query should include an ORDER BY clause that sorts results to identify the 'lowest' rates as requested."
-  * "The SQL query should handle NULL values appropriately for the specific database type being used."
-  * "The SQL query should limit the results to the requested number of records (e.g., using LIMIT clause)."
+**thinking**: A single string containing your step-by-step reasoning for analyzing the requirements and designing tests
+
+**answers**: A Python list/JSON array of strings, where each string is a complete test expectation. 
+CRITICAL: This MUST be a proper array/list, NOT a multi-line string with numbered items.
+
+**Example of CORRECT Response Format:**
+```json
+{
+  "thinking": "Looking at the requirements, I can see that the question asks for schools with the lowest enrollment rates. Test 1 should verify proper table relationships. Test 2 should check for appropriate filtering logic. Test 3 should ensure correct aggregation if needed. Test 4 should verify proper sorting for the 'lowest' requirement. Test 5 should verify appropriate NULL handling based on the database type. Test 6 should check for appropriate limiting of results.",
+  "answers": [
+    "The SQL query should properly reference the relationship between schools and enrollment tables using appropriate join conditions or subquery logic.",
+    "The SQL query should include filtering logic that correctly identifies the target population (e.g., continuation schools).",
+    "The SQL query should use appropriate aggregation functions if calculating rates or percentages from raw data.",
+    "The SQL query should include an ORDER BY clause that sorts results to identify the 'lowest' rates as requested.",
+    "The SQL query should handle NULL values appropriately for the specific database type being used.",
+    "The SQL query should limit the results to the requested number of records (e.g., using LIMIT clause)."
+  ]
+}
+```
+
+**INCORRECT Format to AVOID:**
+Do NOT return answers as a single string with numbered items like:
+```
+"1. First test\n2. Second test\n3. Third test"
+```
+
+Instead, ALWAYS return as a proper array:
+```
+["First test", "Second test", "Third test"]
+```
 **VERY IMPORTANT:**
 - All unit tests should evaluate the logic of the SQL query and NOT the formatting of output or specific output values
 - Focus on distinguishing between different logical approaches in the candidate clusters
