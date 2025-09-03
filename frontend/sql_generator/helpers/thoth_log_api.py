@@ -142,6 +142,10 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             "schema_from_vector_db": schema_from_vector_db_str,
             # 20) Selection metrics including detailed test results
             "selection_metrics": state.selection_metrics_json if hasattr(state, 'selection_metrics_json') else "",
+            # 21) Enhanced Evaluation fields
+            "enhanced_evaluation_thinking": state.enhanced_evaluation_result[0] if state.enhanced_evaluation_result else "",
+            "enhanced_evaluation_answers": state.enhanced_evaluation_result[1] if state.enhanced_evaluation_result else [],
+            "enhanced_evaluation_selected_sql": state.enhanced_evaluation_selected_sql if hasattr(state, 'enhanced_evaluation_selected_sql') and state.enhanced_evaluation_selected_sql is not None else "",
         }
         
         # Log summary of data being sent only in DEBUG level

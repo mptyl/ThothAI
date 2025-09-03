@@ -235,3 +235,41 @@ The SQL generation follows a multi-agent pattern:
 - **Dependencies**: Use `uv sync` to resolve Python dependency issues
 - **Qdrant**: Ensure port 6334 (local) or 6333 (Docker) is available
 - **Test containers**: Use `docker ps` to check if test containers are running
+
+
+## CURL test 
+
+In local development environment:
+```bash
+curl -X POST "http://localhost:8180/generate-sql" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": 1,
+    "question": "Please list the lowest three eligible free rates for students aged 5-17 in continuation schools.",
+    "username": "demo",
+    "functionality_level": "BASIC",
+    "flags": {
+      "use_schema": true,
+      "use_examples": true,
+      "use_lsh": true,
+      "use_vector": true
+    }
+  }' 2>/dev/null | python -m json.tool
+```
+In docker development environment:
+```bash
+curl -X POST "http://localhost:8020/generate-sql" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": 1,
+    "question": "Please list the lowest three eligible free rates for students aged 5-17 in continuation schools.",
+    "username": "demo",
+    "functionality_level": "BASIC",
+    "flags": {
+      "use_schema": true,
+      "use_examples": true,
+      "use_lsh": true,
+      "use_vector": true
+    }
+  }' 2>/dev/null | python -m json.tool
+```

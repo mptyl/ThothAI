@@ -21,6 +21,7 @@ from typing import List, Tuple, Any
 from pydantic_ai.settings import ModelSettings
 from model.evaluator_deps import EvaluatorDeps
 from helpers.template_preparation import TemplateLoader
+from agents.test_reducer_agent import create_test_reducer_agent, run_test_reducer
 
 logger = logging.getLogger(__name__)
 
@@ -85,14 +86,55 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     
     logger.info(f"Deduplicated {len(all_test_answers)} test answers to {len(unique_test_answers)} unique tests")
     
+    # Apply semantic filtering using TestReducer if available and beneficial
+    filtered_test_answers = unique_test_answers
+    if len(unique_test_answers) > 5:  # Only use TestReducer if we have enough tests to benefit
+        try:
+            # Create TestReducer agent with evaluator's config
+            evaluator_name = getattr(evaluator_agent, 'name', 'Unknown') if evaluator_agent else 'Unknown'
+            test_reducer_agent = create_test_reducer_agent(
+                model_config={'name': evaluator_name},
+                retries=1
+            )
+            
+            if test_reducer_agent:
+                logger.info(f"Applying semantic filtering to {len(unique_test_answers)} tests using TestReducer")
+                
+                # Prepare thinking context from test generation
+                test_thinking = combined_thinking[0] if combined_thinking else "Test generation thinking"
+                database_schema = state.used_mschema if hasattr(state, 'used_mschema') else state.full_mschema if hasattr(state, 'full_mschema') else ""
+                
+                # Run TestReducer
+                reducer_result = await run_test_reducer(
+                    test_reducer_agent,
+                    unique_test_answers,
+                    test_thinking,
+                    state.question,
+                    database_schema
+                )
+                
+                if reducer_result and reducer_result.reduced_tests:
+                    filtered_test_answers = reducer_result.reduced_tests
+                    logger.info(f"TestReducer successfully reduced tests from {len(unique_test_answers)} to {len(filtered_test_answers)}")
+                    
+                    # Save filtered tests in state if possible
+                    if hasattr(state, 'filtered_tests'):
+                        state.filtered_tests = filtered_test_answers
+                else:
+                    logger.warning("TestReducer returned no results, using deduplicated tests")
+            else:
+                logger.debug("TestReducer agent could not be created, using deduplicated tests")
+        except Exception as e:
+            logger.error(f"Error during semantic test filtering: {e}, using deduplicated tests")
+    
     # Format SQL candidates for template
     sql_candidates = []
     for i, sql in enumerate(state.generated_sqls, 1):
         sql_candidates.append(f"Candidate SQL #{i}:\n{sql}")
     candidate_sql_str = "\n\n".join(sql_candidates)
     
-    # Format unique tests as numbered list
-    unit_tests_str = "\n".join([f"{i}. {test}" for i, test in enumerate(unique_test_answers, 1)])
+    # Format filtered tests as numbered list
+    unit_tests_str = "\n".join([f"{i}. {test}" for i, test in enumerate(filtered_test_answers, 1)])
     
     # Combine test thinking for context (using first non-failed thinking or combined summary)
     test_thinking = "\n\n".join(combined_thinking) if combined_thinking else "Test generation thinking not available"
@@ -168,7 +210,10 @@ async def evaluate_sql_candidates(state, agents_and_tools):
             # Return list of tuples as expected by evaluation_results: List[Tuple[str, List[str]]]
             # Store test answers separately if needed
             if hasattr(state, 'test_answers'):
-                state.test_answers = unique_test_answers
+                state.test_answers = filtered_test_answers  # Store filtered tests instead of unique
+            # Store filtered tests for logging
+            if hasattr(state, 'filtered_tests'):
+                state.filtered_tests = filtered_test_answers
             return [(thinking, answers)]
         else:
             logger.error("Evaluator returned no output")

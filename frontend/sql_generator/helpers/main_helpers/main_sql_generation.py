@@ -112,20 +112,39 @@ async def generate_sql_units(state, agents_and_tools, functionality_level) -> Li
         List of tuples containing (success, sql) for each generated SQL
     """
    
-    # Calculate temperature values from 0.3 to 0.8 for SQL generation
-    min_temp = 0.3
-    max_temp = 0.8
+    # Calculate diverse temperature values for better SQL variation
+    def calculate_diverse_temperatures(num_sqls):
+        """Generate diverse temperatures for better SQL variation"""
+        if num_sqls == 1:
+            return [0.5]
+        
+        # Three groups of temperatures for maximum diversity
+        low_temps = [0.1, 0.2, 0.3]   # Low creativity
+        mid_temps = [0.5, 0.6, 0.7]   # Moderate creativity
+        high_temps = [0.8, 0.9, 1.0]  # High creativity
+        
+        temperatures = []
+        for i in range(num_sqls):
+            # Distribute temperatures across groups in round-robin fashion
+            # This ensures each method (query_plan, step_by_step, divide_and_conquer)
+            # gets a mix of temperature ranges
+            group_idx = i % 3
+            within_group_idx = i // 3
+            
+            if group_idx == 0:
+                temps = low_temps
+            elif group_idx == 1:
+                temps = mid_temps
+            else:
+                temps = high_temps
+                
+            temp_idx = within_group_idx % len(temps)
+            temperatures.append(temps[temp_idx])
+        
+        return temperatures
     
-    # Create temperature values with max 2 decimal places
-    temperature_values = []
-    for i in range(state.number_of_sql_to_generate):
-        if state.number_of_sql_to_generate == 1:
-            temp = min_temp
-        else:
-            temp = min_temp + (max_temp - min_temp) * (i / (state.number_of_sql_to_generate - 1))
-        # Round to 2 decimal places
-        temp = round(temp, 2)
-        temperature_values.append(temp)
+    temperature_values = calculate_diverse_temperatures(state.number_of_sql_to_generate)
+    logger.info(f"Using diverse temperatures for SQL generation: {temperature_values}")
   
     # Get the appropriate agent based on functionality level
     level = functionality_level.lower() if functionality_level else 'basic'

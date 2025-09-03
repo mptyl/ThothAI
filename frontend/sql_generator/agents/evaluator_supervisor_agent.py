@@ -97,7 +97,8 @@ async def run_evaluator_supervisor(
     initial_evaluation: str,
     test_details: str,
     initial_thinking: str,
-    gold_sql_examples: List[str] = None
+    gold_sql_examples: List[str] = None,
+    evaluation_threshold: int = 90
 ) -> Optional[EvaluatorSupervisorResult]:
     """
     Execute deep reevaluation using the EvaluatorSupervisor agent.
@@ -142,7 +143,8 @@ async def run_evaluator_supervisor(
             INITIAL_EVALUATION=initial_evaluation,
             TEST_DETAILS=test_details,
             INITIAL_THINKING=initial_thinking,
-            GOLD_SQL_EXAMPLES=gold_sql_examples_str
+            GOLD_SQL_EXAMPLES=gold_sql_examples_str,
+            EVALUATION_THRESHOLD=evaluation_threshold
         )
         
         # Run the agent with lower temperature for focused analysis

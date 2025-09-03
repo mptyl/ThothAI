@@ -98,6 +98,9 @@ class ThothLogAdmin(admin.ModelAdmin):
         "formatted_available_context_tokens",
         "formatted_full_schema_tokens_count",
         "formatted_schema_link_strategy",
+        "enhanced_evaluation_thinking_display",
+        "enhanced_evaluation_answers_display",
+        "enhanced_evaluation_selected_sql_display",
         "formatted_created_at",
         "formatted_updated_at",
     )
@@ -194,6 +197,18 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "sql_explanation",
                 ),
                 "description": "Final SQL query and its explanation.",
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Enhanced Evaluation",
+            {
+                "fields": (
+                    "enhanced_evaluation_thinking_display",
+                    "enhanced_evaluation_answers_display",
+                    "enhanced_evaluation_selected_sql_display",
+                ),
+                "description": "Enhanced evaluation reasoning and results.",
                 "classes": ("collapse",),
             },
         ),
@@ -743,20 +758,42 @@ class ThothLogAdmin(admin.ModelAdmin):
     formatted_used_mschema.short_description = "Used Schema"
 
     def generated_tests_display(self, obj):
-        """Render generated_tests as a list of tuples: (thinking: str, answers: list[str]).
-        Falls back to JSON and then raw text if needed. Evaluations are now shown separately."""
+        """Render generated_tests as either a simple list of strings (new filtered format)
+        or as a list of tuples (legacy format). Falls back to JSON and then raw text if needed."""
         if not obj.generated_tests:
             return "-"
 
         # Wrap everything in an expandable container
         html_wrapper = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_wrapper += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Generated Tests (click to expand)</summary>'
+        html_wrapper += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Selected Tests (click to expand)</summary>'
         html_wrapper += '<div style="margin-top: 10px;">'
 
-        # 1) Try Python literal (list[tuple[str, list[str]]])
+        # 1) Try Python literal - check for simple list first
         try:
             data = ast.literal_eval(obj.generated_tests)
-            if isinstance(data, list):
+            
+            # Check if it's a simple list of strings (new filtered tests format)
+            if isinstance(data, list) and data and all(isinstance(item, str) for item in data):
+                # Simple list format (filtered tests)
+                html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
+                html_content += '<h4 style="margin: 10px 0;">Semantically Filtered Tests:</h4>'
+                html_content += '<ol style="margin-left: 20px;">'
+                for test in data:
+                    html_content += f'<li style="margin: 5px 0;">{test}</li>'
+                html_content += '</ol>'
+                
+                # Show raw data
+                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.generated_tests}</pre></details>'
+                html_content += '</div>'
+                
+                # Close the wrapper
+                html_wrapper += html_content
+                html_wrapper += '</div>'
+                html_wrapper += '</details>'
+                return mark_safe(html_wrapper)
+                
+            # Legacy format: list of tuples (thinking, answers)
+            elif isinstance(data, list):
                 html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto; font-size: 0.95em;">'
                 for i, item in enumerate(data, 1):
                     thinking = ""
@@ -901,7 +938,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         html_wrapper += "</details>"
         return mark_safe(html_wrapper)
 
-    generated_tests_display.short_description = "Generated Tests"
+    generated_tests_display.short_description = "Selected Tests"
 
     def evaluation_results_display(self, obj):
         """Render evaluation_results as either a single tuple (thinking: str, verdicts: list[str])
@@ -1974,5 +2011,76 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         html_content += '</div>'
         return mark_safe(html_content)
+    
+    def enhanced_evaluation_thinking_display(self, obj):
+        """Display enhanced evaluation thinking with user-friendly formatting"""
+        if not obj.enhanced_evaluation_thinking:
+            return "-"
+        
+        from django.utils.safestring import mark_safe
+        
+        # Create a nicely formatted display with Django admin styling
+        html_content = '<div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0;">'
+        html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Reasoning</h4>'
+        html_content += '<pre style="white-space: pre-wrap; font-family: monospace; font-size: 13px; color: #555; margin: 0;">'
+        html_content += format_html("{}", obj.enhanced_evaluation_thinking)
+        html_content += '</pre>'
+        html_content += '</div>'
+        
+        return mark_safe(html_content)
+    
+    enhanced_evaluation_thinking_display.short_description = "Enhanced Evaluation Thinking"
+    
+    def enhanced_evaluation_answers_display(self, obj):
+        """Display enhanced evaluation answers as formatted JSON"""
+        if not obj.enhanced_evaluation_answers:
+            return "-"
+        
+        from django.utils.safestring import mark_safe
+        import json
+        
+        try:
+            # Format the JSON data nicely
+            answers = obj.enhanced_evaluation_answers
+            if isinstance(answers, str):
+                answers = json.loads(answers)
+            
+            html_content = '<div style="background: #f0f8ff; border-left: 4px solid #28a745; padding: 15px; margin: 10px 0;">'
+            html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Answers</h4>'
+            html_content += '<ol style="margin: 10px 0; padding-left: 20px;">'
+            
+            for answer in answers:
+                html_content += f'<li style="margin: 5px 0; font-family: monospace; font-size: 13px; color: #555;">{format_html("{}", answer)}</li>'
+            
+            html_content += '</ol>'
+            html_content += '</div>'
+            
+            return mark_safe(html_content)
+        except (json.JSONDecodeError, TypeError):
+            # If JSON parsing fails, display raw text
+            return format_html('<pre style="font-family: monospace; font-size: 13px;">{}</pre>', 
+                              obj.enhanced_evaluation_answers)
+    
+    enhanced_evaluation_answers_display.short_description = "Enhanced Evaluation Answers"
+    
+    def enhanced_evaluation_selected_sql_display(self, obj):
+        """Display enhanced evaluation selected SQL with syntax highlighting styling"""
+        if not obj.enhanced_evaluation_selected_sql:
+            return "-"
+        
+        from django.utils.safestring import mark_safe
+        
+        # Create SQL display with code-like formatting
+        html_content = '<div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin: 10px 0;">'
+        html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Selected SQL</h4>'
+        html_content += '<pre style="background: #282c34; color: #abb2bf; padding: 12px; border-radius: 4px; '
+        html_content += 'font-family: \'Courier New\', monospace; font-size: 13px; overflow-x: auto; margin: 0;">'
+        html_content += format_html("{}", obj.enhanced_evaluation_selected_sql)
+        html_content += '</pre>'
+        html_content += '</div>'
+        
+        return mark_safe(html_content)
+    
+    enhanced_evaluation_selected_sql_display.short_description = "Enhanced Selected SQL"
     
     test_status_display.short_description = "Test Execution Status"
