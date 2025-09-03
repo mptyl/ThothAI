@@ -10,8 +10,14 @@ class ApiClient {
   private baseURL: string;
 
   constructor() {
-    // Use direct backend URL now that CORS is configured
-    this.baseURL = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
+    // Use internal URL for server-side requests, public URL for client-side
+    if (typeof window === 'undefined') {
+      // Server-side: use internal Docker network URL
+      this.baseURL = process.env.DJANGO_SERVER || 'http://proxy:80';
+    } else {
+      // Client-side: use public URL
+      this.baseURL = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
+    }
     
     this.client = axios.create({
       baseURL: this.baseURL,
