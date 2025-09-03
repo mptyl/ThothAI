@@ -21,9 +21,10 @@ for different types of agents in the SQL Generator service.
 
 from typing import Dict, List, Annotated, TypeAlias, Union, Optional
 from enum import Enum
+import re
 
 from annotated_types import MinLen
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class CheckQuestionResult(BaseModel):
@@ -45,6 +46,25 @@ class ExtractEntitiesAndContextResult(BaseModel):
 class ExtractKeywordsResult(BaseModel):
     """Result type for the keyword extraction agent (keywords only)."""
     keywords: List[str]
+    
+    @field_validator('keywords', mode='before')
+    @classmethod
+    def parse_keywords(cls, v):
+        """Parse keywords field, converting from string to list if needed."""
+        if isinstance(v, str):
+            # Try to split by common delimiters
+            if ',' in v:
+                return [k.strip() for k in v.split(',') if k.strip()]
+            elif '\n' in v:
+                return [k.strip() for k in v.split('\n') if k.strip()]
+            elif ';' in v:
+                return [k.strip() for k in v.split(';') if k.strip()]
+            # Single keyword
+            v_stripped = v.strip()
+            if v_stripped:
+                return [v_stripped]
+            return []
+        return v
 
 
 class ColumnSelectionResult(BaseModel):
@@ -73,6 +93,42 @@ class TestUnitGeneratorResult(BaseModel):
     """Result type for the test unit generator agent"""
     thinking: str
     answers: List[str]
+    
+    @field_validator('answers', mode='before')
+    @classmethod
+    def parse_answers(cls, v):
+        """Parse answers field, converting from string to list if needed."""
+        if isinstance(v, str):
+            # Split by numbered lines (1., 2., etc.) or double newlines
+            # First try to split by numbered patterns
+            lines = re.split(r'\n\d+\.\s*', v)
+            if len(lines) > 1:
+                # Remove empty first element if exists
+                if lines[0].strip() == '':
+                    lines = lines[1:]
+                # Clean up each line
+                return [line.strip() for line in lines if line.strip()]
+            
+            # If no numbered pattern, try double newlines
+            lines = v.split('\n\n')
+            if len(lines) > 1:
+                # Remove numbering if present at start of each line
+                cleaned = []
+                for line in lines:
+                    line = line.strip()
+                    # Remove leading numbers like "1. " or "1) "
+                    line = re.sub(r'^\d+[\.\)]\s*', '', line)
+                    if line:
+                        cleaned.append(line)
+                return cleaned
+            
+            # Last resort: treat as single item if not empty
+            v_stripped = v.strip()
+            if v_stripped:
+                return [v_stripped]
+            return []
+        
+        return v
    
 
 class EvaluationResult(BaseModel):
@@ -84,6 +140,39 @@ class EvaluationResult(BaseModel):
     """
     thinking: str
     answers: List[str]  # Each item is formatted as "SQL #n: OK, KO - reason, OK, ..."
+    
+    @field_validator('answers', mode='before')
+    @classmethod
+    def parse_answers(cls, v):
+        """Parse answers field, converting from string to list if needed."""
+        if isinstance(v, str):
+            # Split by SQL # patterns
+            lines = re.split(r'(?=SQL #\d+:)', v)
+            cleaned = []
+            for line in lines:
+                line = line.strip()
+                if line and line.startswith('SQL #'):
+                    cleaned.append(line)
+            if cleaned:
+                return cleaned
+                
+            # Fallback: split by newlines if they contain SQL #
+            lines = v.split('\n')
+            cleaned = []
+            for line in lines:
+                line = line.strip()
+                if line and 'SQL #' in line:
+                    cleaned.append(line)
+            if cleaned:
+                return cleaned
+            
+            # Last resort: treat as single item if not empty
+            v_stripped = v.strip()
+            if v_stripped:
+                return [v_stripped]
+            return []
+        
+        return v
 
 
 class AskHumanResult(BaseModel):

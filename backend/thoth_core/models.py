@@ -814,6 +814,7 @@ class ThothLog(models.Model):
     )
     enhanced_evaluation_selected_sql = models.TextField(
         blank=True, 
+        null=True,
         default="",
         help_text="SQL query selected by enhanced evaluation process"
     )

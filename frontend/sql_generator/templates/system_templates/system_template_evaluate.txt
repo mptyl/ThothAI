@@ -33,20 +33,36 @@ Examples of individual test results:
 - "KO - missing join condition"
 
 **Output Requirements:**
-Your output will be validated to ensure both thinking and answers are provided.
+Your output MUST be a JSON-compatible structure with both thinking and answers fields.
 
-For the thinking field:
-- Provide detailed step-by-step reasoning
+**thinking**: A single string containing your detailed step-by-step reasoning:
 - Explain how you evaluate each candidate against EACH test criterion individually
 - Consider the test generation thinking to understand test intent
 
-For the answers field:
-- You MUST provide a LIST of strings with EXACTLY one string per candidate SQL
+**answers**: A Python list/JSON array of strings with EXACTLY one string per candidate SQL:
 - The number of strings in your list MUST match the number of SQL candidates
 - Each string must be formatted as: "SQL #{number}: {test_result_list}"
 - test_result_list is a comma-separated list where each item is:
   - "OK" if the SQL passes that specific test
   - "KO - {reason}" if the SQL fails that specific test
-- Example list format for 2 SQLs: ["SQL #1: OK, OK, KO - missing join", "SQL #2: OK, OK, OK"]
 - Evaluations must be in the same order as the candidate SQLs
 - NEVER skip any SQL - evaluate ALL of them
+
+**Example of CORRECT Response Format:**
+```json
+{
+  "thinking": "Evaluating SQL #1: Test 1 checks for proper join - the SQL uses INNER JOIN correctly, so it passes. Test 2 checks for filter condition - the WHERE clause is correct, so it passes. Test 3 checks for missing columns - the SQL is missing the required 'status' column, so it fails. Evaluating SQL #2: ...",
+  "answers": [
+    "SQL #1: OK, OK, KO - missing status column",
+    "SQL #2: OK, OK, OK"
+  ]
+}
+```
+
+**INCORRECT Format to AVOID:**
+Do NOT return answers as a single string like:
+```
+"SQL #1: OK, OK, KO - missing join\nSQL #2: OK, OK, OK"
+```
+
+ALWAYS return as a proper array of strings, one per SQL candidate.
