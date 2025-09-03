@@ -24,7 +24,7 @@ class AdminCallbackView(View):
     
     def get(self, request):
         token_key = request.GET.get('token')
-        next_url = request.GET.get('next', '/admin/')  # Default to admin
+        next_url = request.GET.get('next', '/')  # Default to home
         
         if token_key:
             try:
