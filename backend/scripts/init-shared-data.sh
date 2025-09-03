@@ -41,7 +41,28 @@ if [ ! -f "/app/data/dev_databases/dev.json" ]; then
         echo "Warning: /app/data_temp not found, volume initialized empty"
     fi
 else
-    echo "Volume already initialized, skipping data copy"
+    echo "Volume already initialized, performing incremental sync..."
+    
+    # Perform incremental sync to add new files without overwriting existing ones
+    if [ -d "/app/data_temp/dev_databases" ]; then
+        echo "Syncing new databases and files to volume..."
+        
+        # Create dev_databases directory if it doesn't exist
+        mkdir -p /app/data/dev_databases
+        
+        # Use cp with -n flag (no-clobber) to avoid overwriting existing files
+        # -r for recursive, -n for no-clobber, -v for verbose
+        cp -rnv /app/data_temp/dev_databases/* /app/data/dev_databases/ 2>&1 | grep -v "not overwritten" || true
+        
+        # Count new files added
+        NEW_FILES=$(find /app/data_temp/dev_databases -type f | wc -l)
+        EXISTING_FILES=$(find /app/data/dev_databases -type f | wc -l)
+        echo "Sync complete: $EXISTING_FILES files in volume (from original $NEW_FILES in source)"
+        
+        # Show any new databases added
+        echo "Current databases in volume:"
+        ls -la /app/data/dev_databases/ | head -10
+    fi
     
     # Clean up temporary directory if it still exists
     if [ -d "/app/data_temp" ]; then

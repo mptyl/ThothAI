@@ -100,19 +100,44 @@ class SchemaProcessor:
             # Initialize aggregated schema dictionary
             aggregated_schema = {}
             
-            def merge_results(target_dict: Dict, source_results: List[Tuple]):
+            def merge_results(target_dict: Dict, source_results):
                 """Helper function to merge vector DB results into aggregated schema"""
-                for result in source_results:
-                    table_name = result.get('table_name', '')
-                    column_name = result.get('column_name', '')
-                    
-                    if not table_name or not column_name:
-                        continue
-                    
-                    if table_name not in target_dict:
-                        target_dict[table_name] = {}
-                    
-                    target_dict[table_name][column_name] = result
+                # Handle both dict and list formats
+                if isinstance(source_results, dict):
+                    # source_results is Dict[table_name, Dict[column_name, column_info]]
+                    for table_name, columns in source_results.items():
+                        if not table_name or not isinstance(columns, dict):
+                            continue
+                        
+                        if table_name not in target_dict:
+                            target_dict[table_name] = {}
+                        
+                        for column_name, column_info in columns.items():
+                            if column_name and isinstance(column_info, dict):
+                                # Ensure table_name and column_name are in the info
+                                column_info['table_name'] = table_name
+                                column_info['column_name'] = column_name
+                                target_dict[table_name][column_name] = column_info
+                                
+                elif isinstance(source_results, list):
+                    # Legacy format: List of dicts with table_name and column_name keys
+                    for result in source_results:
+                        if not isinstance(result, dict):
+                            continue
+                            
+                        table_name = result.get('table_name', '')
+                        column_name = result.get('column_name', '')
+                        
+                        if not table_name or not column_name:
+                            continue
+                        
+                        if table_name not in target_dict:
+                            target_dict[table_name] = {}
+                        
+                        target_dict[table_name][column_name] = result
+                else:
+                    # Unexpected format, log warning
+                    self.logger.warning(f"Unexpected source_results format: {type(source_results)}")
             
             # Get evidence for concatenated search
             evidence = " ".join(system_state.semantic.evidence) if system_state.semantic.evidence else ""
