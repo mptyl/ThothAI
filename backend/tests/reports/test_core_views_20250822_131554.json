@@ -1,9 +1,0 @@
-{
-  "timestamp": "2025-08-22T13:15:54.850961",
-  "test_class": "TestCoreViews",
-  "errors": [],
-  "warnings": [],
-  "summary": {
-    "TableListByDbNameView": "PASS"
-  }
-}

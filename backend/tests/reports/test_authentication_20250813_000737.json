@@ -1,9 +1,0 @@
-{
-  "timestamp": "2025-08-13T00:07:37.505342",
-  "test_class": "TestAuthentication",
-  "errors": [],
-  "warnings": [],
-  "summary": {
-    "token_authentication": "PASS"
-  }
-}

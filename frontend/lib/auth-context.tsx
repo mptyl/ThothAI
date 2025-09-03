@@ -10,6 +10,7 @@ import { apiClient } from './api';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginRequest) => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -123,6 +124,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const loginWithToken = async (token: string) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    
+    try {
+      // Store the token first
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('thoth_token', token);
+      }
+      
+      // Get user data using the token
+      const userData = await apiClient.getCurrentUser();
+      
+      if (userData) {
+        // Store user data
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('thoth_user', JSON.stringify(userData));
+        }
+        
+        setState({
+          user: userData,
+          token: token,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+      } else {
+        throw new Error('Failed to get user data');
+      }
+    } catch (error: any) {
+      // Clear invalid token
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('thoth_token');
+      }
+      
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        isAuthenticated: false,
+        error: 'Failed to authenticate with token',
+      }));
+      throw error;
+    }
+  };
+
   const logout = async () => {
     setState(prev => ({ ...prev, isLoading: true }));
     
@@ -146,6 +191,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const contextValue: AuthContextType = {
     ...state,
     login,
+    loginWithToken,
     logout,
     clearError,
   };

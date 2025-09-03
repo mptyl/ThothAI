@@ -10,7 +10,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from django.utils.deprecation import MiddlewareMixin
+from django.contrib.auth import login
+from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
 
 # Assuming your Workspace model is in thoth_core.models
 # Adjust the import if your Workspace model is located elsewhere
@@ -22,9 +26,7 @@ except ImportError:
     # if not found, prompting for the correct location.
     Workspace = None
 
-import logging  # Added import
-
-logger = logging.getLogger(__name__)  # Added logger instance
+logger = logging.getLogger(__name__)
 
 
 class WorkspaceMiddleware(MiddlewareMixin):
@@ -90,3 +92,70 @@ class WorkspaceMiddleware(MiddlewareMixin):
                 )
 
         return None  # Continue processing the request
+
+
+class TokenAuthenticationMiddleware(MiddlewareMixin):
+    """
+    Middleware to automatically authenticate users based on token in session or header.
+    This enables seamless SSO between frontend and Django admin.
+    """
+    
+    def process_request(self, request):
+        # Skip if user is already authenticated
+        if not request.user.is_authenticated:
+            token_key = None
+            
+            # Try to get token from session first (set by SSO callback)
+            if hasattr(request, 'session') and 'auth_token' in request.session:
+                token_key = request.session.get('auth_token')
+                
+            # Try to get token from Authorization header
+            if not token_key:
+                auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+                if auth_header.startswith('Token '):
+                    token_key = auth_header.split(' ')[1]
+            
+            # Try to get token from X-Auth-Token header (alternative)
+            if not token_key:
+                token_key = request.META.get('HTTP_X_AUTH_TOKEN')
+            
+            # If we have a token, try to authenticate
+            if token_key:
+                try:
+                    token = Token.objects.select_related('user').get(key=token_key)
+                    user = token.user
+                    
+                    # Only auto-login if user is active
+                    if user.is_active:
+                        # Set the user on the request
+                        request.user = user
+                        request._cached_user = user
+                        
+                        # If this is an admin URL and user has permissions, ensure they're logged in
+                        if request.path.startswith('/admin/') and (user.is_staff or user.is_superuser):
+                            # Use login to create session if not exists
+                            if not request.session.get('_auth_user_id'):
+                                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                                logger.debug(f"Auto-logged in user {user.username} for admin access")
+                        
+                except Token.DoesNotExist:
+                    logger.debug(f"Invalid token in middleware: {token_key[:8] if token_key else 'None'}...")
+                except Exception as e:
+                    logger.error(f"Error in token authentication middleware: {e}")
+        
+        return None  # Continue processing
+
+
+class SessionRefreshMiddleware(MiddlewareMixin):
+    """
+    Middleware to keep session alive when user is active.
+    """
+    
+    def process_request(self, request):
+        # Refresh session expiry on each request if user is authenticated
+        if hasattr(request, 'session') and request.user.is_authenticated:
+            if not request.session.get_expire_at_browser_close():
+                # Keep session alive for 2 hours of inactivity
+                request.session.set_expiry(7200)
+        
+        return None  # Continue processing
