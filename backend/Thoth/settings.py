@@ -101,6 +101,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "thoth_core.middleware.TokenAuthenticationMiddleware",  # SSO Token authentication
+    "thoth_core.middleware.SessionRefreshMiddleware",  # Keep sessions alive
     "thoth_core.middleware.WorkspaceMiddleware",  # Added Workspace Middleware
     "thoth_core.cache_middleware.NoCacheMiddleware",  # Added No-Cache Middleware
     "django.contrib.messages.middleware.MessageMiddleware",

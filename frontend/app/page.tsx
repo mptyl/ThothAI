@@ -5,15 +5,34 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Loader2 } from 'lucide-react';
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, loginWithToken } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Check if there's a token in the URL (SSO from backend)
+    const token = searchParams.get('token');
+    
+    if (token) {
+      // Use the new loginWithToken method to authenticate
+      loginWithToken(token)
+        .then(() => {
+          // Successfully authenticated, redirect to chat
+          router.replace('/chat');
+        })
+        .catch(() => {
+          // Failed to authenticate with token, redirect to login
+          router.replace('/login');
+        });
+      return;
+    }
+
+    // Normal flow if no SSO token
     if (!isLoading) {
       if (isAuthenticated) {
         router.replace('/chat');
@@ -21,7 +40,7 @@ export default function HomePage() {
         router.replace('/login');
       }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, searchParams, loginWithToken]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

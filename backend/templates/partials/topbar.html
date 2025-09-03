@@ -90,8 +90,9 @@
                                 const frontendUrl = '{{ frontend_url }}';
                                 
                                 if (authToken) {
-                                    // Pass token to frontend for seamless authentication
-                                    window.location.href = `${frontendUrl}/auth/callback?token=${authToken}`;
+                                    // Store token in localStorage for frontend to use
+                                    // We'll pass it as URL parameter so frontend can grab it
+                                    window.location.href = `${frontendUrl}/?token=${authToken}`;
                                 } else {
                                     // Fallback to simple redirect
                                     window.location.href = frontendUrl;
