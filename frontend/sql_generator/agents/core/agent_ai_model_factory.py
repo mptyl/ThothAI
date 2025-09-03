@@ -80,9 +80,11 @@ def get_agent_llm_model(agent_config: dict):
         api_key = ai_model.get('api_key') or os.getenv("MISTRAL_API_KEY")
         if not api_key:
             raise ValueError("Mistral API key not found in config or environment variables.")
+        # Set MISTRAL_API_KEY environment variable for the 'mistral' provider string
+        os.environ['MISTRAL_API_KEY'] = api_key
         return MistralModel(
             ai_model['specific_model'],
-            provider=MistralProvider(api_key=api_key)
+            provider='mistral'
         )
     elif provider == 'OLLAMA':
         # Ollama typically doesn't use API keys, relies on base_url

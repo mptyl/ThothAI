@@ -38,7 +38,7 @@ ai_providers:
   
   # OpenRouter (OpenAI-compatible)
   openrouter:
-    enabled: false
+    enabled: true
     api_key: ""
     api_base: "https://openrouter.ai/api/v1"
   
@@ -76,22 +76,22 @@ embedding:
 # Enable the database drivers you need
 databases:
   sqlite: true       # Always required, cannot be disabled
-  postgresql: false  # Enable for PostgreSQL support
+  postgresql: true  # Enable for PostgreSQL support
   mysql: false       # Enable for MySQL support
-  mariadb: false     # Enable for MariaDB support
-  sqlserver: false   # Enable for SQL Server support
+  mariadb: true     # Enable for MariaDB support
+  sqlserver: true   # Enable for SQL Server support
 
 # Admin User Configuration
 admin:
   email: ""  # Optional - admin email address
   username: "admin"  # Default admin username
-  password: ""  # Admin password (min 8 chars) - if empty, will be requested interactively
+  password: "admin123"  # Admin password (min 8 chars) - if empty, will be requested interactively
 
 # Demo User Configuration
 demo:
   email: ""  # Optional - admin email address
   username: "demo"  # Default admin username
-  password: ""  # Admin password (min 8 chars) - if empty, will be requested interactively
+  password: "demo1234"  # Admin password (min 8 chars) - if empty, will be requested interactively
 
 # Monitoring Configuration
 monitoring:
