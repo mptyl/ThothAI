@@ -120,6 +120,18 @@ def extract_schema_via_lsh(state: SystemState) -> tuple[Dict[str, List[str]], Di
     embedding_similarity_threshold = setting.get("embedding_similarity_threshold", 0.4)  # Better default than 0.6
     max_examples_per_column = setting.get("max_examples_per_column", 10)  # Better default than 5
     
+    # Log configuration at DEBUG level with human-friendly formatting
+    logger.debug("="*60)
+    logger.debug("LSH SCHEMA EXTRACTION STARTED")
+    logger.debug("="*60)
+    logger.debug("Configuration:")
+    logger.debug(f"  - Signature Size: {signature_size}")
+    logger.debug(f"  - Top N Results: {lsh_top_n}")
+    logger.debug(f"  - Edit Distance Threshold: {edit_distance_threshold:.1%}")
+    logger.debug(f"  - Embedding Similarity Threshold: {embedding_similarity_threshold:.1%}")
+    logger.debug(f"  - Max Examples per Column: {max_examples_per_column}")
+    logger.debug("-"*60)
+    
     logger.info(f"LSH Configuration from settings: signature_size={signature_size}, top_n={lsh_top_n}, "
                 f"edit_distance={edit_distance_threshold:.2f}, embedding_similarity={embedding_similarity_threshold:.2f}, "
                 f"max_examples={max_examples_per_column}")
@@ -177,6 +189,9 @@ def extract_schema_via_lsh(state: SystemState) -> tuple[Dict[str, List[str]], Di
     )
     
     # 2. Get schema_with_examples with configurable parameters
+    logger.debug("\nPhase 2: Extracting example values via LSH...")
+    logger.debug(f"Keywords to search: {state.keywords}")
+    
     raw_schema_with_examples = _get_similar_entities_lsh(
         keywords=state.keywords,
         dbmanager=state.dbmanager,
@@ -190,6 +205,9 @@ def extract_schema_via_lsh(state: SystemState) -> tuple[Dict[str, List[str]], Di
     
     # Convert to new structure - LSH doesn't provide table descriptions, so leave empty
     schema_with_examples = {}
+    total_columns_found = 0
+    total_examples_found = 0
+    
     for table_name, columns in raw_schema_with_examples.items():
         schema_with_examples[table_name] = {
             "table_description": "",  # LSH doesn't provide table descriptions
@@ -201,6 +219,26 @@ def extract_schema_via_lsh(state: SystemState) -> tuple[Dict[str, List[str]], Di
             schema_with_examples[table_name]["columns"][column_name] = {
                 "examples": examples_list
             }
+            total_columns_found += 1
+            total_examples_found += len(examples_list)
+            
+            # Log the found examples at DEBUG level
+            if examples_list:
+                logger.debug(f"  ✓ {table_name}.{column_name}:")
+                # Show first 3 examples for brevity
+                examples_to_show = examples_list[:3]
+                examples_str = ", ".join([f'"{ex}"' if isinstance(ex, str) else str(ex) for ex in examples_to_show])
+                if len(examples_list) > 3:
+                    examples_str += f" ... ({len(examples_list)} total)"
+                logger.debug(f"      Examples: [{examples_str}]")
+    
+    # Log extraction summary
+    logger.debug("="*60)
+    logger.debug("LSH EXTRACTION COMPLETE")
+    logger.debug(f"Total tables found: {len(schema_with_examples)}")
+    logger.debug(f"Total columns with examples: {total_columns_found}")
+    logger.debug(f"Total example values extracted: {total_examples_found}")
+    logger.debug("="*60)
     
     return similar_columns, schema_with_examples
 
@@ -492,18 +530,45 @@ def _get_similar_entities_via_LSH_lsh(
     """
     similar_entities_via_LSH = []
     
+    logger.debug("\nStarting LSH queries...")
+    logger.debug(f"Total keywords to search: {len(substring_packets)}")
+    
     for packet in substring_packets:
         keyword = packet["keyword"]
         substring = packet["substring"]
         unique_similar_values = {}  # Initialize as empty
+        
+        logger.debug(f"\nSearching LSH for: '{substring}' (from keyword: '{keyword}')")
+        
         try:
             unique_similar_values = dbmanager.query_lsh(
                 keyword=substring, 
                 signature_size=signature_size,  # Use configurable value
                 top_n=lsh_top_n  # Use configurable value
             )
+            
+            # Log the results at DEBUG level
+            if unique_similar_values:
+                total_values = sum(len(values) for column_values in unique_similar_values.values() 
+                                 for values in column_values.values())
+                logger.debug(f"  Found {len(unique_similar_values)} tables with {total_values} matching values")
+                
+                for table_name, column_values in unique_similar_values.items():
+                    for column_name, values in column_values.items():
+                        logger.debug(f"    ✓ {table_name}.{column_name}: {len(values)} values")
+                        # Show first few values
+                        if values:
+                            sample_values = values[:3]
+                            values_str = ", ".join([f'"{v}"' if isinstance(v, str) else str(v) for v in sample_values])
+                            if len(values) > 3:
+                                values_str += f" ... ({len(values)} total)"
+                            logger.debug(f"        Values: [{values_str}]")
+            else:
+                logger.debug("  No matches found")
+                
         except Exception as e:
             logger.warning(f"Failed to query LSH for keyword '{substring}' (from '{keyword}'): {e}. Skipping LSH-based entity retrieval for this keyword.")
+            logger.debug(f"  Error details: {str(e)}")
             continue  # Skip to next keyword instead of processing empty results
 
         for table_name, column_values in unique_similar_values.items():
@@ -518,6 +583,8 @@ def _get_similar_entities_via_LSH_lsh(
                             "similar_value": value,
                         }
                     )
+    
+    logger.debug(f"\nLSH query phase complete. Total entities found: {len(similar_entities_via_LSH)}")
     return similar_entities_via_LSH
 
 
@@ -549,6 +616,9 @@ def _get_similar_entities_via_embedding_lsh(
     Filtra entità per embedding similarity.
     Copiato da RetrieveEntityTool._get_similar_entities_via_embedding
     """
+    logger.debug(f"\nFiltering by embedding similarity (threshold: {embedding_similarity_threshold:.1%})...")
+    logger.debug(f"Candidates to evaluate: {len(similar_entities_via_edit_distance)}")
+    
     similar_values_dict = {}
     to_embed_strings = []
     for entity_packet in similar_entities_via_edit_distance:
@@ -566,6 +636,11 @@ def _get_similar_entities_via_embedding_lsh(
     all_embeddings = embedding_function.encode(to_embed_strings)
     similar_entities_via_embedding_similarity = []
     index = 0
+    
+    # Track statistics for logging
+    passed_count = 0
+    failed_count = 0
+    
     for keyword, substring_dict in similar_values_dict.items():
         for substring, entity_packets in substring_dict.items():
             substring_embedding = all_embeddings[index]
@@ -575,8 +650,26 @@ def _get_similar_entities_via_embedding_lsh(
                                         ]
             index += len(entity_packets)
             similarities = np.dot(similar_values_embeddings, substring_embedding)
+            
+            # Log similarity scores for this substring
+            logger.debug(f"\n  Embedding similarity for '{substring}':")
+            
             for i, entity_packet in enumerate(entity_packets):
-                if similarities[i] >= embedding_similarity_threshold:
-                    entity_packet["embedding_similarity"] = similarities[i]
+                sim_score = similarities[i]
+                passed = sim_score >= embedding_similarity_threshold
+                
+                if passed:
+                    entity_packet["embedding_similarity"] = sim_score
                     similar_entities_via_embedding_similarity.append(entity_packet)
+                    passed_count += 1
+                    logger.debug(f"    ✓ {entity_packet['table_name']}.{entity_packet['column_name']} = "
+                               f"'{entity_packet['similar_value'][:30]}{'...' if len(entity_packet['similar_value']) > 30 else ''}' "
+                               f"(similarity: {sim_score:.3f})")
+                else:
+                    failed_count += 1
+                    
+    logger.debug(f"\nEmbedding similarity filtering complete:")
+    logger.debug(f"  - Passed: {passed_count} entities")
+    logger.debug(f"  - Filtered out: {failed_count} entities")
+    
     return similar_entities_via_embedding_similarity
