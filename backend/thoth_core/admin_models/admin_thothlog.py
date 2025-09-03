@@ -52,6 +52,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     form = ThothLogAdminForm
     list_display = (
         "id",
+        "test_status_badge",
         "username",
         "workspace",
         "formatted_started_at",
@@ -68,6 +69,7 @@ class ThothLogAdmin(admin.ModelAdmin):
 
     # All fields are read-only as requested
     readonly_fields = (
+        "test_status_display",
         "username",
         "workspace",
         "formatted_started_at",
@@ -105,6 +107,7 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Basic Information",
             {
                 "fields": (
+                    "test_status_display",
                     "username",
                     "workspace",
                     "formatted_started_at",
@@ -1178,16 +1181,103 @@ class ThothLogAdmin(admin.ModelAdmin):
         except (ValueError, SyntaxError):
             pass
 
-        # Fallback to raw display wrapped in expandable container
-        html_wrapper += format_html(
-            '<pre class="readonly" style="max-height: 300px; overflow-y: auto;">{}</pre>',
-            obj.evaluation_results,
-        )
+        # Fallback to formatted display wrapped in expandable container
+        html_content = '<div class="readonly" style="padding: 10px; max-height: 450px; overflow-y: auto; font-size: 0.95em;">'
+        
+        # Try to format as best as possible
+        try:
+            # If it's a string that looks like a list or dict, try to parse and format it
+            raw_data = obj.evaluation_results.strip()
+            if raw_data.startswith('[') or raw_data.startswith('{'):
+                # Try to parse as JSON for pretty printing
+                try:
+                    parsed = json.loads(raw_data)
+                    formatted_json = json.dumps(parsed, indent=2, ensure_ascii=False)
+                    html_content += '<div style="padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px;">'
+                    html_content += '<p style="margin: 0 0 10px 0; font-weight: bold; color: var(--body-quiet-color, #666);">Raw Evaluation Data:</p>'
+                    html_content += f'<pre class="readonly" style="margin: 0; padding: 10px; background: var(--darkened-bg, #f0f0f0); color: var(--body-fg, #333); border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; overflow-x: auto;">{formatted_json}</pre>'
+                    html_content += '</div>'
+                except:
+                    # If JSON parsing fails, try Python literal eval
+                    try:
+                        parsed = ast.literal_eval(raw_data)
+                        formatted_str = self._format_python_object(parsed)
+                        html_content += '<div style="padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px;">'
+                        html_content += '<p style="margin: 0 0 10px 0; font-weight: bold; color: var(--body-quiet-color, #666);">Evaluation Data:</p>'
+                        html_content += f'<pre class="readonly" style="margin: 0; padding: 10px; background: var(--darkened-bg, #f0f0f0); color: var(--body-fg, #333); border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; overflow-x: auto;">{formatted_str}</pre>'
+                        html_content += '</div>'
+                    except:
+                        # Last resort: show as is but nicely formatted
+                        html_content += '<div style="padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px;">'
+                        html_content += '<p style="margin: 0 0 10px 0; font-weight: bold; color: var(--body-quiet-color, #666);">Raw Evaluation Data:</p>'
+                        html_content += f'<pre class="readonly" style="margin: 0; padding: 10px; background: var(--darkened-bg, #f0f0f0); color: var(--body-fg, #333); border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; overflow-x: auto;">{obj.evaluation_results}</pre>'
+                        html_content += '</div>'
+            else:
+                # Plain text format
+                html_content += '<div style="padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px;">'
+                html_content += '<p style="margin: 0 0 10px 0; font-weight: bold; color: var(--body-quiet-color, #666);">Evaluation Notes:</p>'
+                html_content += f'<div style="padding: 10px; background: var(--darkened-bg, #f0f0f0); color: var(--body-fg, #333); border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px;">{obj.evaluation_results}</div>'
+                html_content += '</div>'
+        except Exception as e:
+            # Ultimate fallback
+            html_content += '<div style="padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px;">'
+            html_content += f'<pre class="readonly" style="margin: 0; padding: 10px; background: var(--darkened-bg, #f0f0f0); color: var(--body-fg, #333); border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px;">{obj.evaluation_results}</pre>'
+            html_content += '</div>'
+        
+        html_content += '</div>'
+        html_wrapper += html_content
         html_wrapper += "</div>"
         html_wrapper += "</details>"
         return mark_safe(html_wrapper)
 
     evaluation_results_display.short_description = "Evaluation Results"
+    
+    def _format_python_object(self, obj, indent=0):
+        """Helper method to format Python objects nicely"""
+        indent_str = "  " * indent
+        if isinstance(obj, dict):
+            if not obj:
+                return "{}"
+            lines = ["{"]
+            for i, (key, value) in enumerate(obj.items()):
+                comma = "," if i < len(obj) - 1 else ""
+                if isinstance(value, (dict, list)):
+                    lines.append(f'{indent_str}  "{key}": {self._format_python_object(value, indent + 1)}{comma}')
+                else:
+                    if isinstance(value, str):
+                        lines.append(f'{indent_str}  "{key}": "{value}"{comma}')
+                    else:
+                        lines.append(f'{indent_str}  "{key}": {value}{comma}')
+            lines.append(f"{indent_str}}}")
+            return "\n".join(lines)
+        elif isinstance(obj, list):
+            if not obj:
+                return "[]"
+            if all(isinstance(item, (str, int, float, bool, type(None))) for item in obj):
+                # Simple list - format inline if short
+                formatted = str(obj)
+                if len(formatted) < 80:
+                    return formatted
+            # Complex list - format with line breaks
+            lines = ["["]
+            for i, item in enumerate(obj):
+                comma = "," if i < len(obj) - 1 else ""
+                if isinstance(item, (dict, list)):
+                    lines.append(f"{indent_str}  {self._format_python_object(item, indent + 1)}{comma}")
+                else:
+                    if isinstance(item, str):
+                        # Truncate very long strings
+                        display_item = item if len(item) <= 200 else item[:200] + "..."
+                        lines.append(f'{indent_str}  "{display_item}"{comma}')
+                    else:
+                        lines.append(f"{indent_str}  {item}{comma}")
+            lines.append(f"{indent_str}]")
+            return "\n".join(lines)
+        elif isinstance(obj, str):
+            # Truncate very long strings
+            return f'"{obj}"' if len(obj) <= 200 else f'"{obj[:200]}..."'
+        else:
+            return str(obj)
 
     def _render_enhanced_evaluation_results(self, data, html_wrapper):
         """Render enhanced evaluation results with GOLD/FAILED status and case information."""
@@ -1729,3 +1819,160 @@ class ThothLogAdmin(admin.ModelAdmin):
         return obj.generated_sql or "-"
 
     selected_sql.short_description = "Selected SQL"
+
+    def get_test_status(self, obj):
+        """Calculate the test status based on selection_metrics and evaluation_results"""
+        if not obj.selection_metrics:
+            return None, None  # status, details
+        
+        try:
+            # Try to parse selection_metrics as JSON
+            data = json.loads(obj.selection_metrics)
+            
+            # Check for enhanced evaluation format with GOLD status
+            if data.get("evaluation_type") == "enhanced":
+                final_status = data.get("final_status")
+                if final_status == "GOLD":
+                    return "GOLD", {"pass_rate": 100, "message": "All tests passed"}
+                elif final_status == "FAILED":
+                    return "KO", {"pass_rate": 0, "message": "No SQL met criteria"}
+            
+            # Check for finalists (selected SQL)
+            finalists = data.get("finalists", [])
+            if not finalists:
+                # No SQL selected
+                return "KO", {"pass_rate": 0, "message": "No SQL selected"}
+            
+            # Get the selected SQL index
+            if isinstance(finalists[0], dict):
+                selected_index = finalists[0].get("sql_index", 0)
+            else:
+                selected_index = finalists[0]
+            
+            # Find the score for the selected SQL
+            sql_scores = data.get("sql_scores", [])
+            for score in sql_scores:
+                if score.get("sql_index") == selected_index:
+                    pass_rate = score.get("pass_rate", 0)
+                    passed_count = score.get("passed_count", 0)
+                    total_tests = score.get("total_tests", 0)
+                    
+                    # Convert pass_rate from 0-1 to percentage if needed
+                    if pass_rate <= 1:
+                        pass_percentage = pass_rate * 100
+                    else:
+                        pass_percentage = pass_rate
+                    
+                    if pass_percentage == 100:
+                        return "GOLD", {
+                            "pass_rate": 100,
+                            "passed_count": passed_count,
+                            "total_tests": total_tests,
+                            "message": "Perfect score!"
+                        }
+                    elif pass_percentage > 0:
+                        return f"{pass_percentage:.0f}%", {
+                            "pass_rate": pass_percentage,
+                            "passed_count": passed_count,
+                            "total_tests": total_tests,
+                            "message": f"Passed {passed_count}/{total_tests} tests"
+                        }
+                    else:
+                        return "KO", {
+                            "pass_rate": 0,
+                            "passed_count": 0,
+                            "total_tests": total_tests,
+                            "message": "All tests failed"
+                        }
+            
+            # If we couldn't find the score for selected SQL
+            return "OK", {"pass_rate": None, "message": "SQL selected but score unknown"}
+            
+        except (json.JSONDecodeError, Exception):
+            # Fallback - check if SQL was generated
+            if obj.generated_sql:
+                return "OK", {"pass_rate": None, "message": "SQL generated"}
+            return "KO", {"pass_rate": 0, "message": "No SQL generated"}
+    
+    def test_status_badge(self, obj):
+        """Display a simple test status indicator for the list view"""
+        status, details = self.get_test_status(obj)
+        
+        if not status:
+            return "-"
+        
+        if status == "GOLD":
+            # Just a golden star
+            return format_html(
+                '<span style="font-size: 16px;">⭐</span>'
+            )
+        elif status == "KO":
+            # Just a red X
+            return format_html(
+                '<span style="color: #dc3545; font-size: 14px; font-weight: bold;">❌</span>'
+            )
+        elif "%" in status:
+            # Just the percentage in green and bold
+            return format_html(
+                '<span style="color: #28a745; font-weight: bold; font-size: 13px;">{}</span>',
+                status
+            )
+        
+        # Default OK status - just show "OK" in gray
+        return format_html(
+            '<span style="color: #6c757d; font-weight: bold; font-size: 13px;">OK</span>'
+        )
+    
+    test_status_badge.short_description = "Test Status"
+    
+    def test_status_display(self, obj):
+        """Display simple test status for the form view"""
+        status, details = self.get_test_status(obj)
+        
+        if not status:
+            return "-"
+        
+        # Simple display with just the symbols and minimal text
+        html_content = '<div style="margin: 10px 0; padding: 10px;">'
+        
+        if status == "GOLD":
+            # Just a golden star with text
+            html_content += (
+                '<span style="font-size: 24px; margin-right: 10px;">⭐</span>'
+                '<span style="font-size: 16px; font-weight: bold;">All tests passed (100%)</span>'
+            )
+            if details and details.get("total_tests"):
+                html_content += f'<span style="margin-left: 10px; color: #666; font-size: 14px;">({details["total_tests"]} tests)</span>'
+            
+        elif status == "KO":
+            # Just a red X with text
+            html_content += (
+                '<span style="color: #dc3545; font-size: 20px; font-weight: bold; margin-right: 10px;">❌</span>'
+                '<span style="font-size: 16px; font-weight: bold;">Failed</span>'
+            )
+            if details:
+                message = details.get("message", "No SQL generated or selected")
+                html_content += f'<span style="margin-left: 10px; color: #666; font-size: 14px;">({message})</span>'
+            
+        elif "%" in status:
+            # Just the percentage in green and bold with details
+            html_content += (
+                f'<span style="color: #28a745; font-weight: bold; font-size: 18px; margin-right: 10px;">{status}</span>'
+                '<span style="font-size: 16px;">Tests passed</span>'
+            )
+            if details and details.get("total_tests"):
+                html_content += (
+                    f'<span style="margin-left: 10px; color: #666; font-size: 14px;">'
+                    f'({details.get("passed_count", 0)}/{details["total_tests"]} tests)</span>'
+                )
+        else:
+            # Default OK status - simple gray text
+            html_content += (
+                '<span style="color: #6c757d; font-weight: bold; font-size: 16px; margin-right: 10px;">OK</span>'
+                '<span style="font-size: 14px; color: #666;">SQL generated</span>'
+            )
+        
+        html_content += '</div>'
+        return mark_safe(html_content)
+    
+    test_status_display.short_description = "Test Execution Status"
