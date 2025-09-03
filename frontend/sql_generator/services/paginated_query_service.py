@@ -76,6 +76,321 @@ class PaginatedQueryService:
         cache_data = f"{workspace_id}:{sql}:{json.dumps(kwargs, sort_keys=True)}"
         return hashlib.md5(cache_data.encode()).hexdigest()
     
+    def _clean_field_name_for_alias(self, field_name: str) -> str:
+        """
+        Pulisce un nome di campo per usarlo in un alias.
+        Rimuove virgolette, parentesi, spazi e caratteri speciali.
+        
+        Esempi:
+        - '"Free Meal Count (Ages 5-17)"' → 'free_meal_count_ages_5_17'
+        - '"Enrollment"' → 'enrollment'
+        """
+        import re
+        
+        # Rimuovi tutti i tipi di quote supportati dai vari database
+        # Double quotes (PostgreSQL, Oracle, SQLite)
+        cleaned = field_name.strip().strip('"')
+        # Single quotes (string literals - not typically for field names but handle anyway)
+        cleaned = cleaned.strip("'")
+        # Backticks (MySQL, MariaDB, SQLite)
+        cleaned = cleaned.strip('`')
+        # Square brackets (SQL Server)
+        if cleaned.startswith('[') and cleaned.endswith(']'):
+            cleaned = cleaned[1:-1]
+        
+        # Sostituisci parentesi e loro contenuto con underscore
+        cleaned = re.sub(r'\([^)]*\)', lambda m: m.group().replace('(', '_').replace(')', '_').replace(' ', '_'), cleaned)
+        
+        # Sostituisci spazi, trattini e altri caratteri con underscore
+        cleaned = re.sub(r'[\s\-\(\)\[\]\{\}\/\\,;:!@#$%^&*+=|<>?`~]', '_', cleaned)
+        
+        # Rimuovi underscore multipli
+        cleaned = re.sub(r'_+', '_', cleaned)
+        
+        # Rimuovi underscore iniziali e finali
+        cleaned = cleaned.strip('_')
+        
+        # Converti in lowercase
+        cleaned = cleaned.lower()
+        
+        # Tronca se troppo lungo (max 30 caratteri)
+        if len(cleaned) > 30:
+            cleaned = cleaned[:30].rstrip('_')
+        
+        return cleaned if cleaned else 'field'
+    
+    def _generate_semantic_alias(self, expression: str, alias_counter: Dict[str, int]) -> str:
+        """
+        Genera un alias semanticamente significativo per un'espressione.
+        
+        Parametri:
+        - expression: l'espressione SQL (es. '"Field1" / "Field2"')
+        - alias_counter: dizionario per tracciare alias duplicati
+        
+        Restituisce:
+        - Un alias significativo e unico
+        """
+        import re
+        
+        # Rimuovi spazi extra
+        expr = expression.strip()
+        
+        # Helper function to check for parentheses outside of quotes
+        def has_unquoted_parens(s: str) -> bool:
+            """Check if string has parentheses that aren't inside quoted field names.
+            Handles all database quoting styles:
+            - Double quotes: "field" (PostgreSQL, Oracle, SQLite, ANSI mode)
+            - Single quotes: 'field' (for string literals, not field names)
+            - Backticks: `field` (MySQL, MariaDB, SQLite)
+            - Square brackets: [field] (SQL Server)
+            """
+            quote_char = None
+            in_brackets = False
+            
+            for i, char in enumerate(s):
+                # Handle square brackets (SQL Server style)
+                if char == '[' and quote_char is None:
+                    in_brackets = True
+                elif char == ']' and in_brackets:
+                    in_brackets = False
+                # Handle quotes and backticks
+                elif quote_char is None and char in ['"', "'", '`']:
+                    quote_char = char
+                elif quote_char and char == quote_char:
+                    # Check if it's an escaped quote (doubled)
+                    if i + 1 < len(s) and s[i + 1] == quote_char:
+                        continue  # Skip escaped quote
+                    quote_char = None
+                elif quote_char or in_brackets:
+                    # Inside quotes or brackets, skip
+                    continue
+                elif char in ['(', ')']:
+                    # Found parenthesis outside of quotes and brackets
+                    return True
+            return False
+        
+        # Caso divisione
+        if '/' in expr and not has_unquoted_parens(expr):
+            parts = expr.split('/')
+            if len(parts) == 2:
+                left = self._clean_field_name_for_alias(parts[0])
+                right = self._clean_field_name_for_alias(parts[1])
+                
+                # Check the original parts before cleaning for better semantic meaning
+                left_orig = parts[0].strip()
+                right_orig = parts[1].strip()
+                
+                # Casi speciali per ratio/rate
+                # Check for meal/enrollment first (more specific)
+                if ('meal' in left_orig.lower() or 'meal' in left.lower()) and ('enrollment' in right_orig.lower() or 'enrollment' in right.lower()):
+                    base_alias = "free_meal_rate"
+                elif 'count' in left.lower() and any(word in right.lower() for word in ['enrollment', 'total', 'population']):
+                    base_alias = f"{left}_rate"
+                else:
+                    base_alias = f"{left}_per_{right}"
+        
+        # Caso moltiplicazione
+        elif '*' in expr and not has_unquoted_parens(expr):
+            parts = expr.split('*')
+            if len(parts) == 2:
+                left = self._clean_field_name_for_alias(parts[0])
+                right = self._clean_field_name_for_alias(parts[1])
+                
+                # Casi speciali
+                if any(word in left.lower() + right.lower() for word in ['price', 'quantity', 'cost']):
+                    base_alias = "total_amount"
+                else:
+                    base_alias = f"{left}_times_{right}"
+        
+        # Caso addizione
+        elif '+' in expr and not has_unquoted_parens(expr):
+            parts = expr.split('+')
+            if len(parts) == 2:
+                left = self._clean_field_name_for_alias(parts[0])
+                right = self._clean_field_name_for_alias(parts[1])
+                
+                # Casi speciali per somme
+                if 'score' in left.lower() and 'score' in right.lower():
+                    base_alias = "total_score"
+                elif 'meal' in left.lower():
+                    base_alias = "total_meal_count"
+                else:
+                    base_alias = f"{left}_plus_{right}"
+        
+        # Caso sottrazione  
+        elif '-' in expr and not has_unquoted_parens(expr):
+            parts = expr.split('-')
+            if len(parts) == 2:
+                left = self._clean_field_name_for_alias(parts[0])
+                right = self._clean_field_name_for_alias(parts[1])
+                
+                # Casi speciali
+                if 'revenue' in left.lower() and 'cost' in right.lower():
+                    base_alias = "profit"
+                elif 'total' in left.lower() and 'total' in right.lower():
+                    base_alias = "difference"
+                else:
+                    base_alias = f"{left}_minus_{right}"
+        
+        # Espressioni complesse o con parentesi matematiche (non nei nomi dei campi)
+        else:
+            # Estrai i campi e determina l'operazione principale
+            fields = re.findall(r'"([^"]+)"', expr)
+            if fields and len(fields) >= 2:
+                # Prova a generare un alias semantico anche per espressioni complesse
+                if '/' in expr:
+                    # Check for special cases based on field content
+                    if any('meal' in f.lower() for f in fields) and any('enrollment' in f.lower() for f in fields):
+                        base_alias = "free_meal_rate"
+                    else:
+                        base_alias = "calculated_ratio"
+                elif '*' in expr:
+                    base_alias = "calculated_product"
+                elif '+' in expr:
+                    if any('meal' in f.lower() for f in fields):
+                        base_alias = "total_meal_count"
+                    else:
+                        base_alias = "calculated_sum"
+                elif '-' in expr:
+                    base_alias = "calculated_difference"
+                else:
+                    base_alias = "calculated_value"
+            else:
+                base_alias = "calculated_value"
+        
+        # Gestisci duplicati
+        if base_alias in alias_counter:
+            alias_counter[base_alias] += 1
+            final_alias = f"{base_alias}_{alias_counter[base_alias]}"
+        else:
+            alias_counter[base_alias] = 1
+            final_alias = base_alias
+        
+        return final_alias
+    
+    def _parse_select_expressions(self, select_clause: str) -> List[str]:
+        """
+        Parse della clausola SELECT in singole espressioni,
+        rispettando virgolette, parentesi e virgole.
+        """
+        expressions = []
+        current_expr = ""
+        paren_depth = 0
+        quote_char = None
+        i = 0
+        
+        while i < len(select_clause):
+            char = select_clause[i]
+            
+            # Handle quotes
+            if quote_char is None and char in ['"', "'"]:
+                quote_char = char
+                current_expr += char
+            elif quote_char and char == quote_char:
+                quote_char = None
+                current_expr += char
+            elif quote_char:
+                current_expr += char
+            elif char == '(':
+                paren_depth += 1
+                current_expr += char
+            elif char == ')':
+                paren_depth -= 1
+                current_expr += char
+            elif char == ',' and paren_depth == 0:
+                # Found expression separator
+                if current_expr.strip():
+                    expressions.append(current_expr.strip())
+                current_expr = ""
+            else:
+                current_expr += char
+            
+            i += 1
+        
+        # Don't forget the last expression
+        if current_expr.strip():
+            expressions.append(current_expr.strip())
+        
+        return expressions
+    
+    def _needs_alias(self, expression: str) -> bool:
+        """
+        Determina se un'espressione necessita di un alias.
+        
+        Criteri:
+        - Contiene operatori aritmetici (+, -, *, /)
+        - NON ha già un alias (AS ...)
+        """
+        # Verifica se ha già un alias
+        if ' AS ' in expression.upper():
+            return False
+        
+        # Verifica presenza operatori aritmetici
+        has_operators = any(op in expression for op in ['+', '-', '*', '/'])
+        
+        return has_operators
+    
+    def _add_aliases_to_calculated_fields(self, sql: str) -> Tuple[str, List[str]]:
+        """
+        Aggiunge alias semanticamente significativi alle espressioni calcolate.
+        
+        Restituisce:
+        - SQL modificato con alias
+        - Lista dei nomi delle colonne (inclusi gli alias generati)
+        """
+        import re
+        
+        logger.debug(f"Adding aliases to SQL: {sql[:200]}...")
+        
+        # Estrai SELECT...FROM
+        select_pattern = r'SELECT\s+(.*?)\s+FROM'
+        match = re.search(select_pattern, sql, re.IGNORECASE | re.DOTALL)
+        
+        if not match:
+            logger.debug("No SELECT clause found, returning original SQL")
+            return sql, self._extract_columns_from_sql(sql)
+        
+        select_clause = match.group(1)
+        logger.debug(f"Original SELECT clause: {select_clause[:200]}...")
+        
+        # Parse delle singole espressioni
+        expressions = self._parse_select_expressions(select_clause)
+        logger.debug(f"Parsed {len(expressions)} expressions")
+        
+        # Contatore per alias duplicati
+        alias_counter = {}
+        
+        modified_expressions = []
+        column_names = []
+        
+        for expr in expressions:
+            if self._needs_alias(expr):
+                # Genera alias semantico
+                alias = self._generate_semantic_alias(expr, alias_counter)
+                modified_expr = f"{expr} AS {alias}"
+                modified_expressions.append(modified_expr)
+                column_names.append(alias)
+                logger.debug(f"Added alias: {expr[:50]}... AS {alias}")
+            else:
+                # Mantieni com'è e estrai il nome della colonna
+                modified_expressions.append(expr)
+                # Se ha già un alias, estrailo
+                if ' AS ' in expr.upper():
+                    as_index = expr.upper().rfind(' AS ')
+                    col_name = expr[as_index + 4:].strip().strip('"').strip("'")
+                else:
+                    col_name = self._process_column_definition(expr)
+                column_names.append(col_name)
+        
+        # Ricostruisci SQL
+        new_select = ", ".join(modified_expressions)
+        modified_sql = sql.replace(select_clause, new_select, 1)
+        
+        logger.debug(f"Modified SQL: {modified_sql[:300]}...")
+        logger.debug(f"Column names: {column_names}")
+        
+        return modified_sql, column_names
+    
     def _extract_columns_from_sql(self, sql: str) -> List[str]:
         """Extract column names from SQL SELECT statement"""
         columns = []
@@ -90,6 +405,7 @@ class PaginatedQueryService:
         
         if match:
             columns_str = match.group(1)
+            logger.debug(f"Extracting columns from SELECT clause: {columns_str[:100]}...")
             
             # Parse columns respecting quotes and parentheses
             current_col = ""
@@ -119,7 +435,9 @@ class PaginatedQueryService:
                 elif char == ',' and paren_depth == 0:
                     # Found a column separator at the top level
                     if current_col.strip():
-                        columns.append(self._process_column_definition(current_col.strip()))
+                        col_name = self._process_column_definition(current_col.strip())
+                        logger.debug(f"Extracted column: {col_name}")
+                        columns.append(col_name)
                     current_col = ""
                 else:
                     current_col += char
@@ -128,13 +446,17 @@ class PaginatedQueryService:
             
             # Don't forget the last column
             if current_col.strip():
-                columns.append(self._process_column_definition(current_col.strip()))
+                col_name = self._process_column_definition(current_col.strip())
+                logger.debug(f"Extracted column: {col_name}")
+                columns.append(col_name)
         
+        logger.debug(f"Final extracted columns: {columns}")
         return columns if columns else ['column_1']
     
     def _process_column_definition(self, col_def: str) -> str:
         """Process a single column definition to extract the column name or alias"""
         col_def = col_def.strip()
+        logger.debug(f"Processing column definition: {col_def}")
         
         # Check for alias with AS
         if ' AS ' in col_def.upper():
@@ -142,7 +464,9 @@ class PaginatedQueryService:
             as_index = col_def.upper().rfind(' AS ')
             alias = col_def[as_index + 4:].strip()
             # Remove quotes from alias if present
-            return alias.strip('"').strip("'")
+            result = alias.strip('"').strip("'")
+            logger.debug(f"Found alias: {result}")
+            return result
         
         # Check for implicit alias (expression followed by identifier without AS)
         # This is tricky and we'll skip complex detection
@@ -155,26 +479,50 @@ class PaginatedQueryService:
             matches = re.findall(quoted_pattern, col_def)
             if matches:
                 # Return the last quoted string (the field name)
-                return matches[-1]
+                result = matches[-1]
+                logger.debug(f"Extracted quoted field name: {result}")
+                return result
         
         # For expressions with table prefixes (T1.field)
         if '.' in col_def and not any(op in col_def for op in ['(', '/', '*', '+', '-']):
             # Simple table.column reference
             parts = col_def.split('.')
             # Return the last part (column name), removing quotes
-            return parts[-1].strip().strip('"').strip("'")
+            result = parts[-1].strip().strip('"').strip("'")
+            logger.debug(f"Extracted column from table.column: {result}")
+            return result
         
         # For functions or complex expressions without alias
         if any(func in col_def.upper() for func in ['COUNT(', 'SUM(', 'AVG(', 'MAX(', 'MIN(', 'CAST(']):
             # This is a function without an alias - use a generic name
+            logger.debug(f"Function without alias detected, using 'result'")
             return 'result'
         
         # For arithmetic expressions without alias
-        if any(op in col_def for op in ['/', '*', '+', '-']) and '(' in col_def:
-            return 'result'
+        if any(op in col_def for op in ['/', '*', '+', '-']):
+            logger.debug(f"Processing arithmetic expression: {col_def}")
+            # Try to extract a meaningful name from the expression
+            if '/' in col_def:
+                parts = col_def.split('/')
+                if len(parts) == 2:
+                    # Extract field names from quoted strings
+                    import re
+                    left_matches = re.findall(r'"([^"]+)"', parts[0])
+                    right_matches = re.findall(r'"([^"]+)"', parts[1])
+                    
+                    if left_matches and right_matches:
+                        left = left_matches[-1].replace(' ', '_').replace('(', '').replace(')', '')
+                        right = right_matches[-1].replace(' ', '_').replace('(', '').replace(')', '')
+                        column_name = f"{left}_div_{right}"
+                        logger.debug(f"Generated column name for division: {column_name}")
+                        return column_name
+            logger.debug(f"Using 'calculated_value' for arithmetic expression")
+            return 'calculated_value'
         
         # Default: return as-is, removing quotes
-        return col_def.strip('"').strip("'")
+        result = col_def.strip('"').strip("'")
+        logger.debug(f"Using default column name: {result}")
+        return result
     
     def _apply_sorting(self, sql: str, sort_model: Optional[List[Dict[str, Any]]]) -> str:
         """Apply sorting to SQL query based on AG-Grid sort model"""
@@ -439,24 +787,41 @@ class PaginatedQueryService:
             PaginationResponse with paginated results
         """
         try:
-            original_limit = self._extract_limit_from_sql(request.sql)
+            logger.debug(f"execute_paginated_query called with: workspace_id={request.workspace_id}, "
+                         f"sql={request.sql[:100]}..., page={request.page}, page_size={request.page_size}")
+            logger.debug(f"Sort model: {request.sort_model}")
+            logger.debug(f"Filter model: {request.filter_model}")
+            
+            # Add semantic aliases to calculated fields FIRST
+            modified_sql, actual_columns = self._add_aliases_to_calculated_fields(request.sql)
+            
+            original_limit = self._extract_limit_from_sql(modified_sql)
             logger.debug(f"Detected original LIMIT: {original_limit}")
             
             # Apply filters first
-            filtered_sql = self._apply_filters(request.sql, request.filter_model)
+            filtered_sql = self._apply_filters(modified_sql, request.filter_model)
+            logger.debug(f"SQL after filters: {filtered_sql}")
             
             # Apply sorting
             sorted_sql = self._apply_sorting(filtered_sql, request.sort_model)
+            logger.debug(f"SQL after sorting: {sorted_sql}")
             
             if original_limit is not None and original_limit <= 1000:
                 logger.debug(f"Using in-memory pagination for LIMIT {original_limit}")
-                return self._execute_with_memory_pagination(
+                response = self._execute_with_memory_pagination(
                     sorted_sql, request, original_limit
                 )
+                # Use the actual columns from alias generation
+                response.columns = actual_columns
+                return response
             else:
-                return self._execute_with_sql_pagination(
+                logger.debug(f"Using SQL-based pagination")
+                response = self._execute_with_sql_pagination(
                     sorted_sql, request, original_limit
                 )
+                # Use the actual columns from alias generation
+                response.columns = actual_columns
+                return response
                 
         except Exception as e:
             log_error(f"Error in execute_paginated_query: {e}")
@@ -478,6 +843,7 @@ class PaginatedQueryService:
         """
         try:
             logger.debug(f"Executing query with in-memory pagination (LIMIT {original_limit})")
+            logger.debug(f"SQL to execute: {sql}")
             
             # Check cache
             cache_key = self._get_cache_key(
@@ -501,19 +867,29 @@ class PaginatedQueryService:
             
             if all_results is None:
                 # Execute query to get all results
+                logger.debug(f"Executing SQL query against database")
                 execution_result = self.dbmanager.execute_sql(
                     sql=sql,
                     params={},
                     fetch="all"
                 )
                 
+                logger.debug(f"Database returned {len(execution_result) if execution_result else 0} rows")
+                if execution_result and len(execution_result) > 0:
+                    logger.debug(f"First row type: {type(execution_result[0])}")
+                    logger.debug(f"First row content: {execution_result[0]}")
+                
                 # Extract columns
                 columns = self._extract_columns_from_sql(sql)
+                logger.debug(f"Extracted columns: {columns}")
                 
                 # Convert to list of dictionaries
                 all_results = []
                 if execution_result and isinstance(execution_result, list):
-                    for row in execution_result:
+                    
+                    for idx, row in enumerate(execution_result):
+                        if idx < 3:  # Log first 3 rows for debugging
+                            logger.debug(f"Processing row {idx}: {row}")
                         row_dict = {}
                         if hasattr(row, '_asdict'):
                             row_dict = dict(row._asdict())
@@ -528,6 +904,8 @@ class PaginatedQueryService:
                                     row_dict[col_name] = value
                                 else:
                                     row_dict[col_name] = str(value)
+                        if idx < 3:  # Log first 3 converted rows
+                            logger.debug(f"Converted row {idx} to dict: {row_dict}")
                         all_results.append(row_dict)
                 
                 # Cache the results
@@ -543,6 +921,12 @@ class PaginatedQueryService:
             
             # Slice the results
             paginated_results = all_results[start_idx:end_idx]
+            
+            logger.debug(f"Pagination: total_rows={total_rows}, start_idx={start_idx}, end_idx={end_idx}")
+            logger.debug(f"Returning {len(paginated_results)} rows for page {request.page}")
+            if paginated_results:
+                logger.debug(f"First paginated row: {paginated_results[0]}")
+            logger.debug(f"Columns being returned: {columns}")
             
             return PaginationResponse(
                 data=paginated_results,

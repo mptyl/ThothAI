@@ -368,6 +368,12 @@ async def execute_query(request: PaginationRequest):
     4. Returns paginated results for AGGrid
     """
     try:
+        logger.debug(f"execute-query endpoint called for workspace {request.workspace_id}")
+        logger.debug(f"SQL: {request.sql[:200]}..." if len(request.sql) > 200 else f"SQL: {request.sql}")
+        logger.debug(f"Pagination: page={request.page}, size={request.page_size}")
+        logger.debug(f"Sort model: {request.sort_model}")
+        logger.debug(f"Filter model: {request.filter_model}")
+        
         # Setup dbmanager and agents for the workspace
         setup_result = await _setup_dbmanager_and_agents(request.workspace_id, GenerateSQLRequest(
             question="",  # Not needed for query execution
@@ -379,6 +385,7 @@ async def execute_query(request: PaginationRequest):
         # Get dbmanager from setup
         dbmanager = setup_result.get("dbmanager")
         if not dbmanager:
+            logger.debug("Database manager not initialized")
             return PaginationResponse(
                 data=[],
                 total_rows=0,
@@ -390,15 +397,20 @@ async def execute_query(request: PaginationRequest):
                 error="Database manager not initialized"
             )
         
+        logger.debug(f"Database manager initialized: {type(dbmanager)}")
+        
         # Create paginated query service
         paginated_service = PaginatedQueryService(dbmanager)
         
         # Execute paginated query
         response = paginated_service.execute_paginated_query(request)
         
-        # Log the query execution (only if log level allows)
-        if log_level <= logging.INFO:
-            logger.debug(f"Executed paginated query for workspace {request.workspace_id}, page {request.page}")
+        logger.debug(f"Query executed, returning response with {len(response.data)} rows, total_rows={response.total_rows}")
+        if response.data:
+            logger.debug(f"First row: {response.data[0]}")
+        logger.debug(f"Columns: {response.columns}")
+        if response.error:
+            logger.debug(f"Error in response: {response.error}")
         
         return response
         
