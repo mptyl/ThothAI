@@ -82,6 +82,7 @@ class Command(BaseCommand):
                     # Ottieni gli agenti associati
                     agents = {}
                     agent_fields = [
+                        "question_validator",
                         "kw_sel_agent",
                         "sql_basic_agent",
                         "sql_advanced_agent",
@@ -167,6 +168,40 @@ class Command(BaseCommand):
                     level = row.get(
                         "level", "BASIC"
                     )  # Default to BASIC if not specified
+                    
+                    # Gestisci i campi numerici opzionali
+                    number_of_tests = 5  # default
+                    if row.get("number_of_tests_to_generate"):
+                        try:
+                            number_of_tests = int(row["number_of_tests_to_generate"])
+                        except (ValueError, TypeError):
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"Invalid number_of_tests_to_generate '{row['number_of_tests_to_generate']}' for Workspace '{row.get('name', 'unknown')}', using default"
+                                )
+                            )
+                    
+                    number_of_sql = 10  # default
+                    if row.get("number_of_sql_to_generate"):
+                        try:
+                            number_of_sql = int(row["number_of_sql_to_generate"])
+                        except (ValueError, TypeError):
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"Invalid number_of_sql_to_generate '{row['number_of_sql_to_generate']}' for Workspace '{row.get('name', 'unknown')}', using default"
+                                )
+                            )
+                    
+                    eval_threshold = 90  # default
+                    if row.get("evaluation_threshold"):
+                        try:
+                            eval_threshold = int(row["evaluation_threshold"])
+                        except (ValueError, TypeError):
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"Invalid evaluation_threshold '{row['evaluation_threshold']}' for Workspace '{row.get('name', 'unknown')}', using default"
+                                )
+                            )
 
                     # Estrai l'ID dal CSV - richiesto obbligatoriamente
                     if not model_id:
@@ -186,6 +221,7 @@ class Command(BaseCommand):
                         obj.description = row.get("description", "")
                         obj.sql_db = sql_db
                         obj.default_model = default_model
+                        obj.question_validator = agents.get("question_validator")
                         obj.kw_sel_agent = agents.get("kw_sel_agent")
                         obj.sql_basic_agent = agents.get("sql_basic_agent")
                         obj.sql_advanced_agent = agents.get("sql_advanced_agent")
@@ -197,6 +233,9 @@ class Command(BaseCommand):
                         obj.explain_sql_agent = agents.get("explain_sql_agent")
                         obj.ask_human_help_agent = agents.get("ask_human_help_agent")
                         obj.setting = setting
+                        obj.number_of_tests_to_generate = number_of_tests
+                        obj.number_of_sql_to_generate = number_of_sql
+                        obj.evaluation_threshold = eval_threshold
 
                         # Reset excluded fields to default values
                         obj.preprocessing_status = Workspace.PreprocessingStatus.IDLE
@@ -279,6 +318,7 @@ class Command(BaseCommand):
                             description=row.get("description", ""),
                             sql_db=sql_db,
                             default_model=default_model,
+                            question_validator=agents.get("question_validator"),
                             kw_sel_agent=agents.get("kw_sel_agent"),
                             sql_basic_agent=agents.get("sql_basic_agent"),
                             sql_advanced_agent=agents.get("sql_advanced_agent"),
@@ -290,6 +330,9 @@ class Command(BaseCommand):
                             explain_sql_agent=agents.get("explain_sql_agent"),
                             ask_human_help_agent=agents.get("ask_human_help_agent"),
                             setting=setting,
+                            number_of_tests_to_generate=number_of_tests,
+                            number_of_sql_to_generate=number_of_sql,
+                            evaluation_threshold=eval_threshold,
                             # Note: Excluded fields will be set to their default values automatically
                         )
                         imported_count += 1
