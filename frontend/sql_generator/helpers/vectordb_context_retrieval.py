@@ -46,6 +46,15 @@ def retrieve_context_from_vectordb(
     log_info("retrieve_context_from_vectordb called")
     logger.info(f"Executing context retrieval with {len(keyword_list)} keywords")
     
+    # Log context details at DEBUG level
+    logger.debug("="*60)
+    logger.debug("VECTOR DB CONTEXT RETRIEVAL")
+    logger.debug("="*60)
+    logger.debug(f"Question: {question[:200]}{'...' if len(question) > 200 else ''}")
+    logger.debug(f"Evidence: {evidence[:200]}{'...' if len(evidence) > 200 else ''}")
+    logger.debug(f"Keywords: {keyword_list}")
+    logger.debug(f"Top K: {top_k}")
+    
     try:
         # Find the most similar columns based on question, evidence, and keywords
         retrieved_columns = find_most_similar_columns(
@@ -58,6 +67,16 @@ def retrieve_context_from_vectordb(
         
         # Format the retrieved descriptions
         result = _format_retrieved_descriptions(retrieved_columns)
+        
+        # Log result summary at DEBUG level
+        if result:
+            total_cols = sum(len(table_info.get('columns', {})) for table_info in result.values())
+            logger.debug(f"\nContext retrieval complete:")
+            logger.debug(f"  - Tables retrieved: {len(result)}")
+            logger.debug(f"  - Total columns: {total_cols}")
+        else:
+            logger.debug("\nContext retrieval complete: No results found")
+        
         log_info("retrieve_context_from_vectordb successfully executed")
         return result
     except Exception as e:
@@ -111,33 +130,63 @@ def find_most_similar_columns(
     Returns:
         Dict[str, Dict[str, Dict[str, str]]]: Dictionary with the most similar columns and their descriptions
     """
-    logger.debug("Searching for the most similar columns")
-    tables_with_descriptions = {}
+    logger.debug("\n" + "-"*60)
+    logger.debug("SIMILARITY SEARCH BY KEYWORDS")
+    logger.debug("-"*60)
+    logger.debug(f"Keywords to search: {keywords}")
+    logger.debug(f"Top K per keyword: {top_k}")
     
-    for keyword in keywords:
+    tables_with_descriptions = {}
+    total_matches = 0
+    
+    for i, keyword in enumerate(keywords, 1):
         # Build the query with the keyword
-        logger.debug(f"Search query: {keyword}")
+        logger.debug(f"\n[{i}/{len(keywords)}] Searching for keyword: '{keyword}'")
         
         try:
             # Retrieve the columns most similar to the keyword
             retrieved_columns = query_vector_db_for_columns_data(
                 vector_db, keyword, top_k=top_k
             )
-            logger.debug(f"Retrieved {len(retrieved_columns)} columns for keyword '{keyword}'")
-            for column in retrieved_columns:
-                logger.debug(f"Column: {column}, Description: {retrieved_columns[column]}")
+            
+            if retrieved_columns:
+                # Count total columns retrieved
+                column_count = sum(len(cols) for cols in retrieved_columns.values())
+                logger.debug(f"  Found {column_count} columns across {len(retrieved_columns)} tables")
+                total_matches += column_count
+                
+                # Log details of each match
+                for table_name, columns in retrieved_columns.items():
+                    logger.debug(f"    Table: {table_name}")
+                    for col_name, col_info in columns.items():
+                        logger.debug(f"      ✓ {col_name}")
+                        if isinstance(col_info, dict):
+                            if col_info.get('column_description'):
+                                desc = col_info['column_description']
+                                logger.debug(f"          Description: {desc[:80]}{'...' if len(desc) > 80 else ''}")
+                            if col_info.get('value_description'):
+                                val_desc = col_info['value_description']
+                                logger.debug(f"          Values: {val_desc[:80]}{'...' if len(val_desc) > 80 else ''}")
+            else:
+                logger.debug(f"  No matches found")
             
             # Add the retrieved descriptions
             tables_with_descriptions = _add_description(
                 tables_with_descriptions, retrieved_columns
             )
-            logger.debug(f"Added descriptions for keyword '{keyword}'")
-            for table_name, columns in retrieved_columns.items():
-                logger.debug(f"Table: {table_name}, Columns: {columns}")
+            
         except Exception as e:
             logger.error(f"Error during search with keyword '{keyword}': {str(e)}")
+            logger.debug(f"  Error details: {str(e)}")
     
-    logger.debug(f"Found descriptions for {len(tables_with_descriptions)} tables")
+    # Final summary
+    logger.debug("\n" + "-"*60)
+    logger.debug(f"Similarity search summary:")
+    logger.debug(f"  - Keywords searched: {len(keywords)}")
+    logger.debug(f"  - Total matches found: {total_matches}")
+    logger.debug(f"  - Unique tables: {len(tables_with_descriptions)}")
+    logger.debug("-"*60)
+    
     return tables_with_descriptions
 
 

@@ -53,15 +53,27 @@ def extract_schema_via_vector_db(state: SystemState) -> Dict[str, Dict[str, Any]
     """
     logger.info("Starting schema extraction via vector database similarity search")
     
+    # Log header at DEBUG level
+    logger.debug("="*60)
+    logger.debug("VECTOR SIMILARITY SEARCH STARTED")
+    logger.debug("="*60)
+    
     # Concatena le tre evidences come specificato nei requirements
     evidence = " ".join(state.evidence) if state.evidence else ""
+    logger.debug(f"Question: {state.question}")
+    logger.debug(f"Keywords: {state.keywords}")
     logger.debug(f"Concatenated evidence: {evidence[:200]}..." if len(evidence) > 200 else f"Concatenated evidence: {evidence}")
     
     # Parametri per la ricerca
     top_k = 10  # Numero di risultati simili da recuperare
     
     try:
-        logger.debug(f"Starting vector DB search with top_k={top_k}")
+        logger.debug("-"*60)
+        logger.debug(f"Configuration:")
+        logger.debug(f"  - Top K Results: {top_k}")
+        logger.debug(f"  - Number of keywords: {len(state.keywords)}")
+        logger.debug("-"*60)
+        logger.debug(f"\nStarting vector DB search...")
         
         # Chiama la funzione helper per trovare le colonne più simili
         raw_schema_dict = find_most_similar_columns(
@@ -76,11 +88,17 @@ def extract_schema_via_vector_db(state: SystemState) -> Dict[str, Dict[str, Any]
         # Da: {"table": {"column": {info}}} 
         # A: {"table": {"table_description": "", "columns": {"column": {info}}}}
         schema_dict = {}
+        total_columns = 0
+        
+        logger.debug("\nProcessing similarity search results:")
+        
         for table_name, columns in raw_schema_dict.items():
             schema_dict[table_name] = {
                 "table_description": "",  # Vector DB non fornisce table descriptions
                 "columns": {}
             }
+            
+            logger.debug(f"\n  Table: {table_name}")
             
             for column_name, column_info in columns.items():
                 # Mantieni solo le info disponibili dal vector DB
@@ -90,12 +108,23 @@ def extract_schema_via_vector_db(state: SystemState) -> Dict[str, Dict[str, Any]
                     "value_description": column_info.get("value_description", "")
                 }
                 schema_dict[table_name]["columns"][column_name] = cleaned_info
+                total_columns += 1
+                
+                # Log column details at DEBUG level
+                logger.debug(f"    ✓ {column_name}")
+                if cleaned_info["column_description"]:
+                    logger.debug(f"        Description: {cleaned_info['column_description'][:100]}{'...' if len(cleaned_info['column_description']) > 100 else ''}")
+                if cleaned_info["value_description"]:
+                    logger.debug(f"        Values: {cleaned_info['value_description'][:100]}{'...' if len(cleaned_info['value_description']) > 100 else ''}")
         
         logger.info(f"Schema extraction completed. Found {len(schema_dict)} tables")
         
-        # Log dettagli per debug
-        for table_name, columns in schema_dict.items():
-            logger.debug(f"Table '{table_name}' has {len(columns)} columns")
+        # Log summary at DEBUG level
+        logger.debug("="*60)
+        logger.debug("VECTOR SIMILARITY SEARCH COMPLETE")
+        logger.debug(f"Total tables found: {len(schema_dict)}")
+        logger.debug(f"Total columns retrieved: {total_columns}")
+        logger.debug("="*60)
         
         return schema_dict
         
