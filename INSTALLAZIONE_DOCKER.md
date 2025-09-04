@@ -15,8 +15,7 @@ Lo script `install.sh` (`install.ps1`o `install.bat`per Windows) verifica automa
 
 —
 
-> [!IMPORTANT]
-> **Su Windows esegui questo comando PRIMA di clonare il repository:**
+> ⚠️ **IMPORTANT:** Su Windows esegui questo comando PRIMA di clonare il repository:
 > ```bash
 > git config --global core.autocrlf true
 > ```
@@ -35,7 +34,7 @@ oppure x UNI
 git clone https://gitlab.uni.com/tylconsulting/ThothAI.git
 cd ThothAI
 ```
-
+Una volta clonato il repository, puoi procedere con la configurazione iniziale chiamando `./install.sh` (solo Linux/Mac) o `.\install.ps1` (Windows).
 
 ## 3) Configurazione iniziale (`config.yml.local`)
 Alla prima esecuzione, se non trova `config.yml.local`, lo script crea una copia da `config.yml` e chiede di compilarla. La validazione della configurazione avviene tramite `scripts/validate_config.py` che controlla:
