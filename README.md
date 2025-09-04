@@ -5,7 +5,7 @@
   
   **Advanced AI-powered Text-to-SQL generation platform**
   
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
   [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://hub.docker.com/r/marcopancotti/thoth)
   [![Python](https://img.shields.io/badge/Python-3.13-green.svg)](https://www.python.org/)
   [![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
@@ -291,26 +291,43 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE.md](LICENSE.md) file for details.
 
 ## 👥 Authors
 
-- **Marco Pancotti** - *Initial work* - [mptyl](https://github.com/mptyl)
+- **Marco Pancotti** - *Initial work* - [GitHub](https://github.com/mptyl) | [LinkedIn](https://www.linkedin.com/in/marcopancotti/)
 
 ## 🙏 Acknowledgments
 
-- OpenAI for GPT models
-- Google for Gemini models
-- Anthropic for Claude models
-- All contributors and testers
+- [PydanticAI](https://ai.pydantic.dev/) for the AI agent framework
+- [Django](https://www.djangoproject.com/) and [Django REST Framework](https://www.django-rest-framework.org/) for the backend API
+- [Next.js](https://nextjs.org/) and [React](https://react.dev/) for the frontend
+- [FastAPI](https://fastapi.tiangolo.com/) for the SQL generation service
+- [Qdrant](https://qdrant.tech/) for vector search capabilities
+- [SQLAlchemy](https://www.sqlalchemy.org/) for database abstraction
+- [Tailwind CSS](https://tailwindcss.com/) for styling
+- [AG-Grid](https://www.ag-grid.com/) for data visualization
+- [Docker](https://www.docker.com/) for containerization
+
+## 📖 Citation
+
+If you use this work in your research or projects, please consider citing:
+
+```bibtex
+@article{talaei2024chess,
+  title={CHESS: Contextual Harnessing for Efficient SQL Synthesis},
+  author={Talaei, Shayan and Pourreza, Mohammadreza and Chang, Yu-Chen and Mirhoseini, Azalia and Saberi, Amin},
+  journal={arXiv preprint arXiv:2405.16755},
+  year={2024}
+}
+```
 
 ## 📞 Support
 
 - GitHub Issues: [https://github.com/mptyl/ThothAI/issues](https://github.com/mptyl/ThothAI/issues)
-- Email: support@thoth.ai
-
+- Email: mp@tylconsulting.it  
 ---
 
 <div align="center">
-  Made with ❤️ by the ThothAI Team
+  Made with ❤️ by the Tyl Consulting Team
 </div>
