@@ -28,13 +28,18 @@ git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 ```
 
-oppure x UNI
+oppure x UNI -- 
 
 ```bash
 git clone https://gitlab.uni.com/tylconsulting/ThothAI.git
 cd ThothAI
 ```
 Una volta clonato il repository, puoi procedere con la configurazione iniziale chiamando `./install.sh` (solo Linux/Mac) o `.\install.ps1` (Windows).
+
+⚠️ **IMPORTANT:** Per UNI - posizionarsi sul branch main
+> ```bash
+> git checkout main
+> ```
 
 ## 3) Configurazione iniziale (`config.yml.local`)
 Alla prima esecuzione, se non trova `config.yml.local`, lo script crea una copia da `config.yml` e chiede di compilarla. La validazione della configurazione avviene tramite `scripts/validate_config.py` che controlla:
