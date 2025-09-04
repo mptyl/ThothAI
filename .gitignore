@@ -8,7 +8,6 @@
 .env.development
 .env.*.local
 !.env.template
-!.env.docker
 
 # === Test Output Directory ===
 cs_test/
