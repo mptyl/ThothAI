@@ -155,6 +155,33 @@ function Main {
     Write-Color "Prerequisites OK" "Green"
     Write-Host ""
 
+    # Fix line endings for Windows (CRLF -> LF)
+    Write-Color "Fixing line endings for Docker compatibility..." "Yellow"
+    $shFiles = Get-ChildItem -Path . -Filter *.sh -Recurse -ErrorAction SilentlyContinue | 
+        Where-Object { $_.FullName -notmatch "\\node_modules\\" -and 
+                      $_.FullName -notmatch "\\venv\\" -and
+                      $_.FullName -notmatch "\\.venv\\" }
+    
+    $count = 0
+    foreach ($file in $shFiles) {
+        try {
+            $content = [System.IO.File]::ReadAllText($file.FullName)
+            $unixContent = $content -replace "`r`n", "`n"
+            [System.IO.File]::WriteAllText($file.FullName, $unixContent)
+            $count++
+        }
+        catch {
+            # Silent continue
+        }
+    }
+    if ($count -gt 0) {
+        Write-Color "Fixed line endings for $count shell scripts" "Green"
+    }
+    else {
+        Write-Color "No shell scripts found to fix" "Yellow"
+    }
+    Write-Host ""
+
     # Validate configuration
     Write-Color "Validating configuration..." "Yellow"
     
