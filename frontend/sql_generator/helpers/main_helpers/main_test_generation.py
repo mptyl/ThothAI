@@ -94,7 +94,7 @@ async def generate_test_units(state, agents_and_tools, functionality_level=None)
         
         # Create test generator template with unique mschema and SQL candidates
         template = TemplateLoader.format(
-            'user_test_unit',
+            'template_generate_unit_tests.txt',
             safe=True,  # Use safe formatting for complex templates
             **template_params
         )

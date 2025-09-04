@@ -110,7 +110,7 @@ async def run_test_reducer(
         
         # Create user template
         user_template = TemplateLoader.format(
-            'user_test_reducer',
+            'template_test_reducer.txt',
             safe=True,
             ORIGINAL_TESTS=original_tests_str,
             TEST_THINKING=test_thinking,

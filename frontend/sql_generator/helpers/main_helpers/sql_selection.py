@@ -130,7 +130,8 @@ def calculate_detailed_sql_scores(
         
         # Process test results for this SQL
         for test_idx, test_result in enumerate(test_results):
-            test_name = test_units[test_idx] if test_idx < len(test_units) else f"Test {test_idx + 1}"
+            # Always use Test number format since test_units is empty in new format
+            test_name = f"Test {test_idx + 1}"
             
             sql_scores[sql_idx]["total_tests"] += 1
             

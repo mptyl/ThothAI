@@ -279,7 +279,11 @@ async def _evaluate_and_select_phase(
                 'selection_reason': f"Enhanced evaluation Case {state.enhanced_evaluation_case}: {state.enhanced_evaluation_result[0][:100] if state.enhanced_evaluation_result else 'N/A'}...",
                 'selected_sql_index': state.enhanced_evaluation_selected_sql_index or 0,
                 'auxiliary_agents_used': [],  # This info would need to be stored separately if needed
-                'processing_time_ms': 0  # This info would need to be stored separately if needed
+                'processing_time_ms': 0,  # This info would need to be stored separately if needed
+                'evaluation_type': 'enhanced',  # Mark this as enhanced evaluation
+                'final_status': 'GOLD',  # Mark status as GOLD for enhanced evaluation success
+                'finalists': [{'sql_index': state.enhanced_evaluation_selected_sql_index or 0}],  # Include finalist info
+                'sql_scores': []  # Empty for enhanced evaluation since we don't have traditional test scores
             }
             
             logger.info(f"Enhanced evaluation selected SQL via Case {state.enhanced_evaluation_case}")

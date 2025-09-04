@@ -1194,7 +1194,40 @@ class ThothLogListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         """
         Set the username to the current user if not provided.
+        Also check for duplicate logs within the same time window.
         """
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        # Get the data from the serializer
+        validated_data = serializer.validated_data
+        
+        # Check for duplicate log within the last 5 seconds
+        # This prevents duplicate logs from being created if the API is called twice
+        recent_cutoff = timezone.now() - timedelta(seconds=5)
+        
+        duplicate_check = ThothLog.objects.filter(
+            username=validated_data.get('username', 'anonymous'),
+            workspace=validated_data.get('workspace', ''),
+            question=validated_data.get('question', ''),
+            started_at__gte=recent_cutoff
+        )
+        
+        if duplicate_check.exists():
+            # If a duplicate log exists, update it instead of creating a new one
+            existing_log = duplicate_check.first()
+            logger.warning(f"Duplicate ThothLog detected for workspace {validated_data.get('workspace')} - updating existing log ID {existing_log.id}")
+            
+            # Update the existing log with new data
+            for key, value in validated_data.items():
+                setattr(existing_log, key, value)
+            existing_log.save()
+            
+            # Set the instance on the serializer to return the updated log
+            serializer.instance = existing_log
+            return
+        
+        # No duplicate found, create new log
         if hasattr(self.request, "user") and self.request.user:
             serializer.save(username=self.request.user.username)
         else:

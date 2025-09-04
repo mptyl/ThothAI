@@ -1492,37 +1492,45 @@ class ThothLogAdmin(admin.ModelAdmin):
                     html_content += f'<p style="margin: 5px 0; font-weight: bold;">SQL #{sql_index + 1} {icon}</p>'
                     html_content += f'<p style="margin: 5px 0 5px 15px;">Tests Passed: <span style="color: {color}; font-weight: bold;">{passed_count}/{total_tests} ({pass_percentage:.1f}%)</span></p>'
 
-                    # Show test details if available
+                    # Show test details if available - only show failed tests
                     test_details = score.get("test_details", [])
                     if test_details:
-                        html_content += '<details style="margin: 5px 0 5px 15px;">'
-                        html_content += (
-                            '<summary style="cursor: pointer;">Test Details</summary>'
-                        )
-                        html_content += (
-                            '<ul style="margin: 5px 0 0 20px; font-size: 0.9em;">'
-                        )
+                        # Filter for failed tests only
+                        failed_tests = []
                         for i, detail in enumerate(test_details, 1):
                             # Handle new format: [description, result] instead of dict
                             if isinstance(detail, list) and len(detail) >= 2:
                                 test_desc = detail[0]
                                 result = detail[1]
-                                # Check if test passed based on result
+                                # Check if test failed based on result
                                 passed = result.strip().upper() == "OK"
-                                if passed:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--body-success-fg, #28a745);">✓</span> {test_desc}: <span style="color: var(--body-success-fg, #28a745);">{result}</span></li>'
-                                else:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--error-fg, #ba2121);">✗</span> {test_desc}: <span style="color: var(--error-fg, #ba2121);">{result}</span></li>'
+                                if not passed:
+                                    # Extract reason from result if available
+                                    if " - " in result:
+                                        _, reason = result.split(" - ", 1)
+                                        failed_tests.append((i, f"FAILED - {reason}"))
+                                    else:
+                                        failed_tests.append((i, "FAILED - " + result))
                             elif isinstance(detail, dict):
                                 # Keep backward compatibility with dict format
                                 test_desc = detail.get("test_desc", f"Test {i}")
                                 passed = detail.get("passed", False)
-                                if passed:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--body-success-fg, #28a745);">✓</span> {test_desc}</li>'
-                                else:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--error-fg, #ba2121);">✗</span> {test_desc}</li>'
-                        html_content += "</ul>"
-                        html_content += "</details>"
+                                if not passed:
+                                    failed_tests.append((i, "FAILED"))
+                        
+                        # Only show Test Details section if there are failed tests
+                        if failed_tests:
+                            html_content += '<details style="margin: 5px 0 5px 15px;">'
+                            html_content += (
+                                '<summary style="cursor: pointer;">Test Details</summary>'
+                            )
+                            html_content += (
+                                '<ul style="margin: 5px 0 0 20px; font-size: 0.9em;">'
+                            )
+                            for test_num, failure_desc in failed_tests:
+                                html_content += f'<li style="margin: 3px 0;"><span style="color: var(--error-fg, #ba2121);">✗</span> Test {test_num}: <span style="color: var(--error-fg, #ba2121);">{failure_desc}</span></li>'
+                            html_content += "</ul>"
+                            html_content += "</details>"
 
                     # Show failure reasons if any
                     failure_reasons = score.get("failure_reasons", [])

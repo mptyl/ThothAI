@@ -20,8 +20,12 @@ import httpx
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json
+import hashlib
 
 logger = logging.getLogger(__name__)
+
+# Track sent logs to prevent duplicates
+_sent_logs = set()
 
 async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = None, username: str = None, started_at: datetime = None) -> Optional[Dict[str, Any]]:
     """
@@ -37,7 +41,16 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
     Returns:
         Dict with response from API or None if error
     """
-    logger.info(f"send_thoth_log called for workspace {workspace_id}")
+    logger.info(f"send_thoth_log called for workspace {workspace_id}, question: {state.question[:50] if state.question else 'N/A'}...")
+    
+    # Create a unique key for this log to prevent duplicates
+    log_key = f"{workspace_id}_{username or 'anon'}_{state.question[:100] if state.question else ''}_{started_at.isoformat() if started_at else ''}"
+    log_hash = hashlib.md5(log_key.encode()).hexdigest()
+    
+    if log_hash in _sent_logs:
+        logger.warning(f"Duplicate log detected for workspace {workspace_id}, skipping send")
+        return None
+    
     try:
         django_server = os.getenv("DJANGO_SERVER", "http://localhost:8200")
         api_key = os.getenv("DJANGO_API_KEY")
@@ -169,6 +182,10 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             
             result = response.json()
             logger.info(f"ThothLog sent successfully, ID: {result.get('id', 'unknown')}")
+            
+            # Mark this log as sent to prevent duplicates
+            _sent_logs.add(log_hash)
+            
             return result
             
     except httpx.HTTPStatusError as e:

@@ -1137,7 +1137,7 @@ class SystemState(BaseModel):
                     
                     # Get the translation template and run the translator agent
                     translation_template = TemplateLoader.format(
-                        'user_translate',
+                        'template_translate_question.txt',
                         question=question_to_translate.strip(), 
                         target_language=target_language.strip(), 
                         scope=scope or ""
@@ -1174,7 +1174,7 @@ class SystemState(BaseModel):
 
         # Prepare the enhanced validation template with language detection
         validation_template = TemplateLoader.format(
-            'user_validate_lang',
+            'template_validate_question_with_language.txt',
             question=self.question,
             scope=self.scope,
             language=self.language
@@ -1307,7 +1307,7 @@ class SystemState(BaseModel):
 
         # Format the check question template with actual values
         check_template = TemplateLoader.format(
-            'user_check_question',
+            'template_check_question.txt',
             question=self.question,
             scope=scope,
             language=language

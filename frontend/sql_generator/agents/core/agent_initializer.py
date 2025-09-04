@@ -164,7 +164,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_keywords')
+            system_prompt = TemplateLoader.load('system_templates/system_template_extract_keywords_from_question.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
             
@@ -223,7 +223,7 @@ class AgentInitializer:
         # The differentiation happens at the USER PROMPT level, not system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
             # Always use the same SQL generator system template
-            system_prompt = TemplateLoader.load('sys_sql_gen')
+            system_prompt = TemplateLoader.load('system_templates/system_template_generate_sql.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -281,7 +281,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_test_gen')
+            system_prompt = TemplateLoader.load('system_templates/system_template_test_generator.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -337,7 +337,7 @@ class AgentInitializer:
             return None
         
         # Always use the evaluator system template (not test generator template)
-        system_prompt = TemplateLoader.load('sys_evaluator')
+        system_prompt = TemplateLoader.load('system_templates/system_template_evaluate.txt')
         
         # Create validator for evaluator
         from agents.validators.test_validators import TestValidators
@@ -400,7 +400,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_ask_human')
+            system_prompt = TemplateLoader.load('system_templates/system_template_ask_human.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -456,7 +456,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_check_question')
+            system_prompt = TemplateLoader.load('system_templates/system_template_check_question.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -510,7 +510,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_translator')
+            system_prompt = TemplateLoader.load('system_templates/system_template_translate_question.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -565,7 +565,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_sql_explain')
+            system_prompt = TemplateLoader.load('system_templates/system_template_explain_generated_sql.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -640,7 +640,7 @@ class AgentInitializer:
             return None
         
         # Always use the TestReducer system template
-        system_prompt = TemplateLoader.load('sys_test_reducer')
+        system_prompt = TemplateLoader.load('system_templates/system_template_test_reducer.txt')
         
         agent = Agent(
             model=model,
@@ -689,7 +689,7 @@ class AgentInitializer:
             return None
         
         # Always use the SqlSelector system template
-        system_prompt = TemplateLoader.load('sys_sql_selector')
+        system_prompt = TemplateLoader.load('system_templates/system_template_sql_selector.txt')
         
         agent = Agent(
             model=model,
@@ -738,7 +738,7 @@ class AgentInitializer:
             return None
         
         # Always use the EvaluatorSupervisor system template
-        system_prompt = TemplateLoader.load('sys_evaluator_supervisor')
+        system_prompt = TemplateLoader.load('system_templates/system_template_evaluator_supervisor.txt')
         
         agent = Agent(
             model=model,

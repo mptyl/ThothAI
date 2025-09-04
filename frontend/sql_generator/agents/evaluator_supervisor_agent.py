@@ -135,7 +135,7 @@ async def run_evaluator_supervisor(
         
         # Create user template
         user_template = TemplateLoader.format(
-            'user_evaluator_supervisor',
+            'template_evaluator_supervisor.txt',
             safe=True,
             QUESTION=question,
             DATABASE_SCHEMA=database_schema,

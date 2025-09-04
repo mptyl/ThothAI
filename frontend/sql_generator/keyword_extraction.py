@@ -35,7 +35,7 @@ async def extract_keywords(state, question: str, kw_agent) -> list[str]:
     """
     try:
         # Await the agent run call as it's an async operation
-        template = TemplateLoader.format('user_keywords', question=question)
+        template = TemplateLoader.format('template_extract_keywords.txt', question=question)
         log_debug(f"Keyword extraction template for {kw_agent.name}")
         
         # Create lightweight dependencies for keyword extraction agent

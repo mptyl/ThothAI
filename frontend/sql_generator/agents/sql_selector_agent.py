@@ -126,7 +126,7 @@ async def run_sql_selector(
         
         # Create user template
         user_template = TemplateLoader.format(
-            'user_sql_selector',
+            'template_sql_selector.txt',
             safe=True,
             QUESTION=question,
             DATABASE_SCHEMA=database_schema,

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('thoth_core', '0005_remove_belt_and_suspenders'),
+        ('thoth_core', '0006_thothlog_enhanced_evaluation_selected_sql'),
     ]
 
     operations = [

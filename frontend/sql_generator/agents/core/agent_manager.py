@@ -258,6 +258,9 @@ class ThothAgentManager(BaseAgentManager):
             self.get_retries(test_evaluator_config),
             force_default_prompt=use_default_evaluator  # Use default if no specific config
         )
+        
+        # Store the evaluator config for auxiliary agents to use
+        self.evaluator_config = test_evaluator_config
     
     def _create_ask_humans_agent(self):
         """Create ask human agent."""

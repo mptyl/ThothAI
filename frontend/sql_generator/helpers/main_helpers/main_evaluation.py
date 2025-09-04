@@ -165,7 +165,7 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     # Create single evaluation template with all unique tests
     # Map context keys to template placeholders
     template = TemplateLoader.format(
-        'user_evaluate',
+        'template_evaluate.txt',
         safe=True,  # Use safe formatting for complex templates
         QUESTION=context['question'],
         TEST_THINKING=context['test_thinking'],

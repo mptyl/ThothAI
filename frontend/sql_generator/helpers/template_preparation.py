@@ -20,81 +20,50 @@ class TemplateLoader:
     All templates are accessed through this single class.
     """
     
-    # Complete template registry - maps ID to file path
-    TEMPLATES = {
-        # System templates
-        'sys_keywords': 'system_templates/system_template_extract_keywords_from_question.txt',
-        'sys_sql_gen': 'system_templates/system_template_generate_sql.txt',
-        'sys_test_gen': 'system_templates/system_template_test_generator.txt',
-        'sys_evaluator': 'system_templates/system_template_evaluate.txt',
-        'sys_ask_human': 'system_templates/system_template_ask_human.txt',
-        'sys_check_question': 'system_templates/system_template_check_question.txt',
-        'sys_sql_explain': 'system_templates/system_template_explain_generated_sql.txt',
-        'sys_translator': 'system_templates/system_template_translate_question.txt',
-        'sys_test_reducer': 'system_templates/system_template_test_reducer.txt',
-        'sys_sql_selector': 'system_templates/system_template_sql_selector.txt',
-        'sys_evaluator_supervisor': 'system_templates/system_template_evaluator_supervisor.txt',
-        
-        # User templates
-        'user_keywords': 'template_extract_keywords.txt',
-        'user_check_question': 'template_check_question.txt',
-        'user_validate_lang': 'template_validate_question_with_language.txt',
-        'user_evaluate': 'template_evaluate.txt',
-        'user_test_unit': 'template_generate_unit_tests.txt',
-        'user_sql_explain': 'template_explain_generated_sql.txt',
-        'user_translate': 'template_translate_question.txt',
-        'user_test_reducer': 'template_test_reducer.txt',
-        'user_sql_selector': 'template_sql_selector.txt',
-        'user_evaluator_supervisor': 'template_evaluator_supervisor.txt',
-        
-        # Other templates
-        'few_shots': 'few_shots.txt',
-    }
-    
     # Cache for loaded templates
     _cache: Dict[str, str] = {}
     
     @classmethod
-    def load(cls, template_id: str) -> str:
+    def load(cls, template_path: str) -> str:
         """
-        Load a template by its ID.
+        Load a template by its path relative to the templates directory.
         
         Args:
-            template_id: The template identifier from TEMPLATES dict
+            template_path: The path to the template file (relative to templates/)
             
         Returns:
             str: The raw template content
             
         Raises:
-            KeyError: If template_id is not found
             FileNotFoundError: If the template file doesn't exist
         """
-        if template_id in cls._cache:
-            return cls._cache[template_id]
-            
-        if template_id not in cls.TEMPLATES:
-            raise KeyError(f"Template '{template_id}' not found. Available: {list(cls.TEMPLATES.keys())}")
+        if template_path in cls._cache:
+            return cls._cache[template_path]
         
-        template_path = os.path.join(get_project_root(), "templates", cls.TEMPLATES[template_id])
-        with open(template_path, "r") as file:
+        full_path = os.path.join(get_project_root(), "templates", template_path)
+        
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"Template not found: {full_path}")
+        
+        with open(full_path, "r") as file:
             content = file.read()
-            cls._cache[template_id] = content
+            cls._cache[template_path] = content
             return content
     
     @classmethod
-    def format(cls, template_id: str, safe: bool = False, **kwargs) -> str:
+    def format(cls, template_path: str, safe: bool = False, **kwargs) -> str:
         """
         Load and format a template with provided parameters.
         
         Args:
-            template_id: The template identifier
+            template_path: The path to the template file (relative to templates/)
             safe: If True, use safe formatting that handles JSON blocks
             **kwargs: Parameters to substitute in the template
             
         Returns:
             str: The formatted template
         """
-        template = cls.load(template_id)
+        template = cls.load(template_path)
         
         if safe:
             # For templates with JSON blocks or complex braces

@@ -65,11 +65,29 @@ class EnhancedEvaluationFlow:
             logger.error("No evaluator agent available for auxiliary agent creation")
             return False
             
-        # Extract model config from evaluator agent
-        evaluator_model_config = {
-            'name': getattr(evaluator_agent, 'name', 'Unknown'),
-            # Add other model config extraction as needed
-        }
+        # Get evaluator config from agents_and_tools if available
+        evaluator_model_config = None
+        
+        # First try to get evaluator_config directly from agents_and_tools
+        if hasattr(self.agents_and_tools, 'evaluator_config'):
+            evaluator_model_config = self.agents_and_tools.evaluator_config
+        # Then try to get from workspace config stored in agents_and_tools
+        elif hasattr(self.agents_and_tools, 'workspace') and self.agents_and_tools.workspace:
+            workspace = self.agents_and_tools.workspace
+            evaluator_model_config = workspace.get('test_evaluator_agent')
+            if not evaluator_model_config:
+                # Fallback to test_gen_agent_1 for backward compatibility
+                evaluator_model_config = workspace.get('test_gen_agent_1')
+        
+        # If still no config, try to extract from the agent itself
+        if not evaluator_model_config:
+            if hasattr(evaluator_agent, 'agent_config'):
+                evaluator_model_config = evaluator_agent.agent_config
+            elif hasattr(evaluator_agent, 'model_config'):
+                evaluator_model_config = evaluator_agent.model_config
+            else:
+                logger.error("Could not extract model config for auxiliary agents - no configuration available")
+                return False
         
         try:
             # Create TestReducer agent
@@ -408,7 +426,17 @@ class EnhancedEvaluationFlow:
             
             # Step 3: Run standard evaluation to get baseline results
             logger.info("Running standard evaluation for baseline results")
-            evaluation_thinking, evaluation_answers, test_units = await evaluate_sql_candidates(state, self.agents_and_tools)
+            evaluation_results = await evaluate_sql_candidates(state, self.agents_and_tools)
+            
+            # Extract thinking and answers from the results
+            if evaluation_results and len(evaluation_results) > 0:
+                evaluation_thinking, evaluation_answers = evaluation_results[0]
+                # Get test units from state if available
+                test_units = getattr(state, 'filtered_tests', getattr(state, 'test_answers', []))
+            else:
+                evaluation_thinking = "No evaluation results"
+                evaluation_answers = []
+                test_units = []
             
             if not evaluation_answers:
                 logger.error("No evaluation answers returned from standard evaluation")
