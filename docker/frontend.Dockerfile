@@ -66,10 +66,9 @@ COPY --from=builder /app/.next/static ./.next/static
 # Copy production dependencies
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy entrypoint scripts
-COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
+# Copy entrypoint script
 COPY entrypoint-frontend.sh /entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Create necessary directories
 RUN mkdir -p /app/logs /vol/secrets && \

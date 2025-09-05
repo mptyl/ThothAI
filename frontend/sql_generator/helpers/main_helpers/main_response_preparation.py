@@ -102,13 +102,25 @@ async def _prepare_final_response_phase(
         yield "THOTHLOG:SQL generation successful. Ready for execution.\n"
         
         try:
+            # Get SQL status and evaluation information from execution state
+            sql_status = getattr(state.execution, 'sql_status', 'GOLD') if hasattr(state, 'execution') else 'GOLD'
+            evaluation_case = getattr(state.execution, 'evaluation_case', '') if hasattr(state, 'execution') else ''
+            pass_rates = getattr(state.execution, 'pass_rates', {}) if hasattr(state, 'execution') else {}
+            best_pass_rate = max(pass_rates.values()) if pass_rates else 1.0
+            
             sql_ready_data = json.dumps({
                 "type": "sql_ready",
                 "sql": state.last_SQL,
                 "workspace_id": request.workspace_id,
                 "timestamp": state.started_at.isoformat() if state.started_at else None,
                 "username": state.username,
-                "agent": state.successful_agent_name
+                "agent": state.successful_agent_name,
+                # NEW: Include SQL status and evaluation details
+                "sql_status": sql_status,
+                "evaluation_case": evaluation_case,
+                "pass_rate": best_pass_rate,
+                "is_silver": sql_status == "SILVER",
+                "is_gold": sql_status == "GOLD"
             }, ensure_ascii=True)
             
             yield f"SQL_READY:{sql_ready_data}\n"

@@ -820,6 +820,92 @@ class ThothLog(models.Model):
         help_text="SQL query selected by enhanced evaluation process"
     )
     
+    # Test generation and evaluation status fields
+    generated_tests_count = models.IntegerField(
+        default=0,
+        help_text="Number of tests generated"
+    )
+    sql_status = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="SQL execution status (e.g., passed, failed, error)"
+    )
+    evaluation_case = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Evaluation case category"
+    )
+    
+    # Detailed evaluation results
+    evaluation_details = models.JSONField(
+        blank=True,
+        null=True,
+        default=list,
+        help_text="Detailed evaluation results as JSON array"
+    )
+    pass_rates = models.JSONField(
+        blank=True,
+        null=True,
+        default=dict,
+        help_text="Pass rate statistics as JSON object"
+    )
+    selected_sql_complexity = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Complexity level of the selected SQL query"
+    )
+    
+    # Timing fields for test generation
+    test_generation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test generation started"
+    )
+    test_generation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test generation ended"
+    )
+    test_generation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Test generation duration in milliseconds"
+    )
+    
+    # Timing fields for evaluation
+    evaluation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When evaluation started"
+    )
+    evaluation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When evaluation ended"
+    )
+    evaluation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Evaluation duration in milliseconds"
+    )
+    
+    # Timing fields for SQL selection
+    sql_selection_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL selection started"
+    )
+    sql_selection_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL selection ended"
+    )
+    sql_selection_duration_ms = models.IntegerField(
+        default=0,
+        help_text="SQL selection duration in milliseconds"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -36,6 +36,7 @@ from agents.test_reducer_agent import run_test_reducer
 from agents.sql_selector_agent import run_sql_selector  
 from agents.evaluator_supervisor_agent import run_evaluator_supervisor
 from helpers.main_helpers.evaluation_logger import create_evaluation_logger
+from helpers.sql_complexity_analyzer import SQLComplexityAnalyzer
 from model.generator_type import GeneratorType
 from helpers.main_helpers.main_evaluation import evaluate_sql_candidates
 
@@ -160,6 +161,85 @@ class EnhancedEvaluationFlow:
                 logger.debug(f"{sql_id}: {ok_count}/{total_count} = {pass_rate:.1%}")
         
         return pass_rates
+    
+    def select_simplest_sql(self, sql_ids: List[str], sql_texts: List[str], state: Any) -> Tuple[str, float]:
+        """
+        Select the simplest SQL from a list using complexity analysis.
+        
+        Args:
+            sql_ids: List of SQL IDs (e.g., ["SQL #1", "SQL #2"])
+            sql_texts: List of SQL text strings
+            state: System state for logging
+            
+        Returns:
+            Tuple of (selected_sql_id, complexity_score)
+        """
+        analyzer = SQLComplexityAnalyzer()
+        min_complexity = float('inf')
+        selected_sql_id = sql_ids[0]  # Default to first
+        selected_complexity = 0.0
+        
+        for i, sql_text in enumerate(sql_texts):
+            try:
+                metrics = analyzer.analyze_query(sql_text)
+                complexity = analyzer.calculate_complexity_score(metrics)
+                
+                logger.debug(f"{sql_ids[i]} complexity: {complexity} (tokens: {metrics.get('tokens', 0)}, joins: {metrics.get('joins', 0)})")
+                
+                if complexity < min_complexity:
+                    min_complexity = complexity
+                    selected_sql_id = sql_ids[i]
+                    selected_complexity = complexity
+                    
+            except Exception as e:
+                # Fallback: use character length if sqlparse fails
+                complexity = len(sql_text)
+                logger.warning(f"Failed to analyze {sql_ids[i]} with sqlparse, using length: {complexity}. Error: {e}")
+                
+                if complexity < min_complexity:
+                    min_complexity = complexity
+                    selected_sql_id = sql_ids[i]
+                    selected_complexity = complexity
+        
+        logger.info(f"Selected {selected_sql_id} as simplest with complexity score: {selected_complexity}")
+        return selected_sql_id, selected_complexity
+    
+    def determine_evaluation_case(self, pass_rates: Dict[str, float]) -> Tuple[str, str, str, List[str]]:
+        """
+        Determine evaluation case using new Python logic (no LLM).
+        
+        Args:
+            pass_rates: Dictionary mapping SQL IDs to pass rates
+            
+        Returns:
+            Tuple of (case, sql_status, selected_sql_id_or_message, candidate_sql_ids)
+        """
+        perfect_sqls = [sql_id for sql_id, rate in pass_rates.items() if rate == 1.0]
+        above_threshold = [sql_id for sql_id, rate in pass_rates.items() if rate >= self.threshold_ratio]
+        
+        if len(perfect_sqls) == 1:
+            # Case A-GOLD: One SQL with 100%
+            return "A-GOLD", "GOLD", perfect_sqls[0], perfect_sqls
+        elif len(perfect_sqls) > 1:
+            # Case B-GOLD: Multiple SQLs with 100%  
+            return "B-GOLD", "GOLD", "MULTIPLE_PERFECT", perfect_sqls
+        elif len(above_threshold) == 1:
+            # Case A-SILVER: One SQL above threshold but not 100%
+            return "A-SILVER", "SILVER", above_threshold[0], above_threshold
+        elif len(above_threshold) > 1:
+            # Find the best pass rate among above-threshold SQLs
+            best_rate = max(pass_rates[sql_id] for sql_id in above_threshold)
+            best_sqls = [sql_id for sql_id in above_threshold if pass_rates[sql_id] == best_rate]
+            
+            if len(best_sqls) == 1:
+                # Case C-SILVER: One SQL with highest rate above threshold
+                return "C-SILVER", "SILVER", best_sqls[0], best_sqls
+            else:
+                # Case B-SILVER: Multiple SQLs with same best rate above threshold
+                return "B-SILVER", "SILVER", "MULTIPLE_BEST", best_sqls
+        else:
+            # Case D-FAILED: All below threshold
+            return "D-FAILED", "FAILED", "ALL_FAILED", list(pass_rates.keys())
     
     def classify_evaluation_case(self, pass_rates: Dict[str, float]) -> Tuple[str, List[str], List[str], List[str]]:
         """
@@ -395,7 +475,7 @@ class EnhancedEvaluationFlow:
                 logger.error("Failed to initialize auxiliary agents")
                 return EnhancedEvaluationResult(
                     thinking="Failed to initialize auxiliary agents",
-                    answers=[f"SQL #{i+1}: ERROR" for i in range(len(state.generated_sqls) if hasattr(state, 'generated_sqls') else 0)],
+                    answers=[f"SQL #{i+1}: KO - Failed to initialize evaluation agents for testing" for i in range(len(state.generated_sqls) if hasattr(state, 'generated_sqls') else 0)],
                     status=EvaluationStatus.FAILED,
                     requires_escalation=True,
                     escalation_context="Auxiliary agent initialization failed"
@@ -448,8 +528,8 @@ class EnhancedEvaluationFlow:
                     elif len(original_tests) <= 5:
                         logger.debug("Skipping TestReducer in enhanced flow: not enough tests to benefit")
             
-            # Step 3: Run standard evaluation to get baseline results
-            logger.info("Running standard evaluation for baseline results")
+            # Step 3: Run new parallel evaluation to get baseline results
+            logger.info("Running parallel SQL evaluation for baseline results")
             evaluation_results = await evaluate_sql_candidates(state, self.agents_and_tools)
             
             # Extract thinking and answers from the results
@@ -472,29 +552,109 @@ class EnhancedEvaluationFlow:
                     escalation_context="Standard evaluation produced no answers"
                 )
             
-            # Step 4: Calculate pass rates and classify case
+            # Step 4: Calculate pass rates and determine case with new Python logic
+            from datetime import datetime
+            state.execution.evaluation_start_time = state.execution.evaluation_start_time or datetime.now()
+            
             pass_rates = self.calculate_pass_rates(evaluation_answers)
-            case, perfect_sqls, borderline_sqls, failed_sqls = self.classify_evaluation_case(pass_rates)
+            evaluation_case, sql_status, selected_info, candidate_sqls = self.determine_evaluation_case(pass_rates)
+            
+            # Update state with evaluation results
+            state.execution.evaluation_case = evaluation_case
+            state.execution.sql_status = sql_status
+            state.execution.evaluation_details = evaluation_answers
+            state.execution.pass_rates = pass_rates
             
             # Log case classification
             self.eval_logger.log_case_classification(
-                case=case,
+                case=evaluation_case,
                 pass_rates=pass_rates,
-                perfect_count=len(perfect_sqls),
-                borderline_count=len(borderline_sqls),
-                failed_count=len(failed_sqls)
+                perfect_count=len([sql for sql, rate in pass_rates.items() if rate == 1.0]),
+                borderline_count=len([sql for sql, rate in pass_rates.items() if 1.0 > rate >= self.threshold_ratio]),
+                failed_count=len([sql for sql, rate in pass_rates.items() if rate < self.threshold_ratio])
             )
             
-            # Step 5: Handle the specific case
+            logger.info(f"Evaluation Case {evaluation_case}: Status {sql_status}")
+            
+            # Step 5: Handle the specific case with new logic
             result = None
-            if case == "A":
-                result = await self.handle_case_a(perfect_sqls, state)
-            elif case == "B":
-                result = await self.handle_case_b(perfect_sqls, state, pass_rates)
-            elif case == "C":
-                result = await self.handle_case_c(borderline_sqls, state, evaluation_answers, evaluation_thinking)
-            elif case == "D":
-                result = await self.handle_case_d(state, pass_rates)
+            selected_sql_index = None
+            selected_sql = None
+            
+            if selected_info in ["MULTIPLE_PERFECT", "MULTIPLE_BEST"]:
+                # Case B: Multiple SQLs need selection via complexity analysis  
+                state.execution.sql_selection_start_time = datetime.now()
+                
+                # Get SQL texts for complexity analysis
+                sql_texts = []
+                for sql_id in candidate_sqls:
+                    sql_idx = int(sql_id.replace("SQL #", "")) - 1
+                    if sql_idx < len(state.generated_sqls):
+                        sql_texts.append(state.generated_sqls[sql_idx])
+                
+                # Select simplest SQL using complexity analysis
+                selected_sql_id, complexity_score = self.select_simplest_sql(candidate_sqls, sql_texts, state)
+                selected_sql_index = int(selected_sql_id.replace("SQL #", "")) - 1
+                selected_sql = state.generated_sqls[selected_sql_index] if selected_sql_index < len(state.generated_sqls) else None
+                
+                # Store complexity score
+                state.execution.selected_sql_complexity = complexity_score
+                state.execution.sql_selection_end_time = datetime.now()
+                if state.execution.sql_selection_start_time and state.execution.sql_selection_end_time:
+                    duration = (state.execution.sql_selection_end_time - state.execution.sql_selection_start_time).total_seconds() * 1000
+                    state.execution.sql_selection_duration_ms = duration
+                
+                thinking = f"Case {evaluation_case}: Selected {selected_sql_id} via complexity analysis (score: {complexity_score})"
+                
+            elif selected_info not in ["ALL_FAILED"]:
+                # Case A or C: Single SQL selection
+                selected_sql_index = int(selected_info.replace("SQL #", "")) - 1
+                selected_sql = state.generated_sqls[selected_sql_index] if selected_sql_index < len(state.generated_sqls) else None
+                thinking = f"Case {evaluation_case}: Direct selection of {selected_info}"
+                
+            else:
+                # Case D: All failed
+                thinking = f"Case {evaluation_case}: All SQLs below threshold"
+            
+            # Create result
+            if selected_sql_index is not None and selected_sql:
+                # Success case
+                if sql_status == "GOLD":
+                    status = EvaluationStatus.GOLD
+                elif sql_status == "SILVER":
+                    status = EvaluationStatus.SILVER
+                else:
+                    status = EvaluationStatus.FAILED
+                
+                result = EnhancedEvaluationResult(
+                    thinking=thinking,
+                    answers=[f"SQL #{i+1}: {sql_status}" if i == selected_sql_index else f"SQL #{i+1}: Not selected" 
+                            for i in range(len(state.generated_sqls))],
+                    status=status,
+                    selected_sql_index=selected_sql_index,
+                    selected_sql=selected_sql,
+                    evaluation_case=evaluation_case,
+                    auxiliary_agents_used=[], 
+                    best_pass_rate=max(pass_rates.values()) if pass_rates else 0.0
+                )
+            else:
+                # Failed case
+                result = EnhancedEvaluationResult(
+                    thinking=thinking,
+                    answers=[f"SQL #{i+1}: FAILED - Below threshold" for i in range(len(state.generated_sqls))],
+                    status=EvaluationStatus.FAILED,
+                    evaluation_case=evaluation_case,
+                    auxiliary_agents_used=[],
+                    best_pass_rate=max(pass_rates.values()) if pass_rates else 0.0,
+                    requires_escalation=True,
+                    escalation_context=f"All SQL candidates failed to meet {self.evaluation_threshold}% pass rate threshold"
+                )
+            
+            # Complete evaluation timing
+            state.execution.evaluation_end_time = datetime.now()
+            if state.execution.evaluation_start_time and state.execution.evaluation_end_time:
+                duration = (state.execution.evaluation_end_time - state.execution.evaluation_start_time).total_seconds() * 1000
+                state.execution.evaluation_duration_ms = duration
             
             # Step 6: Add processing metadata
             if result:
@@ -509,7 +669,7 @@ class EnhancedEvaluationFlow:
                 # Log SQL selection if applicable
                 if result.selected_sql_index is not None:
                     self.eval_logger.log_sql_selection(
-                        case=case,
+                        case=evaluation_case,
                         selected_index=result.selected_sql_index,
                         selected_sql=result.selected_sql or "",
                         reasoning=result.selector_reasoning or result.supervisor_assessment or "Direct selection",
@@ -550,7 +710,7 @@ class EnhancedEvaluationFlow:
             
             error_result = EnhancedEvaluationResult(
                 thinking=f"Enhanced evaluation flow error: {str(e)}",
-                answers=[f"SQL #{i+1}: ERROR" for i in range(len(state.generated_sqls) if hasattr(state, 'generated_sqls') else 0)],
+                answers=[f"SQL #{i+1}: KO - Evaluation system error: {str(e)}" for i in range(len(state.generated_sqls) if hasattr(state, 'generated_sqls') else 0)],
                 status=EvaluationStatus.FAILED,
                 requires_escalation=True,
                 escalation_context=f"Evaluation flow exception: {str(e)}"

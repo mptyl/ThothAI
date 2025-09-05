@@ -17,7 +17,8 @@ Contains runtime state information that changes during SQL generation execution,
 including error states, execution results, and strategy decisions.
 """
 
-from typing import Optional
+from typing import Optional, Dict, List
+from datetime import datetime
 from pydantic import BaseModel, Field, validator
 
 
@@ -82,6 +83,78 @@ class ExecutionState(BaseModel):
     escalation_context: Optional[str] = Field(
         default=None,
         description="Context information from previous escalation attempts"
+    )
+    
+    # Timing fields for performance tracking
+    test_generation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test generation started"
+    )
+    
+    test_generation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test generation completed"
+    )
+    
+    test_generation_duration_ms: float = Field(
+        default=0.0,
+        description="Test generation duration in milliseconds"
+    )
+    
+    evaluation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when evaluation started"
+    )
+    
+    evaluation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when evaluation completed"
+    )
+    
+    evaluation_duration_ms: float = Field(
+        default=0.0,
+        description="Evaluation duration in milliseconds"
+    )
+    
+    sql_selection_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL selection started"
+    )
+    
+    sql_selection_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL selection completed"
+    )
+    
+    sql_selection_duration_ms: float = Field(
+        default=0.0,
+        description="SQL selection duration in milliseconds"
+    )
+    
+    # Evaluation results and status
+    evaluation_case: str = Field(
+        default="",
+        description="Evaluation case: A-GOLD, B-GOLD, A-SILVER, B-SILVER, C-SILVER, D-FAILED"
+    )
+    
+    sql_status: str = Field(
+        default="",
+        description="SQL status: GOLD, SILVER, FAILED"
+    )
+    
+    evaluation_details: List[str] = Field(
+        default_factory=list,
+        description="Detailed evaluation results for each SQL"
+    )
+    
+    pass_rates: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Pass rates for each SQL candidate"
+    )
+    
+    selected_sql_complexity: Optional[float] = Field(
+        default=None,
+        description="Complexity score of selected SQL (for case B selection)"
     )
     
     class Config:

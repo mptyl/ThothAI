@@ -14,19 +14,22 @@ SQL_GEN_DIR="frontend/sql_generator"
 
 # Load environment variables from root .env.local
 if [ -f .env.local ]; then
-    echo -e "${GREEN}Loading environment from .env.local${NC}"
-    # Export all variables except PORT to avoid conflicts
-    export $(grep -v '^#' .env.local | grep -v '^PORT=' | xargs)
+    echo "Loading environment from .env.local"
+    set -a
+    . ./.env.local
+    set +a
+    # Avoid leaking a generic PORT that could clash with service-specific ports
+    unset PORT || true
 else
-    echo -e "${RED}Error: .env.local not found in root directory${NC}"
-    echo -e "${YELLOW}Please create .env.local from .env.template${NC}"
+    echo "Error: .env.local not found in root directory"
+    echo "Please create .env.local from .env.template"
     exit 1
 fi
 
 # Port configuration from environment
-FRONTEND_LOCAL_PORT=${FRONTEND_LOCAL_PORT:-3200}
-SQL_GEN_LOCAL_PORT=${SQL_GENERATOR_LOCAL_PORT:-8180}
-BACKEND_LOCAL_PORT=${BACKEND_LOCAL_PORT:-8200}
+FRONTEND_PORT=${FRONTEND_PORT:-3200}
+SQL_GENERATOR_PORT=${SQL_GENERATOR_PORT:-8180}
+BACKEND_PORT=${BACKEND_PORT:-8200}
 QDRANT_PORT=6334
 
 # Global PIDs for cleanup
@@ -83,10 +86,10 @@ echo "==============================="
 echo -e "\n${YELLOW}Step 1: Starting all services...${NC}"
 
 # Check and start Django backend
-if check_port $BACKEND_LOCAL_PORT; then
-    echo -e "${GREEN}✓ Django backend is already running on port $BACKEND_LOCAL_PORT${NC}"
+if check_port $BACKEND_PORT; then
+    echo -e "${GREEN}✓ Django backend is already running on port $BACKEND_PORT${NC}"
 else
-    echo -e "${YELLOW}Django backend is NOT running on port $BACKEND_LOCAL_PORT${NC}"
+    echo -e "${YELLOW}Django backend is NOT running on port $BACKEND_PORT${NC}"
     echo -e "${YELLOW}Starting Django backend...${NC}"
     
     # Check if backend directory exists
@@ -100,26 +103,26 @@ else
                 echo -e "${GREEN}Starting Django with uv...${NC}"
                 # Django will use environment variables already exported from root .env.local
                 # Unset VIRTUAL_ENV to avoid conflicts with uv's environment detection
-                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_LOCAL_PORT) &
+                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_PORT) &
                 DJANGO_PID=$!
             else
                 # Fallback to regular Python
                 echo -e "${GREEN}Starting Django with Python...${NC}"
                 source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate 2>/dev/null
-                python manage.py runserver $BACKEND_LOCAL_PORT &
+                python manage.py runserver $BACKEND_PORT &
                 DJANGO_PID=$!
             fi
         else
             echo -e "${YELLOW}Creating virtual environment for Django backend...${NC}"
             if command -v uv &> /dev/null; then
                 uv sync
-                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_LOCAL_PORT) &
+                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_PORT) &
                 DJANGO_PID=$!
             else
                 python -m venv .venv
                 source .venv/bin/activate
                 pip install -r requirements.txt
-                python manage.py runserver $BACKEND_LOCAL_PORT &
+                python manage.py runserver $BACKEND_PORT &
                 DJANGO_PID=$!
             fi
         fi
@@ -129,14 +132,14 @@ else
         # Wait for Django to start
         echo -e "${YELLOW}Waiting for Django to start...${NC}"
         for i in {1..30}; do
-            if check_port $BACKEND_LOCAL_PORT; then
-                echo -e "${GREEN}✓ Django backend started successfully on port $BACKEND_LOCAL_PORT${NC}"
+            if check_port $BACKEND_PORT; then
+                echo -e "${GREEN}✓ Django backend started successfully on port $BACKEND_PORT${NC}"
                 break
             fi
             sleep 1
         done
         
-        if ! check_port $BACKEND_LOCAL_PORT; then
+        if ! check_port $BACKEND_PORT; then
             echo -e "${RED}Failed to start Django backend${NC}"
             exit 1
         fi
@@ -168,8 +171,7 @@ else
         echo -e "${YELLOW}Creating and starting new qdrant-thoth container...${NC}"
         docker run -d \
             --name qdrant-thoth \
-            -p 6334:6334 \
-            -p 6333:6333 \
+            -p 6334:6333 \
             -v $(pwd)/qdrant_storage:/qdrant/storage:z \
             qdrant/qdrant
         QDRANT_CONTAINER="qdrant-thoth"
@@ -192,17 +194,23 @@ else
 fi
 
 # Check and start SQL Generator (with cleanup)
-echo -e "${YELLOW}Checking SQL Generator on port $SQL_GEN_LOCAL_PORT...${NC}"
+echo -e "${YELLOW}Checking SQL Generator on port $SQL_GENERATOR_PORT...${NC}"
 
 # Always cleanup existing SQL Generator processes first
 cleanup_sql_generator
 
-if check_port $SQL_GEN_LOCAL_PORT; then
-    echo -e "${YELLOW}Port $SQL_GEN_LOCAL_PORT still in use, killing processes...${NC}"
-    kill_port $SQL_GEN_LOCAL_PORT
+if check_port $SQL_GENERATOR_PORT; then
+    echo -e "${YELLOW}Port $SQL_GENERATOR_PORT still in use, killing processes...${NC}"
+    kill_port $SQL_GENERATOR_PORT
 fi
 
 echo -e "${YELLOW}Starting SQL Generator...${NC}"
+# Ensure uv is available for the SQL Generator (it uses pyproject.toml/uv.lock)
+if ! command -v uv &> /dev/null; then
+    echo -e "${RED}Error: 'uv' is required to run the SQL Generator locally.${NC}"
+    echo -e "${YELLOW}Install with:${NC} curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
+fi
 cd "$SQL_GEN_DIR"
 
 # Check if virtual environment exists
@@ -215,31 +223,31 @@ else
 fi
 
 # Start SQL Generator
-(unset VIRTUAL_ENV && PORT=$SQL_GEN_LOCAL_PORT uv run python main.py) &
+(unset VIRTUAL_ENV && PORT=$SQL_GENERATOR_PORT uv run python main.py) &
 SQL_GEN_PID=$!
 cd ../..
 
 # Wait for SQL Generator to start
 echo -e "${YELLOW}Waiting for SQL Generator to start...${NC}"
 for i in {1..30}; do
-    if check_port $SQL_GEN_LOCAL_PORT; then
-        echo -e "${GREEN}✓ SQL Generator started successfully on port $SQL_GEN_LOCAL_PORT${NC}"
+    if check_port $SQL_GENERATOR_PORT; then
+        echo -e "${GREEN}✓ SQL Generator started successfully on port $SQL_GENERATOR_PORT${NC}"
         break
     fi
     sleep 1
 done
 
-if ! check_port $SQL_GEN_LOCAL_PORT; then
+if ! check_port $SQL_GENERATOR_PORT; then
     echo -e "${RED}Failed to start SQL Generator${NC}"
     exit 1
 fi
 
 # Check and start Frontend (Next.js)
-echo -e "${YELLOW}Checking Frontend on port $FRONTEND_LOCAL_PORT...${NC}"
-if check_port $FRONTEND_LOCAL_PORT; then
-    echo -e "${GREEN}✓ Frontend is already running on port $FRONTEND_LOCAL_PORT${NC}"
+echo -e "${YELLOW}Checking Frontend on port $FRONTEND_PORT...${NC}"
+if check_port $FRONTEND_PORT; then
+    echo -e "${GREEN}✓ Frontend is already running on port $FRONTEND_PORT${NC}"
 else
-    echo -e "${YELLOW}Frontend is NOT running on port $FRONTEND_LOCAL_PORT${NC}"
+    echo -e "${YELLOW}Frontend is NOT running on port $FRONTEND_PORT${NC}"
     echo -e "${YELLOW}Starting Frontend...${NC}"
     
     # Check if frontend directory exists
@@ -248,26 +256,31 @@ else
         
         # Check if node_modules exists
         if [ ! -d "node_modules" ]; then
+            # Ensure Node.js/npm is installed
+            if ! command -v npm &> /dev/null; then
+                echo -e "${RED}Error: npm is not installed. Please install Node.js (v20+) and retry.${NC}"
+                exit 1
+            fi
             echo -e "${YELLOW}Installing Frontend dependencies...${NC}"
             npm install
         fi
         
         # Start Frontend with specific port
-        PORT=$FRONTEND_LOCAL_PORT npm run dev &
+        PORT=$FRONTEND_PORT npm run dev &
         FRONTEND_PID=$!
         cd ..
         
         # Wait for Frontend to start
         echo -e "${YELLOW}Waiting for Frontend to start...${NC}"
         for i in {1..30}; do
-            if check_port $FRONTEND_LOCAL_PORT; then
-                echo -e "${GREEN}✓ Frontend started successfully on port $FRONTEND_LOCAL_PORT${NC}"
+            if check_port $FRONTEND_PORT; then
+                echo -e "${GREEN}✓ Frontend started successfully on port $FRONTEND_PORT${NC}"
                 break
             fi
             sleep 1
         done
         
-        if ! check_port $FRONTEND_LOCAL_PORT; then
+        if ! check_port $FRONTEND_PORT; then
             echo -e "${RED}Failed to start Frontend${NC}"
             exit 1
         fi
@@ -281,12 +294,12 @@ fi
 echo -e "\n${GREEN}All services started successfully!${NC}"
 echo "==========================================="
 echo -e "${BLUE}Service URLs:${NC}"
-echo -e "   Frontend App:     ${GREEN}http://localhost:$FRONTEND_LOCAL_PORT${NC}"
-echo -e "   Backend Home:     ${GREEN}http://localhost:$BACKEND_LOCAL_PORT${NC}"
-echo -e "   Django Admin:     ${GREEN}http://localhost:$BACKEND_LOCAL_PORT/admin${NC}"
-echo -e "   SQL Generator:    ${GREEN}http://localhost:$SQL_GEN_LOCAL_PORT${NC}"
-echo -e "   API Docs:         ${GREEN}http://localhost:$SQL_GEN_LOCAL_PORT/docs${NC}"
-echo -e "   Qdrant UI:        ${GREEN}http://localhost:$QDRANT_PORT/dashboard${NC}"
+echo -e "   Frontend App:     ${GREEN}http://localhost:$FRONTEND_PORT${NC}"
+echo -e "   Backend Home:     ${GREEN}http://localhost:$BACKEND_PORT${NC}"
+echo -e "   Django Admin:     ${GREEN}http://localhost:$BACKEND_PORT/admin${NC}"
+echo -e "   SQL Generator:    ${GREEN}http://localhost:$SQL_GENERATOR_PORT${NC}"
+echo -e "   API Docs:         ${GREEN}http://localhost:$SQL_GENERATOR_PORT/docs${NC}"
+echo -e "   Qdrant API:       ${GREEN}http://localhost:$QDRANT_PORT${NC}"
 
 # Function to handle cleanup
 cleanup() {

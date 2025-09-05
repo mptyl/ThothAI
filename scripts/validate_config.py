@@ -383,7 +383,7 @@ class ConfigValidator:
 
 if __name__ == "__main__":
     # Get config file from command line or use default
-    config_file = sys.argv[1] if len(sys.argv) > 1 else "config.yaml.local"
+    config_file = sys.argv[1] if len(sys.argv) > 1 else "config.yml.local"
     
     validator = ConfigValidator(config_file)
     if not validator.validate():

@@ -139,7 +139,7 @@ def calculate_detailed_sql_scores(
                 sql_scores[sql_idx]["passed_count"] += 1
                 sql_scores[sql_idx]["test_details"].append((test_name, "OK"))
             else:
-                # Extract failure reason from "KO - reason"
+                # Extract failure reason from "KO - reason" or provide meaningful default
                 if " - " in test_result:
                     _, reason = test_result.split(" - ", 1)
                     # Keep the full test description but format it nicely
@@ -150,10 +150,24 @@ def calculate_detailed_sql_scores(
                         "reason": reason
                     })
                 else:
+                    # Provide a more meaningful default reason based on the test result
+                    if test_result.strip().upper() in ["ERROR", "KO", "FAIL", "FAILED"]:
+                        default_reason = "SQL does not conform to test requirements - validation failed without specific details"
+                    elif test_result.strip().upper() == "TIMEOUT":
+                        default_reason = "Test execution timed out - SQL may be too complex or contain infinite loops"
+                    elif test_result.strip().upper() == "SYNTAX_ERROR":
+                        default_reason = "SQL syntax error detected during test execution"
+                    elif test_result.strip():
+                        # If there's some text but no dash separator, use it as the reason
+                        default_reason = f"Test validation failed: {test_result.strip()}"
+                    else:
+                        # Empty or whitespace-only result
+                        default_reason = "SQL does not conform to test requirements - no evaluation details available"
+                    
                     sql_scores[sql_idx]["failure_reasons"].append({
                         "test_num": test_idx + 1,
                         "test_desc": test_name,
-                        "reason": "Test failed (no specific reason provided)"
+                        "reason": default_reason
                     })
                 sql_scores[sql_idx]["test_details"].append((test_name, test_result))
     

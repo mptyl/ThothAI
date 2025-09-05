@@ -89,7 +89,13 @@ class ThothLogAdmin(admin.ModelAdmin):
         "formatted_reduced_schema",
         "formatted_used_mschema",
         "generated_tests_display",
+        "generated_tests_count",
         "evaluation_results_display",
+        "sql_status_display",
+        "evaluation_case_display",
+        "evaluation_details_display",
+        "pass_rates_display",
+        "selected_sql_complexity_display",
         "selection_metrics_display",
         "pool_of_generated_sql_display",
         "selected_sql",
@@ -101,6 +107,9 @@ class ThothLogAdmin(admin.ModelAdmin):
         "enhanced_evaluation_thinking_display",
         "enhanced_evaluation_answers_display",
         "enhanced_evaluation_selected_sql_display",
+        "test_generation_timing_display",
+        "evaluation_timing_display",
+        "sql_selection_timing_display",
         "formatted_created_at",
         "formatted_updated_at",
     )
@@ -174,7 +183,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         (
             "Generated Tests",
             {
-                "fields": ("generated_tests_display",),
+                "fields": ("generated_tests_display", "generated_tests_count"),
                 "description": "Generated tests for validation.",
                 "classes": ("collapse",),
             },
@@ -182,8 +191,28 @@ class ThothLogAdmin(admin.ModelAdmin):
         (
             "Evaluation Results",
             {
-                "fields": ("evaluation_results_display", "selection_metrics_display"),
+                "fields": (
+                    "evaluation_results_display",
+                    "sql_status_display",
+                    "evaluation_case_display",
+                    "evaluation_details_display",
+                    "pass_rates_display",
+                    "selected_sql_complexity_display",
+                    "selection_metrics_display",
+                ),
                 "description": "Evaluation of SQL candidates against tests and selection metrics.",
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "Execution Timing",
+            {
+                "fields": (
+                    "test_generation_timing_display",
+                    "evaluation_timing_display",
+                    "sql_selection_timing_display",
+                ),
+                "description": "Detailed timing information for each phase of execution.",
                 "classes": ("collapse",),
             },
         ),
@@ -1783,6 +1812,192 @@ class ThothLogAdmin(admin.ModelAdmin):
         return "-"
 
     formatted_terminated_at.short_description = "Terminated At"
+
+    def sql_status_display(self, obj):
+        """Display SQL execution status with visual badge"""
+        if not obj.sql_status:
+            return "-"
+        
+        status = obj.sql_status.lower()
+        color = "#28a745" if "pass" in status else "#dc3545" if "fail" in status or "error" in status else "#ffc107"
+        
+        html = f'''
+        <span style="
+            display: inline-block;
+            background-color: {color};
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        ">{obj.sql_status}</span>
+        '''
+        return mark_safe(html)
+    
+    sql_status_display.short_description = "SQL Status"
+
+    def evaluation_case_display(self, obj):
+        """Display evaluation case category"""
+        if not obj.evaluation_case:
+            return "-"
+        return obj.evaluation_case
+    
+    evaluation_case_display.short_description = "Evaluation Case"
+
+    def evaluation_details_display(self, obj):
+        """Display detailed evaluation results as formatted JSON"""
+        if not obj.evaluation_details:
+            return "-"
+        
+        html = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 10px; background-color: var(--darkened-bg, #f8f9fa);">'
+        html += '<h4 style="margin-top: 0;">Evaluation Details</h4>'
+        
+        try:
+            # evaluation_details is already a JSONField, so it should be a Python object
+            details = obj.evaluation_details if isinstance(obj.evaluation_details, list) else json.loads(obj.evaluation_details) if isinstance(obj.evaluation_details, str) else []
+            
+            for i, detail in enumerate(details, 1):
+                html += f'<div style="margin: 10px 0; padding: 10px; background-color: var(--body-bg, white); border-radius: 3px;">'
+                html += f'<strong>Test {i}:</strong><br>'
+                if isinstance(detail, dict):
+                    for key, value in detail.items():
+                        html += f'<span style="margin-left: 20px;"><strong>{key}:</strong> {value}</span><br>'
+                else:
+                    html += f'<span style="margin-left: 20px;">{detail}</span><br>'
+                html += '</div>'
+        except Exception as e:
+            html += f'<pre style="color: var(--error-fg, #dc3545);">Error parsing evaluation details: {e}</pre>'
+        
+        html += '</div>'
+        return mark_safe(html)
+    
+    evaluation_details_display.short_description = "Evaluation Details"
+
+    def pass_rates_display(self, obj):
+        """Display pass rates as formatted statistics"""
+        if not obj.pass_rates:
+            return "-"
+        
+        html = '<div style="padding: 10px; background-color: var(--darkened-bg, #f8f9fa); border-radius: 4px;">'
+        
+        try:
+            # pass_rates is a JSONField, so it should be a dict
+            rates = obj.pass_rates if isinstance(obj.pass_rates, dict) else json.loads(obj.pass_rates) if isinstance(obj.pass_rates, str) else {}
+            
+            for key, value in rates.items():
+                # Format percentage if it's a number
+                if isinstance(value, (int, float)):
+                    display_value = f"{value:.1f}%" if value <= 100 else str(value)
+                    color = "#28a745" if value >= 80 else "#ffc107" if value >= 50 else "#dc3545"
+                else:
+                    display_value = str(value)
+                    color = "var(--body-quiet-color, #666)"
+                
+                html += f'''
+                <div style="margin: 5px 0;">
+                    <strong>{key}:</strong>
+                    <span style="color: {color}; font-weight: bold; margin-left: 10px;">{display_value}</span>
+                </div>
+                '''
+        except Exception as e:
+            html += f'<pre style="color: var(--error-fg, #dc3545);">Error: {e}</pre>'
+        
+        html += '</div>'
+        return mark_safe(html)
+    
+    pass_rates_display.short_description = "Pass Rates"
+
+    def selected_sql_complexity_display(self, obj):
+        """Display SQL complexity level with visual indicator"""
+        if not obj.selected_sql_complexity:
+            return "-"
+        
+        complexity = str(obj.selected_sql_complexity).lower()
+        
+        # Determine color based on complexity
+        if "low" in complexity or "simple" in complexity:
+            color = "#28a745"
+        elif "high" in complexity or "complex" in complexity:
+            color = "#dc3545"
+        else:
+            color = "#ffc107"
+        
+        html = f'''
+        <span style="
+            display: inline-block;
+            background-color: {color};
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        ">{obj.selected_sql_complexity}</span>
+        '''
+        return mark_safe(html)
+    
+    selected_sql_complexity_display.short_description = "SQL Complexity"
+
+    def test_generation_timing_display(self, obj):
+        """Display test generation timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.test_generation_start:
+            start = timezone.localtime(obj.test_generation_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.test_generation_end:
+            end = timezone.localtime(obj.test_generation_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.test_generation_duration_ms > 0:
+            duration_sec = obj.test_generation_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.3f}s ({obj.test_generation_duration_ms}ms)'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.test_generation_start or obj.test_generation_duration_ms else "-"
+    
+    test_generation_timing_display.short_description = "Test Generation Timing"
+
+    def evaluation_timing_display(self, obj):
+        """Display evaluation timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.evaluation_start:
+            start = timezone.localtime(obj.evaluation_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.evaluation_end:
+            end = timezone.localtime(obj.evaluation_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.evaluation_duration_ms > 0:
+            duration_sec = obj.evaluation_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.3f}s ({obj.evaluation_duration_ms}ms)'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.evaluation_start or obj.evaluation_duration_ms else "-"
+    
+    evaluation_timing_display.short_description = "Evaluation Timing"
+
+    def sql_selection_timing_display(self, obj):
+        """Display SQL selection timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.sql_selection_start:
+            start = timezone.localtime(obj.sql_selection_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_selection_end:
+            end = timezone.localtime(obj.sql_selection_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_selection_duration_ms > 0:
+            duration_sec = obj.sql_selection_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.3f}s ({obj.sql_selection_duration_ms}ms)'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.sql_selection_start or obj.sql_selection_duration_ms else "-"
+    
+    sql_selection_timing_display.short_description = "SQL Selection Timing"
 
     def formatted_created_at(self, obj):
         """Format created_at timestamp with seconds in local timezone"""

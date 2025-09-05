@@ -15,14 +15,11 @@
 
 Your task is to select the single best SQL query from the equivalent candidates above. All of these SQLs have passed 100% of the evaluation tests, so they are functionally equivalent.
 
-Analyze each SQL candidate on these criteria:
-1. **Correctness**: Does it accurately answer the question?
-2. **Simplicity**: Is the approach as simple as possible while remaining clear?
-3. **Performance**: Will it execute efficiently on large datasets?
-4. **Maintainability**: Is it easy to understand and modify?
-5. **Standards**: Does it follow SQL best practices?
-6. **Robustness**: Does it handle edge cases well?
+Focus on these key criteria:
+1. **Simplicity**: Choose the simplest approach
+2. **Performance**: Consider efficiency on large datasets
+3. **Clarity**: Pick the most readable and maintainable option
 
-Compare the candidates systematically and select the one that scores highest overall. Provide your detailed comparison and reasoning, then specify the selected SQL by its index (0-based).
+Select the SQL that best balances simplicity and performance. Specify your choice by its index (0-based).
 
-**Important**: Your selection must be definitive. Choose exactly one SQL as the best option.
+**Important**: Your selection must be definitive. Choose exactly one SQL as the best option. Keep your comparison brief.

@@ -17,16 +17,90 @@ Runs evaluators in parallel with fixed temperature to achieve 100% evaluation re
 """
 
 import logging
-from typing import List, Tuple, Any
+import asyncio
+from typing import List, Tuple, Any, Optional, Dict
 from pydantic_ai.settings import ModelSettings
 from model.evaluator_deps import EvaluatorDeps
 from helpers.template_preparation import TemplateLoader
-from agents.test_reducer_agent import create_test_reducer_agent, run_test_reducer
+from agents.test_reducer_agent import run_test_reducer
+from agents.core.agent_initializer import AgentInitializer
 
 logger = logging.getLogger(__name__)
 
 # Fixed temperature for all evaluators
 EVALUATOR_TEMPERATURE = 0.2
+
+
+async def evaluate_single_sql(
+    evaluator_agent,
+    sql_query: str, 
+    sql_index: int,
+    filtered_test_answers: List[str],
+    context: Dict[str, Any]
+) -> Tuple[int, str, List[str]]:
+    """
+    Evaluate a single SQL query against all tests.
+    
+    Args:
+        evaluator_agent: The evaluator agent to use
+        sql_query: The SQL query to evaluate
+        sql_index: The index of this SQL (for tracking)
+        filtered_test_answers: List of test units to apply
+        context: Context dictionary with question, schema, etc.
+        
+    Returns:
+        Tuple of (sql_index, thinking, test_results)
+        where test_results is a list of "Test #N: OK" or "Test #N: KO - reason"
+    """
+    try:
+        # Format tests as numbered list
+        unit_tests_str = "\n".join([f"{i}. {test}" for i, test in enumerate(filtered_test_answers, 1)])
+        
+        # Create evaluation template for single SQL
+        template = TemplateLoader.format(
+            'template_evaluate_single.txt',
+            safe=True,
+            QUESTION=context['question'],
+            DATABASE_TYPE=context['database_type'],
+            DATABASE_SCHEMA=context['database_schema'],
+            DIRECTIVES=context['directives'],
+            EVIDENCE=context['evidence'],
+            SQL_QUERY=sql_query,
+            UNIT_TESTS=unit_tests_str,
+            GOLD_SQL_EXAMPLES=context['gold_sql_examples']
+        )
+        
+        # Run evaluator with fixed temperature
+        result = await evaluator_agent.run(
+            template,
+            model_settings=ModelSettings(temperature=EVALUATOR_TEMPERATURE),
+            deps=EvaluatorDeps()
+        )
+        
+        if result and hasattr(result, 'output'):
+            thinking = getattr(result.output, 'thinking', '')
+            answers = getattr(result.output, 'answers', [])
+            
+            # Validate we got the right number of test results
+            if len(answers) != len(filtered_test_answers):
+                logger.warning(f"SQL #{sql_index+1}: Expected {len(filtered_test_answers)} test results, got {len(answers)}")
+                # Pad or truncate as needed
+                if len(answers) < len(filtered_test_answers):
+                    for i in range(len(answers) + 1, len(filtered_test_answers) + 1):
+                        answers.append(f"Test #{i}: KO - incomplete evaluation")
+                else:
+                    answers = answers[:len(filtered_test_answers)]
+            
+            return (sql_index, thinking, answers)
+        else:
+            logger.error(f"Evaluator returned no output for SQL #{sql_index+1}")
+            error_answers = [f"Test #{i}: KO - evaluation failed" for i in range(1, len(filtered_test_answers) + 1)]
+            return (sql_index, "Evaluation failed - no output", error_answers)
+            
+    except Exception as e:
+        logger.error(f"Evaluation failed for SQL #{sql_index+1}: {e}")
+        error_answers = [f"Test #{i}: KO - evaluation error" for i in range(1, len(filtered_test_answers) + 1)]
+        return (sql_index, f"Evaluation error: {str(e)}", error_answers)
 
 
 async def evaluate_sql_candidates(state, agents_and_tools):
@@ -101,12 +175,34 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     
     if multiple_test_generators_active and len(unique_test_answers) > 5:  # Use TestReducer only if beneficial and multiple generators
         try:
-            # Create TestReducer agent with evaluator's config
-            evaluator_name = getattr(evaluator_agent, 'name', 'Unknown') if evaluator_agent else 'Unknown'
-            test_reducer_agent = create_test_reducer_agent(
-                model_config={'name': evaluator_name},
-                retries=1
-            )
+            # Extract model config from evaluator agent or workspace
+            evaluator_model_config = None
+            
+            # First try to get from state if available
+            if hasattr(state, 'workspace_config') and state.workspace_config:
+                evaluator_model_config = state.workspace_config.get('test_evaluator_agent')
+                if not evaluator_model_config:
+                    # Fallback to test_gen_agent_1 for backward compatibility
+                    evaluator_model_config = state.workspace_config.get('test_gen_agent_1')
+            
+            # Then try to extract from the agent itself
+            if not evaluator_model_config and evaluator_agent:
+                if hasattr(evaluator_agent, 'agent_config'):
+                    evaluator_model_config = evaluator_agent.agent_config
+                elif hasattr(evaluator_agent, 'model_config'):
+                    evaluator_model_config = evaluator_agent.model_config
+                
+            # If still no config, skip TestReducer
+            if not evaluator_model_config:
+                logger.debug("No evaluator model config available for TestReducer, skipping semantic filtering")
+                test_reducer_agent = None
+            else:
+                # Create TestReducer agent with evaluator's config
+                test_reducer_agent = AgentInitializer.create_test_reducer_agent(
+                    agent_config=evaluator_model_config,
+                    default_model_config=None,
+                    retries=1
+                )
             
             if test_reducer_agent:
                 logger.info(f"Applying semantic filtering to {len(unique_test_answers)} tests using TestReducer")
@@ -144,15 +240,6 @@ async def evaluate_sql_candidates(state, agents_and_tools):
         elif len(unique_test_answers) <= 5:
             logger.debug("Skipping semantic test filtering: not enough tests to benefit")
      
-    # Format SQL candidates for template
-    sql_candidates = []
-    for i, sql in enumerate(state.generated_sqls, 1):
-        sql_candidates.append(f"Candidate SQL #{i}:\n{sql}")
-    candidate_sql_str = "\n\n".join(sql_candidates)
-    
-    # Format filtered tests as numbered list
-    unit_tests_str = "\n".join([f"{i}. {test}" for i, test in enumerate(filtered_test_answers, 1)])
-    
     # Combine test thinking for context (using first non-failed thinking or combined summary)
     test_thinking = "\n\n".join(combined_thinking) if combined_thinking else "Test generation thinking not available"
     
@@ -166,79 +253,162 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     else:
         gold_sql_examples_str = "No Gold SQL examples available for reference."
     
-    # Prepare full context for the single evaluator
+    # Prepare context for evaluations
     context = {
         'question': state.question,
         'database_type': state.dbmanager.db_type if state.dbmanager else 'sqlite',
         'database_schema': state.used_mschema if hasattr(state, 'used_mschema') else state.full_mschema,
         'directives': state.directives if hasattr(state, 'directives') else '',
         'evidence': state.evidence_for_template if hasattr(state, 'evidence_for_template') else '',
-        'candidate_sql': candidate_sql_str,
         'test_thinking': test_thinking,
-        'unit_tests': unit_tests_str,
         'gold_sql_examples': gold_sql_examples_str
     }
     
-    # Create single evaluation template with all unique tests
-    # Map context keys to template placeholders
-    template = TemplateLoader.format(
-        'template_evaluate.txt',
-        safe=True,  # Use safe formatting for complex templates
-        QUESTION=context['question'],
-        TEST_THINKING=context['test_thinking'],
-        DATABASE_TYPE=context['database_type'],
-        DATABASE_SCHEMA=context['database_schema'],
-        DIRECTIVES=context['directives'],
-        EVIDENCE=context['evidence'],
-        CANDIDATE_SQL=context['candidate_sql'],
-        UNIT_TESTS=context['unit_tests'],
-        GOLD_SQL_EXAMPLES=context['gold_sql_examples']
-    )
+    # Store filtered tests for later use
+    if hasattr(state, 'test_answers'):
+        state.test_answers = filtered_test_answers
+    if hasattr(state, 'filtered_tests'):
+        state.filtered_tests = filtered_test_answers
     
-    logger.info(f"Running SINGLE evaluator with {len(unique_test_answers)} unique tests against {len(state.generated_sqls)} SQL candidates")
+    # Evaluate each SQL in parallel if multiple, otherwise single evaluation
+    sql_count = len(state.generated_sqls)
+    logger.info(f"Evaluating {sql_count} SQL candidates against {len(filtered_test_answers)} tests")
     
-    try:
-        # Run single evaluator with FIXED temperature 0.2
-        result = await evaluator_agent.run(
-            template, 
-            model_settings=ModelSettings(temperature=EVALUATOR_TEMPERATURE),
-            deps=EvaluatorDeps()
+    if sql_count == 1:
+        # Single SQL - evaluate directly
+        sql_index, thinking, test_results = await evaluate_single_sql(
+            evaluator_agent,
+            state.generated_sqls[0],
+            0,
+            filtered_test_answers,
+            context
         )
         
-        if result and hasattr(result, 'output'):
-            thinking = getattr(result.output, 'thinking', 'No thinking provided')
-            answers = getattr(result.output, 'answers', [])
-            
-            # Log the actual answers received for debugging
-            logger.info(f"Evaluator returned {len(answers)} answers")
-            for i, ans in enumerate(answers, 1):
-                logger.debug(f"Answer {i}: {ans[:100]}..." if len(ans) > 100 else f"Answer {i}: {ans}")
-            
-            # Validate answers count
-            if len(answers) != len(state.generated_sqls):
-                logger.warning(f"Expected {len(state.generated_sqls)} answers, got {len(answers)}")
-                # Pad or truncate as needed
-                if len(answers) < len(state.generated_sqls):
-                    answers.extend([f"SQL #{i}: Failed - incomplete evaluation" for i in range(len(answers) + 1, len(state.generated_sqls) + 1)])
-                else:
-                    answers = answers[:len(state.generated_sqls)]
-            
-            logger.info(f"Single evaluation complete with {len(answers)} verdicts")
-            # Return list of tuples as expected by evaluation_results: List[Tuple[str, List[str]]]
-            # Store test answers separately if needed
-            if hasattr(state, 'test_answers'):
-                state.test_answers = filtered_test_answers  # Store filtered tests instead of unique
-            # Store filtered tests for logging
-            if hasattr(state, 'filtered_tests'):
-                state.filtered_tests = filtered_test_answers
-            return [(thinking, answers)]
+        # Convert test results to SQL verdict format
+        sql_verdict = aggregate_test_results_to_sql_verdict(1, test_results)
+        return [(thinking, [sql_verdict])]
+    else:
+        # Multiple SQLs - evaluate in parallel
+        evaluation_tasks = [
+            evaluate_single_sql(
+                evaluator_agent,
+                sql,
+                i,
+                filtered_test_answers,
+                context
+            )
+            for i, sql in enumerate(state.generated_sqls)
+        ]
+        
+        # Run all evaluations in parallel
+        results = await asyncio.gather(*evaluation_tasks, return_exceptions=True)
+        
+        # Process results and aggregate
+        sql_verdicts = []
+        combined_thinking = []
+        
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"Evaluation task failed: {result}")
+                sql_verdicts.append(f"SQL #{len(sql_verdicts)+1}: Failed - evaluation error")
+                combined_thinking.append(f"SQL #{len(sql_verdicts)}: Evaluation failed")
+            else:
+                sql_index, thinking, test_results = result
+                # Convert test results to SQL verdict format  
+                sql_verdict = aggregate_test_results_to_sql_verdict(sql_index + 1, test_results)
+                sql_verdicts.append(sql_verdict)
+                if thinking:
+                    combined_thinking.append(f"SQL #{sql_index+1}: {thinking}")
+        
+        # Return aggregated results
+        final_thinking = "\n".join(combined_thinking) if combined_thinking else "Parallel evaluation complete"
+        return [(final_thinking, sql_verdicts)]
+
+
+def aggregate_test_results_to_sql_verdict(sql_number: int, test_results: List[str]) -> str:
+    """
+    Aggregate test results into SQL verdict format.
+    
+    Args:
+        sql_number: The SQL number (1-based)
+        test_results: List of "Test #N: OK" or "Test #N: KO - reason"
+        
+    Returns:
+        String in format "SQL #N: OK, KO - reason, OK, ..."
+    """
+    # Extract just the OK/KO parts from test results
+    verdicts = []
+    for test_result in test_results:
+        if ": " in test_result:
+            # Extract the part after ": "
+            verdict = test_result.split(": ", 1)[1]
+            verdicts.append(verdict)
         else:
-            logger.error("Evaluator returned no output")
-            return [("Evaluation failed - no output", ["Failed - no evaluation output"] * len(state.generated_sqls))]
+            # Fallback if format is unexpected
+            verdicts.append("KO - unknown format")
+    
+    return f"SQL #{sql_number}: {', '.join(verdicts)}"
+
+
+def determine_evaluation_case(evaluation_answers: List[str], threshold: float = 0.9) -> Tuple[str, Dict[str, Any]]:
+    """
+    Determine evaluation case (A/B/C/D) from evaluation answers.
+    
+    Args:
+        evaluation_answers: List of SQL verdicts like "SQL #1: OK, OK, KO - reason"
+        threshold: Pass rate threshold (default 0.9 for 90%)
+        
+    Returns:
+        Tuple of (case, details) where:
+        - case: "A", "B", "C", or "D"
+        - details: Dictionary with pass_rates, perfect_sqls, etc.
+    """
+    pass_rates = {}
+    
+    for answer in evaluation_answers:
+        if not answer.startswith("SQL #"):
+            continue
             
-    except Exception as e:
-        logger.error(f"Evaluation failed with exception: {e}")
-        return [(f"Evaluation error: {str(e)}", ["Failed - evaluation error"] * len(state.generated_sqls))]
+        # Parse SQL identifier and test results
+        parts = answer.split(":", 1)
+        if len(parts) != 2:
+            continue
+            
+        sql_id = parts[0].strip()
+        test_results = parts[1].strip()
+        
+        # Count OK vs total tests
+        results_list = [r.strip() for r in test_results.split(",")]
+        ok_count = sum(1 for result in results_list if result == "OK")
+        total_count = len(results_list)
+        
+        if total_count > 0:
+            pass_rate = ok_count / total_count
+            pass_rates[sql_id] = pass_rate
+    
+    # Classify SQLs
+    perfect_sqls = [sql_id for sql_id, rate in pass_rates.items() if rate >= 1.0]
+    above_threshold = [sql_id for sql_id, rate in pass_rates.items() if rate >= threshold]
+    below_threshold = [sql_id for sql_id, rate in pass_rates.items() if rate < threshold]
+    
+    # Determine case
+    if len(perfect_sqls) == 1 and len(pass_rates) == 1:
+        case = "A"  # Single perfect SQL
+    elif len(perfect_sqls) > 1:
+        case = "B"  # Multiple perfect SQLs
+    elif len(above_threshold) > 0:
+        case = "C"  # Some SQLs above threshold but not perfect
+    else:
+        case = "D"  # All failed
+        
+    details = {
+        'pass_rates': pass_rates,
+        'perfect_sqls': perfect_sqls,
+        'above_threshold': above_threshold,
+        'below_threshold': below_threshold
+    }
+    
+    return case, details
 
 
 def process_evaluation_results(results: List[Any], num_sql_candidates: int) -> List[Tuple[str, List[str]]]:
