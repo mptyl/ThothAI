@@ -708,10 +708,10 @@ class AgentInitializer:
     @staticmethod
     def create_evaluator_supervisor_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3) -> Optional[Agent]:
         """
-        Create an EvaluatorSupervisor agent for deep reevaluation of borderline cases.
+        Create an EvaluatorSupervisor agent for reevaluation of borderline cases.
         
         This agent handles Case C in the 4-case evaluation system: when SQL candidates 
-        score 90-99%, it performs extended analysis (8000+ token thinking) to make final 
+        score 90-99%, it performs careful analysis to make final 
         GOLD/FAILED decisions. It uses the same model configuration as the Evaluator 
         for consistency.
         

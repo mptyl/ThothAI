@@ -359,6 +359,10 @@ class ThothInstaller:
         if providers.get('lm_studio', {}).get('enabled'):
             env_lines.append(f"LM_STUDIO_API_BASE={providers['lm_studio']['api_base']}")
         
+        # Groq
+        if providers.get('groq', {}).get('enabled'):
+            env_lines.append(f"GROQ_API_KEY={providers['groq']['api_key']}")
+        
         # Embedding
         embedding = self.config.get('embedding', {})
         env_lines.append(f"EMBEDDING_PROVIDER={embedding.get('provider')}")

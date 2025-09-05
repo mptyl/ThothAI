@@ -212,7 +212,7 @@ class EnhancedEvaluationResult(BaseModel):
     # Auxiliary agent results
     reduced_tests: Optional[List[str]] = None  # TestReducer output
     selector_reasoning: Optional[str] = None  # SqlSelector reasoning for Case B
-    supervisor_assessment: Optional[str] = None  # EvaluatorSupervisor deep analysis for Case C
+    supervisor_assessment: Optional[str] = None  # EvaluatorSupervisor analysis for Case C
     
     # Escalation context
     escalation_context: Optional[str] = None  # Context for next functionality level
@@ -241,8 +241,8 @@ class SqlSelectorResult(BaseModel):
 
 
 class EvaluatorSupervisorResult(BaseModel):
-    """Result from EvaluatorSupervisor for deep reevaluation of borderline cases"""
-    thinking: str  # Extended thinking (8000+ tokens)
+    """Result from EvaluatorSupervisor for reevaluation of borderline cases"""
+    thinking: str  # Analysis reasoning
     final_decision: EvaluationStatus  # GOLD or FAILED
     confidence_level: str  # "HIGH", "MEDIUM", "LOW"
     detailed_assessment: str

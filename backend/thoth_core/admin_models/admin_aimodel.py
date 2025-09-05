@@ -12,8 +12,10 @@
 
 from django import forms
 from django.contrib import admin
+from django.contrib import messages
 from thoth_core.models import AiModel, BasicAiModel
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.utilities.test_llm_provider import test_llm_provider
 
 
 class AiModelAdminForm(forms.ModelForm):
@@ -56,7 +58,7 @@ class AiModelAdmin(admin.ModelAdmin):
             },
         ),
     ]
-    actions = (export_csv, import_csv)
+    actions = (export_csv, import_csv, "test_provider")
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "basic_model":
@@ -68,3 +70,38 @@ class AiModelAdmin(admin.ModelAdmin):
 
     get_basic_model.short_description = "Basic Model"
     get_basic_model.admin_order_field = "basic_model__name"
+    
+    def test_provider(self, request, queryset):
+        """
+        Test LLM provider connectivity for selected AI models.
+        Only tests the first model if multiple are selected.
+        """
+        # Only test the first selected model
+        if not queryset:
+            self.message_user(
+                request,
+                "No AI models selected for testing.",
+                level=messages.WARNING
+            )
+            return
+            
+        ai_model = queryset.first()
+        
+        # Perform the test
+        success, message = test_llm_provider(ai_model)
+        
+        # Display result to user
+        if success:
+            self.message_user(
+                request,
+                message,
+                level=messages.SUCCESS
+            )
+        else:
+            self.message_user(
+                request,
+                message,
+                level=messages.ERROR
+            )
+    
+    test_provider.short_description = "Test provider connectivity"

@@ -556,7 +556,8 @@ def get_workspace_agent_pools(request, workspace_id):
             }
             if agent.ai_model.basic_model:
                 agent_data["ai_model"]["basic_model"] = {
-                    "name": agent.ai_model.basic_model.name
+                    "name": agent.ai_model.basic_model.name,
+                    "provider": agent.ai_model.basic_model.provider
                 }
 
         # Classify agent by type and level

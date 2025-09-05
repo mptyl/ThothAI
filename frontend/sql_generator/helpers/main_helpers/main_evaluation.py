@@ -88,7 +88,18 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     
     # Apply semantic filtering using TestReducer if available and beneficial
     filtered_test_answers = unique_test_answers
-    if len(unique_test_answers) > 5:  # Only use TestReducer if we have enough tests to benefit
+    # Only enable semantic filtering when multiple test generators are active
+    multiple_test_generators_active = False
+    try:
+        pools = getattr(agents_and_tools, 'agent_pools', None)
+        if pools:
+            test_pool = getattr(pools, 'test_unit_generation_agents_pool', []) or []
+            # Count non-None agents
+            multiple_test_generators_active = len([a for a in test_pool if a is not None]) > 1
+    except Exception as e:
+        logger.debug(f"Could not determine test generator pool size: {e}")
+    
+    if multiple_test_generators_active and len(unique_test_answers) > 5:  # Use TestReducer only if beneficial and multiple generators
         try:
             # Create TestReducer agent with evaluator's config
             evaluator_name = getattr(evaluator_agent, 'name', 'Unknown') if evaluator_agent else 'Unknown'
@@ -126,7 +137,13 @@ async def evaluate_sql_candidates(state, agents_and_tools):
                 logger.debug("TestReducer agent could not be created, using deduplicated tests")
         except Exception as e:
             logger.error(f"Error during semantic test filtering: {e}, using deduplicated tests")
-    
+    else:
+        # Log why semantic filtering was skipped
+        if not multiple_test_generators_active:
+            logger.info("Skipping semantic test filtering: only one test generator active")
+        elif len(unique_test_answers) <= 5:
+            logger.debug("Skipping semantic test filtering: not enough tests to benefit")
+     
     # Format SQL candidates for template
     sql_candidates = []
     for i, sql in enumerate(state.generated_sqls, 1):

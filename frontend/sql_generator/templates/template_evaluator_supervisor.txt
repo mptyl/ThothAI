@@ -1,7 +1,3 @@
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of ThothAI and is released under the Apache License 2.0.
-# See the LICENSE.md file in the project root for full license information.
-
 **Question:**
 {QUESTION}
 
@@ -23,9 +19,9 @@
 **Initial Evaluator Thinking:**
 {INITIAL_THINKING}
 
-You are performing deep reevaluation of SQL candidates that scored between {EVALUATION_THRESHOLD}-99% on initial testing. These are borderline cases that require careful analysis to determine if they should be promoted to GOLD status or rejected as FAILED.
+You are performing reevaluation of SQL candidates that scored between {EVALUATION_THRESHOLD}-99% on initial testing. These are borderline cases that require careful analysis to determine if they should be promoted to GOLD status or rejected as FAILED.
 
-**Your Extended Analysis Must Address:**
+**Your Analysis Must Address:**
 
 1. **Test Failure Analysis**: 
    - Which specific tests failed and why?
@@ -50,6 +46,4 @@ You are performing deep reevaluation of SQL candidates that scored between {EVAL
 - Make a definitive GOLD or FAILED decision for the best SQL candidate
 - If GOLD, specify which SQL index (0-based) is recommended
 - Provide confidence level: HIGH, MEDIUM, or LOW
-- Justify your decision with comprehensive reasoning
-
-**Use Extended Thinking**: Employ your full analytical capacity (8000+ tokens of reasoning) to thoroughly examine all aspects before reaching your final conclusion.
+- Justify your decision with clear reasoning

@@ -407,8 +407,22 @@ class EnhancedEvaluationFlow:
                 for thinking, answers in state.generated_tests:
                     original_tests.extend(answers)
                 
-                if self.auxiliary_agents.get('test_reducer') and len(original_tests) > 5:
-                    logger.info(f"Running TestReducer on {len(original_tests)} tests")
+                # Determine if multiple test generators are active
+                multiple_test_generators_active = False
+                try:
+                    pools = getattr(self.agents_and_tools, 'agent_pools', None)
+                    if pools:
+                        test_pool = getattr(pools, 'test_unit_generation_agents_pool', []) or []
+                        multiple_test_generators_active = len([a for a in test_pool if a is not None]) > 1
+                except Exception as e:
+                    logger.debug(f"Could not determine test generator pool size in enhanced flow: {e}")
+                
+                if (
+                    multiple_test_generators_active
+                    and self.auxiliary_agents.get('test_reducer')
+                    and len(original_tests) > 5
+                ):
+                    logger.info(f"Running TestReducer on {len(original_tests)} tests (multiple test generators active)")
                     test_thinking = "Combined test generation thinking"  # Simplified for now
                     
                     reducer_result = await run_test_reducer(
@@ -420,9 +434,19 @@ class EnhancedEvaluationFlow:
                     )
                     
                     if reducer_result and len(reducer_result.reduced_tests) < len(original_tests):
-                        logger.info(f"TestReducer reduced tests from {len(original_tests)} to {len(reducer_result.reduced_tests)}")
+                        logger.info(
+                            f"TestReducer reduced tests from {len(original_tests)} to {len(reducer_result.reduced_tests)}"
+                        )
                         # Update state with reduced tests as single list format
-                        state.generated_tests_json = json.dumps(reducer_result.reduced_tests, ensure_ascii=False)
+                        state.generated_tests_json = json.dumps(
+                            reducer_result.reduced_tests, ensure_ascii=False
+                        )
+                else:
+                    # Log why semantic filtering was skipped in enhanced flow
+                    if not multiple_test_generators_active:
+                        logger.info("Skipping TestReducer in enhanced flow: only one test generator active")
+                    elif len(original_tests) <= 5:
+                        logger.debug("Skipping TestReducer in enhanced flow: not enough tests to benefit")
             
             # Step 3: Run standard evaluation to get baseline results
             logger.info("Running standard evaluation for baseline results")

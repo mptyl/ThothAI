@@ -98,7 +98,7 @@ DATABASE RULE FOR {database_type}:
     return filled_template
 
 
-async def generate_sql_units(state, agents_and_tools, functionality_level) -> List[Tuple[bool, str]]:
+async def generate_sql_units(state, agents_and_tools, functionality_level, timeout_seconds: int = 20) -> List[Tuple[bool, str]]:
     """
     Generate multiple SQL statements using the same agent with different user prompts and temperatures.
     Cycles through different methodologies (default, step_by_step, divide_and_conquer).
@@ -107,6 +107,7 @@ async def generate_sql_units(state, agents_and_tools, functionality_level) -> Li
         state: System state object containing configuration
         agents_and_tools: Agent manager with SQL agents
         functionality_level: Functionality level ("BASIC", "ADVANCED", "EXPERT")
+        timeout_seconds: Max seconds to wait for each individual agent run before timing out
     
     Returns:
         List of tuples containing (success, sql) for each generated SQL
@@ -175,7 +176,7 @@ async def generate_sql_units(state, agents_and_tools, functionality_level) -> Li
         logger.info(f"SQL generation {i+1}: using {functionality_level} agent with {method} method, temp={temp}")
         
         # Create a task for each temperature value with selected method
-        task = generate_single_sql_with_method(state, agent, temp, method, agent_index=i)
+        task = generate_single_sql_with_method(state, agent, temp, method, agent_index=i, timeout_seconds=timeout_seconds)
         tasks.append(task)
     
     # Execute all tasks in parallel and collect results
@@ -196,7 +197,7 @@ async def generate_sql_units(state, agents_and_tools, functionality_level) -> Li
     return processed_results
 
 
-async def generate_single_sql_with_method(state, agent, temperature, method, agent_index=0):
+async def generate_single_sql_with_method(state, agent, temperature, method, agent_index=0, timeout_seconds: int = 20):
     """
     Generate a single SQL statement with a specific temperature and method.
     
@@ -206,6 +207,7 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         temperature: Temperature value for this generation
         method: Method to use ("query_plan", "step_by_step", "divide_and_conquer")
         agent_index: Index for logging purposes
+        timeout_seconds: Max seconds to wait for this agent run before timing out
     
     Returns:
         Tuple of (success, sql_string)
@@ -236,12 +238,21 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
             method=method
         )
         
-        # Run the agent with lightweight deps and specified temperature
-        await agent.run(
-            user_prompt,
-            deps=sql_deps,
-            model_settings=ModelSettings(temperature=temperature)
-        )
+        # Run the agent with lightweight deps and specified temperature, with timeout protection
+        try:
+            await asyncio.wait_for(
+                agent.run(
+                    user_prompt,
+                    deps=sql_deps,
+                    model_settings=ModelSettings(temperature=temperature)
+                ),
+                timeout=timeout_seconds
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"SQL generation timed out after {timeout_seconds}s (method={method}, temp={temperature}, index={agent_index})"
+            )
+            return (False, "")
         
         # Check if generation was successful
         if sql_deps.last_generation_success and sql_deps.last_SQL:

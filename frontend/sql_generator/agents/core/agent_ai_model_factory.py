@@ -136,6 +136,16 @@ def get_agent_llm_model(agent_config: dict):
             ai_model['specific_model'],
             provider=AnthropicProvider(api_key=api_key)
         )
+    elif provider == 'GROQ':
+        from pydantic_ai.models.groq import GroqModel
+        from pydantic_ai.providers.groq import GroqProvider
+        api_key = ai_model.get('api_key') or os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("Groq API key not found in config or environment variables.")
+        return GroqModel(
+            ai_model['specific_model'],
+            provider=GroqProvider(api_key=api_key)
+        )
     elif provider == 'LMSTUDIO':
         # LMStudio uses OpenAI compatible API - configure exactly as in test
         base_url = ai_model.get('url') or os.getenv("LMSTUDIO_API_BASE") or "http://localhost:1234"

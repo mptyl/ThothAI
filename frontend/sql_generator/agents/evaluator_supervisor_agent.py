@@ -13,10 +13,10 @@
 # Unless required by applicable law or agreed to in writing, software
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
-EvaluatorSupervisor agent for deep reevaluation of borderline SQL candidates.
+EvaluatorSupervisor agent for reevaluation of borderline SQL candidates.
 
 This agent handles Case C in the 4-case evaluation system: when SQL candidates 
-score 90-99%, it performs extended analysis (8000+ token thinking) to make final 
+score 90-99%, it performs careful analysis to make final 
 GOLD/FAILED decisions with high confidence.
 """
 
@@ -31,7 +31,7 @@ from helpers.template_preparation import TemplateLoader, clean_template_for_llm
 
 logger = logging.getLogger(__name__)
 
-# Extended thinking temperature for deep analysis
+# Temperature for focused analysis
 SUPERVISOR_TEMPERATURE = 0.1  # Lower temperature for more focused analysis
 
 
@@ -40,10 +40,10 @@ def create_evaluator_supervisor_agent(
     retries: int = 3
 ) -> Optional[Agent]:
     """
-    Create an EvaluatorSupervisor agent for deep reevaluation of borderline cases.
+    Create an EvaluatorSupervisor agent for reevaluation of borderline cases.
     
     This agent uses the same model configuration as the Evaluator but with lower
-    temperature for more focused analysis and extended thinking capacity.
+    temperature for more focused analysis.
     
     Args:
         model_config: Model configuration inherited from Evaluator

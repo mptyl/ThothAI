@@ -42,6 +42,7 @@ class LLMChoices(models.TextChoices):
     OLLAMA = "OLLAMA", "Ollama"
     OPENROUTER = "OPENROUTER", "OpenRouter"
     GEMINI = "GEMINI", "Gemini"
+    GROQ = "GROQ", "Groq"
 
 
 class DBMODEChoices(models.TextChoices):

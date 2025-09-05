@@ -386,31 +386,38 @@ class ThothAgentManager(BaseAgentManager):
             #     }
             # }
             
-            # Convert basic_model name to provider format
+            # Convert basic_model to provider format
             provider = None
             if agent_config.ai_model and agent_config.ai_model.basic_model:
-                basic_model_name = agent_config.ai_model.basic_model.get('name', '').upper()
-                # Map basic_model names to provider constants
-                if 'OPENROUTER' in basic_model_name:
-                    provider = 'OPENROUTER'
-                elif 'OPENAI' in basic_model_name or 'GPT' in basic_model_name:
-                    provider = 'OPENAI'
-                elif 'ANTHROPIC' in basic_model_name or 'CLAUDE' in basic_model_name:
-                    provider = 'ANTHROPIC'
-                elif 'MISTRAL' in basic_model_name:
-                    provider = 'MISTRAL'
-                elif 'CODESTRAL' in basic_model_name:
-                    provider = 'CODESTRAL'
-                elif 'GEMINI' in basic_model_name:
-                    provider = 'GEMINI'
-                elif 'DEEPSEEK' in basic_model_name:
-                    provider = 'DEEPSEEK'
-                elif 'OLLAMA' in basic_model_name:
-                    provider = 'OLLAMA'
-                elif 'LMSTUDIO' in basic_model_name or 'LM_STUDIO' in basic_model_name:
-                    provider = 'LMSTUDIO'
-                else:
-                    provider = 'OPENROUTER'  # Default fallback
+                # First try to get provider directly from basic_model if available
+                provider = agent_config.ai_model.basic_model.get('provider')
+                
+                # If provider field not present, fallback to name-based detection
+                if not provider:
+                    basic_model_name = agent_config.ai_model.basic_model.get('name', '').upper()
+                    # Map basic_model names to provider constants
+                    if 'OPENROUTER' in basic_model_name:
+                        provider = 'OPENROUTER'
+                    elif 'OPENAI' in basic_model_name or 'GPT' in basic_model_name:
+                        provider = 'OPENAI'
+                    elif 'ANTHROPIC' in basic_model_name or 'CLAUDE' in basic_model_name:
+                        provider = 'ANTHROPIC'
+                    elif 'MISTRAL' in basic_model_name:
+                        provider = 'MISTRAL'
+                    elif 'CODESTRAL' in basic_model_name:
+                        provider = 'CODESTRAL'
+                    elif 'GEMINI' in basic_model_name:
+                        provider = 'GEMINI'
+                    elif 'GROQ' in basic_model_name:
+                        provider = 'GROQ'
+                    elif 'DEEPSEEK' in basic_model_name:
+                        provider = 'DEEPSEEK'
+                    elif 'OLLAMA' in basic_model_name:
+                        provider = 'OLLAMA'
+                    elif 'LMSTUDIO' in basic_model_name or 'LM_STUDIO' in basic_model_name:
+                        provider = 'LMSTUDIO'
+                    else:
+                        provider = 'OPENROUTER'  # Default fallback
             
             # Build the config in the expected format
             config_dict = {
@@ -567,8 +574,6 @@ class ThothAgentManager(BaseAgentManager):
                     return result.output.explanation
                 else:
                     return str(result.output)
-            elif hasattr(result, 'data') and result.data:
-                return str(result.data)
             else:
                 logger.warning("SQL explanation agent returned empty result")
                 return None

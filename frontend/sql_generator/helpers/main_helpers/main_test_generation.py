@@ -23,7 +23,7 @@ from helpers.main_helpers.main_generate_mschema import generate_dynamic_mschema
 logger = logging.getLogger(__name__)
 
 
-async def generate_test_units(state, agents_and_tools, functionality_level=None):
+async def generate_test_units(state, agents_and_tools, functionality_level=None, timeout_seconds: int = 20):
     """
     Generate test units with variable temperature scaling from 0.5 to 1.0.
     Uses the fixed test_gen_agent_1 from workspace configuration.
@@ -32,6 +32,7 @@ async def generate_test_units(state, agents_and_tools, functionality_level=None)
         state: System state object
         agents_and_tools: Agent manager with test agents
         functionality_level: Optional functionality level override (not used, kept for compatibility)
+        timeout_seconds: Max seconds to wait for each individual test generation before timing out
     
     Returns:
         List of tuples (thinking, answers) for each test generation
@@ -102,7 +103,11 @@ async def generate_test_units(state, agents_and_tools, functionality_level=None)
         # Use the fixed agent from the agents_to_use list
         agent = agents_to_use[i]
         logger.info(f"Test generation {i+1}: Using fixed test_gen_agent_1 with temperature {temp}")
-        task = agent.run(template, model_settings=ModelSettings(temperature=temp))
+        # Protect each individual test generation with a timeout to avoid hangs
+        task = asyncio.wait_for(
+            agent.run(template, model_settings=ModelSettings(temperature=temp)),
+            timeout=timeout_seconds
+        )
         tasks.append(task)
     
     # Execute all tasks in parallel and collect results, handling exceptions
