@@ -63,8 +63,10 @@ Review and optimize the assembled query:
 - **Rules depend on {DATABASE_TYPE}**:
   1. **PostgreSQL/MySQL/MariaDB**: Can use NULLS FIRST/LAST
      - WITH ORDER BY: ASC → NULLS LAST, DESC → NULLS FIRST
-  2. **SQLite**: Cannot use NULLS FIRST/LAST (syntax error)
-     - NULLs appear first in ASC, last in DESC automatically
+  2. **SQLite (Version 3.30.0+)**: Supports NULLS FIRST/LAST
+     - **IMPORTANT FOR SQLite**: Always use NULLS LAST with ASC to put NULLs at the end
+     - ORDER BY column ASC NULLS LAST (puts NULLs at the end for ascending)
+     - ORDER BY column DESC NULLS FIRST (puts NULLs at the beginning for descending)
   3. **Check your database documentation for support**
 - For division: Always check IS NOT NULL AND <> 0
 

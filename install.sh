@@ -36,8 +36,45 @@ check_python_version() {
     fi
 }
 
+# Function to show usage
+show_usage() {
+    print_color "Usage: $0 [OPTIONS]" "$BLUE"
+    print_color "" "$NC"
+    print_color "Options:" "$YELLOW"
+    print_color "  --clean-cache    Clean Docker build cache before building" "$NC"
+    print_color "  --prune-all      Prune all Docker resources (images, containers, volumes)" "$NC"
+    print_color "  --help           Show this help message" "$NC"
+    echo ""
+}
+
 # Main installation flow
 main() {
+    # Parse command line arguments
+    CLEAN_CACHE=false
+    PRUNE_ALL=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --clean-cache)
+                CLEAN_CACHE=true
+                shift
+                ;;
+            --prune-all)
+                PRUNE_ALL=true
+                shift
+                ;;
+            --help)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_color "Unknown option: $1" "$RED"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
     print_color "============================================" "$BLUE"
     print_color "       Thoth AI Installer" "$BLUE"
     print_color "============================================" "$BLUE"
@@ -116,6 +153,26 @@ main() {
     
     print_color "Prerequisites OK" "$GREEN"
     echo ""
+    
+    # Clean Docker cache if requested
+    if [ "$PRUNE_ALL" = true ]; then
+        print_color "Pruning all Docker resources..." "$YELLOW"
+        print_color "WARNING: This will remove all Docker images, containers, and volumes!" "$RED"
+        read -p "Are you sure? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            docker system prune -a --volumes -f
+            print_color "Docker resources pruned" "$GREEN"
+        else
+            print_color "Skipping Docker prune" "$YELLOW"
+        fi
+        echo ""
+    elif [ "$CLEAN_CACHE" = true ]; then
+        print_color "Cleaning Docker build cache..." "$YELLOW"
+        docker builder prune -a -f
+        print_color "Docker build cache cleaned" "$GREEN"
+        echo ""
+    fi
 
     # Validate configuration
     print_color "Validating configuration..." "$YELLOW"
@@ -128,9 +185,15 @@ main() {
     fi
     echo ""
 
+    # Pass clean cache option to Python installer
+    INSTALLER_ARGS=""
+    if [ "$CLEAN_CACHE" = true ] || [ "$PRUNE_ALL" = true ]; then
+        INSTALLER_ARGS="--no-cache"
+    fi
+    
     # Run installer
     print_color "Starting installation..." "$BLUE"
-    if python3 scripts/installer.py; then
+    if python3 scripts/installer.py $INSTALLER_ARGS; then
         print_color "" "$NC"
         print_color "============================================" "$GREEN"
         print_color "    Installation completed successfully!" "$GREEN"

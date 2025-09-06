@@ -399,6 +399,9 @@ async def execute_query(request: PaginationRequest):
         
         logger.debug(f"Database manager initialized: {type(dbmanager)}")
         
+        # Note: SQL delimiters are already corrected during generation phase
+        # No need to correct them again here to avoid discrepancy between displayed and executed SQL
+        
         # Create paginated query service
         paginated_service = PaginatedQueryService(dbmanager)
         

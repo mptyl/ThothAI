@@ -17,18 +17,20 @@ import getpass
 import hashlib
 import secrets
 import string
+import argparse
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import toml
 import json
 
 class ThothInstaller:
-    def __init__(self, config_path: str = "config.yml.local"):
+    def __init__(self, config_path: str = "config.yml.local", no_cache: bool = False):
         self.base_dir = Path.cwd()
         self.config_path = Path(config_path)
         self.config = None
         self.errors = []
         self.password_file = self.base_dir / '.admin_password.hash'
+        self.no_cache = no_cache
         
     def run(self) -> bool:
         """Main installation pipeline"""
@@ -556,7 +558,8 @@ class ThothInstaller:
         
         # Build with cache option
         build_args = ['docker', 'compose', '-f', compose_file, 'build']
-        if not self.config.get('docker', {}).get('build_cache', True):
+        # Use --no-cache if explicitly requested via CLI or if config says no cache
+        if self.no_cache or not self.config.get('docker', {}).get('build_cache', True):
             build_args.append('--no-cache')
         
         print("Building Docker images...")
@@ -741,6 +744,15 @@ class ThothInstaller:
 
 
 if __name__ == "__main__":
-    installer = ThothInstaller()
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Thoth AI Installer')
+    parser.add_argument('--no-cache', action='store_true',
+                        help='Build Docker images without cache')
+    parser.add_argument('--config', default='config.yml.local',
+                        help='Path to configuration file (default: config.yml.local)')
+    args = parser.parse_args()
+    
+    # Create installer with parsed arguments
+    installer = ThothInstaller(config_path=args.config, no_cache=args.no_cache)
     if not installer.run():
         sys.exit(1)

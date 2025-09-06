@@ -71,10 +71,11 @@ def prepare_user_prompt_with_method(
     
     if db_type_lower == "sqlite":
         null_handling_rules = """
-CRITICAL DATABASE RULE FOR SQLite:
-- DO NOT use NULLS FIRST or NULLS LAST in ORDER BY clauses
-- SQLite does not support this syntax and will throw an error
-- Use plain ORDER BY without NULL position specifiers"""
+CRITICAL DATABASE RULE FOR SQLite (3.30.0+):
+- ALWAYS use NULLS LAST with ORDER BY ASC to put NULL values at the end
+- ALWAYS use NULLS FIRST with ORDER BY DESC to put NULL values at the beginning
+- SQLite 3.30.0+ supports NULLS FIRST/LAST syntax
+- Example: ORDER BY column ASC NULLS LAST"""
     else:
         null_handling_rules = f"""
 DATABASE RULE FOR {database_type}:

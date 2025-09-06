@@ -212,6 +212,9 @@ async def evaluate_sql_candidates(state, agents_and_tools):
                     filtered_test_answers = reducer_result.reduced_tests
                     logger.info(f"TestReducer successfully reduced tests from {len(unique_test_answers)} to {len(filtered_test_answers)}")
                     
+                    # Update state.generated_tests with reduced tests for consistency
+                    state.generated_tests = [("TestReducer optimized tests", reducer_result.reduced_tests)]
+                    
                     # Save filtered tests in state if possible
                     if hasattr(state, 'filtered_tests'):
                         state.filtered_tests = filtered_test_answers

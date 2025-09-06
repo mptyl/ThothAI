@@ -15,13 +15,15 @@ Database admin instructions (voliating any of the following will result is punis
     - Use `GROUP BY <column>` before `ORDER BY <column> ASC|DESC` to ensure distinct values.
     - **NULL handling depends on database type:**
       * For PostgreSQL/MySQL/MariaDB/Oracle: Use NULLS LAST with ASC, NULLS FIRST with DESC
-      * For SQLite: DO NOT use NULLS FIRST/LAST (not supported - will cause syntax error)
+      * For SQLite (3.30.0+): Always use NULLS LAST with ASC, NULLS FIRST with DESC
+        - ORDER BY column ASC NULLS LAST (puts NULLs at the end)
+        - ORDER BY column DESC NULLS FIRST (puts NULLs at the beginning)
       * For other databases: Check documentation
 4. **Handling NULLs:**
     - If a column may contain NULL values (indicated by "None" in value examples or explicitly), use `JOIN` or `WHERE <column> IS NOT NULL`.
     - **Database-specific NULL ordering**: 
       * {DATABASE_TYPE} specific rules apply - see database documentation
-      * SQLite: NULLs appear first in ASC, last in DESC automatically
+      * SQLite (3.30.0+): Supports NULLS FIRST/LAST - always use them for consistent results
       * PostgreSQL/MySQL: Can use explicit NULLS FIRST/LAST
 5. **FROM/JOIN Clauses:**
     - Only include tables essential to answer the question.

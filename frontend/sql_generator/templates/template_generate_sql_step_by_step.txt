@@ -40,7 +40,9 @@ Break down the question into logical steps and build the SQL progressively
 - Include sorting if specified in the question
 - **NULL HANDLING - Database Specific**:
   - **For PostgreSQL/MySQL/MariaDB**: Use NULLS LAST with ASC, NULLS FIRST with DESC
-  - **For SQLite**: DO NOT use NULLS FIRST/LAST (not supported)
+  - **For SQLite (3.30.0+)**: Always use NULLS LAST with ASC, NULLS FIRST with DESC
+    - ORDER BY column ASC NULLS LAST (puts NULLs at the end)
+    - ORDER BY column DESC NULLS FIRST (puts NULLs at the beginning)
   - **For other databases**: Check documentation
 
 ### Step 9: Add LIMIT if Needed
@@ -59,7 +61,9 @@ Break down the question into logical steps and build the SQL progressively
 ## NULL HANDLING - Database Specific
 - **Rules depend on {DATABASE_TYPE}**:
   1. **PostgreSQL/MySQL/MariaDB**: Can use NULLS FIRST/LAST
-  2. **SQLite**: Cannot use NULLS FIRST/LAST (syntax error)
+  2. **SQLite (3.30.0+)**: Supports NULLS FIRST/LAST - always use them for consistent ordering
+     - Use NULLS LAST with ASC to put NULLs at the end
+     - Use NULLS FIRST with DESC to put NULLs at the beginning
   3. **Check your database documentation for support**
 - For division: Check denominator for IS NOT NULL AND <> 0
 

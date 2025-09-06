@@ -548,11 +548,23 @@ class PaginatedQueryService:
                 col_id = sort_item.get('colId', '')
                 sort_direction = sort_item.get('sort', 'asc').upper()
                 if col_id and col_id not in ['', 'undefined', '__selection__']:
-                    # Handle column names with spaces or special characters
-                    if ' ' in col_id or '-' in col_id:
+                    # Check if column name needs quoting
+                    needs_quoting = False
+                    
+                    # Check if it contains any special characters that require quoting
+                    if any(char in col_id for char in [' ', '-', '(', ')', '%', '/', '*', '+', '=', '<', '>', '!', '#', '@']):
+                        needs_quoting = True
+                    
+                    # Check if it starts with a number
+                    if col_id and col_id[0].isdigit():
+                        needs_quoting = True
+                    
+                    # Apply appropriate quoting or keep as-is
+                    if needs_quoting:
                         col_id_safe = f'"{col_id}"'
                     else:
-                        col_id_safe = re.sub(r'[^\w\.]', '', col_id)
+                        # Column is safe as-is (alphanumeric with underscores and dots)
+                        col_id_safe = col_id
                     
                     # Add NULLS LAST for consistency with original query
                     nulls_clause = 'NULLS LAST' if sort_direction == 'ASC' else 'NULLS FIRST'
@@ -579,10 +591,23 @@ class PaginatedQueryService:
                 col_id = sort_item.get('colId', '')
                 sort_direction = sort_item.get('sort', 'asc').upper()
                 if col_id and col_id not in ['', 'undefined', '__selection__']:
-                    if ' ' in col_id or '-' in col_id:
+                    # Check if column name needs quoting
+                    needs_quoting = False
+                    
+                    # Check if it contains any special characters that require quoting
+                    if any(char in col_id for char in [' ', '-', '(', ')', '%', '/', '*', '+', '=', '<', '>', '!', '#', '@']):
+                        needs_quoting = True
+                    
+                    # Check if it starts with a number
+                    if col_id and col_id[0].isdigit():
+                        needs_quoting = True
+                    
+                    # Apply appropriate quoting or keep as-is
+                    if needs_quoting:
                         col_id_safe = f'"{col_id}"'
                     else:
-                        col_id_safe = re.sub(r'[^\w\.]', '', col_id)
+                        # Column is safe as-is (alphanumeric with underscores and dots)
+                        col_id_safe = col_id
                     
                     # Add NULLS LAST for consistency
                     nulls_clause = 'NULLS LAST' if sort_direction == 'ASC' else 'NULLS FIRST'
@@ -616,12 +641,24 @@ class PaginatedQueryService:
                 
                 if filter_value:
                     # Handle column names with spaces or special characters
-                    if ' ' in column or '-' in column:
+                    # Check if column name needs quoting
+                    needs_quoting = False
+                    
+                    # Check if it contains any special characters that require quoting
+                    if any(char in column for char in [' ', '-', '(', ')', '%', '/', '*', '+', '=', '<', '>', '!', '#', '@']):
+                        needs_quoting = True
+                    
+                    # Check if it starts with a number
+                    if column and column[0].isdigit():
+                        needs_quoting = True
+                    
+                    # Apply appropriate quoting or keep as-is
+                    if needs_quoting:
                         # Quote the column name for SQL
                         column_safe = f'"{column}"'
                     else:
-                        # Sanitize column name
-                        column_safe = re.sub(r'[^\w\.]', '', column)
+                        # Column is safe as-is (alphanumeric with underscores and dots)
+                        column_safe = column
                     
                     # Escape single quotes in filter value
                     filter_value = filter_value.replace("'", "''")

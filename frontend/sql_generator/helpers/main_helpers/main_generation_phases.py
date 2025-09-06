@@ -369,19 +369,8 @@ async def _evaluate_and_select_phase(
         state.sql_generation_failure_message = error_message
         state.last_SQL = ""
         
-        yield f"{error_message}\n"
-        
-        # Create a simplified metrics object for frontend (without test details)
-        simplified_metrics = {
-            "selection_reason": selection_metrics.get("selection_reason", ""),
-            "num_sqls_evaluated": len(selection_metrics.get("sql_scores", [])) if selection_metrics else 0
-        }
-        failure_data = json.dumps({
-            "type": "sql_generation_failed",
-            "error": "SQL generation failed. Please check the logs for details.",
-            "metrics": simplified_metrics
-        }, ensure_ascii=True)
-        yield f"SQL_GENERATION_FAILED:{failure_data}\n"
+        # NOTE: No error messages sent to frontend - only THOTHLOG messages
+        # The failure information is preserved in state for Django logging
         
         # Check if we should escalate to a higher functionality level
         from helpers.main_helpers.escalation_manager import EscalationManager, EscalationContext, EscalationReason

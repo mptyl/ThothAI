@@ -238,6 +238,8 @@ The SQL generation follows a multi-agent pattern:
 
 
 ## CURL test 
+TESTA SEMPRE SU DOCKER SE NON DIVERSAMENTE RICCHIESTO!!
+Il che significa che ogni volta che vuoi testare con un curl devi proma fare la build del servizio che devi testara
 
 In local development environment:
 ```bash

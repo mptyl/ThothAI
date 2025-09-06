@@ -712,7 +712,10 @@ class EnhancedEvaluationFlow:
                         logger.info(
                             f"TestReducer reduced tests from {len(original_tests)} to {len(reducer_result.reduced_tests)}"
                         )
-                        # Update state with reduced tests as single list format
+                        # Update state with reduced tests - replace the original tests structure
+                        # Store as a single tuple with combined thinking and reduced tests
+                        state.generated_tests = [("TestReducer optimized tests", reducer_result.reduced_tests)]
+                        # Also store in JSON format for compatibility
                         state.generated_tests_json = json.dumps(
                             reducer_result.reduced_tests, ensure_ascii=False
                         )

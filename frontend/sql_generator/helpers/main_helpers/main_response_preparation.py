@@ -86,6 +86,20 @@ async def _prepare_final_response_phase(
             yield "ERROR: Internal error - SQL generation state inconsistency\n"
             return
         else:
+            # Correct SQL delimiters based on database type before formatting
+            try:
+                if hasattr(state, 'database') and hasattr(state.database, 'db_type'):
+                    from helpers.sql_delimiter_corrector import correct_sql_delimiters
+                    corrected_sql = correct_sql_delimiters(state.last_SQL, state.database.db_type)
+                    state.last_SQL = corrected_sql
+                    logger.debug(f"SQL delimiters corrected for database type: {state.database.db_type}")
+                else:
+                    logger.warning("Database type not available, skipping delimiter correction")
+            except Exception as e:
+                logger.error(f"Error correcting SQL delimiters: {e}")
+                # Continue with original SQL if correction fails
+                pass
+            
             # Format and send SQL
             formatted_sql = sqlparse.format(
                 state.last_SQL, 
