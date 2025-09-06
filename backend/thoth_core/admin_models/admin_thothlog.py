@@ -26,7 +26,7 @@ class ThothLogAdminForm(forms.ModelForm):
         model = ThothLog
         fields = "__all__"
         widgets = {
-            "question": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "question": forms.Textarea(attrs={"rows": 3, "class": "vLargeTextField"}),
             "translated_question": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
             "directives": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
             "keywords_list": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
@@ -119,38 +119,55 @@ class ThothLogAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
-        # SEZIONE 1: Informazioni Principali (come da specifica del documento)
+        # SECTION 1: Main Information
         (
-            "Informazioni Principali",
+            "Main Information",
             {
                 "fields": (
-                    ("question", "evaluation_case_badge"),  # Riga 1: 80% + 20%
-                    ("generated_sql_textarea", "duration_display"),  # Riga 2: 80% + 20%
-                    ("username", "workspace"),  # Riga 3: 50% + 50%
-                    ("formatted_started_at", "formatted_terminated_at"),  # Riga 4: 50% + 50%
-                    ("question_language", "db_language"),  # Riga 5: 50% + 50%
-                    ("directives", "flags_activated_display"),  # Riga 6: 50% + 50%
+                    "question",
+                    "generated_sql_textarea",
+                    "evaluation_case_badge",
                 ),
-                "description": "Dati principali dell'esecuzione del workflow SQL",
+                "description": "Core query and result information",
             },
         ),
         
-        # Fase 1: Validazione
+        # SECTION 2: Time and Language
         (
-            "Fase 1: Validazione Domanda",
+            "Time and Language",
+            {
+                "fields": (
+                    "duration_display",
+                    "username",
+                    "workspace",
+                    "formatted_started_at",
+                    "formatted_terminated_at",
+                    "question_language",
+                    "db_language",
+                    "directives",
+                    "flags_activated_display",
+                ),
+                "description": "Timing, user context, and language settings",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Phase 1: Validation
+        (
+            "Phase 1: Question Validation",
             {
                 "fields": (
                     ("validation_start_display", "validation_end_display"),
                     "validation_duration_display",
                 ),
-                "description": "Timing della fase di validazione della domanda",
+                "description": "Question validation phase timing",
                 "classes": ("collapse",),
             },
         ),
         
-        # Fase 2: Keywords e Schema
+        # Phase 2: Keywords and Schema
         (
-            "Fase 2: Generazione Keywords e Preparazione Dati",
+            "Phase 2: Keywords Generation and Data Preparation",
             {
                 "fields": (
                     ("keyword_generation_start_display", "keyword_generation_end_display"),
@@ -164,14 +181,14 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "formatted_reduced_schema",
                     "formatted_used_mschema",
                 ),
-                "description": "Estrazione keywords e preparazione schema con LSH e Vector DB",
+                "description": "Keywords extraction and schema preparation with LSH and Vector DB",
                 "classes": ("collapse",),
             },
         ),
         
-        # Fase 3: Context Retrieval
+        # Phase 3: Context Retrieval
         (
-            "Fase 3: Generazione Aiuti di Contesto",
+            "Phase 3: Context Helpers Generation",
             {
                 "fields": (
                     ("context_retrieval_start_display", "context_retrieval_end_display"),
@@ -179,14 +196,14 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "formatted_evidences",
                     "gold_sql_extracted_display",  # NEW
                 ),
-                "description": "Recupero evidence e gold SQL dal vector database",
+                "description": "Evidence and gold SQL retrieval from vector database",
                 "classes": ("collapse",),
             },
         ),
         
-        # Fase 4: SQL Generation
+        # Phase 4: SQL Generation
         (
-            "Fase 4: Generazione SQL",
+            "Phase 4: SQL Generation",
             {
                 "fields": (
                     ("sql_generation_start_display", "sql_generation_end_display"),
@@ -194,14 +211,14 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "pool_of_generated_sql_display",
                     "sql_generation_failure_message",
                 ),
-                "description": "Generazione dei candidati SQL",
+                "description": "SQL candidates generation",
                 "classes": ("collapse",),
             },
         ),
         
-        # Fase 5: Test Generation
+        # Phase 5: Test Generation
         (
-            "Fase 5: Generazione Test",
+            "Phase 5: Test Generation",
             {
                 "fields": (
                     ("test_generation_start_display", "test_generation_end_display"),
@@ -209,28 +226,28 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "generated_tests_display",
                     "generated_tests_count",
                 ),
-                "description": "Generazione dei test per validazione SQL",
+                "description": "Test generation for SQL validation",
                 "classes": ("collapse",),
             },
         ),
         
-        # Fase 6: Test Reduction (opzionale)
+        # Phase 6: Test Reduction (optional)
         (
-            "Fase 6: Riduzione Test (se effettuata)",
+            "Phase 6: Test Reduction (if performed)",
             {
                 "fields": (
                     ("test_reduction_start_display", "test_reduction_end_display"),
                     "test_reduction_duration_display",
                     "reduced_tests_display",  # NEW
                 ),
-                "description": "Riduzione semantica dei test (se eseguita)",
+                "description": "Semantic test reduction (if executed)",
                 "classes": ("collapse",),
             },
         ),
         
-        # Fase 7: Valutazione e Selezione
+        # Phase 7: Evaluation and Selection
         (
-            "Fase 7: Valutazione SQL e Selezione Vincitore",
+            "Phase 7: SQL Evaluation and Winner Selection",
             {
                 "fields": (
                     ("evaluation_start_display", "evaluation_end_display"),
@@ -243,35 +260,35 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "selected_sql",
                     "sql_explanation",
                 ),
-                "description": "Valutazione dei candidati SQL e selezione del vincitore",
+                "description": "SQL candidates evaluation and winner selection",
                 "classes": ("collapse",),
             },
         ),
         
         # Enhanced Evaluation (manteniamo per compatibilità)
         (
-            "Valutazione Avanzata",
+            "Advanced Evaluation",
             {
                 "fields": (
                     "enhanced_evaluation_thinking_display",
                     "enhanced_evaluation_answers_display",
                     "enhanced_evaluation_selected_sql_display",
                 ),
-                "description": "Risultati della valutazione avanzata",
+                "description": "Advanced evaluation results",
                 "classes": ("collapse",),
             },
         ),
         
         # Timestamps finali
         (
-            "Timestamps di Sistema",
+            "System Timestamps",
             {
                 "fields": (
                     "process_end_time_display",  # NEW
                     "formatted_created_at", 
                     "formatted_updated_at"
                 ),
-                "description": "Timestamp di sistema per il record",
+                "description": "System timestamps for the record",
                 "classes": ("collapse",),
             },
         ),
@@ -2161,7 +2178,19 @@ class ThothLogAdmin(admin.ModelAdmin):
 
     def get_test_status(self, obj):
         """Calculate the test status based on selection_metrics and evaluation_results"""
-        # Check for SQL generation failure first
+        # Check evaluation_case FIRST for A-GOLD, B-GOLD, etc. statuses
+        # This takes priority over sql_generation_failure_message
+        if obj.evaluation_case:
+            case = obj.evaluation_case.upper()
+            if "GOLD" in case:
+                return "GOLD", {"pass_rate": 100, "message": f"Test passed: {obj.evaluation_case}"}
+            elif "SILVER" in case:
+                # For silver cases, still show as passed (star)
+                return "GOLD", {"pass_rate": 90, "message": f"Test passed: {obj.evaluation_case}"}
+            elif "FAILED" in case:
+                return "KO", {"pass_rate": 0, "message": f"Test failed: {obj.evaluation_case}"}
+        
+        # Check for SQL generation failure only if no evaluation_case
         if obj.sql_generation_failure_message:
             return "KO", {"pass_rate": 0, "message": "SQL generation failed"}
         
@@ -2410,13 +2439,13 @@ class ThothLogAdmin(admin.ModelAdmin):
         color = color_map.get(case, "#6c757d")
         text_color = "white" if case in ["D-FAILED", "FAILED"] else "black"
         return format_html(
-            'Esito: <span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            '<span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
             color, text_color, case
         )
-    evaluation_case_badge.short_description = "Esito"
+    evaluation_case_badge.short_description = "Evaluation Result"
     
     def generated_sql_textarea(self, obj):
-        """SQL con textarea 600px width"""
+        """SQL with fixed width textarea"""
         if obj.generated_sql:
             return format_html(
                 '<textarea readonly style="width: 600px; height: 150px; font-family: monospace;" class="vLargeTextField">{}</textarea>',
@@ -2424,19 +2453,19 @@ class ThothLogAdmin(admin.ModelAdmin):
             )
         elif obj.sql_generation_failure_message:
             return format_html(
-                '<div style="color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; width: 580px;">'
+                '<div style="color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px;">'
                 '<strong>❌ SQL Generation Failed:</strong><br>{}'
                 '</div>',
                 obj.sql_generation_failure_message
             )
         return "-"
-    generated_sql_textarea.short_description = "SQL Generato"
+    generated_sql_textarea.short_description = "SQL Generation"
     
     def duration_display(self, obj):
-        """Display duration with label"""
+        """Display duration without label"""
         if obj.duration:
-            return format_html('Duration: <strong>{}</strong>', obj.duration)
-        return "Duration: -"
+            return format_html('<strong>{}</strong>', obj.duration)
+        return "-"
     duration_display.short_description = "Duration"
     
     def flags_activated_display(self, obj):
@@ -2470,145 +2499,145 @@ class ThothLogAdmin(admin.ModelAdmin):
         if obj.validation_start:
             return timezone.localtime(obj.validation_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    validation_start_display.short_description = "Inizio"
+    validation_start_display.short_description = "Start"
     
     def validation_end_display(self, obj):
         if obj.validation_end:
             return timezone.localtime(obj.validation_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    validation_end_display.short_description = "Fine"
+    validation_end_display.short_description = "End"
     
     def validation_duration_display(self, obj):
         if obj.validation_duration_ms > 0:
             return f"{obj.validation_duration_ms / 1000:.1f}s"
         return "-"
-    validation_duration_display.short_description = "Durata Validazione"
+    validation_duration_display.short_description = "Validation Duration"
     
     def keyword_generation_start_display(self, obj):
         if obj.keyword_generation_start:
             return timezone.localtime(obj.keyword_generation_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    keyword_generation_start_display.short_description = "Inizio"
+    keyword_generation_start_display.short_description = "Start"
     
     def keyword_generation_end_display(self, obj):
         if obj.keyword_generation_end:
             return timezone.localtime(obj.keyword_generation_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    keyword_generation_end_display.short_description = "Fine"
+    keyword_generation_end_display.short_description = "End"
     
     def keyword_generation_duration_display(self, obj):
         if obj.keyword_generation_duration_ms > 0:
             return f"{obj.keyword_generation_duration_ms / 1000:.1f}s"
         return "-"
-    keyword_generation_duration_display.short_description = "Durata Keywords"
+    keyword_generation_duration_display.short_description = "Keywords Duration"
     
     def schema_preparation_start_display(self, obj):
         if obj.schema_preparation_start:
             return timezone.localtime(obj.schema_preparation_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    schema_preparation_start_display.short_description = "Inizio"
+    schema_preparation_start_display.short_description = "Start"
     
     def schema_preparation_end_display(self, obj):
         if obj.schema_preparation_end:
             return timezone.localtime(obj.schema_preparation_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    schema_preparation_end_display.short_description = "Fine"
+    schema_preparation_end_display.short_description = "End"
     
     def schema_preparation_duration_display(self, obj):
         if obj.schema_preparation_duration_ms > 0:
             return f"{obj.schema_preparation_duration_ms / 1000:.1f}s"
         return "-"
-    schema_preparation_duration_display.short_description = "Durata Schema Prep"
+    schema_preparation_duration_display.short_description = "Schema Prep Duration"
     
     def context_retrieval_start_display(self, obj):
         if obj.context_retrieval_start:
             return timezone.localtime(obj.context_retrieval_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    context_retrieval_start_display.short_description = "Inizio"
+    context_retrieval_start_display.short_description = "Start"
     
     def context_retrieval_end_display(self, obj):
         if obj.context_retrieval_end:
             return timezone.localtime(obj.context_retrieval_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    context_retrieval_end_display.short_description = "Fine"
+    context_retrieval_end_display.short_description = "End"
     
     def context_retrieval_duration_display(self, obj):
         if obj.context_retrieval_duration_ms > 0:
             return f"{obj.context_retrieval_duration_ms / 1000:.1f}s"
         return "-"
-    context_retrieval_duration_display.short_description = "Durata Context"
+    context_retrieval_duration_display.short_description = "Context Duration"
     
     def test_reduction_start_display(self, obj):
         if obj.test_reduction_start:
             return timezone.localtime(obj.test_reduction_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    test_reduction_start_display.short_description = "Inizio"
+    test_reduction_start_display.short_description = "Start"
     
     def test_reduction_end_display(self, obj):
         if obj.test_reduction_end:
             return timezone.localtime(obj.test_reduction_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    test_reduction_end_display.short_description = "Fine"
+    test_reduction_end_display.short_description = "End"
     
     def test_reduction_duration_display(self, obj):
         if obj.test_reduction_duration_ms > 0:
             return f"{obj.test_reduction_duration_ms / 1000:.1f}s"
         return "-"
-    test_reduction_duration_display.short_description = "Durata Test Reduction"
+    test_reduction_duration_display.short_description = "Test Reduction Duration"
     
     def sql_generation_start_display(self, obj):
         if obj.sql_generation_start:
             return timezone.localtime(obj.sql_generation_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    sql_generation_start_display.short_description = "Inizio"
+    sql_generation_start_display.short_description = "Start"
     
     def sql_generation_end_display(self, obj):
         if obj.sql_generation_end:
             return timezone.localtime(obj.sql_generation_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    sql_generation_end_display.short_description = "Fine"
+    sql_generation_end_display.short_description = "End"
     
     def sql_generation_duration_display(self, obj):
         if obj.sql_generation_duration_ms > 0:
             return f"{obj.sql_generation_duration_ms / 1000:.1f}s"
         return "-"
-    sql_generation_duration_display.short_description = "Durata SQL Gen"
+    sql_generation_duration_display.short_description = "SQL Gen Duration"
     
     def test_generation_start_display(self, obj):
         if obj.test_generation_start:
             return timezone.localtime(obj.test_generation_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    test_generation_start_display.short_description = "Inizio"
+    test_generation_start_display.short_description = "Start"
     
     def test_generation_end_display(self, obj):
         if obj.test_generation_end:
             return timezone.localtime(obj.test_generation_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"  
-    test_generation_end_display.short_description = "Fine"
+    test_generation_end_display.short_description = "End"
     
     def test_generation_duration_display(self, obj):
         if obj.test_generation_duration_ms > 0:
             return f"{obj.test_generation_duration_ms / 1000:.1f}s"
         return "-"
-    test_generation_duration_display.short_description = "Durata Test Gen"
+    test_generation_duration_display.short_description = "Test Gen Duration"
     
     def evaluation_start_display(self, obj):
         if obj.evaluation_start:
             return timezone.localtime(obj.evaluation_start).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    evaluation_start_display.short_description = "Inizio"
+    evaluation_start_display.short_description = "Start"
     
     def evaluation_end_display(self, obj):
         if obj.evaluation_end:
             return timezone.localtime(obj.evaluation_end).strftime("%H:%M:%S.%f")[:-3]
         return "-"
-    evaluation_end_display.short_description = "Fine"
+    evaluation_end_display.short_description = "End"
     
     def evaluation_duration_display(self, obj):
         if obj.evaluation_duration_ms > 0:
             return f"{obj.evaluation_duration_ms / 1000:.1f}s"
         return "-"
-    evaluation_duration_display.short_description = "Durata Evaluation"
+    evaluation_duration_display.short_description = "Evaluation Duration"
     
     def lsh_similar_columns_display(self, obj):
         """Display LSH similar columns as formatted JSON"""
@@ -2663,7 +2692,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                              json.dumps(data, indent=2, ensure_ascii=False))
         except:
             return str(obj.reduced_tests)[:200] + "..."
-    reduced_tests_display.short_description = "Test Ridotti"
+    reduced_tests_display.short_description = "Reduced Tests"
     
     def evaluation_judgments_display(self, obj):
         """Display evaluation judgments"""
@@ -2678,11 +2707,16 @@ class ThothLogAdmin(admin.ModelAdmin):
                              json.dumps(data, indent=2, ensure_ascii=False))
         except:
             return str(obj.evaluation_judgments)[:200] + "..."
-    evaluation_judgments_display.short_description = "Giudizi Valutazione"
+    evaluation_judgments_display.short_description = "Evaluation Judgments"
     
     def process_end_time_display(self, obj):
         """Display process end time"""
         if obj.process_end_time:
             return timezone.localtime(obj.process_end_time).strftime("%Y-%m-%d %H:%M:%S")
         return "-"
-    process_end_time_display.short_description = "Fine Processo"
+    process_end_time_display.short_description = "Process End Time"
+    
+    class Media:
+        css = {
+            'all': ('admin/css/custom_thothlog.css',)
+        }
