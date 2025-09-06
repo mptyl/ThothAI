@@ -135,9 +135,9 @@ class PaginatedQueryService:
         # Rimuovi spazi extra
         expr = expression.strip()
         
-        # Helper function to check for parentheses outside of quotes
-        def has_unquoted_parens(s: str) -> bool:
-            """Check if string has parentheses that aren't inside quoted field names.
+        # Helper function to check for operators outside of quotes
+        def has_unquoted_operator(s: str, operator: str) -> bool:
+            """Check if string has an operator that isn't inside quoted field names.
             Handles all database quoting styles:
             - Double quotes: "field" (PostgreSQL, Oracle, SQLite, ANSI mode)
             - Single quotes: 'field' (for string literals, not field names)
@@ -164,13 +164,26 @@ class PaginatedQueryService:
                 elif quote_char or in_brackets:
                     # Inside quotes or brackets, skip
                     continue
-                elif char in ['(', ')']:
-                    # Found parenthesis outside of quotes and brackets
+                elif char == operator:
+                    # Found operator outside of quotes and brackets
                     return True
             return False
         
+        # Helper function to check for parentheses outside of quotes
+        def has_unquoted_parens(s: str) -> bool:
+            """Check if string has parentheses that aren't inside quoted field names."""
+            return has_unquoted_operator(s, '(') or has_unquoted_operator(s, ')')
+        
+        # PRIMA controlla se è un campo semplice con prefisso tabella
+        # Pattern: TableAlias.Field or TableAlias."Field Name" or TableAlias.`Field Name` or TableAlias.[Field Name]
+        table_field_pattern = r'^([A-Za-z][A-Za-z0-9_]*)\.([\"\`\[]?[^\"\`\]]+[\"\`\]]?)$'
+        match = re.match(table_field_pattern, expr)
+        if match:
+            # È un campo semplice con prefisso tabella, estrai solo il nome del campo
+            field_with_quotes = match.group(2)
+            base_alias = self._clean_field_name_for_alias(field_with_quotes)
         # Caso divisione
-        if '/' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '/') and not has_unquoted_parens(expr):
             parts = expr.split('/')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
@@ -190,7 +203,7 @@ class PaginatedQueryService:
                     base_alias = f"{left}_per_{right}"
         
         # Caso moltiplicazione
-        elif '*' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '*') and not has_unquoted_parens(expr):
             parts = expr.split('*')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
@@ -203,7 +216,7 @@ class PaginatedQueryService:
                     base_alias = f"{left}_times_{right}"
         
         # Caso addizione
-        elif '+' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '+') and not has_unquoted_parens(expr):
             parts = expr.split('+')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
@@ -218,7 +231,7 @@ class PaginatedQueryService:
                     base_alias = f"{left}_plus_{right}"
         
         # Caso sottrazione  
-        elif '-' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '-') and not has_unquoted_parens(expr):
             parts = expr.split('-')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
