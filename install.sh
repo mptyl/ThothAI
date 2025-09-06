@@ -28,7 +28,7 @@ check_command() {
 
 # Function to check Python version
 check_python_version() {
-    if python3 -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
+    if $PYTHON_CMD -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
         return 0
     else
         print_color "Error: Python 3.9+ is required" "$RED"
@@ -97,6 +97,16 @@ main() {
         exit 1
     fi
 
+    # Determine Python command (prefer python3, fallback to python)
+    if check_command python3; then
+        PYTHON_CMD=python3
+    elif check_command python; then
+        PYTHON_CMD=python
+    else
+        print_color "Please install Python 3.9+: https://www.python.org" "$RED"
+        exit 1
+    fi
+    
     # Check prerequisites
     print_color "Checking prerequisites..." "$YELLOW"
     
@@ -113,39 +123,32 @@ main() {
         exit 1
     fi
     
-    # Check for Python
-    if ! check_command python3; then
-        print_color "Please install Python 3.9+: https://www.python.org" "$RED"
-        exit 1
-    fi
-    
     # Check Python version
     if ! check_python_version; then
         exit 1
     fi
 
-    
     # Check for required Python packages
     print_color "Installing required Python packages..." "$YELLOW"
     
     # Check if we're in a virtual environment
     if [ -n "$VIRTUAL_ENV" ]; then
         # In virtual environment, don't use --user
-        pip3 install --quiet pyyaml requests toml 2>/dev/null || {
+        $PYTHON_CMD -m pip install --quiet pyyaml requests toml 2>/dev/null || {
             print_color "Warning: Could not install Python packages. Trying with python -m pip..." "$YELLOW"
-            python3 -m pip install --quiet pyyaml requests toml || {
+            $PYTHON_CMD -m pip install --quiet pyyaml requests toml || {
                 print_color "Error: Failed to install required Python packages" "$RED"
-                print_color "Please run: pip3 install pyyaml requests toml" "$RED"
+                print_color "Please run: pip install pyyaml requests toml" "$RED"
                 exit 1
             }
         }
     else
         # Not in virtual environment, use --user
-        pip3 install --quiet --user pyyaml requests toml 2>/dev/null || {
+        $PYTHON_CMD -m pip install --quiet --user pyyaml requests toml 2>/dev/null || {
             print_color "Warning: Could not install Python packages. Trying with system pip..." "$YELLOW"
-            python3 -m pip install --quiet --user pyyaml requests toml || {
+            $PYTHON_CMD -m pip install --quiet --user pyyaml requests toml || {
                 print_color "Error: Failed to install required Python packages" "$RED"
-                print_color "Please run: pip3 install pyyaml requests toml" "$RED"
+                print_color "Please run: pip install --user pyyaml requests toml" "$RED"
                 exit 1
             }
         }
@@ -176,7 +179,7 @@ main() {
 
     # Validate configuration
     print_color "Validating configuration..." "$YELLOW"
-    if python3 scripts/validate_config.py config.yml.local; then
+    if $PYTHON_CMD scripts/validate_config.py config.yml.local; then
         print_color "Configuration validation passed" "$GREEN"
     else
         print_color "Configuration validation failed" "$RED"
@@ -193,7 +196,7 @@ main() {
     
     # Run installer
     print_color "Starting installation..." "$BLUE"
-    if python3 scripts/installer.py $INSTALLER_ARGS; then
+    if $PYTHON_CMD scripts/installer.py $INSTALLER_ARGS; then
         print_color "" "$NC"
         print_color "============================================" "$GREEN"
         print_color "    Installation completed successfully!" "$GREEN"

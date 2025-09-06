@@ -22,6 +22,7 @@ It exposes a single API endpoint: generate_sql that receives question and worksp
 import logging
 import os
 import time
+import json
 import logfire
 
 from dotenv import load_dotenv
@@ -62,16 +63,16 @@ is_docker = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
 
 if is_docker:
     # Docker environment - env vars are already loaded by docker-compose
-    print("Running in Docker - using environment variables from container")
+    # Will log after logger is configured below
+    pass
 else:
     # Local development - load .env.local from project root
     project_root = Path(__file__).parent.parent.parent  # ThothAI root dir
     env_path = project_root / '.env.local'
     if env_path.exists():
         load_dotenv(env_path)
-        print(f"Loaded environment variables from {env_path}")
-    else:
-        print(f"WARNING: No .env file found at {env_path}")
+        # Will log after logger is configured below
+    # else case will be logged after logger is configured
 
 # Configure logfire and instrument PydanticAI at startup
 logfire.configure(
@@ -93,6 +94,17 @@ log_level = get_logging_level()
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
+
+# Log startup environment info
+if is_docker:
+    logger.info("Running in Docker - using environment variables from container")
+else:
+    project_root = Path(__file__).parent.parent.parent
+    env_path = project_root / '.env.local'
+    if env_path.exists():
+        logger.info(f"Loaded environment variables from {env_path}")
+    else:
+        logger.warning(f"No .env file found at {env_path}")
 
 # Initialize database plugins
 available_plugins = initialize_database_plugins()
@@ -232,32 +244,54 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
         ]
         
         # Execute phases 1-4 with standard error handling
+        has_critical_error = False
+        critical_error_message = None
+        
         for phase_name, phase_generator in phases:
             async for message in phase_generator:
                 if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:")):
                     yield message
-                    return
-                yield message
-                if "CRITICAL_ERROR:" in message:
-                    return
+                    if message.startswith("CRITICAL_ERROR:"):
+                        has_critical_error = True
+                        # Extract error message from JSON if possible
+                        try:
+                            error_data = json.loads(message.split(":", 1)[1])
+                            critical_error_message = error_data.get("message", "Critical error occurred")
+                        except:
+                            critical_error_message = "Critical error in SQL generation"
+                        # Store error in state for logging
+                        state.execution.sql_generation_failure_message = critical_error_message
+                        state.execution.sql_status = "FAILED"
+                        # Don't return for CRITICAL_ERROR - we need to log it
+                    elif message.startswith("CANCELLED:"):
+                        return  # Only return for CANCELLED (user disconnection)
+                else:
+                    yield message
         
-        # Phase 5: Evaluation and Selection (special handling for result tuple)
+        # Phase 5: Evaluation and Selection (skip if critical error)
         success = False
         selected_sql = None
-        async for message in _evaluate_and_select_phase(state, request, http_request):
-            if isinstance(message, tuple) and len(message) == 3 and message[0] == "RESULT":
-                # This is the result tuple (success, selected_sql)
-                _, success, selected_sql = message
-                break
-            if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:", "SQL_GENERATION_FAILED:")):
-                yield message
-                # Don't return for SQL_GENERATION_FAILED - we need to log it
-                if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:")):
-                    return
-            else:
-                yield message
         
-        # Phase 6: Final Response Preparation
+        if not has_critical_error:
+            async for message in _evaluate_and_select_phase(state, request, http_request):
+                if isinstance(message, tuple) and len(message) == 3 and message[0] == "RESULT":
+                    # This is the result tuple (success, selected_sql)
+                    _, success, selected_sql = message
+                    break
+                if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:", "SQL_GENERATION_FAILED:")):
+                    yield message
+                    # Don't return for SQL_GENERATION_FAILED - we need to log it
+                    if message.startswith("CANCELLED:"):
+                        return  # Only return for CANCELLED
+                else:
+                    yield message
+        else:
+            # If we had a critical error, ensure success is False
+            success = False
+            logger.info(f"Skipping Phase 5 due to critical error: {critical_error_message}")
+            yield f"THOTHLOG:Skipping evaluation phase due to critical error: {critical_error_message}\n"
+        
+        # Phase 6: Final Response Preparation - ALWAYS CALLED for logging
         async for message in _prepare_final_response_phase(state, request, http_request, success, selected_sql):
             yield message
 

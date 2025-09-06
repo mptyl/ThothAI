@@ -99,11 +99,7 @@ def test_token(request):
 @permission_classes([HasValidApiKey])
 def test_api_key(request):
     """Test endpoint for API key authentication"""
-    import sys
-
-    print("test_api_key view called!", file=sys.stderr)
-    print(f"Request user: {request.user}", file=sys.stderr)
-    print(f"Request auth: {request.auth}", file=sys.stderr)
+    logger.debug(f"test_api_key view called - User: {request.user}, Auth: {request.auth}")
     return Response(
         {
             "message": "API key authentication successful!",
@@ -247,16 +243,8 @@ def get_user_workspaces_list(request):
     Includes workspaces associated with the user and default workspaces.
     """
     # Debug logging
-    import sys
-
-    print("get_user_workspaces_list called", file=sys.stderr)
-    print(f"Request user: {request.user}", file=sys.stderr)
-    print(f"Request auth: {request.auth}", file=sys.stderr)
-    print(
-        f"Request headers X-API-KEY: {request.headers.get('X-API-KEY')}",
-        file=sys.stderr,
-    )
-
+    logger.debug(f"get_user_workspaces_list called - User: {request.user}, Auth: {request.auth}")
+    
     # Check if authentication was done via API key
     if request.auth is True and request.user is None:
         # Authentication via API key

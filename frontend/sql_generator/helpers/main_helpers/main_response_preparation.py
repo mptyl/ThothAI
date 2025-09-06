@@ -74,6 +74,11 @@ async def _prepare_final_response_phase(
             }
             log_error(f"Critical: Success reported but no SQL in state.last_SQL: {json.dumps(error_details)}")
             
+            # Store error for logging
+            state.execution.sql_generation_failure_message = "SQL generation reported success but no SQL was found"
+            state.execution.sql_status = "FAILED"
+            state.generation.generated_sql = f"ERROR: {state.execution.sql_generation_failure_message}"
+            
             error_msg = {
                 "type": "critical_error",
                 "component": "sql_finalization",
@@ -84,7 +89,7 @@ async def _prepare_final_response_phase(
             }
             yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
             yield "ERROR: Internal error - SQL generation state inconsistency\n"
-            return
+            # Don't return - continue to log the error
         else:
             # Correct SQL delimiters based on database type before formatting
             try:
@@ -143,6 +148,23 @@ async def _prepare_final_response_phase(
         except Exception as e:
             log_error(f"Error preparing SQL_READY data: {e}")
             yield f"THOTHLOG:Error preparing query for execution: {str(e)}\n"
+    else:
+        # Handle failure case - check if we have an error message to log
+        if hasattr(state.execution, 'sql_generation_failure_message') and state.execution.sql_generation_failure_message:
+            # Use error message as placeholder for SQL in logging
+            state.generation.generated_sql = f"ERROR: {state.execution.sql_generation_failure_message}"
+            # Ensure sql_status is set to FAILED
+            if not hasattr(state.execution, 'sql_status') or not state.execution.sql_status:
+                state.execution.sql_status = "FAILED"
+            logger.info(f"Processing failed SQL generation for logging: {state.execution.sql_generation_failure_message}")
+            yield f"THOTHLOG:SQL generation failed: {state.execution.sql_generation_failure_message}\n"
+        else:
+            # Generic failure without specific message
+            state.generation.generated_sql = "ERROR: SQL generation failed"
+            state.execution.sql_status = "FAILED"
+            state.execution.sql_generation_failure_message = "SQL generation failed without specific error message"
+            logger.info("Processing failed SQL generation without specific error message")
+            yield "THOTHLOG:SQL generation failed\n"
     
     # Check for client disconnection before SQL explanation
     if await http_request.is_disconnected():

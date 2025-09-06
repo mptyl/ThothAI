@@ -26,24 +26,28 @@ class ThothLogAdminForm(forms.ModelForm):
         model = ThothLog
         fields = "__all__"
         widgets = {
-            "question": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "translated_question": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "directives": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "keywords_list": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "evidences": forms.Textarea(attrs={"rows": 5, "cols": 80}),
-            "similar_questions": forms.Textarea(attrs={"rows": 5, "cols": 80}),
-            "similar_columns": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "reduced_schema": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "schema_with_examples": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "schema_from_vector_db": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "used_mschema": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "generated_tests": forms.Textarea(attrs={"rows": 5, "cols": 80}),
-            "pool_of_generated_sql": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "generated_sql": forms.Textarea(attrs={"rows": 10, "cols": 80}),
-            "sql_generation_failure_message": forms.Textarea(
-                attrs={"rows": 3, "cols": 80}
-            ),
-            "sql_explanation": forms.Textarea(attrs={"rows": 5, "cols": 80}),
+            "question": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "translated_question": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "directives": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "keywords_list": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "evidences": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "similar_questions": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "similar_columns": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "reduced_schema": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "schema_with_examples": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "schema_from_vector_db": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "used_mschema": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "generated_tests": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "pool_of_generated_sql": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "generated_sql": forms.Textarea(attrs={"rows": 10, "cols": 80, "class": "vLargeTextField"}),
+            "sql_generation_failure_message": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "sql_explanation": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            # Nuovi campi aggiunti per la riorganizzazione
+            "lsh_similar_columns": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "gold_sql_extracted": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "reduced_tests": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "flags_activated": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "evaluation_judgments": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
         }
 
 
@@ -74,7 +78,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         "workspace",
         "formatted_started_at",
         "formatted_terminated_at",
-        "duration",
+        "duration_display",
         "question",
         "selected_sql_or_error",
         "db_language",
@@ -115,136 +119,159 @@ class ThothLogAdmin(admin.ModelAdmin):
     )
 
     fieldsets = (
+        # SEZIONE 1: Informazioni Principali (come da specifica del documento)
         (
-            "Basic Information",
+            "Informazioni Principali",
             {
                 "fields": (
-                    "question",
-                    "selected_sql_or_error",
-                    "test_status_display",
-                    "username",
-                    "workspace",
-                    "formatted_started_at",
-                    "formatted_terminated_at",
-                    "duration",
+                    ("question", "evaluation_case_badge"),  # Riga 1: 80% + 20%
+                    ("generated_sql_textarea", "duration_display"),  # Riga 2: 80% + 20%
+                    ("username", "workspace"),  # Riga 3: 50% + 50%
+                    ("formatted_started_at", "formatted_terminated_at"),  # Riga 4: 50% + 50%
+                    ("question_language", "db_language"),  # Riga 5: 50% + 50%
+                    ("directives", "flags_activated_display"),  # Riga 6: 50% + 50%
                 ),
-                "description": "Basic information about the workflow execution.",
+                "description": "Dati principali dell'esecuzione del workflow SQL",
             },
         ),
+        
+        # Fase 1: Validazione
         (
-            "Question Details",
+            "Fase 1: Validazione Domanda",
             {
                 "fields": (
-                    "db_language",
-                    "question_language",
-                    "translated_question",
-                    "directives",
+                    ("validation_start_display", "validation_end_display"),
+                    "validation_duration_display",
                 ),
-                "description": "Language information and question translations.",
-            },
-        ),
-        (
-            "Token Management",
-            {
-                "fields": (
-                    "formatted_available_context_tokens",
-                    "formatted_full_schema_tokens_count",
-                    "formatted_schema_link_strategy",
-                ),
-                "description": "Information about token usage and context window management.",
+                "description": "Timing della fase di validazione della domanda",
                 "classes": ("collapse",),
             },
         ),
+        
+        # Fase 2: Keywords e Schema
         (
-            "Processing Information",
+            "Fase 2: Generazione Keywords e Preparazione Dati",
             {
                 "fields": (
+                    ("keyword_generation_start_display", "keyword_generation_end_display"),
+                    "keyword_generation_duration_display",
                     "formatted_keywords_list",
-                    "formatted_evidences",
-                    "formatted_similar_questions",
-                ),
-                "description": "Information extracted and retrieved during processing.",
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Schema Information",
-            {
-                "fields": (
-                    "formatted_similar_columns",
+                    ("schema_preparation_start_display", "schema_preparation_end_display"),
+                    "schema_preparation_duration_display",
+                    "lsh_similar_columns_display",  # NEW
                     "formatted_schema_with_examples",
                     "formatted_schema_from_vector_db",
                     "formatted_reduced_schema",
                     "formatted_used_mschema",
                 ),
-                "description": "Database schema information used for query generation.",
+                "description": "Estrazione keywords e preparazione schema con LSH e Vector DB",
                 "classes": ("collapse",),
             },
         ),
+        
+        # Fase 3: Context Retrieval
         (
-            "Generated Tests",
-            {
-                "fields": ("generated_tests_display", "generated_tests_count"),
-                "description": "Generated tests for validation.",
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Evaluation Results",
+            "Fase 3: Generazione Aiuti di Contesto",
             {
                 "fields": (
-                    "evaluation_results_display",
-                    "sql_status_display",
-                    "evaluation_case_display",
-                    "evaluation_details_display",
-                    "pass_rates_display",
+                    ("context_retrieval_start_display", "context_retrieval_end_display"),
+                    "context_retrieval_duration_display",
+                    "formatted_evidences",
+                    "gold_sql_extracted_display",  # NEW
                 ),
-                "description": "Evaluation of SQL candidates against tests and selection metrics.",
+                "description": "Recupero evidence e gold SQL dal vector database",
                 "classes": ("collapse",),
             },
         ),
+        
+        # Fase 4: SQL Generation
         (
-            "Execution Timing",
+            "Fase 4: Generazione SQL",
             {
                 "fields": (
-                    ("sql_generation_timing_display", "test_generation_timing_display"),
-                    "evaluation_timing_display",
-                    "sql_selection_timing_display",
-                ),
-                "description": "Detailed timing information for each phase of execution.",
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Generated Output",
-            {
-                "fields": (
+                    ("sql_generation_start_display", "sql_generation_end_display"),
+                    "sql_generation_duration_display",
                     "pool_of_generated_sql_display",
-                    "selected_sql",
                     "sql_generation_failure_message",
+                ),
+                "description": "Generazione dei candidati SQL",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Fase 5: Test Generation
+        (
+            "Fase 5: Generazione Test",
+            {
+                "fields": (
+                    ("test_generation_start_display", "test_generation_end_display"),
+                    "test_generation_duration_display",
+                    "generated_tests_display",
+                    "generated_tests_count",
+                ),
+                "description": "Generazione dei test per validazione SQL",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Fase 6: Test Reduction (opzionale)
+        (
+            "Fase 6: Riduzione Test (se effettuata)",
+            {
+                "fields": (
+                    ("test_reduction_start_display", "test_reduction_end_display"),
+                    "test_reduction_duration_display",
+                    "reduced_tests_display",  # NEW
+                ),
+                "description": "Riduzione semantica dei test (se eseguita)",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Fase 7: Valutazione e Selezione
+        (
+            "Fase 7: Valutazione SQL e Selezione Vincitore",
+            {
+                "fields": (
+                    ("evaluation_start_display", "evaluation_end_display"),
+                    "evaluation_duration_display",
+                    "evaluation_judgments_display",  # NEW
+                    "pass_rates_display",
+                    "evaluation_details_display",
+                    "selected_sql_complexity",
+                    "sql_status_display",
+                    "selected_sql",
                     "sql_explanation",
                 ),
-                "description": "Final SQL query and its explanation.",
+                "description": "Valutazione dei candidati SQL e selezione del vincitore",
                 "classes": ("collapse",),
             },
         ),
+        
+        # Enhanced Evaluation (manteniamo per compatibilità)
         (
-            "Enhanced Evaluation",
+            "Valutazione Avanzata",
             {
                 "fields": (
                     "enhanced_evaluation_thinking_display",
                     "enhanced_evaluation_answers_display",
                     "enhanced_evaluation_selected_sql_display",
                 ),
-                "description": "Enhanced evaluation reasoning and results.",
+                "description": "Risultati della valutazione avanzata",
                 "classes": ("collapse",),
             },
         ),
+        
+        # Timestamps finali
         (
-            "Timestamps",
+            "Timestamps di Sistema",
             {
-                "fields": ("formatted_created_at", "formatted_updated_at"),
-                "description": "Record creation and update timestamps.",
+                "fields": (
+                    "process_end_time_display",  # NEW
+                    "formatted_created_at", 
+                    "formatted_updated_at"
+                ),
+                "description": "Timestamp di sistema per il record",
                 "classes": ("collapse",),
             },
         ),
@@ -2134,6 +2161,10 @@ class ThothLogAdmin(admin.ModelAdmin):
 
     def get_test_status(self, obj):
         """Calculate the test status based on selection_metrics and evaluation_results"""
+        # Check for SQL generation failure first
+        if obj.sql_generation_failure_message:
+            return "KO", {"pass_rate": 0, "message": "SQL generation failed"}
+        
         if not obj.selection_metrics:
             return None, None  # status, details
         
@@ -2359,3 +2390,299 @@ class ThothLogAdmin(admin.ModelAdmin):
     enhanced_evaluation_selected_sql_display.short_description = "Enhanced Selected SQL"
     
     test_status_display.short_description = "Test Execution Status"
+    
+    # NEW METHODS for reorganized logging
+    
+    def evaluation_case_badge(self, obj):
+        """Badge colorato per esito (Gold, Silver, Bronze, etc.)"""
+        case = obj.evaluation_case or "Unknown"
+        color_map = {
+            "A-GOLD": "#ffd700",
+            "B-GOLD": "#ffd700", 
+            "A-SILVER": "#c0c0c0",
+            "B-SILVER": "#c0c0c0",
+            "C-SILVER": "#c0c0c0",
+            "D-FAILED": "#dc3545",
+            "GOLD": "#ffd700",
+            "SILVER": "#c0c0c0",
+            "FAILED": "#dc3545",
+        }
+        color = color_map.get(case, "#6c757d")
+        text_color = "white" if case in ["D-FAILED", "FAILED"] else "black"
+        return format_html(
+            'Esito: <span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            color, text_color, case
+        )
+    evaluation_case_badge.short_description = "Esito"
+    
+    def generated_sql_textarea(self, obj):
+        """SQL con textarea 600px width"""
+        if obj.generated_sql:
+            return format_html(
+                '<textarea readonly style="width: 600px; height: 150px; font-family: monospace;" class="vLargeTextField">{}</textarea>',
+                obj.generated_sql
+            )
+        elif obj.sql_generation_failure_message:
+            return format_html(
+                '<div style="color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; width: 580px;">'
+                '<strong>❌ SQL Generation Failed:</strong><br>{}'
+                '</div>',
+                obj.sql_generation_failure_message
+            )
+        return "-"
+    generated_sql_textarea.short_description = "SQL Generato"
+    
+    def duration_display(self, obj):
+        """Display duration with label"""
+        if obj.duration:
+            return format_html('Duration: <strong>{}</strong>', obj.duration)
+        return "Duration: -"
+    duration_display.short_description = "Duration"
+    
+    def flags_activated_display(self, obj):
+        """Display all flags present in JSON with their on/off status"""
+        if not obj.flags_activated:
+            return "-"
+        
+        try:
+            if isinstance(obj.flags_activated, str):
+                flags = json.loads(obj.flags_activated)
+            else:
+                flags = obj.flags_activated
+                
+            html = '<div style="margin: 5px 0;">'
+            for flag_name, flag_value in flags.items():
+                # Include treat_empty_result_as_error if present
+                if flag_value:
+                    # Green badge for active flags
+                    html += f'<span style="background: #28a745; color: white; padding: 3px 8px; margin: 2px; border-radius: 3px; font-size: 12px; display: inline-block;">{flag_name}</span> '
+                else:
+                    # Gray badge for inactive flags
+                    html += f'<span style="background: #6c757d; color: white; padding: 3px 8px; margin: 2px; border-radius: 3px; font-size: 12px; opacity: 0.5; display: inline-block;">{flag_name}</span> '
+            html += '</div>'
+            return mark_safe(html)
+        except Exception as e:
+            return f"Error: {str(e)}"
+    flags_activated_display.short_description = "Flags Attivati"
+    
+    # Timestamp display methods for new phases
+    def validation_start_display(self, obj):
+        if obj.validation_start:
+            return timezone.localtime(obj.validation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    validation_start_display.short_description = "Inizio"
+    
+    def validation_end_display(self, obj):
+        if obj.validation_end:
+            return timezone.localtime(obj.validation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    validation_end_display.short_description = "Fine"
+    
+    def validation_duration_display(self, obj):
+        if obj.validation_duration_ms > 0:
+            return f"{obj.validation_duration_ms / 1000:.1f}s"
+        return "-"
+    validation_duration_display.short_description = "Durata Validazione"
+    
+    def keyword_generation_start_display(self, obj):
+        if obj.keyword_generation_start:
+            return timezone.localtime(obj.keyword_generation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    keyword_generation_start_display.short_description = "Inizio"
+    
+    def keyword_generation_end_display(self, obj):
+        if obj.keyword_generation_end:
+            return timezone.localtime(obj.keyword_generation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    keyword_generation_end_display.short_description = "Fine"
+    
+    def keyword_generation_duration_display(self, obj):
+        if obj.keyword_generation_duration_ms > 0:
+            return f"{obj.keyword_generation_duration_ms / 1000:.1f}s"
+        return "-"
+    keyword_generation_duration_display.short_description = "Durata Keywords"
+    
+    def schema_preparation_start_display(self, obj):
+        if obj.schema_preparation_start:
+            return timezone.localtime(obj.schema_preparation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    schema_preparation_start_display.short_description = "Inizio"
+    
+    def schema_preparation_end_display(self, obj):
+        if obj.schema_preparation_end:
+            return timezone.localtime(obj.schema_preparation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    schema_preparation_end_display.short_description = "Fine"
+    
+    def schema_preparation_duration_display(self, obj):
+        if obj.schema_preparation_duration_ms > 0:
+            return f"{obj.schema_preparation_duration_ms / 1000:.1f}s"
+        return "-"
+    schema_preparation_duration_display.short_description = "Durata Schema Prep"
+    
+    def context_retrieval_start_display(self, obj):
+        if obj.context_retrieval_start:
+            return timezone.localtime(obj.context_retrieval_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    context_retrieval_start_display.short_description = "Inizio"
+    
+    def context_retrieval_end_display(self, obj):
+        if obj.context_retrieval_end:
+            return timezone.localtime(obj.context_retrieval_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    context_retrieval_end_display.short_description = "Fine"
+    
+    def context_retrieval_duration_display(self, obj):
+        if obj.context_retrieval_duration_ms > 0:
+            return f"{obj.context_retrieval_duration_ms / 1000:.1f}s"
+        return "-"
+    context_retrieval_duration_display.short_description = "Durata Context"
+    
+    def test_reduction_start_display(self, obj):
+        if obj.test_reduction_start:
+            return timezone.localtime(obj.test_reduction_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    test_reduction_start_display.short_description = "Inizio"
+    
+    def test_reduction_end_display(self, obj):
+        if obj.test_reduction_end:
+            return timezone.localtime(obj.test_reduction_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    test_reduction_end_display.short_description = "Fine"
+    
+    def test_reduction_duration_display(self, obj):
+        if obj.test_reduction_duration_ms > 0:
+            return f"{obj.test_reduction_duration_ms / 1000:.1f}s"
+        return "-"
+    test_reduction_duration_display.short_description = "Durata Test Reduction"
+    
+    def sql_generation_start_display(self, obj):
+        if obj.sql_generation_start:
+            return timezone.localtime(obj.sql_generation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    sql_generation_start_display.short_description = "Inizio"
+    
+    def sql_generation_end_display(self, obj):
+        if obj.sql_generation_end:
+            return timezone.localtime(obj.sql_generation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    sql_generation_end_display.short_description = "Fine"
+    
+    def sql_generation_duration_display(self, obj):
+        if obj.sql_generation_duration_ms > 0:
+            return f"{obj.sql_generation_duration_ms / 1000:.1f}s"
+        return "-"
+    sql_generation_duration_display.short_description = "Durata SQL Gen"
+    
+    def test_generation_start_display(self, obj):
+        if obj.test_generation_start:
+            return timezone.localtime(obj.test_generation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    test_generation_start_display.short_description = "Inizio"
+    
+    def test_generation_end_display(self, obj):
+        if obj.test_generation_end:
+            return timezone.localtime(obj.test_generation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"  
+    test_generation_end_display.short_description = "Fine"
+    
+    def test_generation_duration_display(self, obj):
+        if obj.test_generation_duration_ms > 0:
+            return f"{obj.test_generation_duration_ms / 1000:.1f}s"
+        return "-"
+    test_generation_duration_display.short_description = "Durata Test Gen"
+    
+    def evaluation_start_display(self, obj):
+        if obj.evaluation_start:
+            return timezone.localtime(obj.evaluation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    evaluation_start_display.short_description = "Inizio"
+    
+    def evaluation_end_display(self, obj):
+        if obj.evaluation_end:
+            return timezone.localtime(obj.evaluation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    evaluation_end_display.short_description = "Fine"
+    
+    def evaluation_duration_display(self, obj):
+        if obj.evaluation_duration_ms > 0:
+            return f"{obj.evaluation_duration_ms / 1000:.1f}s"
+        return "-"
+    evaluation_duration_display.short_description = "Durata Evaluation"
+    
+    def lsh_similar_columns_display(self, obj):
+        """Display LSH similar columns as formatted JSON"""
+        if not obj.lsh_similar_columns:
+            return "-"
+        try:
+            if isinstance(obj.lsh_similar_columns, str):
+                data = json.loads(obj.lsh_similar_columns)
+            else:
+                data = obj.lsh_similar_columns
+            return format_html('<pre style="font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">{}</pre>', 
+                             json.dumps(data, indent=2, ensure_ascii=False))
+        except:
+            return str(obj.lsh_similar_columns)[:200] + "..."
+    lsh_similar_columns_display.short_description = "LSH Similar Columns"
+    
+    def gold_sql_extracted_display(self, obj):
+        """Display gold SQL extracted from vector DB"""
+        if not obj.gold_sql_extracted:
+            return "-"
+        try:
+            if isinstance(obj.gold_sql_extracted, str):
+                data = json.loads(obj.gold_sql_extracted)
+            else:
+                data = obj.gold_sql_extracted
+            
+            html = '<div style="max-height: 300px; overflow-y: auto;">'
+            for i, item in enumerate(data[:5]):  # Show max 5 items
+                html += f'<div style="margin: 10px 0; padding: 10px; border-left: 3px solid #28a745;">'
+                html += f'<strong>Example {i+1}:</strong><br>'
+                html += f'<em>Q:</em> {item.get("question", "N/A")}<br>'
+                html += f'<code style="background: #f8f9fa; padding: 5px;">{item.get("sql", "N/A")}</code>'
+                html += '</div>'
+            if len(data) > 5:
+                html += f'<div style="text-align: center; color: #666;">... and {len(data) - 5} more examples</div>'
+            html += '</div>'
+            return mark_safe(html)
+        except:
+            return str(obj.gold_sql_extracted)[:200] + "..."
+    gold_sql_extracted_display.short_description = "Gold SQL Examples"
+    
+    def reduced_tests_display(self, obj):
+        """Display reduced tests if available"""
+        if not obj.reduced_tests:
+            return "-"
+        try:
+            if isinstance(obj.reduced_tests, str):
+                data = json.loads(obj.reduced_tests)
+            else:
+                data = obj.reduced_tests
+            return format_html('<pre style="font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">{}</pre>', 
+                             json.dumps(data, indent=2, ensure_ascii=False))
+        except:
+            return str(obj.reduced_tests)[:200] + "..."
+    reduced_tests_display.short_description = "Test Ridotti"
+    
+    def evaluation_judgments_display(self, obj):
+        """Display evaluation judgments"""
+        if not obj.evaluation_judgments:
+            return "-"
+        try:
+            if isinstance(obj.evaluation_judgments, str):
+                data = json.loads(obj.evaluation_judgments)
+            else:
+                data = obj.evaluation_judgments
+            return format_html('<pre style="font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">{}</pre>', 
+                             json.dumps(data, indent=2, ensure_ascii=False))
+        except:
+            return str(obj.evaluation_judgments)[:200] + "..."
+    evaluation_judgments_display.short_description = "Giudizi Valutazione"
+    
+    def process_end_time_display(self, obj):
+        """Display process end time"""
+        if obj.process_end_time:
+            return timezone.localtime(obj.process_end_time).strftime("%Y-%m-%d %H:%M:%S")
+        return "-"
+    process_end_time_display.short_description = "Fine Processo"

@@ -117,7 +117,7 @@ def get_agent_llm_model(agent_config: dict):
         if not api_key:
             raise ValueError("OpenRouter API key not found in config or environment variables.")
         specific_model = ai_model['specific_model']
-        print(f"DEBUG: Creating OpenRouter model with specific_model='{specific_model}'", flush=True)
+        logger.debug(f"Creating OpenRouter model with specific_model='{specific_model}'")
         return OpenAIModel(
             specific_model,
             provider=OpenAIProvider(api_key=api_key, base_url=base_url)

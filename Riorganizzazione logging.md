@@ -35,7 +35,6 @@ Il processo di generazione degli sql attraversa varie fasi. Voglio che tutti i d
 - timestamp fine fase 
 
 ### Generazione aiuuti di contesto 
-1. context from vector db, Registrare
 - timestamp inizio fase
 - evidence estratte
 - gold sql estratti
@@ -43,23 +42,24 @@ Il processo di generazione degli sql attraversa varie fasi. Voglio che tutti i d
 
 
 ### Fase di generazione SQL
-1 Generazione degli SQL
 - timestamp inizio fase 
-- generazione degli sql
+- generazione degli sql con output della lista degli sql dopo l'eliminazione dei doppioni
 - timestamp fine fase
 
 ### Fase di generazione dei test
-1. Generazione dei test
 - timestamp inizio fase
-- generazione dei test
+- generazione dei test con output della lista originaria dei test dopo l'eliminazione dei doppioni
 - timestamp fine fase
 
 ### Fase di riduzione dei test (se effettuata)
-- riduzione dei test
+- timestamp inizio fase
+- riduzione dei test con output della lista ridotta dei test
+- timestamp fine fase
 
 ### Fase di valutazione SQL e selezione vincitore
-- valutazione SQL
-- selezione vincitore
+- timestamp inizio fase
+- valutazione SQL con output della degli sql con il giudizio ricevuto test per test
+- timestamp fine fase
 
 ### Finale
 - rilevamento timestamp finale
@@ -87,7 +87,7 @@ la pagina admin deve essere organizzata
 - Translated Question
 - Directives (Textarea di 5 righe che occupa il 100% dello spazio disponibile con 5px di paddin a sx e dx
 
-## Sezione 2
+
 
 
 

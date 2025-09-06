@@ -146,6 +146,87 @@ class ExecutionState(BaseModel):
         description="SQL selection duration in milliseconds"
     )
     
+    # New timing fields for additional phases
+    validation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when question validation started"
+    )
+    
+    validation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when question validation completed"
+    )
+    
+    validation_duration_ms: float = Field(
+        default=0.0,
+        description="Question validation duration in milliseconds"
+    )
+    
+    keyword_generation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when keyword generation started"
+    )
+    
+    keyword_generation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when keyword generation completed"
+    )
+    
+    keyword_generation_duration_ms: float = Field(
+        default=0.0,
+        description="Keyword generation duration in milliseconds"
+    )
+    
+    schema_preparation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when schema preparation (LSH + Vector) started"
+    )
+    
+    schema_preparation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when schema preparation completed"
+    )
+    
+    schema_preparation_duration_ms: float = Field(
+        default=0.0,
+        description="Schema preparation duration in milliseconds"
+    )
+    
+    context_retrieval_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when context retrieval (evidence + SQL examples) started"
+    )
+    
+    context_retrieval_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when context retrieval completed"
+    )
+    
+    context_retrieval_duration_ms: float = Field(
+        default=0.0,
+        description="Context retrieval duration in milliseconds"
+    )
+    
+    test_reduction_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test reduction started (if performed)"
+    )
+    
+    test_reduction_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test reduction completed"
+    )
+    
+    test_reduction_duration_ms: float = Field(
+        default=0.0,
+        description="Test reduction duration in milliseconds"
+    )
+    
+    process_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Final timestamp when the entire process completed"
+    )
+    
     # Evaluation results and status
     evaluation_case: str = Field(
         default="",

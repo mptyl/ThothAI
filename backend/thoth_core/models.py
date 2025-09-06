@@ -777,16 +777,6 @@ class ThothLog(models.Model):
     sql_generation_failure_message = models.TextField(
         blank=True, null=True
     )  # Failure message for logging
-    # Schema link strategy fields
-    available_context_tokens = models.IntegerField(
-        null=True, blank=True
-    )  # Context window size of the model
-    full_schema_tokens_count = models.IntegerField(
-        null=True, blank=True
-    )  # Token count of full_mschema
-    schema_link_strategy = models.TextField(
-        blank=True, default=""
-    )  # Strategy used for token management
     # New fields for schema analysis
     similar_columns = models.TextField(
         blank=True, default=""
@@ -920,6 +910,119 @@ class ThothLog(models.Model):
     sql_selection_duration_ms = models.IntegerField(
         default=0,
         help_text="SQL selection duration in milliseconds"
+    )
+    
+    # New timing fields for additional phases
+    validation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When question validation started"
+    )
+    validation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When question validation ended"
+    )
+    validation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Question validation duration in milliseconds"
+    )
+    
+    keyword_generation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When keyword generation started"
+    )
+    keyword_generation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When keyword generation ended"
+    )
+    keyword_generation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Keyword generation duration in milliseconds"
+    )
+    
+    schema_preparation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When schema preparation (LSH + Vector) started"
+    )
+    schema_preparation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When schema preparation ended"
+    )
+    schema_preparation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Schema preparation duration in milliseconds"
+    )
+    
+    context_retrieval_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When context retrieval (evidence + SQL examples) started"
+    )
+    context_retrieval_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When context retrieval ended"
+    )
+    context_retrieval_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Context retrieval duration in milliseconds"
+    )
+    
+    test_reduction_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test reduction started (if performed)"
+    )
+    test_reduction_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test reduction ended"
+    )
+    test_reduction_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Test reduction duration in milliseconds"
+    )
+    
+    process_end_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Final timestamp when the entire process completed"
+    )
+    
+    # New data fields
+    flags_activated = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Configuration flags from UI sidebar"
+    )
+    
+    lsh_similar_columns = models.TextField(
+        blank=True,
+        default="",
+        help_text="Similar columns found via LSH search"
+    )
+    
+    gold_sql_extracted = models.TextField(
+        blank=True,
+        default="",
+        help_text="Gold SQL examples extracted from vector database"
+    )
+    
+    evaluation_judgments = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Test-by-test judgments for each SQL candidate"
+    )
+    
+    reduced_tests = models.TextField(
+        blank=True,
+        default="",
+        help_text="Reduced/filtered test list if test reduction was performed"
     )
     
     created_at = models.DateTimeField(auto_now_add=True)

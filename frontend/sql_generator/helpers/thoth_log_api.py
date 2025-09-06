@@ -61,27 +61,30 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             return None
             
         # Prepare log data matching Django ThothLog model fields
-        # Convert arrays and dicts to JSON strings for text fields
-        keywords_str = json.dumps(list(state.keywords) if state.keywords else [], ensure_ascii=False)
-        evidences_str = json.dumps(list(state.evidence) if state.evidence else [], ensure_ascii=False)
+        # NEW: Get data from specialized contexts instead of direct state access
         
-        # Format SQL shots as JSON string
-        sql_shots = [
-            {"question": q, "sql": s, "description": d} 
-            for q, s, d in (state.sql_shots or [])
-        ]
-        similar_questions_str = json.dumps(sql_shots, ensure_ascii=False)
+        # Keywords from SemanticContext
+        keywords_str = json.dumps(list(state.semantic.keywords) if hasattr(state, 'semantic') and state.semantic.keywords else [], ensure_ascii=False)
         
-        # Use the pre-formatted JSON string if available, otherwise format the list
-        # if hasattr(system_state, 'generated_tests_json') and system_state.generated_tests_json:
-        #     generated_tests_str = system_state.generated_tests_json
-        # else:
-        #     generated_tests_str = json.dumps(system_state.generated_tests if hasattr(system_state, 'generated_tests') else [], ensure_ascii=False)
+        # Evidence from SemanticContext
+        evidences_str = json.dumps(list(state.semantic.evidence) if hasattr(state, 'semantic') and state.semantic.evidence else [], ensure_ascii=False)
         
-        # Format similar_columns, schema_with_examples and schema_from_vector_db
-        similar_columns_str = json.dumps(state.similar_columns if state.similar_columns else {}, ensure_ascii=False)
-        schema_with_examples_str = json.dumps(state.schema_with_examples if state.schema_with_examples else {}, ensure_ascii=False)
-        schema_from_vector_db_str = json.dumps(state.schema_from_vector_db if state.schema_from_vector_db else {}, ensure_ascii=False)
+        # SQL shots from SemanticContext (formatted for gold_sql_extracted)
+        gold_sql_shots = []
+        if hasattr(state, 'semantic') and state.semantic.sql_shots:
+            gold_sql_shots = [
+                {"question": q, "sql": s, "hint": h} 
+                for q, s, h in state.semantic.sql_shots
+            ]
+        gold_sql_extracted_str = json.dumps(gold_sql_shots, ensure_ascii=False)
+        
+        # Schema data from SchemaDerivations context
+        lsh_similar_columns_str = json.dumps(state.schemas.similar_columns if hasattr(state, 'schemas') and state.schemas.similar_columns else {}, ensure_ascii=False)
+        schema_with_examples_str = json.dumps(state.schemas.schema_with_examples if hasattr(state, 'schemas') and state.schemas.schema_with_examples else {}, ensure_ascii=False)
+        schema_from_vector_db_str = json.dumps(state.schemas.schema_from_vector_db if hasattr(state, 'schemas') and state.schemas.schema_from_vector_db else {}, ensure_ascii=False)
+        
+        # SQL shots for similar_questions (backward compatibility)
+        similar_questions_str = gold_sql_extracted_str  # Same data, different field name
         
         # Show preview if available
        
@@ -102,46 +105,59 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
                 started_at = started_at.astimezone(local_tz)
         
         log_data = {
-            # 1) Username of authenticated user (default if not provided)
-            "username": username or "anonymous",
-            # 2) Workspace name
-            "workspace": workspace_name or f"Workspace_{workspace_id}",
-            # 3) Started at timestamp from when endpoint was called (with local timezone)
-            "started_at": started_at.isoformat() if started_at else datetime.now(local_tz).isoformat(),
-            # 9) Terminated at timestamp (just before sending log)
+            # Basic request information from RequestContext
+            "username": state.request.username if hasattr(state, 'request') else (username or "anonymous"),
+            "workspace": state.request.workspace_name if hasattr(state, 'request') else (workspace_name or f"Workspace_{workspace_id}"),
+            "started_at": state.request.started_at.isoformat() if hasattr(state, 'request') and state.request.started_at else (started_at.isoformat() if started_at else datetime.now(local_tz).isoformat()),
             "terminated_at": terminated_at.isoformat(),
-            "question": state.original_question or state.question or "No question provided",
-            "db_language": state.dbmanager.language if state.dbmanager and hasattr(state.dbmanager, 'language') else "en",
-            "question_language": state.original_language or state.language,
-            "translated_question": state.question if state.original_question != state.question else "",
-            # 4) Keywords from SystemState
+            "question": state.request.question if hasattr(state, 'request') else (state.original_question or state.question or "No question provided"),
+            "db_language": "en",  # Default fallback since language attribute is not available in current context structure
+            "question_language": (state.request.original_language if hasattr(state, 'request') and state.request.original_language else (state.original_language if hasattr(state, 'original_language') else "en")) or "en",
+            "translated_question": state.request.question if hasattr(state, 'request') and state.request.original_question and state.request.original_question != state.request.question else "",
+            
+            # NEW: Flags from ExternalServices
+            "flags_activated": state.services.request_flags if hasattr(state, 'services') and state.services.request_flags else {},
+            
+            # Data from SemanticContext
             "keywords_list": keywords_str,
-            # 5) Evidences from SystemState  
             "evidences": evidences_str,
-            # 6) SQL shots as similar_questions
-            "similar_questions": similar_questions_str,
-            # 7) Reduced schema = reduced_mschema from SystemState
-            "reduced_schema": state.reduced_mschema if state.reduced_mschema else "",
-            # 8) Used MSchema from SystemState  
-            "used_mschema": state.used_mschema if state.used_mschema else "",
-            # 8) Generated tests from SystemState (simplified: just thinking and answers)
-            "generated_tests": state.generated_tests_json if hasattr(state, 'generated_tests_json') else "",
-            # 9) Generated tests count
-            "generated_tests_count": len(state.generated_tests) if hasattr(state, 'generated_tests') else 0,
-            # Evaluation results (separate from tests)
-            "evaluation_results": state.evaluation_results_json if hasattr(state, 'evaluation_results_json') else "",
-            "evaluation_count": len(state.evaluation_results) if hasattr(state, 'evaluation_results') else 0,
-            # 10) Generated SQL and explanation - empty for now, will be populated later
-            "generated_sql": state.generated_sql if hasattr(state, 'generated_sql') and state.generated_sql is not None else "",
-            "sql_explanation": state.sql_explanation if hasattr(state, 'sql_explanation') and state.sql_explanation is not None else "",
-            # 11) Directives from SystemState
+            "similar_questions": similar_questions_str,  # Backward compatibility
+            
+            # NEW: Gold SQL extracted from vector DB
+            "gold_sql_extracted": gold_sql_extracted_str,
+            
+            # Data from SchemaDerivations
+            "reduced_schema": state.schemas.reduced_mschema if hasattr(state, 'schemas') and state.schemas.reduced_mschema else "",
+            "used_mschema": state.schemas.used_mschema if hasattr(state, 'schemas') and state.schemas.used_mschema else "",
+            
+            # NEW: LSH similar columns
+            "lsh_similar_columns": lsh_similar_columns_str,
+            "schema_with_examples": schema_with_examples_str,
+            "schema_from_vector_db": schema_from_vector_db_str,
+            # Data from GenerationResults context
+            "generated_tests": state.generation.generated_tests_json if hasattr(state, 'generation') and state.generation.generated_tests_json else "",
+            "generated_tests_count": len(state.generation.generated_tests) if hasattr(state, 'generation') and state.generation.generated_tests else 0,
+            
+            # NEW: Reduced tests (if test reduction was performed)
+            "reduced_tests": state.generation.filtered_tests_json if hasattr(state, 'generation') and state.generation.filtered_tests_json else "",
+            
+            # Evaluation results from GenerationResults
+            "evaluation_results": state.generation.evaluation_results_json if hasattr(state, 'generation') and state.generation.evaluation_results_json else "",
+            
+            # NEW: Evaluation judgments (detailed test-by-test results)
+            "evaluation_judgments": json.dumps(state.generation.evaluation_results if hasattr(state, 'generation') and state.generation.evaluation_results else [], ensure_ascii=False),
+            
+            # Generated SQL and explanation from GenerationResults  
+            "generated_sql": state.generation.generated_sql if hasattr(state, 'generation') and state.generation.generated_sql else "",
+            "sql_explanation": state.generation.sql_explanation if hasattr(state, 'generation') and state.generation.sql_explanation else "",
+            
+            # Pool of generated SQL queries from GenerationResults
+            "pool_of_generated_sql": state.generation.generated_sqls_json if hasattr(state, 'generation') and state.generation.generated_sqls_json else "[]",
+            
+            # Directives and agent info (backward compatibility)
             "directives": state.directives if hasattr(state, 'directives') else "",
-            # 12) Successful agent name from SystemState
-            "successful_agent_name": state.successful_agent_name if hasattr(state, 'successful_agent_name') else "",
-            # 13) SQL generation failure message from SystemState
-            "sql_generation_failure_message": state.sql_generation_failure_message if hasattr(state, 'sql_generation_failure_message') else "",
-            # 14) Pool of generated SQL queries from SystemState
-            "pool_of_generated_sql": state.generated_sqls_json if hasattr(state, 'generated_sqls_json') else "[]",
+            "successful_agent_name": state.generation.successful_agent_name if hasattr(state, 'generation') and state.generation.successful_agent_name else "",
+            "sql_generation_failure_message": state.execution.sql_generation_failure_message if hasattr(state, 'execution') and state.execution.sql_generation_failure_message else "",
             
             # NEW: SQL status and evaluation case
             "sql_status": getattr(state.execution, 'sql_status', '') if hasattr(state, 'execution') else '',
@@ -152,33 +168,60 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             "pass_rates": json.dumps(getattr(state.execution, 'pass_rates', {}), ensure_ascii=False) if hasattr(state, 'execution') else "{}",
             "selected_sql_complexity": getattr(state.execution, 'selected_sql_complexity', None) if hasattr(state, 'execution') else None,
             
-            # NEW: Detailed timing information
+            # NEW: All timing information from ExecutionState
+            # Validation phase timing
+            "validation_start": getattr(state.execution, 'validation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'validation_start_time', None) else None,
+            "validation_end": getattr(state.execution, 'validation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'validation_end_time', None) else None,
+            "validation_duration_ms": int(getattr(state.execution, 'validation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
+            
+            # Keyword generation phase timing
+            "keyword_generation_start": getattr(state.execution, 'keyword_generation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'keyword_generation_start_time', None) else None,
+            "keyword_generation_end": getattr(state.execution, 'keyword_generation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'keyword_generation_end_time', None) else None,
+            "keyword_generation_duration_ms": int(getattr(state.execution, 'keyword_generation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
+            
+            # Schema preparation phase timing
+            "schema_preparation_start": getattr(state.execution, 'schema_preparation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'schema_preparation_start_time', None) else None,
+            "schema_preparation_end": getattr(state.execution, 'schema_preparation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'schema_preparation_end_time', None) else None,
+            "schema_preparation_duration_ms": int(getattr(state.execution, 'schema_preparation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
+            
+            # Context retrieval phase timing
+            "context_retrieval_start": getattr(state.execution, 'context_retrieval_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'context_retrieval_start_time', None) else None,
+            "context_retrieval_end": getattr(state.execution, 'context_retrieval_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'context_retrieval_end_time', None) else None,
+            "context_retrieval_duration_ms": int(getattr(state.execution, 'context_retrieval_duration_ms', 0)) if hasattr(state, 'execution') else 0,
+            
+            # SQL generation phase timing
             "sql_generation_start": getattr(state.execution, 'sql_generation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_generation_start_time', None) else None,
             "sql_generation_end": getattr(state.execution, 'sql_generation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_generation_end_time', None) else None,
             "sql_generation_duration_ms": int(getattr(state.execution, 'sql_generation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             
+            # Test generation phase timing  
             "test_generation_start": getattr(state.execution, 'test_generation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'test_generation_start_time', None) else None,
             "test_generation_end": getattr(state.execution, 'test_generation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'test_generation_end_time', None) else None,
             "test_generation_duration_ms": int(getattr(state.execution, 'test_generation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             
+            # Test reduction phase timing (optional)
+            "test_reduction_start": getattr(state.execution, 'test_reduction_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'test_reduction_start_time', None) else None,
+            "test_reduction_end": getattr(state.execution, 'test_reduction_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'test_reduction_end_time', None) else None,
+            "test_reduction_duration_ms": int(getattr(state.execution, 'test_reduction_duration_ms', 0)) if hasattr(state, 'execution') else 0,
+            
+            # Evaluation phase timing
             "evaluation_start": getattr(state.execution, 'evaluation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'evaluation_start_time', None) else None,
             "evaluation_end": getattr(state.execution, 'evaluation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'evaluation_end_time', None) else None,
             "evaluation_duration_ms": int(getattr(state.execution, 'evaluation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             
+            # SQL selection phase timing
             "sql_selection_start": getattr(state.execution, 'sql_selection_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_selection_start_time', None) else None,
             "sql_selection_end": getattr(state.execution, 'sql_selection_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_selection_end_time', None) else None,
             "sql_selection_duration_ms": int(getattr(state.execution, 'sql_selection_duration_ms', 0)) if hasattr(state, 'execution') else 0,
-            # 15) Schema link strategy fields from SystemState
-            "available_context_tokens": state.available_context_tokens if hasattr(state, 'available_context_tokens') else None,
-            "full_schema_tokens_count": state.full_schema_tokens_count if hasattr(state, 'full_schema_tokens_count') else None,
-            # 16) Schema link strategy decision
-            "schema_link_strategy": state.schema_link_strategy if hasattr(state, 'schema_link_strategy') else "",
-            # 17) Similar columns from LSH/Vector search
-            "similar_columns": similar_columns_str,
-            # 18) Schema with examples from LSH/Vector search
-            "schema_with_examples": schema_with_examples_str,
-            # 19) Schema from vector database with column descriptions
-            "schema_from_vector_db": schema_from_vector_db_str,
+            
+            # Final process end time
+            "process_end_time": getattr(state.execution, 'process_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'process_end_time', None) else terminated_at.isoformat(),
+            
+            # NOTE: Token management fields removed as per reorganization plan
+            # (available_context_tokens, full_schema_tokens_count, schema_link_strategy)
+            
+            # Schema data (moved to use new field names for clarity)
+            "similar_columns": lsh_similar_columns_str,  # backward compatibility, now contains LSH data
             # 20) Selection metrics including detailed test results
             "selection_metrics": state.selection_metrics_json if hasattr(state, 'selection_metrics_json') else "",
             # 21) Enhanced Evaluation fields

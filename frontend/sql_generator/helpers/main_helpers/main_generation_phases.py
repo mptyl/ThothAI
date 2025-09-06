@@ -97,6 +97,28 @@ async def _generate_sql_candidates_phase(
     # Clean the generated SQL results
     sql_results = clean_sql_results(sql_results)
     
+    # Check for critical database error
+    if sql_results and len(sql_results) == 1 and sql_results[0].startswith("CRITICAL_DATABASE_ERROR:"):
+        error_message = sql_results[0].replace("CRITICAL_DATABASE_ERROR: ", "")
+        log_error(f"Critical database error detected: {error_message}")
+        
+        # Store the error in state for backend logging
+        state.execution.sql_generation_failure_message = f"Database unavailable: {error_message}"
+        state.execution.sql_status = "DATABASE_ERROR"
+        
+        error_msg = {
+            "type": "database_error",
+            "component": "sql_generation",
+            "message": "Database is unavailable or corrupted",
+            "details": error_message,
+            "impact": "Cannot access database to generate SQL",
+            "action": "Please check database availability and try again"
+        }
+        yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
+        yield f"ERROR: Database unavailable - {error_message}\n"
+        # Don't return here - let it continue to log the error to backend
+        sql_results = []  # Clear results to trigger the no SQL generated path
+    
     # Critical check: at least one SQL must be generated
     if not sql_results or len(sql_results) == 0:
         error_details = {
@@ -105,7 +127,8 @@ async def _generate_sql_candidates_phase(
             "functionality_level": request.functionality_level,
             "schema_strategy": state.schema_link_strategy if hasattr(state, 'schema_link_strategy') else None
         }
-        log_error(f"Critical: No SQL statements generated: {json.dumps(error_details)}")
+        # Format message to avoid Logfire interpreting JSON braces as placeholders
+        log_error(f"Critical: No SQL statements generated - workspace_id={request.workspace_id}, question='{state.question[:100] if state.question else 'N/A'}...', functionality_level={request.functionality_level}, schema_strategy={state.schema_link_strategy if hasattr(state, 'schema_link_strategy') else 'None'}")
         
         error_msg = {
             "type": "critical_error",

@@ -275,3 +275,10 @@ curl -X POST "http://localhost:8020/generate-sql" \
     }
   }' 2>/dev/null | python -m json.tool
 ```
+## Deploy su Docker:
+Devi sempre posizionarti sulla root directory per eseguire il deploy su docker
+i docker locali possno essere attivati e disattivati solo dopo aver fatto un docker compose generale
+
+```bash
+docker-compose up --build
+```

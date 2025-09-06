@@ -6,6 +6,53 @@ REM See the LICENSE.md file in the project root for full license information.
 REM Thoth AI Installer for Windows (CMD)
 
 setlocal enabledelayedexpansion
+pushd "%~dp0"
+
+REM Parse command line arguments
+set CLEAN_CACHE=false
+set PRUNE_ALL=false
+set SHOW_HELP=false
+
+:parse_args
+if "%~1"=="" goto :end_parse
+if /i "%~1"=="--clean-cache" (
+    set CLEAN_CACHE=true
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="--prune-all" (
+    set PRUNE_ALL=true
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="--help" (
+    set SHOW_HELP=true
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="/?" (
+    set SHOW_HELP=true
+    shift
+    goto :parse_args
+)
+echo Unknown option: %~1
+set SHOW_HELP=true
+shift
+goto :parse_args
+
+:end_parse
+
+REM Show help if requested
+if "%SHOW_HELP%"=="true" (
+    echo Usage: install.bat [OPTIONS]
+    echo.
+    echo Options:
+    echo   --clean-cache    Clean Docker build cache before building
+    echo   --prune-all      Prune all Docker resources ^(images, containers, volumes^)
+    echo   --help, /?       Show this help message
+    echo.
+    exit /b 0
+)
 
 REM Colors are not easily supported in CMD, so we'll use plain output
 echo ============================================
@@ -107,6 +154,25 @@ if defined VIRTUAL_ENV (
 echo Prerequisites OK
 echo.
 
+REM Clean Docker cache if requested
+if "%PRUNE_ALL%"=="true" (
+    echo Pruning all Docker resources...
+    echo WARNING: This will remove all Docker images, containers, and volumes!
+    set /p confirmation="Are you sure? (y/N): "
+    if /i "!confirmation!"=="y" (
+        docker system prune -a --volumes -f
+        echo Docker resources pruned
+    ) else (
+        echo Skipping Docker prune
+    )
+    echo.
+) else if "%CLEAN_CACHE%"=="true" (
+    echo Cleaning Docker build cache...
+    docker builder prune -a -f
+    echo Docker build cache cleaned
+    echo.
+)
+
 REM Validate configuration
 echo Validating configuration...
 %PYTHON_CMD% scripts\validate_config.py config.yml.local
@@ -118,9 +184,14 @@ if %errorlevel% neq 0 (
 echo Configuration validation passed
 echo.
 
+REM Pass clean cache option to Python installer
+set INSTALLER_ARGS=
+if "%CLEAN_CACHE%"=="true" set INSTALLER_ARGS=--no-cache
+if "%PRUNE_ALL%"=="true" set INSTALLER_ARGS=--no-cache
+
 REM Run installer
 echo Starting installation...
-%PYTHON_CMD% scripts\installer.py
+%PYTHON_CMD% scripts\installer.py %INSTALLER_ARGS%
 if %errorlevel% neq 0 (
     echo.
     echo Installation failed
@@ -133,4 +204,5 @@ echo ============================================
 echo     Installation completed successfully!
 echo ============================================
 
+popd
 endlocal

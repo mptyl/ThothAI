@@ -21,6 +21,7 @@ This module contains the preprocessing phases of the SQL generation pipeline:
 
 import json
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi import Request
@@ -60,6 +61,11 @@ async def _validate_question_phase(
         yield "CANCELLED:Operation cancelled by user\n"
         return
     
+    # FASE 1: INIZIO VALIDAZIONE - Timestamp tracking
+    from datetime import datetime
+    state.execution.validation_start_time = datetime.now()
+    logger.debug(f"Starting question validation at {state.execution.validation_start_time}")
+    
     # Validation
     has_validator = bool(getattr(state.agents_and_tools, 'question_validator_agent', None))
     if has_validator:
@@ -95,6 +101,13 @@ async def _validate_question_phase(
             return
     else:
         yield "THOTHLOG:No validator available, proceeding without validation...\n"
+    
+    # FASE 1: FINE VALIDAZIONE - Calculate duration
+    state.execution.validation_end_time = datetime.now()
+    if state.execution.validation_start_time and state.execution.validation_end_time:
+        duration = (state.execution.validation_end_time - state.execution.validation_start_time).total_seconds() * 1000
+        state.execution.validation_duration_ms = duration
+        logger.debug(f"Question validation completed in {duration:.2f}ms")
 
 
 async def _extract_keywords_phase(
@@ -118,6 +131,10 @@ async def _extract_keywords_phase(
         logger.info("Client disconnected before keyword extraction")
         yield "CANCELLED:Operation cancelled by user\n"
         return
+    
+    # FASE 2: INIZIO KEYWORD EXTRACTION - Timestamp tracking
+    state.execution.keyword_generation_start_time = datetime.now()
+    logger.debug(f"Starting keyword extraction at {state.execution.keyword_generation_start_time}")
     
     yield "THOTHLOG:Extracting keywords...\n"
     has_kw_agent = bool(getattr(state.agents_and_tools, 'keyword_extraction_agent', None))
@@ -144,6 +161,13 @@ async def _extract_keywords_phase(
         yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
         yield "ERROR: Keyword extraction agent not available - cannot proceed with SQL generation\n"
         return
+    
+    # FASE 2: FINE KEYWORD EXTRACTION - Calculate duration
+    state.execution.keyword_generation_end_time = datetime.now()
+    if state.execution.keyword_generation_start_time and state.execution.keyword_generation_end_time:
+        duration = (state.execution.keyword_generation_end_time - state.execution.keyword_generation_start_time).total_seconds() * 1000
+        state.execution.keyword_generation_duration_ms = duration
+        logger.debug(f"Keyword extraction completed in {duration:.2f}ms")
 
 
 async def _retrieve_context_phase(
@@ -168,6 +192,10 @@ async def _retrieve_context_phase(
         logger.info("Client disconnected before vector DB operations")
         yield "CANCELLED:Operation cancelled by user\n"
         return
+    
+    # FASE 3: INIZIO CONTEXT RETRIEVAL (includes schema preparation) - Timestamp tracking
+    state.execution.context_retrieval_start_time = datetime.now()
+    logger.debug(f"Starting context retrieval at {state.execution.context_retrieval_start_time}")
     
     # Get evidences and SQL shots from vector databases
     evidence_success, evidence_list, evidence_error = state.get_evidence_from_vector_db()
@@ -299,3 +327,10 @@ async def _retrieve_context_phase(
         state.create_filtered_schema()
         state.reduced_mschema = to_mschema(state.filtered_schema)
         state.used_mschema = state.reduced_mschema
+    
+    # FASE 3: FINE CONTEXT RETRIEVAL - Calculate duration
+    state.execution.context_retrieval_end_time = datetime.now()
+    if state.execution.context_retrieval_start_time and state.execution.context_retrieval_end_time:
+        duration = (state.execution.context_retrieval_end_time - state.execution.context_retrieval_start_time).total_seconds() * 1000
+        state.execution.context_retrieval_duration_ms = duration
+        logger.debug(f"Context retrieval completed in {duration:.2f}ms")
