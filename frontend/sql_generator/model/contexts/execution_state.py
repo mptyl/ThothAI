@@ -86,6 +86,21 @@ class ExecutionState(BaseModel):
     )
     
     # Timing fields for performance tracking
+    sql_generation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL generation started"
+    )
+    
+    sql_generation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL generation completed"
+    )
+    
+    sql_generation_duration_ms: float = Field(
+        default=0.0,
+        description="SQL generation duration in milliseconds"
+    )
+    
     test_generation_start_time: Optional[datetime] = Field(
         default=None,
         description="Timestamp when test generation started"

@@ -30,6 +30,17 @@ if not exist "config.yml.local" (
     exit /b 1
 )
 
+REM Prepare Docker environment
+echo Preparing Docker build environment...
+
+REM Fix line endings for all shell scripts (CRLF to LF conversion)
+echo Converting line endings to Unix format ^(LF^)...
+
+REM Use PowerShell to convert CRLF to LF for all shell scripts
+powershell -Command "& { Get-ChildItem -Recurse -Include '*.sh', 'entrypoint*' | Where-Object { $_.FullName -notmatch 'node_modules' -and $_.FullName -notmatch '\.venv' } | ForEach-Object { $content = Get-Content -Path $_.FullName -Raw; if ($content -match \"`r`n\") { Write-Host \"  Converting: $($_.Name)\"; $content = $content -replace \"`r`n\", \"`n\"; [System.IO.File]::WriteAllText($_.FullName, $content) } } }"
+
+echo Docker environment prepared
+
 REM Check prerequisites
 echo Checking prerequisites...
 

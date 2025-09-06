@@ -26,16 +26,17 @@ Cases:
 """
 
 import logging
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 import time
 import json
+from datetime import datetime
 
 from agents.core.agent_result_models import EnhancedEvaluationResult, EvaluationStatus
 from agents.core.agent_initializer import AgentInitializer
 from agents.test_reducer_agent import run_test_reducer
 from agents.sql_selector_agent import run_sql_selector  
 from agents.evaluator_supervisor_agent import run_evaluator_supervisor
-from helpers.main_helpers.evaluation_logger import create_evaluation_logger
+from helpers.main_helpers.evaluation_logger import create_evaluation_logger, EvaluationEventType, LogLevel
 from helpers.sql_complexity_analyzer import SQLComplexityAnalyzer
 from model.generator_type import GeneratorType
 from helpers.main_helpers.main_evaluation import evaluate_sql_candidates
@@ -203,6 +204,52 @@ class EnhancedEvaluationFlow:
         
         logger.info(f"Selected {selected_sql_id} as simplest with complexity score: {selected_complexity}")
         return selected_sql_id, selected_complexity
+    
+    def select_best_sql_directly(self, pass_rates: Dict[str, float], sql_texts: List[str]) -> Tuple[Optional[int], Optional[str], str, float]:
+        """
+        Select the best SQL directly based on pass rates.
+        
+        Args:
+            pass_rates: Dictionary mapping SQL IDs to pass rates
+            sql_texts: List of SQL text strings
+            
+        Returns:
+            Tuple of (selected_index, selected_sql, status, best_rate)
+        """
+        if not pass_rates:
+            return None, None, "FAILED", 0.0
+            
+        # Find the best pass rate
+        best_rate = max(pass_rates.values())
+        
+        # Check if best rate meets threshold
+        if best_rate < self.threshold_ratio:
+            return None, None, "FAILED", best_rate
+            
+        # Find all SQLs with the best rate
+        best_sqls = [sql_id for sql_id, rate in pass_rates.items() if rate == best_rate]
+        
+        # If multiple SQLs have the same best rate, select the simplest one
+        if len(best_sqls) > 1:
+            sql_indices = [int(sql_id.replace("SQL #", "")) - 1 for sql_id in best_sqls]
+            selected_texts = [sql_texts[i] for i in sql_indices if i < len(sql_texts)]
+            selected_sql_id, _ = self.select_simplest_sql(best_sqls, selected_texts, None)
+            selected_index = int(selected_sql_id.replace("SQL #", "")) - 1
+        else:
+            selected_sql_id = best_sqls[0]
+            selected_index = int(selected_sql_id.replace("SQL #", "")) - 1
+            
+        # Get the selected SQL text
+        selected_sql = sql_texts[selected_index] if selected_index < len(sql_texts) else None
+        
+        # Determine status based on pass rate
+        if best_rate == 1.0:
+            status = "GOLD"
+        else:
+            status = "SILVER"
+            
+        logger.info(f"Direct selection: SQL #{selected_index + 1} with {best_rate:.1%} pass rate (status: {status})")
+        return selected_index, selected_sql, status, best_rate
     
     def determine_evaluation_case(self, pass_rates: Dict[str, float]) -> Tuple[str, str, str, List[str]]:
         """
@@ -445,6 +492,155 @@ class EnhancedEvaluationFlow:
         
         return result
     
+    async def run_simplified_evaluation(self, state: Any) -> EnhancedEvaluationResult:
+        """
+        Run simplified evaluation flow with direct selection based on pass rates.
+        
+        Args:
+            state: System state containing generated SQLs and test data
+            
+        Returns:
+            EnhancedEvaluationResult with final decision and metadata
+        """
+        self.processing_start_time = time.time()
+        
+        # Set evaluation start time immediately
+        from datetime import datetime
+        state.execution.evaluation_start_time = datetime.now()
+        
+        # Initialize logging
+        sql_count = len(state.generated_sqls) if hasattr(state, 'generated_sqls') else 0
+        test_count = sum(len(answers) for _, answers in state.generated_tests) if hasattr(state, 'generated_tests') else 0
+        functionality_level = getattr(state, 'functionality_level', 'BASIC')
+        
+        self.eval_logger.start_evaluation(
+            question=state.question,
+            sql_count=sql_count,
+            functionality_level=functionality_level,
+            test_count=test_count
+        )
+        
+        try:
+            # Get evaluation results from state (should already be computed)
+            if not hasattr(state, 'evaluation_results') or not state.evaluation_results:
+                logger.error("No evaluation results available in state")
+                return EnhancedEvaluationResult(
+                    thinking="No evaluation results available",
+                    answers=[f"SQL #{i+1}: ERROR - No evaluation performed" for i in range(sql_count)],
+                    status=EvaluationStatus.FAILED,
+                    requires_escalation=True,
+                    escalation_context="Evaluation results missing"
+                )
+            
+            # Parse evaluation results to get pass rates
+            evaluation_answers = []
+            if isinstance(state.evaluation_results, tuple) and len(state.evaluation_results) >= 2:
+                _, answers = state.evaluation_results[:2]
+                evaluation_answers = answers if isinstance(answers, list) else [answers]
+            elif isinstance(state.evaluation_results, list):
+                # Handle list of evaluation results
+                for result in state.evaluation_results:
+                    if isinstance(result, tuple) and len(result) >= 2:
+                        _, answers = result[:2]
+                        if isinstance(answers, list):
+                            evaluation_answers.extend(answers)
+                        else:
+                            evaluation_answers.append(answers)
+            
+            # Calculate pass rates
+            pass_rates = self.calculate_pass_rates(evaluation_answers)
+            
+            # Log pass rates
+            self.eval_logger.log_event(
+                EvaluationEventType.CASE_CLASSIFICATION,
+                LogLevel.INFO,
+                f"Pass rates calculated for {len(pass_rates)} SQLs",
+                {"pass_rates": pass_rates}
+            )
+            
+            # Select best SQL directly
+            selected_index, selected_sql, status, best_rate = self.select_best_sql_directly(
+                pass_rates, 
+                state.generated_sqls
+            )
+            
+            # Create result based on selection
+            if status == "FAILED":
+                result = EnhancedEvaluationResult(
+                    thinking=f"All SQLs below {self.evaluation_threshold}% threshold (best: {best_rate:.1%})",
+                    answers=[f"SQL #{i+1}: FAILED - Below threshold" for i in range(sql_count)],
+                    status=EvaluationStatus.FAILED,
+                    pass_rates=pass_rates,
+                    best_pass_rate=best_rate,
+                    evaluation_case="DIRECT-FAILED",
+                    auxiliary_agents_used=[],
+                    requires_escalation=True,
+                    escalation_context=f"All {len(pass_rates)} SQL candidates failed to meet {self.evaluation_threshold}% threshold"
+                )
+            else:
+                # Successful selection
+                eval_status = EvaluationStatus.GOLD if status == "GOLD" else EvaluationStatus.SILVER
+                result = EnhancedEvaluationResult(
+                    thinking=f"Direct selection: SQL #{selected_index + 1} with {best_rate:.1%} pass rate",
+                    answers=[f"SQL #{i+1}: {status}" if i == selected_index else f"SQL #{i+1}: Not selected"
+                            for i in range(sql_count)],
+                    status=eval_status,
+                    selected_sql_index=selected_index,
+                    selected_sql=selected_sql,
+                    pass_rates=pass_rates,
+                    best_pass_rate=best_rate,
+                    evaluation_case=f"DIRECT-{status}",
+                    auxiliary_agents_used=[],
+                    requires_escalation=False
+                )
+                
+                # Log successful selection
+                self.eval_logger.log_sql_selection(
+                    case="DIRECT",
+                    selected_index=selected_index,
+                    selected_sql=selected_sql,
+                    reasoning=f"Best pass rate: {best_rate:.1%}",
+                    confidence=best_rate
+                )
+            
+            # Complete logging
+            self.eval_logger.complete_evaluation(result, result.status)
+            
+            # Complete evaluation timing
+            state.execution.evaluation_end_time = datetime.now()
+            if state.execution.evaluation_start_time and state.execution.evaluation_end_time:
+                duration = (state.execution.evaluation_end_time - state.execution.evaluation_start_time).total_seconds() * 1000
+                state.execution.evaluation_duration_ms = duration
+            
+            # Add processing time
+            result.processing_time_ms = (time.time() - self.processing_start_time) * 1000
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in simplified evaluation: {e}")
+            self.eval_logger.log_error(
+                error_message=str(e),
+                error_type=type(e).__name__,
+                context={"sql_count": sql_count}
+            )
+            
+            # Set evaluation end time even on error
+            state.execution.evaluation_end_time = datetime.now()
+            if state.execution.evaluation_start_time and state.execution.evaluation_end_time:
+                duration = (state.execution.evaluation_end_time - state.execution.evaluation_start_time).total_seconds() * 1000
+                state.execution.evaluation_duration_ms = duration
+            
+            return EnhancedEvaluationResult(
+                thinking=f"Evaluation error: {str(e)}",
+                answers=[f"SQL #{i+1}: ERROR" for i in range(sql_count)],
+                status=EvaluationStatus.FAILED,
+                evaluation_case="ERROR",
+                auxiliary_agents_used=[],
+                requires_escalation=True,
+                escalation_context=f"Evaluation error: {str(e)}"
+            )
+    
     async def run_enhanced_evaluation(self, state: Any) -> EnhancedEvaluationResult:
         """
         Run the complete enhanced evaluation flow with 4-case logic.
@@ -456,6 +652,10 @@ class EnhancedEvaluationFlow:
             EnhancedEvaluationResult with final decision and metadata
         """
         self.processing_start_time = time.time()
+        
+        # Set evaluation start time immediately
+        from datetime import datetime
+        state.execution.evaluation_start_time = datetime.now()
         
         # Initialize logging
         sql_count = len(state.generated_sqls) if hasattr(state, 'generated_sqls') else 0
@@ -487,20 +687,15 @@ class EnhancedEvaluationFlow:
                 for thinking, answers in state.generated_tests:
                     original_tests.extend(answers)
                 
-                # Determine if multiple test generators are active
-                multiple_test_generators_active = False
-                try:
-                    pools = getattr(self.agents_and_tools, 'agent_pools', None)
-                    if pools:
-                        test_pool = getattr(pools, 'test_unit_generation_agents_pool', []) or []
-                        multiple_test_generators_active = len([a for a in test_pool if a is not None]) > 1
-                except Exception as e:
-                    logger.debug(f"Could not determine test generator pool size in enhanced flow: {e}")
+                # Check workspace configuration for number of test generators to activate
+                num_test_generators_configured = getattr(state, 'number_of_tests_to_generate', 1)
+                multiple_test_generators_active = num_test_generators_configured >= 2
+                logger.debug(f"Enhanced flow: {num_test_generators_configured} test generators configured to activate")
                 
                 if (
                     multiple_test_generators_active
                     and self.auxiliary_agents.get('test_reducer')
-                    and len(original_tests) > 5
+                    and len(original_tests) >= 10
                 ):
                     logger.info(f"Running TestReducer on {len(original_tests)} tests (multiple test generators active)")
                     test_thinking = "Combined test generation thinking"  # Simplified for now
@@ -525,8 +720,8 @@ class EnhancedEvaluationFlow:
                     # Log why semantic filtering was skipped in enhanced flow
                     if not multiple_test_generators_active:
                         logger.info("Skipping TestReducer in enhanced flow: only one test generator active")
-                    elif len(original_tests) <= 5:
-                        logger.debug("Skipping TestReducer in enhanced flow: not enough tests to benefit")
+                    elif len(original_tests) < 10:
+                        logger.debug(f"Skipping TestReducer in enhanced flow: only {len(original_tests)} tests (need >=10)")
             
             # Step 3: Run new parallel evaluation to get baseline results
             logger.info("Running parallel SQL evaluation for baseline results")
@@ -693,7 +888,7 @@ class EnhancedEvaluationFlow:
                 # Complete evaluation logging
                 self.eval_logger.complete_evaluation(result, result.status)
             
-            logger.info(f"Enhanced evaluation complete: Case {case}, Status: {result.status.value}, Time: {result.processing_time_ms:.1f}ms")
+            logger.info(f"Enhanced evaluation complete: Case {evaluation_case}, Status: {result.status.value}, Time: {result.processing_time_ms:.1f}ms")
             return result
             
         except Exception as e:

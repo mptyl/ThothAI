@@ -858,6 +858,22 @@ class ThothLog(models.Model):
         help_text="Complexity level of the selected SQL query"
     )
     
+    # Timing fields for SQL generation
+    sql_generation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL generation started"
+    )
+    sql_generation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL generation ended"
+    )
+    sql_generation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="SQL generation duration in milliseconds"
+    )
+    
     # Timing fields for test generation
     test_generation_start = models.DateTimeField(
         blank=True,

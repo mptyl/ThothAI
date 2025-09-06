@@ -59,19 +59,19 @@ from helpers.main_helpers.main_methods import _setup_dbmanager_and_agents
 # Load environment variables FIRST, before any other imports
 # Determine which .env file to use based on environment
 is_docker = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
-project_root = Path(__file__).parent.parent  # thoth_ui dir
 
 if is_docker:
-    # Docker environment - use .env.docker from project root
-    env_path = project_root / '.env.docker'
+    # Docker environment - env vars are already loaded by docker-compose
+    print("Running in Docker - using environment variables from container")
 else:
-    # Local development - use .env.local from project root
+    # Local development - load .env.local from project root
+    project_root = Path(__file__).parent.parent.parent  # ThothAI root dir
     env_path = project_root / '.env.local'
-
-if env_path.exists():
-    load_dotenv(env_path)
-else:
-    print(f"WARNING: No .env file found at {env_path}")
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"Loaded environment variables from {env_path}")
+    else:
+        print(f"WARNING: No .env file found at {env_path}")
 
 # Configure logfire and instrument PydanticAI at startup
 logfire.configure(

@@ -56,18 +56,12 @@ async def evaluate_single_sql(
         # Format tests as numbered list
         unit_tests_str = "\n".join([f"{i}. {test}" for i, test in enumerate(filtered_test_answers, 1)])
         
-        # Create evaluation template for single SQL
+        # Create evaluation template for single SQL - simplified version
         template = TemplateLoader.format(
             'template_evaluate_single.txt',
             safe=True,
-            QUESTION=context['question'],
-            DATABASE_TYPE=context['database_type'],
-            DATABASE_SCHEMA=context['database_schema'],
-            DIRECTIVES=context['directives'],
-            EVIDENCE=context['evidence'],
             SQL_QUERY=sql_query,
-            UNIT_TESTS=unit_tests_str,
-            GOLD_SQL_EXAMPLES=context['gold_sql_examples']
+            UNIT_TESTS=unit_tests_str
         )
         
         # Run evaluator with fixed temperature
@@ -162,18 +156,12 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     
     # Apply semantic filtering using TestReducer if available and beneficial
     filtered_test_answers = unique_test_answers
-    # Only enable semantic filtering when multiple test generators are active
-    multiple_test_generators_active = False
-    try:
-        pools = getattr(agents_and_tools, 'agent_pools', None)
-        if pools:
-            test_pool = getattr(pools, 'test_unit_generation_agents_pool', []) or []
-            # Count non-None agents
-            multiple_test_generators_active = len([a for a in test_pool if a is not None]) > 1
-    except Exception as e:
-        logger.debug(f"Could not determine test generator pool size: {e}")
+    # Only enable semantic filtering when multiple test generators are configured to activate
+    num_test_generators_configured = getattr(state, 'number_of_tests_to_generate', 1)
+    multiple_test_generators_active = num_test_generators_configured >= 2
+    logger.debug(f"Main evaluation: {num_test_generators_configured} test generators configured to activate")
     
-    if multiple_test_generators_active and len(unique_test_answers) > 5:  # Use TestReducer only if beneficial and multiple generators
+    if multiple_test_generators_active and len(unique_test_answers) >= 10:  # Use TestReducer only if >=2 generators and >=10 tests
         try:
             # Extract model config from evaluator agent or workspace
             evaluator_model_config = None

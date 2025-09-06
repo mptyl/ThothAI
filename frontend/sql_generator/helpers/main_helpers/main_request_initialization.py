@@ -70,9 +70,15 @@ async def _initialize_request_state(
     database_context = DatabaseContext()
     
     # Initialize SystemState with the contexts
+    from model.system_state import SemanticContext, SchemaDerivations, GenerationResults, ExecutionState
+    
     state = SystemState(
         request=request_context,
         database=database_context,
+        semantic=SemanticContext(),  # Empty initially
+        schemas=SchemaDerivations(),  # Empty initially
+        generation=GenerationResults(),  # Empty initially
+        execution=ExecutionState(),  # Empty initially
         original_question=request.question,  # Copy of original
         submitted_question=request.question  # Initially same as original
     )
@@ -107,9 +113,13 @@ async def _initialize_request_state(
         "language": language
     })
     
-    # Update database context with configuration from setup  
+    # Update database context with configuration from setup
+    # Also get treat_empty_result_as_error from request flags if provided
+    treat_empty_as_error = request.flags.get("treat_empty_result_as_error", False) if request.flags else False
+    
     updated_database = database_context.model_copy(update={
-        "dbmanager": setup_result.get("dbmanager")
+        "dbmanager": setup_result.get("dbmanager"),
+        "treat_empty_result_as_error": treat_empty_as_error
     })
     
     # Create services context with external services from setup
@@ -129,6 +139,10 @@ async def _initialize_request_state(
     state = SystemState(
         request=updated_request,
         database=updated_database,
+        semantic=SemanticContext(),  # Empty initially
+        schemas=SchemaDerivations(),  # Empty initially
+        generation=GenerationResults(),  # Empty initially
+        execution=ExecutionState(),  # Empty initially
         services=services_context,
         original_question=request.question,  # Keep original
         submitted_question=request.question  # Initially same as original

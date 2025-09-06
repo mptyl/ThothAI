@@ -22,8 +22,25 @@ if [ -f .env.local ]; then
     unset PORT || true
 else
     echo "Error: .env.local not found in root directory"
-    echo "Please create .env.local from .env.template"
-    exit 1
+    
+    # Try to create from template
+    if [ -f .env.local.template ]; then
+        echo -e "${YELLOW}Creating .env.local from .env.local.template...${NC}"
+        cp .env.local.template .env.local
+        echo -e "${GREEN}✓ .env.local created successfully${NC}"
+        echo ""
+        echo -e "${YELLOW}IMPORTANT: Please edit .env.local and add your API keys:${NC}"
+        echo -e "  - At least one AI provider (OpenAI, Anthropic, Gemini, etc.)"
+        echo -e "  - DJANGO_API_KEY (change from default)"
+        echo -e "  - Other configuration as needed"
+        echo ""
+        echo -e "${YELLOW}After editing .env.local, run ./start-all.sh again${NC}"
+        exit 0
+    else
+        echo "Template file .env.local.template not found"
+        echo "Please create .env.local manually or restore .env.local.template"
+        exit 1
+    fi
 fi
 
 # Port configuration from environment

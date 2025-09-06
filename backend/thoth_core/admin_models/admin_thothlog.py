@@ -76,6 +76,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         "formatted_terminated_at",
         "duration",
         "question",
+        "selected_sql_or_error",
         "db_language",
         "question_language",
         "translated_question",
@@ -95,8 +96,6 @@ class ThothLogAdmin(admin.ModelAdmin):
         "evaluation_case_display",
         "evaluation_details_display",
         "pass_rates_display",
-        "selected_sql_complexity_display",
-        "selection_metrics_display",
         "pool_of_generated_sql_display",
         "selected_sql",
         "sql_generation_failure_message",
@@ -107,6 +106,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         "enhanced_evaluation_thinking_display",
         "enhanced_evaluation_answers_display",
         "enhanced_evaluation_selected_sql_display",
+        "sql_generation_timing_display",
         "test_generation_timing_display",
         "evaluation_timing_display",
         "sql_selection_timing_display",
@@ -119,6 +119,8 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Basic Information",
             {
                 "fields": (
+                    "question",
+                    "selected_sql_or_error",
                     "test_status_display",
                     "username",
                     "workspace",
@@ -133,13 +135,12 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Question Details",
             {
                 "fields": (
-                    "question",
                     "db_language",
                     "question_language",
                     "translated_question",
                     "directives",
                 ),
-                "description": "Original question and language information.",
+                "description": "Language information and question translations.",
             },
         ),
         (
@@ -197,8 +198,6 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "evaluation_case_display",
                     "evaluation_details_display",
                     "pass_rates_display",
-                    "selected_sql_complexity_display",
-                    "selection_metrics_display",
                 ),
                 "description": "Evaluation of SQL candidates against tests and selection metrics.",
                 "classes": ("collapse",),
@@ -208,7 +207,7 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Execution Timing",
             {
                 "fields": (
-                    "test_generation_timing_display",
+                    ("sql_generation_timing_display", "test_generation_timing_display"),
                     "evaluation_timing_display",
                     "sql_selection_timing_display",
                 ),
@@ -1887,11 +1886,14 @@ class ThothLogAdmin(admin.ModelAdmin):
             for key, value in rates.items():
                 # Format percentage if it's a number
                 if isinstance(value, (int, float)):
-                    display_value = f"{value:.1f}%" if value <= 100 else str(value)
-                    color = "#28a745" if value >= 80 else "#ffc107" if value >= 50 else "#dc3545"
+                    # Convert from decimal to percentage if value is ≤1
+                    percentage_value = value * 100 if value <= 1 else value
+                    display_value = f"{percentage_value:.1f}%"
+                    # Use white color for text
+                    color = "#ffffff"
                 else:
                     display_value = str(value)
-                    color = "var(--body-quiet-color, #666)"
+                    color = "#ffffff"
                 
                 html += f'''
                 <div style="margin: 5px 0;">
@@ -1950,7 +1952,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         if obj.test_generation_duration_ms > 0:
             duration_sec = obj.test_generation_duration_ms / 1000
-            html += f'<strong>Duration:</strong> {duration_sec:.3f}s ({obj.test_generation_duration_ms}ms)'
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
         
         html += '</div>'
         return mark_safe(html) if obj.test_generation_start or obj.test_generation_duration_ms else "-"
@@ -1971,7 +1973,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         if obj.evaluation_duration_ms > 0:
             duration_sec = obj.evaluation_duration_ms / 1000
-            html += f'<strong>Duration:</strong> {duration_sec:.3f}s ({obj.evaluation_duration_ms}ms)'
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
         
         html += '</div>'
         return mark_safe(html) if obj.evaluation_start or obj.evaluation_duration_ms else "-"
@@ -1992,12 +1994,33 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         if obj.sql_selection_duration_ms > 0:
             duration_sec = obj.sql_selection_duration_ms / 1000
-            html += f'<strong>Duration:</strong> {duration_sec:.3f}s ({obj.sql_selection_duration_ms}ms)'
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
         
         html += '</div>'
         return mark_safe(html) if obj.sql_selection_start or obj.sql_selection_duration_ms else "-"
     
     sql_selection_timing_display.short_description = "SQL Selection Timing"
+    
+    def sql_generation_timing_display(self, obj):
+        """Display SQL generation timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.sql_generation_start:
+            start = timezone.localtime(obj.sql_generation_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_generation_end:
+            end = timezone.localtime(obj.sql_generation_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_generation_duration_ms > 0:
+            duration_sec = obj.sql_generation_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.sql_generation_start or obj.sql_generation_duration_ms else "-"
+    
+    sql_generation_timing_display.short_description = "SQL Generation Timing"
 
     def formatted_created_at(self, obj):
         """Format created_at timestamp with seconds in local timezone"""
@@ -2079,6 +2102,35 @@ class ThothLogAdmin(admin.ModelAdmin):
         return obj.generated_sql or "-"
 
     selected_sql.short_description = "Selected SQL"
+
+    def selected_sql_or_error(self, obj):
+        """Display the selected SQL or error message if SQL generation failed"""
+        if obj.generated_sql:
+            # If we have a generated SQL, show it using Django admin styles
+            sql_text = obj.generated_sql[:500]  # Limit to first 500 chars for basic info
+            if len(obj.generated_sql) > 500:
+                sql_text += "..."
+            
+            html = f'''
+            <div class="readonly">
+                <span style="color: var(--body-loud-color, #0c4b33); font-weight: bold;">✓ SQL Generated</span>
+                <textarea readonly class="vLargeTextField" style="margin-top: 8px; font-family: 'Bitstream Vera Sans Mono', Monaco, 'Courier New', Courier, monospace; font-size: 12px; width: 100%; min-height: 100px;">{sql_text}</textarea>
+            </div>
+            '''
+            return mark_safe(html)
+        elif obj.sql_generation_failure_message:
+            # If we have a failure message, show it using Django admin error styles
+            html = f'''
+            <div class="readonly">
+                <span style="color: var(--error-fg, #ba2121); font-weight: bold;">✗ SQL Generation Failed</span>
+                <div style="margin-top: 8px; color: var(--error-fg, #ba2121); background: var(--error-bg, #ffe6e6); padding: 10px; border-radius: 4px;">{obj.sql_generation_failure_message}</div>
+            </div>
+            '''
+            return mark_safe(html)
+        else:
+            # No SQL and no error message
+            return mark_safe('<div class="readonly" style="color: var(--body-quiet-color, #666); font-style: italic;">- No SQL generated -</div>')
+    selected_sql_or_error.short_description = "Selected SQL / Error"
 
     def get_test_status(self, obj):
         """Calculate the test status based on selection_metrics and evaluation_results"""

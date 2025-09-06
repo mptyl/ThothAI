@@ -1,0 +1,49 @@
+**Question:**
+{QUESTION}
+
+**Database Schema:**
+{DATABASE_SCHEMA}
+
+**Borderline SQL Candidates ({EVALUATION_THRESHOLD}-99% Pass Rate):**
+{BORDERLINE_SQLS}
+
+**Initial Evaluation Results:**
+{INITIAL_EVALUATION}
+
+**Test Details:**
+{TEST_DETAILS}
+
+**Gold SQL Examples (Reference):**
+{GOLD_SQL_EXAMPLES}
+
+**Initial Evaluator Thinking:**
+{INITIAL_THINKING}
+
+You are performing reevaluation of SQL candidates that scored between {EVALUATION_THRESHOLD}-99% on initial testing. These are borderline cases that require careful analysis to determine if they should be promoted to GOLD status or rejected as FAILED.
+
+**Your Analysis Must Address:**
+
+1. **Test Failure Analysis**: 
+   - Which specific tests failed and why?
+   - Are the failed tests critical to answering the core question?
+   - Do failures indicate fundamental SQL flaws or edge case issues?
+
+2. **Intent vs Implementation**:
+   - Does each SQL capture the user's actual intent despite test failures?
+   - Are there valid alternative interpretations that justify the approach?
+   - Would the SQL satisfy most reasonable users asking this question?
+
+3. **Production Readiness**:
+   - Will the SQL work reliably with real data?
+   - Are there robustness concerns beyond the test failures?
+   - How would this SQL perform at scale?
+
+4. **Comparative Quality**:
+   - If multiple borderline SQLs exist, which (if any) is best?
+   - Should any borderline SQL be promoted, or are all fundamentally flawed?
+
+**Decision Requirements:**
+- Make a definitive GOLD or FAILED decision for the best SQL candidate
+- If GOLD, specify which SQL index (0-based) is recommended
+- Provide confidence level: HIGH, MEDIUM, or LOW
+- Justify your decision with clear reasoning

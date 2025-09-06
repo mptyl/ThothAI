@@ -153,17 +153,21 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             "selected_sql_complexity": getattr(state.execution, 'selected_sql_complexity', None) if hasattr(state, 'execution') else None,
             
             # NEW: Detailed timing information
+            "sql_generation_start": getattr(state.execution, 'sql_generation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_generation_start_time', None) else None,
+            "sql_generation_end": getattr(state.execution, 'sql_generation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_generation_end_time', None) else None,
+            "sql_generation_duration_ms": int(getattr(state.execution, 'sql_generation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
+            
             "test_generation_start": getattr(state.execution, 'test_generation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'test_generation_start_time', None) else None,
             "test_generation_end": getattr(state.execution, 'test_generation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'test_generation_end_time', None) else None,
-            "test_generation_duration_ms": getattr(state.execution, 'test_generation_duration_ms', 0) if hasattr(state, 'execution') else 0,
+            "test_generation_duration_ms": int(getattr(state.execution, 'test_generation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             
             "evaluation_start": getattr(state.execution, 'evaluation_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'evaluation_start_time', None) else None,
             "evaluation_end": getattr(state.execution, 'evaluation_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'evaluation_end_time', None) else None,
-            "evaluation_duration_ms": getattr(state.execution, 'evaluation_duration_ms', 0) if hasattr(state, 'execution') else 0,
+            "evaluation_duration_ms": int(getattr(state.execution, 'evaluation_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             
             "sql_selection_start": getattr(state.execution, 'sql_selection_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_selection_start_time', None) else None,
             "sql_selection_end": getattr(state.execution, 'sql_selection_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_selection_end_time', None) else None,
-            "sql_selection_duration_ms": getattr(state.execution, 'sql_selection_duration_ms', 0) if hasattr(state, 'execution') else 0,
+            "sql_selection_duration_ms": int(getattr(state.execution, 'sql_selection_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             # 15) Schema link strategy fields from SystemState
             "available_context_tokens": state.available_context_tokens if hasattr(state, 'available_context_tokens') else None,
             "full_schema_tokens_count": state.full_schema_tokens_count if hasattr(state, 'full_schema_tokens_count') else None,

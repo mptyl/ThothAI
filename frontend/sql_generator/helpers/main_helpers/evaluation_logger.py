@@ -214,6 +214,29 @@ class EvaluationLogger:
             sql_index=selected_index
         )
     
+    def log_direct_selection(
+        self,
+        selected_index: int,
+        pass_rate: float,
+        sql_count: int,
+        status: str
+    ) -> None:
+        """Log direct SQL selection based on pass rates."""
+        self.log_event(
+            EvaluationEventType.SQL_SELECTION,
+            LogLevel.INFO,
+            f"Direct selection: SQL #{selected_index + 1} with {pass_rate:.1%} pass rate",
+            {
+                "selection_method": "direct_pass_rate",
+                "selected_index": selected_index,
+                "pass_rate": pass_rate,
+                "sql_count": sql_count,
+                "status": status,
+                "case": "DIRECT"
+            },
+            sql_index=selected_index
+        )
+    
     def log_escalation(
         self,
         reason: str,

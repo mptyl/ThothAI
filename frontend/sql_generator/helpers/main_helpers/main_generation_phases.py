@@ -22,6 +22,7 @@ This module contains the SQL generation and evaluation phases of the pipeline:
 import json
 import logging
 from typing import TYPE_CHECKING
+from datetime import datetime
 
 from fastapi import Request
 
@@ -59,8 +60,19 @@ async def _generate_sql_candidates_phase(
     
     # Generate sqls in parallel
     yield f"THOTHLOG:Generating {state.number_of_sql_to_generate} SQL in parallel\n"  
+    
+    # Set SQL generation start time
+    state.execution.sql_generation_start_time = datetime.now()
+    
     try:
         sql_results = await generate_sql_units(state, state.agents_and_tools, request.functionality_level)
+        
+        # Set SQL generation end time and calculate duration
+        state.execution.sql_generation_end_time = datetime.now()
+        if state.execution.sql_generation_start_time and state.execution.sql_generation_end_time:
+            duration = (state.execution.sql_generation_end_time - state.execution.sql_generation_start_time).total_seconds() * 1000
+            state.execution.sql_generation_duration_ms = duration
+            
     except Exception as e:
         error_details = {
             "workspace_id": request.workspace_id,
