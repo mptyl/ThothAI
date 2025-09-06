@@ -36,24 +36,7 @@ from .logging_config import app_logger as logger
 
 def _call_if_available(func: Callable[..., None] | None, message: str) -> None:
     if func is not None:
-        # Check if the message contains JSON-like braces that might confuse Logfire's formatter
-        if "{" in message and "}" in message:
-            # For Logfire, we need to escape the braces or use a different approach
-            # Replace braces with escaped versions for Logfire
-            try:
-                # Try to pass the message with escaped braces for Logfire
-                escaped_message = message.replace("{", "{{").replace("}", "}}")
-                func(escaped_message)  # type: ignore[misc]
-            except Exception:
-                # If that fails, try passing it as a format argument
-                try:
-                    func("Log message: %s", message)  # type: ignore[misc]
-                except Exception:
-                    # Last resort: strip problematic characters (this should not happen)
-                    safe_message = message.replace("{", "[").replace("}", "]")
-                    func(safe_message)  # type: ignore[misc]
-        else:
-            func(message)  # type: ignore[misc]
+        func(message)  # type: ignore[misc]
 
 
 def log_debug(message: str) -> None:

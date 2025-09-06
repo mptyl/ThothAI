@@ -74,29 +74,6 @@ function Main {
         exit 1
     }
 
-    # Prepare Docker environment
-    Write-Color "Preparing Docker build environment..." "Yellow"
-    
-    # Fix line endings for all shell scripts (CRLF to LF conversion)
-    Write-Color "Converting line endings to Unix format (LF)..." "Yellow"
-    
-    # Find all .sh files and entrypoint scripts
-    Get-ChildItem -Recurse -Include "*.sh", "entrypoint*" | Where-Object { 
-        $_.FullName -notmatch "node_modules" -and $_.FullName -notmatch "\.venv" 
-    } | ForEach-Object {
-        $file = $_.FullName
-        # Check if file has CRLF line endings
-        $content = Get-Content -Path $file -Raw
-        if ($content -match "`r`n") {
-            Write-Color "  Converting: $($_.Name)" "White"
-            # Convert CRLF to LF
-            $content = $content -replace "`r`n", "`n"
-            [System.IO.File]::WriteAllText($file, $content)
-        }
-    }
-    
-    Write-Color "Docker environment prepared" "Green"
-
     # Check prerequisites
     Write-Color "Checking prerequisites..." "Yellow"
     

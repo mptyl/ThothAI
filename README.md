@@ -20,19 +20,11 @@
 git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 
-# 2. Choose your deployment method:
+# 2. Copy environment template and configure
+cp .env.template .env
+# Edit .env with your API keys
 
-## Option A: Local Development
-./start-all.sh
-# This will create .env.local from template and guide you through setup
-
-## Option B: Docker (Recommended)
-./install.sh
-# Interactive installer that handles all configuration
-
-## Option C: Manual Docker
-cp .env.docker.example .env.docker
-# Edit .env.docker with your API keys, then:
+# 3. Start all services
 docker-compose up -d
 
 # 4. Access the application
