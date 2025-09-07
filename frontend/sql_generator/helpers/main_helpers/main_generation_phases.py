@@ -240,38 +240,34 @@ async def _evaluate_and_select_phase(
     evaluation_threshold = state.workspace.get('evaluation_threshold', 90)
     logger.debug(f"Using evaluation threshold: {evaluation_threshold}%")
     
-    from helpers.main_helpers.enhanced_evaluation_flow import run_enhanced_evaluation_flow
+    from helpers.main_helpers.main_evaluation import evaluate_sql_candidates
     
-    # Run enhanced evaluation flow
-    enhanced_result, eval_logs = await run_enhanced_evaluation_flow(
-        state, 
-        state.agents_and_tools, 
-        session_id=getattr(state, 'session_id', None),
-        evaluation_threshold=evaluation_threshold
-    )
+    # Run standard evaluation flow
+    evaluation_result = await evaluate_sql_candidates(state, state.agents_and_tools)
     
-    # Convert enhanced result to legacy format for compatibility
-    # Ensure we construct the exact same format as the old evaluator
-    thinking_str = str(enhanced_result.thinking)
-    answers_list = list(enhanced_result.answers) if enhanced_result.answers else []
-    evaluation_result = [(thinking_str, answers_list)]
+    # Store evaluation results in state
     state.evaluation_results = evaluation_result
     state.evaluation_results_json = json.dumps(evaluation_result, ensure_ascii=True)
     
-    # Store enhanced result as tuple for advanced features (thinking, answers)
-    state.enhanced_evaluation_result = (thinking_str, answers_list)
-    
-    # Store enhanced evaluation metadata for selection process
-    state.enhanced_evaluation_status = enhanced_result.status.value if enhanced_result.status else None
-    state.enhanced_evaluation_selected_sql = enhanced_result.selected_sql
-    state.enhanced_evaluation_case = enhanced_result.evaluation_case
-    state.enhanced_evaluation_selected_sql_index = enhanced_result.selected_sql_index
-    
-    # Convert eval_logs to JSON string if it's a dict, otherwise use as-is
-    if isinstance(eval_logs, dict):
-        state.evaluation_logs = json.dumps(eval_logs, ensure_ascii=False)
+    # Extract thinking and answers for compatibility
+    if evaluation_result and len(evaluation_result) > 0:
+        thinking_str, answers_list = evaluation_result[0]
+        state.enhanced_evaluation_result = (thinking_str, answers_list)
+        
+        # Set default values for enhanced evaluation metadata
+        state.enhanced_evaluation_status = "COMPLETED"
+        state.enhanced_evaluation_selected_sql = None
+        state.enhanced_evaluation_case = "STANDARD_EVALUATION"
+        state.enhanced_evaluation_selected_sql_index = None
+        state.evaluation_logs = json.dumps({"evaluation_type": "standard", "test_count": len(answers_list) if answers_list else 0}, ensure_ascii=False)
     else:
-        state.evaluation_logs = str(eval_logs) if eval_logs is not None else None
+        # Handle empty evaluation results
+        state.enhanced_evaluation_result = ("No evaluation results", [])
+        state.enhanced_evaluation_status = "FAILED"
+        state.enhanced_evaluation_selected_sql = None
+        state.enhanced_evaluation_case = "NO_RESULTS"
+        state.enhanced_evaluation_selected_sql_index = None
+        state.evaluation_logs = json.dumps({"evaluation_type": "standard", "error": "no_results"}, ensure_ascii=False)
     
     # evaluation_result is now a list of tuples [(thinking, answers)]
     if evaluation_result and len(evaluation_result) > 0:
