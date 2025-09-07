@@ -1,25 +1,19 @@
-**Question:**
+**User Question:**
 {QUESTION}
 
-**Database Schema:**
-{DATABASE_SCHEMA}
+**Candidate SQL Queries:**
+{CANDIDATE_SQLs}
 
-**Equivalent SQL Candidates (All Passed 100% of Tests):**
-{EQUIVALENT_SQLS}
+**Failed Tests:**
+{TEST_RESULTS}
 
-**Test Results Context:**
-{TEST_RESULTS_CONTEXT}
+## Task
+Select the best SQL query from the candidates above. Analyze failed tests carefully - they indicate correctness issues.
 
-**Gold SQL Examples (Reference):**
-{GOLD_SQL_EXAMPLES}
+## Analysis Steps
+1. Review which queries failed which tests
+2. Assess the severity of each failure
+3. Compare query complexity and efficiency
+4. Select the query with the best balance of correctness and simplicity
 
-Your task is to select the single best SQL query from the equivalent candidates above. All of these SQLs have passed 100% of the evaluation tests, so they are functionally equivalent.
-
-Focus on these key criteria:
-1. **Simplicity**: Choose the simplest approach
-2. **Performance**: Consider efficiency on large datasets
-3. **Clarity**: Pick the most readable and maintainable option
-
-Select the SQL that best balances simplicity and performance. Specify your choice by its index (0-based).
-
-**Important**: Your selection must be definitive. Choose exactly one SQL as the best option. Keep your comparison brief.
+**Output:** Provide the index (0-based) of your selected query with brief justification.

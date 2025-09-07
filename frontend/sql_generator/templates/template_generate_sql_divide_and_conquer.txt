@@ -1,8 +1,5 @@
 # DIVIDE-AND-CONQUER METHOD - Recursive Decomposition
-Following the described approach, generate a SQL query for the given question, directives, evidence, similar questions and schema .
-
-# APPROACH
-Decompose complex questions into sub-questions, solve each independently, then combine.
+Generate a SQL query using the divide-and-conquer approach.
 
 ## DIVIDE-AND-CONQUER METHODOLOGY
 
@@ -52,22 +49,9 @@ Review and optimize the assembled query:
 - Use CTEs or subqueries for nested logic
 - Build from innermost to outermost
 
-## COLUMN NAMING RULES
-- **IMPORTANT**: Always quote column and table names with spaces or special characters:
-  - SQLite: Double quotes "Column Name"
-  - PostgreSQL/Oracle: Double quotes
-  - MySQL/MariaDB: Backticks `Column Name`
-  - SQL Server: Square brackets [Column Name]
-
-## NULL HANDLING - Database Specific
-- **Rules depend on {DATABASE_TYPE}**:
-  1. **PostgreSQL/MySQL/MariaDB**: Can use NULLS FIRST/LAST
-     - WITH ORDER BY: ASC → NULLS LAST, DESC → NULLS FIRST
-  2. **SQLite (Version 3.30.0+)**: Supports NULLS FIRST/LAST
-     - **IMPORTANT FOR SQLite**: Always use NULLS LAST with ASC to put NULLs at the end
-     - ORDER BY column ASC NULLS LAST (puts NULLs at the end for ascending)
-     - ORDER BY column DESC NULLS FIRST (puts NULLs at the beginning for descending)
-  3. **Check your database documentation for support**
+## TECHNICAL NOTES
+- Quote columns with spaces/special chars per {DATABASE_TYPE} syntax
+- NULL handling follows {DATABASE_TYPE} rules specified in directives
 - For division: Always check IS NOT NULL AND <> 0
 
 
@@ -651,11 +635,8 @@ SELECT DISTINCT T4.name FROM ( SELECT T3.name, T3.years, row_number() OVER (PART
 
 
 ==========================================================================
-=========================================================================
 
-Now is the real question. Following the instruction and examples, You should:
-1. Generate a SQL query for the given question, directives, evidence, similar questions and schema .
-2. Return the generated SQL query.
+Apply the divide-and-conquer methodology to generate the SQL query.
 
 ---
 **Question**
@@ -678,10 +659,9 @@ Now is the real question. Following the instruction and examples, You should:
 {EVIDENCE}
 
 ---
-**🏆 GOLD STANDARD SQL EXAMPLES (Human-Validated - USE THESE!)**
+**Gold Examples**
 {EXAMPLE_SHOTS}
 
----------------------------------------------
----------------------------------------------
+---
 **Answer**
-[Output ONLY the final generated SQL query]
+[Output ONLY the final SQL query]
