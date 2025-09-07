@@ -190,13 +190,14 @@ def calculate_detailed_sql_scores(
 
 
 # NOTE: Removed small_bug_fixer function
-# This function was automatically adding NULLS LAST/FIRST clauses that caused SQLite compatibility issues
-# NULLS LAST/FIRST handling is now done conditionally in SQL generation templates based on database type
+# This function was automatically adding NULLS LAST/FIRST clauses that could cause issues with older SQLite versions
+# SQLite 3.30.0+ (October 2019) supports NULLS LAST/FIRST, so modern systems handle this correctly
+# NULLS LAST/FIRST handling is now done in SQL generation templates and works for all modern databases
 
 
-# NOTE: Removed fix_nulls_ordering function
-# This function was automatically adding NULLS LAST/FIRST clauses that caused SQLite compatibility issues
-# NULLS LAST/FIRST handling is now done conditionally in SQL generation templates based on database type
+# NOTE: Removed fix_nulls_ordering function  
+# SQLite 3.30.0+ supports NULLS LAST/FIRST, so this workaround is no longer needed
+# The templates now generate proper NULLS clauses for all databases including modern SQLite
 
 
 def select_best_sql(

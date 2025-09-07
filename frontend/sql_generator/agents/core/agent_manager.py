@@ -419,7 +419,7 @@ class ThothAgentManager(BaseAgentManager):
             
             # Log the config for debugging
             logger.info(f"Creating {agent_type} agent '{agent_config.name}' with provider={provider}, model={config_dict['ai_model']['specific_model']}")
-            print(f"DEBUG: Agent config being passed: {config_dict}", flush=True)
+            logger.debug(f"Agent config being passed: {config_dict}")
             
             # Map agent type to creation method
             if agent_type == 'sql_generation':
@@ -471,13 +471,13 @@ class ThothAgentManager(BaseAgentManager):
             
             # Apply validators to all SQL agents
             if self.sql_basic_agent:
-                print(f"DEBUG: Attaching validator to sql_basic_agent, dbmanager={self.dbmanager is not None}", flush=True)
+                logger.debug(f"Attaching validator to sql_basic_agent, dbmanager={self.dbmanager is not None}")
                 self.sql_basic_agent.output_validator(sql_validator)
             if self.sql_advanced_agent:
-                print(f"DEBUG: Attaching validator to sql_advanced_agent, dbmanager={self.dbmanager is not None}", flush=True)
+                logger.debug(f"Attaching validator to sql_advanced_agent, dbmanager={self.dbmanager is not None}")
                 self.sql_advanced_agent.output_validator(sql_validator)
             if self.sql_expert_agent:
-                print(f"DEBUG: Attaching validator to sql_expert_agent, dbmanager={self.dbmanager is not None}", flush=True)
+                logger.debug(f"Attaching validator to sql_expert_agent, dbmanager={self.dbmanager is not None}")
                 self.sql_expert_agent.output_validator(sql_validator)
     
     def _configure_test_validators(self):

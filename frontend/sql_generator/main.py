@@ -60,19 +60,22 @@ from helpers.main_helpers.main_methods import _setup_dbmanager_and_agents
 # Load environment variables FIRST, before any other imports
 # Determine which .env file to use based on environment
 is_docker = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
+environment_name = 'Docker' if is_docker else 'Local'
 
+# Store configuration source for later logging
+config_source = None
 if is_docker:
     # Docker environment - env vars are already loaded by docker-compose
-    # Will log after logger is configured below
-    pass
+    config_source = "Docker environment variables"
 else:
     # Local development - load .env.local from project root
     project_root = Path(__file__).parent.parent.parent  # ThothAI root dir
     env_path = project_root / '.env.local'
     if env_path.exists():
         load_dotenv(env_path)
-        # Will log after logger is configured below
-    # else case will be logged after logger is configured
+        config_source = f"Configuration file: {env_path}"
+    else:
+        config_source = "No .env.local file found - using system environment variables"
 
 # Configure logfire and instrument PydanticAI at startup
 logfire.configure(
@@ -95,16 +98,25 @@ log_level = get_logging_level()
 # Create logger for this module
 logger = logging.getLogger(__name__)
 
-# Log startup environment info
-if is_docker:
-    logger.info("Running in Docker - using environment variables from container")
-else:
-    project_root = Path(__file__).parent.parent.parent
-    env_path = project_root / '.env.local'
-    if env_path.exists():
-        logger.info(f"Loaded environment variables from {env_path}")
-    else:
-        logger.warning(f"No .env file found at {env_path}")
+# Log comprehensive startup environment info
+logger.info("="*60)
+logger.info(f"🚀 Starting SQL Generator Service - {environment_name} Environment")
+logger.info("="*60)
+logger.info(f"Configuration source: {config_source}")
+logger.info(f"Service port: {os.getenv('PORT', '8180' if not is_docker else '8020')}")
+logger.info(f"Django API: {os.getenv('DJANGO_API_URL', 'auto-detect')}")
+logger.info(f"Qdrant URL: {os.getenv('QDRANT_URL', 'auto-detect')}")
+logger.info(f"Log level: {log_level}")
+logger.info("="*60)
+
+# Validate environment variables before proceeding
+from helpers.env_validator import validate_environment
+if not validate_environment():
+    logger.critical("Environment validation failed. Please check configuration and restart.")
+    # In production, we should exit. In development, we continue with warnings
+    if os.getenv('ENVIRONMENT', 'development') == 'production':
+        import sys
+        sys.exit(1)
 
 # Initialize database plugins
 available_plugins = initialize_database_plugins()
@@ -168,18 +180,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Global exception handler to avoid generic 500 with empty body
+# Import standardized error handling
+from helpers.error_response import handle_exception, create_error_response, ErrorCodes
+
+# Global exception handler with standardized error responses
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    log_error(f"Unhandled exception: {type(exc).__name__}: {str(exc)}")
-    logger.exception("Unhandled exception")
-    detail = (
-        "ERROR: Unhandled server error while processing your request.\n"
-        f"Path: {request.url.path}\n"
-        f"Reason: {type(exc).__name__}: {str(exc)}\n"
-        "Hints: Verify environment configuration (DJANGO_API_KEY, DB plugins, vector DB backends).\n"
+    # Extract request ID if available
+    request_id = request.headers.get("X-Request-ID", None)
+    
+    # Use standardized error handling
+    return handle_exception(
+        exception=exc,
+        default_message=f"Unhandled server error while processing {request.url.path}",
+        request_id=request_id
     )
-    return PlainTextResponse(detail, status_code=500)
 
 # Add CORS middleware
 # Configure CORS to support common localhost variants and any port
@@ -216,12 +231,6 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
     2. Sets up dbmanager and agent pool based on workspace ID
     3. Returns streaming response with query results, hints, and agent config
     """
-    # TEST INJECTION - Remove this block after testing
-    from helpers.main_helpers.test_error_injector import inject_test_error
-    test_error = await inject_test_error(request.question, request.workspace_id)
-    if test_error:
-        return test_error
-    
     # Initialize and validate request state
     state, error_response = await _initialize_request_state(request, http_request)
     if error_response:

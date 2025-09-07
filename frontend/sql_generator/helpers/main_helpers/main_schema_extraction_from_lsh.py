@@ -28,10 +28,6 @@ from typing import Dict, List, Any, Optional
 
 from model.system_state import SystemState
 from ..db_info import get_db_schema
-# MIGRATED: Removed build_embedding_function - now using thoth-qdrant VectorStoreInterface directly
-
-# NOTE: build_embedding_function has been removed as it's deprecated.
-# LSH functionality now expects the embedding function to be passed as parameter.
 
 logger = logging.getLogger(__name__)
 

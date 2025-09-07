@@ -293,9 +293,9 @@ def _initialize_vdbmanager(workspace_config, sql_db_config):
     vdbmanager_status = "Not initialized"
         
     try:
-        # Debug logging for Docker issue
-        logger.info(f"DEBUG: workspace_config = {workspace_config}")
-        logger.info(f"DEBUG: sql_db in workspace = {workspace_config.get('sql_db', {})}")
+        # Logging for Docker configuration
+        logger.debug(f"workspace_config = {workspace_config}")
+        logger.debug(f"sql_db in workspace = {workspace_config.get('sql_db', {})}")
         
         # Check if vector_db exists in the nested structure
         sql_db = workspace_config.get('sql_db', {})
@@ -307,7 +307,7 @@ def _initialize_vdbmanager(workspace_config, sql_db_config):
         
         # Extract vector DB config from workspace
         vector_db_config = extract_vector_db_config_from_workspace(workspace_config)
-        logger.info(f"DEBUG: Extracted vector_db_config = {vector_db_config}")
+        logger.debug(f"Extracted vector_db_config = {vector_db_config}")
         
         vect_type = vector_db_config.get('vect_type', 'qdrant')
         
@@ -327,9 +327,9 @@ def _initialize_vdbmanager(workspace_config, sql_db_config):
             logger.info("Converting 'localhost' to '127.0.0.1' for better Docker compatibility on macOS")
             factory_params['host'] = '127.0.0.1'
         
-        # Additional debug info
-        logger.info(f"DEBUG: Connection details - host={factory_params.get('host')}, port={factory_params.get('port', 6333)}")
-        logger.info(f"DEBUG: factory_params = {factory_params}")
+        # Additional connection info
+        logger.debug(f"Connection details - host={factory_params.get('host')}, port={factory_params.get('port', 6333)}")
+        logger.debug(f"factory_params = {factory_params}")
         # Get available vector database backends from factory discovery
         available_backends = initialize_vectordb_backend_plugins()
         

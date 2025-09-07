@@ -114,15 +114,24 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setIsOperationInProgress(inProgress);
     if (inProgress && operationId) {
       setCurrentOperationId(operationId);
-      console.log('[SidebarContext] Operation started:', operationId);
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[SidebarContext] Operation started:', operationId);
+      }
     } else if (!inProgress) {
       setCurrentOperationId(null);
-      console.log('[SidebarContext] Operation completed');
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[SidebarContext] Operation completed');
+      }
     }
   }, []);
 
   const cancelCurrentOperation = useCallback(() => {
-    console.log('[SidebarContext] Cancelling current operation:', currentOperationId);
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[SidebarContext] Cancelling current operation:', currentOperationId);
+    }
     
     // Cancel the API request
     const cancelled = sqlGeneratorApi.cancelCurrentRequest();

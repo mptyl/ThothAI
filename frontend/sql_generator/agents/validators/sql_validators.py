@@ -78,8 +78,7 @@ class SqlValidators:
             Async validator function
         """
         async def validate_sql_creation(ctx: RunContext[SqlGenerationDeps], response: SqlResponse):
-            print(f"DEBUG: SQL validator called with dbmanager={self.dbmanager is not None}", flush=True)
-            logger.debug(f"SQL validator started for agent response")
+            logger.debug(f"SQL validator started for agent response, dbmanager={self.dbmanager is not None}")
             
             if isinstance(response, InvalidRequest):
                 logger.debug(f"Invalid request received: {response.error_message} - triggering retry")
@@ -123,16 +122,14 @@ class SqlValidators:
                     
                     # Execute EXPLAIN query using dbmanager if available
                     if self.dbmanager:
-                        print(f"DEBUG: About to execute EXPLAIN query, dbmanager type: {type(self.dbmanager)}", flush=True)
-                        logger.debug("Executing EXPLAIN query to validate SQL syntax")
+                        logger.debug(f"Executing EXPLAIN query to validate SQL syntax, dbmanager type: {type(self.dbmanager)}")
                         try:
                             # Execute the EXPLAIN query to validate syntax
-                            print(f"DEBUG: Executing: {test_query[:100]}...", flush=True)
+                            logger.debug(f"Executing: {test_query[:100]}...")
                             self.dbmanager.execute_sql(sql=test_query, params={})
-                            print(f"DEBUG: EXPLAIN successful!", flush=True)
                             logger.debug(f"SQL executability test successful - syntax is valid")
                         except Exception as explain_error:
-                            print(f"DEBUG: EXPLAIN failed: {explain_error}", flush=True)
+                            logger.debug(f"EXPLAIN failed: {explain_error}")
                             error_msg = f"SQL syntax validation failed: {str(explain_error)}"
                             logger.debug(error_msg + " - will trigger retry")
                             ctx.deps.last_execution_error = error_msg
@@ -140,7 +137,6 @@ class SqlValidators:
                             raise Exception(error_msg)
                     else:
                         # Fallback to lightweight validation without dbmanager
-                        print(f"DEBUG: dbmanager is None, skipping EXPLAIN", flush=True)
                         logger.warning("dbmanager not available - skipping EXPLAIN validation in parallel mode")
                         logger.debug("Using lightweight validation only")
                     

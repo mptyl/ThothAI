@@ -22,7 +22,7 @@ if [ -f .env.local ]; then
     unset PORT || true
 else
     echo "Error: .env.local not found in root directory"
-    echo "Please create .env.local from .env.template"
+    echo "Please create .env.local from .env.local.template"
     exit 1
 fi
 

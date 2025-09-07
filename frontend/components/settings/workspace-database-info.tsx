@@ -22,27 +22,33 @@ export function WorkspaceDatabaseInfo() {
   // Debug logging for development
   useEffect(() => {
     if (fullWorkspaceData?.sql_db?.vector_db) {
-      console.log('Vector DB Configuration:', {
-        provider: fullWorkspaceData.sql_db.vector_db.embedding_provider,
-        model: fullWorkspaceData.sql_db.vector_db.embedding_model,
-        configured: fullWorkspaceData.sql_db.vector_db.embedding_configured,
-        hasApiKey: fullWorkspaceData.sql_db.vector_db.has_api_key,
-        connection: {
-          type: fullWorkspaceData.sql_db.vector_db.vect_type,
-          host: fullWorkspaceData.sql_db.vector_db.host,
-          port: fullWorkspaceData.sql_db.vector_db.port,
-          collection: fullWorkspaceData.sql_db.vector_db.name
-        }
-      });
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Vector DB Configuration:', {
+          provider: fullWorkspaceData.sql_db.vector_db.embedding_provider,
+          model: fullWorkspaceData.sql_db.vector_db.embedding_model,
+          configured: fullWorkspaceData.sql_db.vector_db.embedding_configured,
+          hasApiKey: fullWorkspaceData.sql_db.vector_db.has_api_key,
+          connection: {
+            type: fullWorkspaceData.sql_db.vector_db.vect_type,
+            host: fullWorkspaceData.sql_db.vector_db.host,
+            port: fullWorkspaceData.sql_db.vector_db.port,
+            collection: fullWorkspaceData.sql_db.vector_db.name
+          }
+        });
+      }
       
       // Warn about potential connection issues
       const host = fullWorkspaceData.sql_db.vector_db.host;
       if (host && host !== 'localhost' && host !== '127.0.0.1') {
-        console.warn(
-          `Warning: Vector DB is configured to connect to "${host}". ` +
-          `If you see connection errors, this hostname might not be resolvable from your current environment. ` +
-          `Consider using "localhost" for local development.`
-        );
+        // Debug logging in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(
+            `Warning: Vector DB is configured to connect to "${host}". ` +
+            `If you see connection errors, this hostname might not be resolvable from your current environment. ` +
+            `Consider using "localhost" for local development.`
+          );
+        }
       }
     }
   }, [fullWorkspaceData])
@@ -65,7 +71,10 @@ export function WorkspaceDatabaseInfo() {
       
       const data = await response.json()
       setVectorDbTestData(data)
-      console.log('Vector DB Test Results:', data)
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Vector DB Test Results:', data)
+      }
     } catch (error) {
       console.error('Failed to test vector DB:', error)
       setVectorDbTestData({ error: 'Failed to connect to test endpoint' })
@@ -92,7 +101,10 @@ export function WorkspaceDatabaseInfo() {
       
       const data = await response.json()
       setDiagnosticData(data)
-      console.log('Embedding Diagnostic Results:', data)
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Embedding Diagnostic Results:', data)
+      }
     } catch (error) {
       console.error('Failed to run diagnostics:', error)
       setDiagnosticData({ error: 'Failed to connect to diagnostic endpoint' })

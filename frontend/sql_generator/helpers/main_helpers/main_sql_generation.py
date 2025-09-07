@@ -115,8 +115,8 @@ async def generate_sql_units(state, agents_and_tools, functionality_level, timeo
     Returns:
         List of tuples containing (success, sql) for each generated SQL
     """
-    logger.info(f"[DEBUG] Starting generate_sql_units - functionality_level: {functionality_level}, num_to_generate: {state.number_of_sql_to_generate}")
-    logger.info(f"[DEBUG] agents_and_tools type: {type(agents_and_tools)}, has agents: {hasattr(agents_and_tools, 'sql_basic_agent')}")
+    logger.debug(f"Starting generate_sql_units - functionality_level: {functionality_level}, num_to_generate: {state.number_of_sql_to_generate}")
+    logger.debug(f"agents_and_tools type: {type(agents_and_tools)}, has agents: {hasattr(agents_and_tools, 'sql_basic_agent')}")
    
     # Calculate diverse temperature values for better SQL variation
     def calculate_diverse_temperatures(num_sqls):
@@ -154,20 +154,20 @@ async def generate_sql_units(state, agents_and_tools, functionality_level, timeo
   
     # Get the appropriate agent based on functionality level
     level = functionality_level.lower() if functionality_level else 'basic'
-    logger.info(f"[DEBUG] Looking for agent with level: {level}")
+    logger.debug(f" Looking for agent with level: {level}")
     
     if level == "basic":
         agent = agents_and_tools.sql_basic_agent
-        logger.info(f"[DEBUG] Found sql_basic_agent: {agent is not None}")
+        logger.debug(f" Found sql_basic_agent: {agent is not None}")
     elif level == "advanced":
         agent = agents_and_tools.sql_advanced_agent
-        logger.info(f"[DEBUG] Found sql_advanced_agent: {agent is not None}")
+        logger.debug(f" Found sql_advanced_agent: {agent is not None}")
     elif level == "expert":
         agent = agents_and_tools.sql_expert_agent
-        logger.info(f"[DEBUG] Found sql_expert_agent: {agent is not None}")
+        logger.debug(f" Found sql_expert_agent: {agent is not None}")
     else:
         agent = agents_and_tools.sql_basic_agent  # Default to basic
-        logger.info(f"[DEBUG] Defaulting to sql_basic_agent: {agent is not None}")
+        logger.debug(f" Defaulting to sql_basic_agent: {agent is not None}")
     
     if not agent:
         logger.error(f"[CRITICAL] No SQL agent found for functionality level: {functionality_level}")
@@ -185,13 +185,13 @@ async def generate_sql_units(state, agents_and_tools, functionality_level, timeo
         # Round-robin selection of method
         method = methods[i % len(methods)]
         
-        logger.info(f"[DEBUG] SQL generation {i+1}: using {functionality_level} agent with {method} method, temp={temp}")
+        logger.debug(f" SQL generation {i+1}: using {functionality_level} agent with {method} method, temp={temp}")
         
         # Create a task for each temperature value with selected method
         task = generate_single_sql_with_method(state, agent, temp, method, agent_index=i, timeout_seconds=timeout_seconds)
         tasks.append(task)
     
-    logger.info(f"[DEBUG] Created {len(tasks)} tasks for parallel SQL generation")
+    logger.debug(f" Created {len(tasks)} tasks for parallel SQL generation")
     
     # Execute all tasks in parallel and collect results
     sql_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -203,11 +203,11 @@ async def generate_sql_units(state, agents_and_tools, functionality_level, timeo
     
     for i, result in enumerate(sql_results):
         if isinstance(result, Exception):
-            logger.error(f"[DEBUG] SQL generation {i+1} failed with exception: {type(result).__name__}: {result}")
+            logger.error(f" SQL generation {i+1} failed with exception: {type(result).__name__}: {result}")
             processed_results.append((False, ""))
         else:
             success, sql = result
-            logger.info(f"[DEBUG] SQL generation {i+1}: success={success}, sql_length={len(sql) if sql else 0}")
+            logger.debug(f" SQL generation {i+1}: success={success}, sql_length={len(sql) if sql else 0}")
             
             # Check for critical database error
             if not success and sql and sql.startswith("CRITICAL_DB_ERROR:"):
@@ -217,14 +217,14 @@ async def generate_sql_units(state, agents_and_tools, functionality_level, timeo
                 # Add as a failed result but with the error message
                 processed_results.append((False, f"DATABASE_ERROR: {critical_error_message}"))
             elif not success:
-                logger.warning(f"[DEBUG] SQL generation {i+1} returned success=False")
+                logger.warning(f" SQL generation {i+1} returned success=False")
                 processed_results.append(result)
             else:
                 processed_results.append(result)
     
     # Log summary of results
     successful_count = sum(1 for success, _ in processed_results if success)
-    logger.info(f"[DEBUG] Parallel SQL generation complete: {len(processed_results)} results, {successful_count} successful")
+    logger.debug(f" Parallel SQL generation complete: {len(processed_results)} results, {successful_count} successful")
     return processed_results
 
 
@@ -243,7 +243,7 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
     Returns:
         Tuple of (success, sql_string)
     """
-    logger.info(f"[DEBUG] Starting generate_single_sql_with_method - index: {agent_index}, method: {method}, temp: {temperature}")
+    logger.debug(f" Starting generate_single_sql_with_method - index: {agent_index}, method: {method}, temp: {temperature}")
     try:
         # Create lightweight dependencies using StateFactory
         sql_deps = StateFactory.create_agent_deps(state, "sql_generation")
@@ -271,8 +271,8 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         )
         
         # Run the agent with lightweight deps and specified temperature, with timeout protection
-        logger.info(f"[DEBUG] About to run agent for SQL generation {agent_index + 1}, agent type: {type(agent)}")
-        logger.debug(f"[DEBUG] Agent exists: {agent is not None}, sql_deps exists: {sql_deps is not None}")
+        logger.debug(f" About to run agent for SQL generation {agent_index + 1}, agent type: {type(agent)}")
+        logger.debug(f" Agent exists: {agent is not None}, sql_deps exists: {sql_deps is not None}")
         
         try:
             await asyncio.wait_for(
@@ -283,7 +283,7 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
                 ),
                 timeout=timeout_seconds
             )
-            logger.info(f"[DEBUG] Agent run completed for SQL generation {agent_index + 1}")
+            logger.debug(f" Agent run completed for SQL generation {agent_index + 1}")
         except asyncio.TimeoutError:
             logger.warning(
                 f"SQL generation timed out after {timeout_seconds}s (method={method}, temp={temperature}, index={agent_index})"
@@ -291,15 +291,15 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
             return (False, "")
         
         # Check if generation was successful
-        logger.debug(f"[DEBUG] Checking SQL generation result - last_generation_success: {sql_deps.last_generation_success}, has last_SQL: {bool(sql_deps.last_SQL)}")
+        logger.debug(f" Checking SQL generation result - last_generation_success: {sql_deps.last_generation_success}, has last_SQL: {bool(sql_deps.last_SQL)}")
         
         if sql_deps.last_generation_success and sql_deps.last_SQL:
-            logger.info(f"[DEBUG] SQL generation with {method} method successful (temp={temperature}): {sql_deps.last_SQL[:50]}...")
+            logger.debug(f" SQL generation with {method} method successful (temp={temperature}): {sql_deps.last_SQL[:50]}...")
             return (True, sql_deps.last_SQL)
         else:
-            logger.warning(f"[DEBUG] SQL generation with {method} method failed - success: {sql_deps.last_generation_success}, SQL empty: {not bool(sql_deps.last_SQL)}, temp={temperature}")
+            logger.warning(f" SQL generation with {method} method failed - success: {sql_deps.last_generation_success}, SQL empty: {not bool(sql_deps.last_SQL)}, temp={temperature}")
             if hasattr(sql_deps, 'last_execution_error') and sql_deps.last_execution_error:
-                logger.warning(f"[DEBUG] Last execution error: {sql_deps.last_execution_error}")
+                logger.warning(f" Last execution error: {sql_deps.last_execution_error}")
             return (False, "")
             
     except UnexpectedModelBehavior as e:
@@ -310,8 +310,8 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         # Return a special error indicator that will be sent to backend
         return (False, f"CRITICAL_DB_ERROR: Database unavailable - {str(e)[:200]}")
     except Exception as e:
-        logger.error(f"[DEBUG] Individual SQL generation failed with {method} method: {type(e).__name__}: {e}")
-        logger.error(f"[DEBUG] Traceback: {traceback.format_exc()}")
+        logger.error(f" Individual SQL generation failed with {method} method: {type(e).__name__}: {e}")
+        logger.error(f" Traceback: {traceback.format_exc()}")
         return (False, "")
 
 

@@ -57,23 +57,20 @@ def get_database_null_handling_rules(db_type: str) -> str:
         return """
 ## NULL HANDLING FOR SQLite
 
-**CRITICAL**: SQLite does NOT support NULLS FIRST/LAST syntax!
-- DO NOT use NULLS FIRST or NULLS LAST in any ORDER BY clause
-- SQLite handles NULLs automatically:
-  - In ASC order: NULLs appear first
-  - In DESC order: NULLs appear last
-- Using NULLS FIRST/LAST will cause a syntax error
+**INFO**: SQLite 3.30.0+ (October 2019) supports NULLS FIRST/LAST syntax.
+- Modern SQLite (3.30.0+) supports NULLS FIRST and NULLS LAST in ORDER BY clauses
+- With ASC order: use NULLS LAST to put NULL values at the end (recommended)
+- With DESC order: use NULLS FIRST to put NULL values at the beginning (recommended)
+- For older SQLite versions (<3.30.0), NULLs behave as:
+  - In ASC order: NULLs appear first by default
+  - In DESC order: NULLs appear last by default
 
-CORRECT SQLite examples:
+CORRECT SQLite 3.30.0+ examples:
 ```sql
-SELECT * FROM table ORDER BY column ASC      -- Correct
-SELECT * FROM table ORDER BY column DESC     -- Correct
-```
-
-WRONG SQLite examples:
-```sql
-SELECT * FROM table ORDER BY column ASC NULLS LAST   -- SYNTAX ERROR!
-SELECT * FROM table ORDER BY column DESC NULLS FIRST -- SYNTAX ERROR!
+SELECT * FROM table ORDER BY column ASC NULLS LAST    -- Recommended
+SELECT * FROM table ORDER BY column DESC NULLS FIRST  -- Recommended
+SELECT * FROM table ORDER BY column ASC               -- NULLs first (default)
+SELECT * FROM table ORDER BY column DESC              -- NULLs last (default)
 ```
 """
     else:
@@ -109,7 +106,7 @@ def get_test_generation_null_rules(db_type: str) -> str:
         return """
 ## TESTING RULES FOR SQLite
 
-- DO NOT test for NULLS FIRST/LAST clauses - SQLite doesn't support them
+- Test NULLS FIRST/LAST clauses for SQLite 3.30.0+ (modern versions support them)
 - SQLite handles NULLs automatically, so tests should NOT fail if these clauses are missing
 - Focus on testing ORDER BY functionality without NULL position specifiers
 """

@@ -217,10 +217,7 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             # Final process end time
             "process_end_time": getattr(state.execution, 'process_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'process_end_time', None) else terminated_at.isoformat(),
             
-            # NOTE: Token management fields removed as per reorganization plan
-            # (available_context_tokens, full_schema_tokens_count, schema_link_strategy)
-            
-            # Schema data (moved to use new field names for clarity)
+            # Schema data
             "similar_columns": lsh_similar_columns_str,  # backward compatibility, now contains LSH data
             # 20) Selection metrics including detailed test results
             "selection_metrics": state.selection_metrics_json if hasattr(state, 'selection_metrics_json') else "",

@@ -283,8 +283,8 @@ async def _evaluate_and_select_phase(
         # Save filtered tests as simple list for the backend
         state.generated_tests_json = json.dumps(state.filtered_tests, ensure_ascii=False)
 
-    # NOTE: Removed small_bug_fixer step - was adding NULLS LAST/FIRST that breaks SQLite
-    # NULLS handling is now done conditionally in SQL generation templates
+    # NOTE: Removed small_bug_fixer step - was adding NULLS LAST/FIRST that could break older SQLite versions
+    # SQLite 3.30.0+ (October 2019) supports NULLS LAST/FIRST, so templates now handle this correctly for all databases
     from helpers.main_helpers.sql_selection import select_best_sql
     
     # Use original SQLs and evaluation results without "fixing"

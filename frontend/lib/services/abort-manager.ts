@@ -41,7 +41,10 @@ export class AbortManager {
     const controller = new AbortController();
     this.controllers.set(id, controller);
     
-    console.log(`[AbortManager] Created controller for: ${id}`);
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[AbortManager] Created controller for: ${id}`);
+    }
     return controller;
   }
 
@@ -60,7 +63,10 @@ export class AbortManager {
     if (controller) {
       controller.abort(reason);
       this.controllers.delete(id);
-      console.log(`[AbortManager] Aborted controller: ${id}`, reason || '');
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[AbortManager] Aborted controller: ${id}`, reason || '');
+      }
       return true;
     }
     return false;
@@ -70,10 +76,16 @@ export class AbortManager {
    * Abort all active operations
    */
   abortAll(reason?: string): void {
-    console.log(`[AbortManager] Aborting all ${this.controllers.size} controllers`);
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[AbortManager] Aborting all ${this.controllers.size} controllers`);
+    }
     this.controllers.forEach((controller, id) => {
       controller.abort(reason);
-      console.log(`[AbortManager] Aborted: ${id}`);
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[AbortManager] Aborted: ${id}`);
+      }
     });
     this.controllers.clear();
   }
@@ -83,7 +95,10 @@ export class AbortManager {
    */
   cleanup(id: string): void {
     if (this.controllers.delete(id)) {
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
       console.log(`[AbortManager] Cleaned up controller: ${id}`);
+    }
     }
   }
 
