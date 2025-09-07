@@ -675,6 +675,11 @@ class Workspace(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Minimum percentage of tests that a SQL must pass to be considered acceptable (0-100).",
     )
+    belt_and_suspenders = models.BooleanField(
+        default=False,
+        help_text="Enable enhanced SQL selection for borderline evaluation cases using SqlEvaluator agent.",
+        verbose_name="Belt and Suspenders",
+    )
 
     # New fields for async preprocessing
     preprocessing_status = models.CharField(
@@ -992,6 +997,21 @@ class ThothLog(models.Model):
         blank=True,
         null=True,
         help_text="Final timestamp when the entire process completed"
+    )
+    
+    belt_and_suspenders_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When belt and suspenders enhanced evaluation started"
+    )
+    belt_and_suspenders_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When belt and suspenders enhanced evaluation ended"
+    )
+    belt_and_suspenders_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Belt and suspenders evaluation duration in milliseconds"
     )
     
     # New data fields

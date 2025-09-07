@@ -154,7 +154,6 @@ npm run format
 The SQL Generator uses PydanticAI agents located in `frontend/sql_generator/agents/`:
 - **test_generator_with_evaluator**: Main SQL generation agent
 - **sql_selector_agent**: Selects best SQL from candidates
-- **evaluator_supervisor_agent**: Validates and improves SQL queries
 - **test_reducer_agent**: Optimizes test cases
 
 ## API Endpoints

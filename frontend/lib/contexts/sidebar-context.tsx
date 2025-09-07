@@ -31,6 +31,7 @@ const DEFAULT_FLAGS: SidebarFlags = {
   show_sql: true,
   explain_generated_query: true,
   treat_empty_result_as_error: false,
+  belt_and_suspenders: false,
 };
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
@@ -48,10 +49,11 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       // Use the aggregateGroupFlags function for proper OR logic
       const groupFlags = aggregateGroupFlags(user.group_profiles);
       
-      // Create complete sidebar flags (treat_empty_result_as_error is always false by default)
+      // Create complete sidebar flags (treat_empty_result_as_error is always false by default, belt_and_suspenders from workspace)
       const initialFlags: SidebarFlags = {
         ...groupFlags,
-        treat_empty_result_as_error: false
+        treat_empty_result_as_error: false,
+        belt_and_suspenders: fullWorkspaceData?.belt_and_suspenders || false
       };
       
       setFlags(initialFlags);
@@ -92,7 +94,8 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
       const groupFlags = aggregateGroupFlags(user.group_profiles);
       const resetFlags: SidebarFlags = {
         ...groupFlags,
-        treat_empty_result_as_error: false
+        treat_empty_result_as_error: false,
+        belt_and_suspenders: fullWorkspaceData?.belt_and_suspenders || false
       };
       setFlags(resetFlags);
 

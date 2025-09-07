@@ -250,6 +250,8 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             "users",
             "number_of_tests_to_generate",
             "number_of_sql_to_generate",
+            "evaluation_threshold",
+            "belt_and_suspenders",
             "created_at",
             "updated_at",
         ]

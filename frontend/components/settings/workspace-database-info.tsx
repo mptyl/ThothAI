@@ -164,6 +164,33 @@ export function WorkspaceDatabaseInfo() {
               <p className="text-sm mt-1">{description}</p>
             </div>
           )}
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Belt and Suspenders</p>
+            <div className="flex items-center gap-2 mt-1">
+              {fullWorkspaceData.belt_and_suspenders ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-sm">Enabled</span>
+                  <Badge variant="outline" className="text-green-600 border-green-600/50">
+                    Enhanced SQL Selection
+                  </Badge>
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm">Disabled</span>
+                  <Badge variant="outline" className="text-gray-600 border-gray-600/50">
+                    Standard Selection
+                  </Badge>
+                </>
+              )}
+            </div>
+            {fullWorkspaceData.belt_and_suspenders && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Uses enhanced SQL selection for borderline evaluation cases
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -511,7 +538,8 @@ export function WorkspaceDatabaseInfo() {
         <AlertDescription className="text-base">
           <span className="flex items-start gap-2">
             <span>
-              Database and embedding configurations are managed at the workspace level through the Django admin interface. 
+              Workspace configurations including database settings, embedding configurations, and Belt and Suspenders feature 
+              are managed at the workspace level through the Django admin interface. 
               Contact your administrator to modify these settings.
             </span>
           </span>

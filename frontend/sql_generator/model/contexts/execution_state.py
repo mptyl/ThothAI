@@ -227,6 +227,22 @@ class ExecutionState(BaseModel):
         description="Final timestamp when the entire process completed"
     )
     
+    # Belt and Suspenders timing fields
+    belt_and_suspenders_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when Belt and Suspenders selection started (if enabled)"
+    )
+    
+    belt_and_suspenders_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when Belt and Suspenders selection completed"
+    )
+    
+    belt_and_suspenders_duration_ms: float = Field(
+        default=0.0,
+        description="Belt and Suspenders selection duration in milliseconds"
+    )
+    
     # Evaluation results and status
     evaluation_case: str = Field(
         default="",

@@ -323,20 +323,24 @@ async def _evaluate_and_select_phase(
             logger.warning(f"Enhanced evaluation failed with status {state.enhanced_evaluation_status}, falling back to legacy selection")
             
             from helpers.main_helpers.sql_selection import select_best_sql
-            success, selected_sql, error_message, selection_metrics = select_best_sql(
+            success, selected_sql, error_message, selection_metrics = await select_best_sql(
                 state.generated_sqls,
                 state.evaluation_results,
-                evaluation_threshold=evaluation_threshold
+                evaluation_threshold=evaluation_threshold,
+                state=state,
+                agents_and_tools=state.agents_and_tools
             )
     else:
         # Fallback to legacy selection if enhanced evaluation not available
         logger.warning("Enhanced evaluation result not available, using legacy selection")
         
         from helpers.main_helpers.sql_selection import select_best_sql
-        success, selected_sql, error_message, selection_metrics = select_best_sql(
+        success, selected_sql, error_message, selection_metrics = await select_best_sql(
             state.generated_sqls,
             state.evaluation_results,
-            evaluation_threshold=evaluation_threshold
+            evaluation_threshold=evaluation_threshold,
+            state=state,
+            agents_and_tools=state.agents_and_tools
         )
     
     # Save selection metrics

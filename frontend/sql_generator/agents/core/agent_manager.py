@@ -48,6 +48,7 @@ class ThothAgentManager(BaseAgentManager):
         self.sql_advanced_agent: Optional[Agent] = None
         self.sql_expert_agent: Optional[Agent] = None
         self.sql_explainer_agent: Optional[Agent] = None
+        self.sql_evaluator_agent: Optional[Agent] = None
         
         # Initialize agent pools
         self.agent_pools = AgentPools()
@@ -249,6 +250,13 @@ class ThothAgentManager(BaseAgentManager):
         
         # Store the evaluator config for auxiliary agents to use
         self.evaluator_config = test_evaluator_config
+        
+        # Create SqlEvaluator agent using the same config as TestEvaluator for consistency
+        self.sql_evaluator_agent = AgentInitializer.create_sql_evaluator_agent(
+            test_evaluator_config,
+            default_model_config,
+            self.get_retries(test_evaluator_config)
+        )
     
     def _create_ask_humans_agent(self):
         """Create ask human agent."""

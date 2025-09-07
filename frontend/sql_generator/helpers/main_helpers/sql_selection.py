@@ -19,8 +19,9 @@ based on evaluation results and complexity analysis.
 import logging
 import random
 import re
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Any
 from helpers.sql_complexity_analyzer import SQLComplexityAnalyzer
+from .belt_and_suspenders_selection import perform_belt_and_suspenders_selection
 
 logger = logging.getLogger(__name__)
 
@@ -200,10 +201,12 @@ def calculate_detailed_sql_scores(
 # The templates now generate proper NULLS clauses for all databases including modern SQLite
 
 
-def select_best_sql(
+async def select_best_sql(
     generated_sqls: List[str],
     evaluation_results,  # List[Tuple[str, List[str]]] (new format)
-    evaluation_threshold: int = 90  # Now an integer percentage from workspace
+    evaluation_threshold: int = 90,  # Now an integer percentage from workspace
+    state: Optional[Any] = None,  # SystemState for Belt and Suspenders
+    agents_and_tools: Optional[Any] = None  # Agent manager for Belt and Suspenders
 ) -> Tuple[bool, Optional[str], Optional[str], Dict]:
     """
     Select the best SQL from generated candidates based on evaluation results.
@@ -212,6 +215,8 @@ def select_best_sql(
         generated_sqls: List of generated SQL queries
         evaluation_results: Tuple (thinking, answers, test_units) with detailed evaluations
         evaluation_threshold: Minimum percentage of tests to pass (from workspace, 0-100)
+        state: SystemState for Belt and Suspenders functionality (optional)
+        agents_and_tools: Agent manager for Belt and Suspenders functionality (optional)
         
     Returns:
         Tuple of (success, selected_sql, error_message, metrics)
@@ -261,6 +266,56 @@ def select_best_sql(
         
         # IMPORTANT: Always include detailed scores in metrics for logging
         metrics["sql_scores"] = sql_scores
+        
+        # Check for Belt and Suspenders enhanced selection
+        belt_and_suspenders_enabled = False
+        if state and hasattr(state, 'workspace') and state.workspace:
+            belt_and_suspenders_enabled = state.workspace.get('belt_and_suspenders', False)
+        
+        if belt_and_suspenders_enabled and agents_and_tools:
+            # Check if this is a borderline case (B or C)
+            if is_borderline_case(sql_scores, min_pass_threshold):
+                logger.info("Belt and Suspenders enabled for borderline evaluation case")
+                
+                # Attempt Belt and Suspenders selection
+                try:
+                    from datetime import datetime
+                    
+                    # Record timing
+                    if hasattr(state, 'execution'):
+                        state.execution.belt_and_suspenders_start_time = datetime.now()
+                    
+                    # Perform Belt and Suspenders selection
+                    success, selected_sql, error_message, bs_metrics = await perform_belt_and_suspenders_selection(
+                        state, generated_sqls, evaluation_results, agents_and_tools
+                    )
+                    
+                    # Record end timing
+                    if hasattr(state, 'execution') and state.execution.belt_and_suspenders_start_time:
+                        end_time = datetime.now()
+                        state.execution.belt_and_suspenders_end_time = end_time
+                        duration_ms = (end_time - state.execution.belt_and_suspenders_start_time).total_seconds() * 1000
+                        state.execution.belt_and_suspenders_duration_ms = duration_ms
+                    
+                    if success and selected_sql:
+                        # Update metrics with Belt and Suspenders results
+                        metrics.update(bs_metrics)
+                        metrics["selection_reason"] = bs_metrics.get("selection_reason", "Belt and Suspenders selection")
+                        logger.info("Belt and Suspenders selection completed successfully")
+                        return True, selected_sql, None, metrics
+                    else:
+                        logger.warning(f"Belt and Suspenders selection failed: {error_message}")
+                        # Continue with regular selection as fallback
+                        
+                except Exception as e:
+                    logger.error(f"Belt and Suspenders selection error: {str(e)}")
+                    # Continue with regular selection as fallback
+                    
+        else:
+            if belt_and_suspenders_enabled:
+                logger.debug("Belt and Suspenders enabled but agents_and_tools not available")
+            else:
+                logger.debug("Belt and Suspenders not enabled for this workspace")
         # test_units is not available in the new format
         if test_units:
             metrics["test_units"] = test_units  # Include test descriptions if available
@@ -466,6 +521,41 @@ def find_finalists(sql_scores: List[Dict], threshold: float) -> List[Dict]:
     
     logger.info(f"Found {len(finalists)} SQLs with pass rate >= {threshold:.0%}")
     return finalists
+
+
+def is_borderline_case(sql_scores: List[Dict], min_pass_threshold: float) -> bool:
+    """
+    Determine if evaluation results represent a borderline case (B or C).
+    
+    Case B: Multiple SQLs with 100% pass rate (need to choose among perfect options)
+    Case C: Some SQLs above threshold but not perfect (need enhanced evaluation)
+    
+    Args:
+        sql_scores: List of SQL score dictionaries with pass rates
+        min_pass_threshold: Minimum pass rate threshold (0.0 to 1.0)
+        
+    Returns:
+        True if this is a borderline case B or C
+    """
+    # Find SQLs above threshold
+    candidates_above_threshold = [s for s in sql_scores if s["pass_rate"] >= min_pass_threshold]
+    
+    if not candidates_above_threshold:
+        return False  # Case D (all failed) - not borderline
+    
+    # Find perfect SQLs (100% pass rate)
+    perfect_sqls = [s for s in candidates_above_threshold if s["pass_rate"] >= 1.0]
+    
+    # Case B: Multiple perfect SQLs
+    if len(perfect_sqls) > 1:
+        return True
+    
+    # Case C: Some above threshold but not perfect
+    if len(perfect_sqls) == 0 and len(candidates_above_threshold) > 0:
+        return True
+    
+    # Case A: Single perfect SQL - not borderline
+    return False
 
 
 def select_simplest_sql(

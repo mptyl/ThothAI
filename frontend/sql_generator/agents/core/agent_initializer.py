@@ -28,7 +28,6 @@ from .agent_result_models import (
     EvaluationResult,
     TestReducerResult,
     SqlSelectorResult,
-    EvaluatorSupervisorResult,
     SqlResponse
 )
 from model.sql_generation_deps import SqlGenerationDeps
@@ -703,23 +702,25 @@ class AgentInitializer:
         return agent
 
     @staticmethod
-    def create_evaluator_supervisor_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3) -> Optional[Agent]:
+    def create_sql_evaluator_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3) -> Optional[Agent]:
         """
-        Create an EvaluatorSupervisor agent for reevaluation of borderline cases.
+        Create a SqlEvaluator agent for Belt and Suspenders enhanced SQL selection.
         
-        This agent handles Case C in the 4-case evaluation system: when SQL candidates 
-        score 90-99%, it performs careful analysis to make final 
-        GOLD/FAILED decisions. It uses the same model configuration as the Evaluator 
-        for consistency.
+        This agent is used when belt_and_suspenders is enabled and evaluation results
+        are borderline (cases B or C). It analyzes SQL candidates with their failed test
+        details to select the best option using domain knowledge about SQL correctness.
+        
+        Uses the same model as TestEvaluator for consistency and leverages existing
+        sql_selector templates for proven selection logic.
         
         Args:
             agent_config: Dictionary containing agent configuration parameters,
-                         typically the same as the Evaluator's configuration
+                         typically the same as the TestEvaluator's configuration
             default_model_config: Configuration for default fallback model from workspace
             retries: Number of retry attempts for agent execution. Default is 3.
             
         Returns:
-            Configured EvaluatorSupervisor Agent instance, or None if creation fails
+            Configured SqlEvaluator Agent instance, or None if creation fails
         """
         # Create model with fallback
         model = create_fallback_model(agent_config, default_model_config)
@@ -728,21 +729,21 @@ class AgentInitializer:
         
         # Determine agent name
         if agent_config:
-            agent_name = f"EvaluatorSupervisor - {agent_config['name']}"
+            agent_name = f"SqlEvaluator - {agent_config['name']}"
         elif default_model_config:
-            agent_name = f"Fallback EvaluatorSupervisor - {default_model_config.get('name', 'Default')}"
+            agent_name = f"Fallback SqlEvaluator - {default_model_config.get('name', 'Default')}"
         else:
             return None
         
-        # Always use the EvaluatorSupervisor system template
-        system_prompt = TemplateLoader.load('system_templates/system_template_evaluator_supervisor.txt')
+        # Use the existing sql_selector templates
+        system_prompt = TemplateLoader.load('system_templates/system_template_sql_selector.txt')
         
         agent = Agent(
             model=model,
             name=agent_name,
             system_prompt=clean_template_for_llm(system_prompt),
-            output_type=EvaluatorSupervisorResult,
-            deps_type=EvaluatorDeps,  # Use same deps as Evaluator
+            output_type=SqlSelectorResult,
+            deps_type=EvaluatorDeps,  # Use same deps as Evaluator for simplicity
             retries=retries
         )
         

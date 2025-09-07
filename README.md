@@ -172,7 +172,6 @@ ThothAI uses a multi-agent architecture powered by PydanticAI for intelligent SQ
 ### Agent System
 - **test_generator_with_evaluator**: Main SQL generation agent
 - **sql_selector_agent**: Selects best SQL from candidates
-- **evaluator_supervisor_agent**: Validates and improves SQL queries
 - **test_reducer_agent**: Optimizes test cases
 
 ## 🔧 Configuration
