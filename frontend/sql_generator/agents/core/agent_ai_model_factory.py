@@ -139,20 +139,6 @@ def get_agent_llm_model(agent_config: dict):
             ai_model['specific_model'],
             provider=AnthropicProvider(api_key=api_key)
         )
-    elif provider == 'GROQ':
-        from pydantic_ai.models.groq import GroqModel
-        from pydantic_ai.providers.groq import GroqProvider
-        api_key = ai_model.get('api_key') or os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise ValueError("Groq API key not found in config or environment variables.")
-        
-        # Note: Groq models don't support native structured output
-        # If you need structured output with Groq, use the GroqModelWrapper
-        # from groq_adapter module instead
-        return GroqModel(
-            ai_model['specific_model'],
-            provider=GroqProvider(api_key=api_key)
-        )
     elif provider == 'LMSTUDIO':
         # LMStudio uses OpenAI compatible API - configure exactly as in test
         base_url = ai_model.get('url') or os.getenv("LMSTUDIO_API_BASE") or "http://localhost:1234"
@@ -164,42 +150,6 @@ def get_agent_llm_model(agent_config: dict):
         )
     else:
         raise ValueError(f"Unsupported model provider: {provider}")
-
-
-def get_groq_model_with_structured_support(agent_config: dict):
-    """
-    Creates a Groq model with structured output support.
-    
-    This function detects if structured output is needed and uses
-    the GroqModelWrapper for JSON-based structured output.
-    
-    Args:
-        agent_config: Agent configuration dictionary
-        
-    Returns:
-        GroqModel or GroqModelWrapper depending on requirements
-    """
-    from .groq_adapter import GroqModelWrapper
-    
-    ai_model = agent_config['ai_model']
-    api_key = ai_model.get('api_key') or os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("Groq API key not found in config or environment variables.")
-    
-    # Check if this agent needs structured output
-    # This is a heuristic - you might need to adjust based on your agents
-    needs_structured = agent_config.get('needs_structured_output', False)
-    
-    if needs_structured:
-        logger.info(f"Creating Groq model with structured output support for {ai_model['specific_model']}")
-        return GroqModelWrapper(ai_model['specific_model'], api_key)
-    else:
-        from pydantic_ai.models.groq import GroqModel
-        from pydantic_ai.providers.groq import GroqProvider
-        return GroqModel(
-            ai_model['specific_model'],
-            provider=GroqProvider(api_key=api_key)
-        )
 
 
 def create_fallback_model(agent_config: Dict[str, Any], default_model_config: Dict[str, Any]):

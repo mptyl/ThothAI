@@ -43,17 +43,10 @@ class ThothAgentManager(BaseAgentManager):
         self.test_gen_agent_1: Optional[Agent] = None
         self.test_gen_agent_2: Optional[Agent] = None
         self.test_gen_agent_3: Optional[Agent] = None
-        # test_exec_agent removed - no longer used in the workflow
         self.evaluator_agent: Optional[Agent] = None
-        
-        # Comment out agents we don't need yet
-        # self.select_columns_agent_1: Optional[Agent] = None
-        # self.select_columns_agent_2: Optional[Agent] = None
         self.sql_basic_agent: Optional[Agent] = None
         self.sql_advanced_agent: Optional[Agent] = None
         self.sql_expert_agent: Optional[Agent] = None
-        # NOTE: ask_human_agent is currently not used but maintained for future implementation
-        # self.ask_human_agent: Optional[Agent] = None
         self.sql_explainer_agent: Optional[Agent] = None
         
         # Initialize agent pools
@@ -74,15 +67,13 @@ class ThothAgentManager(BaseAgentManager):
         self._create_keyword_extraction_agent()
         self._create_test_agents()  # Only test generation agents for now
         
-        # Comment out agents we don't need yet
-        # self._create_column_selection_agents()
+        # Column selection agents not needed in current workflow
         self._create_sql_generation_agents()
-        # NOTE: ask_human_agent creation is currently not used but maintained for future implementation
-        # self._create_ask_humans_agent()
+        # Ask human agent not needed in current workflow
         self._create_sql_explainer_agent()
         
         # Only initialize validators we need
-        self.sql_validators = SqlValidators(None, self.dbmanager)  # Enable SQL validators with dbmanager (test_exec_agent no longer used)
+        self.sql_validators = SqlValidators(None, self.dbmanager)  # Enable SQL validators with dbmanager
         
         self._populate_agent_pools()
         self._configure_tools_and_validators()  # Enable tools and validators
@@ -212,7 +203,6 @@ class ThothAgentManager(BaseAgentManager):
         test_gen_1_config = self.workspace.get("test_gen_agent_1")
         test_gen_2_config = self.workspace.get("test_gen_agent_2")
         test_gen_3_config = self.workspace.get("test_gen_agent_3")
-        # test_exec_agent removed - no longer used in workflow
         default_model_config = self.workspace.get("default_model")
         use_default_gen_1 = test_gen_1_config is None
         use_default_gen_2 = test_gen_2_config is None
@@ -240,8 +230,6 @@ class ThothAgentManager(BaseAgentManager):
             force_default_prompt=use_default_gen_3
         )
         
-        # test_exec_agent creation removed - no longer used in workflow
-        
         # Create evaluator agent using dedicated test_evaluator_agent config from workspace
         test_evaluator_config = self.workspace.get("test_evaluator_agent")
         use_default_evaluator = test_evaluator_config is None
@@ -264,15 +252,11 @@ class ThothAgentManager(BaseAgentManager):
     
     def _create_ask_humans_agent(self):
         """Create ask human agent."""
-        # NOTE: This method creates the ask_human_agent but is currently not used in the system.
-        # The agent configuration is maintained for future implementation.
-        # Use specific agent only, no fallback to default agent
+        # Create evaluator agent (formerly ask_human_agent, repurposed for evaluation)
         ask_human_agent_config = self.workspace.get("ask_human_help_agent")
         default_model_config = self.workspace.get("default_model")
         use_default_eval = ask_human_agent_config is None
-        # No fallback to default_agent - if no specific agent, agent will be None
         
-        # NOTE: Currently assigning to evaluate_agent instead of ask_human_agent for future compatibility
         self.evaluate_agent = AgentInitializer.create_ask_human_agent(
             ask_human_agent_config,
             default_model_config,
@@ -509,8 +493,6 @@ class ThothAgentManager(BaseAgentManager):
         # if self.test_gen_agent_3:
         #     self.test_gen_agent_3.output_validator(test_gen_validator)
         
-        # test_exec_agent validator application removed - agent no longer exists
-    
     def _configure_explanation_validators(self):
         """Configure validators for SQL explanation agents."""
         # explanation_validator = self.explanation_validators.create_explanation_validator()
