@@ -1,0 +1,2 @@
+id,password,last_login,is_superuser,username,first_name,last_name,email,is_staff,is_active,date_joined,groups,user_permissions
+2,pbkdf2_sha256$1000000$QqKQrKiDwC1x90tB322BcV$5E3Bb9Fa6uM1q9R9Snm0gPr+09bfxu3j3xU7bCtYvEw=,2025-09-08 09:01:19+00:00,True,demo,,,demo@example.com,True,True,2025-09-03 23:25:10+00:00,"1,2,3",

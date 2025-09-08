@@ -382,15 +382,21 @@ def determine_evaluation_case(evaluation_answers: List[str], threshold: float = 
     above_threshold = [sql_id for sql_id, rate in pass_rates.items() if rate >= threshold]
     below_threshold = [sql_id for sql_id, rate in pass_rates.items() if rate < threshold]
     
-    # Determine case
-    if len(perfect_sqls) == 1 and len(pass_rates) == 1:
-        case = "A"  # Single perfect SQL
+    # Determine case based on counts (following the intended logic):
+    # A: One SQL at 100% OR one SQL >= threshold (but < 100%)
+    # B: Two or more SQLs at 100% OR two or more SQLs >= threshold (but < 100%)
+    # C: No SQL >= threshold
+    
+    if len(perfect_sqls) == 1:
+        case = "A"  # One SQL at 100%
     elif len(perfect_sqls) > 1:
-        case = "B"  # Multiple perfect SQLs
-    elif len(above_threshold) > 0:
-        case = "C"  # Some SQLs above threshold but not perfect
+        case = "B"  # Two or more SQLs at 100%
+    elif len(above_threshold) == 1:
+        case = "A"  # One SQL >= threshold (but < 100%)
+    elif len(above_threshold) > 1:
+        case = "B"  # Two or more SQLs >= threshold (but < 100%)
     else:
-        case = "D"  # All failed
+        case = "C"  # No SQL >= threshold
         
     details = {
         'pass_rates': pass_rates,
@@ -476,13 +482,13 @@ def populate_execution_state_from_evaluation(state, evaluation_results: List[Tup
         above_threshold = details.get('above_threshold', [])
         below_threshold = details.get('below_threshold', [])
         
-        # Determine overall SQL status
+        # Determine overall SQL status based on available SQLs
         if perfect_sqls:
-            sql_status = "GOLD"
+            sql_status = "GOLD"  # At least one SQL at 100%
         elif above_threshold:
-            sql_status = "SILVER"
+            sql_status = "SILVER"  # At least one SQL >= threshold (but < 100%)
         else:
-            sql_status = "FAILED"
+            sql_status = "FAILED"  # No SQL >= threshold
         
         # Create evaluation case with status suffix
         evaluation_case = f"{case}-{sql_status}"

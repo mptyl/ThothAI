@@ -146,7 +146,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                 "fields": (
                     "question",
                     "generated_sql_textarea",
-                    "evaluation_case_badge",
+                    "evaluation_case_display",
                 ),
                 "description": "Core query and result information",
             },
@@ -2383,66 +2383,68 @@ class ThothLogAdmin(admin.ModelAdmin):
     # NEW METHODS for reorganized logging
     
     def evaluation_case_badge(self, obj):
-        """Badge colorato per esito (A-GOLD, B-SILVER, etc.) with improved status detection"""
+        """Simple badge for evaluation case - used in list display"""
         case = obj.evaluation_case
         
-        # If evaluation_case is not set, try to infer from other fields
         if not case:
-            if obj.generated_sql:
-                # If we have generated SQL, try to determine status from pass rates or other indicators
-                if obj.pass_rates:
-                    try:
-                        if isinstance(obj.pass_rates, dict):
-                            pass_rate = obj.pass_rates.get('overall_pass_rate', 0)
-                        else:
-                            pass_rate = 0
-                        
-                        if pass_rate >= 90:
-                            case = "A-GOLD"
-                        elif pass_rate >= 80:
-                            case = "B-GOLD"
-                        elif pass_rate >= 70:
-                            case = "A-SILVER"
-                        elif pass_rate >= 60:
-                            case = "B-SILVER"
-                        elif pass_rate >= 50:
-                            case = "C-SILVER"
-                        else:
-                            case = "D-FAILED"
-                    except:
-                        case = "EVALUATED"
-                else:
-                    case = "COMPLETED"
-            elif obj.sql_generation_failure_message:
-                case = "FAILED"
-            elif obj.terminated_at:
-                case = "PENDING"
-            else:
-                case = "RUNNING"
+            return "-"
         
         color_map = {
             "A-GOLD": "#FFD700",  # Gold yellow
             "B-GOLD": "#FFD700",  # Gold yellow
             "A-SILVER": "#C0C0C0",  # Silver gray
             "B-SILVER": "#C0C0C0",  # Silver gray
-            "C-SILVER": "#C0C0C0",  # Silver gray
+            "C-FAILED": "#dc3545",  # Red (same as D-FAILED)
             "D-FAILED": "#dc3545",  # Red
-            "GOLD": "#FFD700",  # Gold yellow
-            "SILVER": "#C0C0C0",  # Silver gray
-            "FAILED": "#dc3545",  # Red
-            "COMPLETED": "#28a745",
-            "EVALUATED": "#17a2b8",
-            "PENDING": "#ffc107",
-            "RUNNING": "#007bff",
         }
         color = color_map.get(case, "#6c757d")
-        # Better text contrast - use black for gold/silver, white for dark colors
-        text_color = "white" if case in ["D-FAILED", "FAILED", "COMPLETED", "EVALUATED", "RUNNING"] else "black"
+        # Better text contrast - use black for gold/silver, white for red failed cases
+        text_color = "white" if case in ["D-FAILED", "C-FAILED"] else "black"
         return format_html(
             '<span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
             color, text_color, case
         )
-    evaluation_case_badge.short_description = "Evaluation Result"
+    evaluation_case_badge.short_description = "Result"
+    
+    def evaluation_case_display(self, obj):
+        """Badge with explanation for evaluation case - used in detail form"""
+        case = obj.evaluation_case
+        
+        if not case:
+            return "-"
+        
+        # Case explanations (updated for new algorithm logic)
+        case_explanations = {
+            "A-GOLD": "Single perfect SQL (100% pass rate) - direct selection",
+            "B-GOLD": "Multiple perfect SQLs (100% pass rate) - best SQL selected via agent",
+            "A-SILVER": "Single SQL above threshold - direct selection", 
+            "B-SILVER": "Multiple SQLs above threshold - best SQL selected via agent",
+            "C-FAILED": "No SQL met the quality threshold",
+            "D-FAILED": "SQL generation or evaluation failed",
+        }
+        
+        color_map = {
+            "A-GOLD": "#FFD700",  # Gold yellow
+            "B-GOLD": "#FFD700",  # Gold yellow
+            "A-SILVER": "#C0C0C0",  # Silver gray
+            "B-SILVER": "#C0C0C0",  # Silver gray
+            "C-FAILED": "#dc3545",  # Red (same as D-FAILED)
+            "D-FAILED": "#dc3545",  # Red
+        }
+        color = color_map.get(case, "#6c757d")
+        # Better text contrast - use black for gold/silver, white for red failed cases
+        text_color = "white" if case in ["D-FAILED", "C-FAILED"] else "black"
+        
+        # Get explanation
+        explanation = case_explanations.get(case, "")
+        
+        # Return badge followed by explanation
+        return format_html(
+            '<span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold; margin-right: 10px;">{}</span>'
+            '<span style="color: #666; font-style: italic;">{}</span>',
+            color, text_color, case, explanation
+        )
+    evaluation_case_display.short_description = "Evaluation Result"
     
     def generated_sql_textarea(self, obj):
         """SQL with fixed width textarea"""

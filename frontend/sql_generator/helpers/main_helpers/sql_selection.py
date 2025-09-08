@@ -512,36 +512,42 @@ def find_finalists(sql_scores: List[Dict], threshold: float) -> List[Dict]:
 
 def is_borderline_case(sql_scores: List[Dict], min_pass_threshold: float) -> bool:
     """
-    Determine if evaluation results represent a borderline case (B or C).
+    Determine if evaluation results represent a borderline case requiring SQL selector.
     
-    Case B: Multiple SQLs with 100% pass rate (need to choose among perfect options)
-    Case C: Some SQLs above threshold but not perfect (need enhanced evaluation)
+    Following the intended logic:
+    - Case A (single SQL): No selection needed
+    - Case B (multiple SQLs): SQL selector needed  
+    - Case C (no SQL >= threshold): No selection possible
     
     Args:
         sql_scores: List of SQL score dictionaries with pass rates
         min_pass_threshold: Minimum pass rate threshold (0.0 to 1.0)
         
     Returns:
-        True if this is a borderline case B or C
+        True if SQL selector should be activated (Case B scenarios only)
     """
     # Find SQLs above threshold
     candidates_above_threshold = [s for s in sql_scores if s["pass_rate"] >= min_pass_threshold]
     
     if not candidates_above_threshold:
-        return False  # Case D (all failed) - not borderline
+        return False  # Case C-FAILED - no selection possible
     
     # Find perfect SQLs (100% pass rate)
     perfect_sqls = [s for s in candidates_above_threshold if s["pass_rate"] >= 1.0]
     
-    # Case B: Multiple perfect SQLs
+    # Case B-GOLD: Multiple perfect SQLs → SQL selector needed
     if len(perfect_sqls) > 1:
         return True
     
-    # Case C: Some above threshold but not perfect
-    if len(perfect_sqls) == 0 and len(candidates_above_threshold) > 0:
+    # Case A-GOLD: Single perfect SQL → direct selection, no SQL selector
+    if len(perfect_sqls) == 1:
+        return False
+        
+    # Case B-SILVER: Multiple above threshold (but not perfect) → SQL selector needed
+    if len(candidates_above_threshold) > 1:
         return True
-    
-    # Case A: Single perfect SQL - not borderline
+        
+    # Case A-SILVER: Single above threshold → direct selection, no SQL selector
     return False
 
 

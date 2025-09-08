@@ -1,5 +1,5 @@
 id,group,show_sql,explain_generated_query
-1,1,False,True
-2,2,False,True
-3,3,False,True
+1,1,False,False
+2,2,False,False
+3,3,True,False
 4,4,False,True
