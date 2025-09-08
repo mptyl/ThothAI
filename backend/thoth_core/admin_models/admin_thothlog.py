@@ -236,22 +236,9 @@ class ThothLogAdmin(admin.ModelAdmin):
             },
         ),
         
-        # Phase 6: Test Reduction
+        # Phase 6: SQL Evaluation and Winner Selection (renamed from Phase 7)
         (
-            "Phase 6: Test Reduction",
-            {
-                "fields": (
-                    "test_reduction_timing_inline",
-                    "reduced_tests_display",  # NEW
-                ),
-                "description": "Semantic test reduction (if executed)",
-                "classes": ("collapse",),
-            },
-        ),
-        
-        # Phase 7: SQL Evaluation and Winner Selection
-        (
-            "Phase 7: SQL Evaluation and Winner Selection",
+            "Phase 6: SQL Evaluation and Winner Selection",
             {
                 "fields": (
                     ("evaluation_timing_inline",),  # Will show as "Evaluation Timing"
@@ -267,20 +254,6 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "sql_explanation",
                 ),
                 "description": "SQL candidates evaluation and winner selection",
-                "classes": ("collapse",),
-            },
-        ),
-        
-        # Timestamps finali
-        (
-            "System Timestamps",
-            {
-                "fields": (
-                    "process_end_time_display",  # NEW
-                    "formatted_created_at", 
-                    "formatted_updated_at"
-                ),
-                "description": "System timestamps for the record",
                 "classes": ("collapse",),
             },
         ),
@@ -787,9 +760,9 @@ class ThothLogAdmin(admin.ModelAdmin):
 
         html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
         html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">Reduced Schema (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px; padding: 10px;">'
+        html_content += '<div style="margin-top: 10px;">'
         html_content += format_html(
-            '<pre class="readonly" style="max-height: 400px; overflow-y: auto; background: white; padding: 10px; border: 1px solid #ddd; border-radius: 3px; font-family: monospace; font-size: 12px;">{}</pre>',
+            '<pre class="readonly" style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: var(--body-bg, #ffffff); color: var(--body-fg, #333); padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 3px; margin: 0;">{}</pre>',
             obj.reduced_schema,
         )
         html_content += "</div>"
@@ -2446,22 +2419,23 @@ class ThothLogAdmin(admin.ModelAdmin):
                 case = "RUNNING"
         
         color_map = {
-            "A-GOLD": "#ffd700",
-            "B-GOLD": "#ffd700", 
-            "A-SILVER": "#c0c0c0",
-            "B-SILVER": "#c0c0c0",
-            "C-SILVER": "#c0c0c0",
-            "D-FAILED": "#dc3545",
-            "GOLD": "#ffd700",
-            "SILVER": "#c0c0c0",
-            "FAILED": "#dc3545",
+            "A-GOLD": "#FFD700",  # Gold yellow
+            "B-GOLD": "#FFD700",  # Gold yellow
+            "A-SILVER": "#C0C0C0",  # Silver gray
+            "B-SILVER": "#C0C0C0",  # Silver gray
+            "C-SILVER": "#C0C0C0",  # Silver gray
+            "D-FAILED": "#dc3545",  # Red
+            "GOLD": "#FFD700",  # Gold yellow
+            "SILVER": "#C0C0C0",  # Silver gray
+            "FAILED": "#dc3545",  # Red
             "COMPLETED": "#28a745",
             "EVALUATED": "#17a2b8",
             "PENDING": "#ffc107",
             "RUNNING": "#007bff",
         }
         color = color_map.get(case, "#6c757d")
-        text_color = "white" if case in ["D-FAILED", "FAILED"] else "black"
+        # Better text contrast - use black for gold/silver, white for dark colors
+        text_color = "white" if case in ["D-FAILED", "FAILED", "COMPLETED", "EVALUATED", "RUNNING"] else "black"
         return format_html(
             '<span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
             color, text_color, case
@@ -3138,12 +3112,12 @@ class ThothLogAdmin(admin.ModelAdmin):
             else:
                 data = obj.lsh_similar_columns
             
-            # Create collapsible container using Django admin styling
+            # Create collapsible container using Django admin styling with proper theme support
             html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
             html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">LSH Similar Columns (click to expand)</summary>'
-            html_content += '<div style="margin-top: 10px; padding: 10px;">'
+            html_content += '<div style="margin-top: 10px;">'
             html_content += format_html(
-                '<pre style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: white; padding: 10px; border: 1px solid #ddd; border-radius: 3px;">{}</pre>',
+                '<pre class="readonly" style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: var(--body-bg, #ffffff); color: var(--body-fg, #333); padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 3px; margin: 0;">{}</pre>',
                 json.dumps(data, indent=2, ensure_ascii=False)
             )
             html_content += '</div>'

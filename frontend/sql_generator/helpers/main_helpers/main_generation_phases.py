@@ -342,8 +342,17 @@ async def _evaluate_and_select_phase(
     
     from helpers.main_helpers.main_evaluation import evaluate_sql_candidates, populate_execution_state_from_evaluation
     
+    # Record evaluation start time
+    if hasattr(state, 'execution'):
+        state.execution.evaluation_start_time = datetime.now()
+    
     # Run standard evaluation flow
     evaluation_result = await evaluate_sql_candidates(state, state.agents_and_tools)
+    
+    # Record evaluation end time
+    if hasattr(state, 'execution') and state.execution.evaluation_start_time:
+        state.execution.evaluation_end_time = datetime.now()
+        state.execution.evaluation_duration_ms = (state.execution.evaluation_end_time - state.execution.evaluation_start_time).total_seconds() * 1000
     
     # Store evaluation results in state
     state.evaluation_results = evaluation_result
@@ -384,6 +393,10 @@ async def _evaluate_and_select_phase(
 
     # SQLite 3.30.0+ (October 2019) supports NULLS LAST/FIRST, so templates now handle this correctly for all databases
     from helpers.main_helpers.sql_selection import select_best_sql
+    
+    # Record SQL selection start time
+    if hasattr(state, 'execution'):
+        state.execution.sql_selection_start_time = datetime.now()
     
     # Use original SQLs and evaluation results without "fixing"
     fixed_sqls = state.generated_sqls
@@ -448,6 +461,11 @@ async def _evaluate_and_select_phase(
     # Save selection metrics
     state.selection_metrics = selection_metrics
     state.selection_metrics_json = json.dumps(selection_metrics, ensure_ascii=True)
+    
+    # Record SQL selection end time
+    if hasattr(state, 'execution') and state.execution.sql_selection_start_time:
+        state.execution.sql_selection_end_time = datetime.now()
+        state.execution.sql_selection_duration_ms = (state.execution.sql_selection_end_time - state.execution.sql_selection_start_time).total_seconds() * 1000
     
     # Finalize ExecutionState status based on SQL selection results
     _finalize_execution_state_status(state, success, selected_sql, selection_metrics, evaluation_threshold)
