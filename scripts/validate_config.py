@@ -251,8 +251,29 @@ class ConfigValidator:
                     print("UNREACHABLE")
                     self.warnings.append(f"LM Studio endpoint is unreachable at {data.get('api_base')}")
             
+            elif name == 'deepseek':
+                if self.validate_openai_compatible_key(api_key, data.get('api_base', 'https://api.deepseek.com/v1')):
+                    print("OK")
+                else:
+                    print("INVALID")
+                    self.errors.append(f"DeepSeek API key is invalid")
+            
+            elif name == 'openrouter':
+                if self.validate_openai_compatible_key(api_key, data.get('api_base', 'https://openrouter.ai/api/v1')):
+                    print("OK")
+                else:
+                    print("INVALID")
+                    self.errors.append(f"OpenRouter API key is invalid")
+            
+            elif name == 'groq':
+                if self.validate_groq_key(api_key):
+                    print("OK")
+                else:
+                    print("INVALID")
+                    self.errors.append(f"Groq API key is invalid")
+            
             else:
-                print("SKIPPED")
+                print("SKIPPED (Unknown provider)")
         
         # Validate Logfire if monitoring enabled
         monitoring = self.config.get('monitoring', {})
@@ -352,6 +373,32 @@ class ConfigValidator:
         """Test LM Studio endpoint"""
         try:
             response = requests.get(f"{api_base}/v1/models", timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+    
+    def validate_openai_compatible_key(self, api_key: str, api_base: str) -> bool:
+        """Test OpenAI-compatible API key (DeepSeek, OpenRouter, etc.)"""
+        try:
+            headers = {"Authorization": f"Bearer {api_key}"}
+            response = requests.get(
+                f"{api_base}/models",
+                headers=headers,
+                timeout=5
+            )
+            return response.status_code == 200
+        except:
+            return False
+    
+    def validate_groq_key(self, api_key: str) -> bool:
+        """Test Groq API key"""
+        try:
+            headers = {"Authorization": f"Bearer {api_key}"}
+            response = requests.get(
+                "https://api.groq.com/openai/v1/models",
+                headers=headers,
+                timeout=5
+            )
             return response.status_code == 200
         except:
             return False
