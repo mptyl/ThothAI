@@ -148,12 +148,12 @@ print('- Deleted all groups')
 print('Database cleaned for fresh installation')
 "
     
-    # 1. Load groups from setup_csv
-    echo "Loading groups from setup_csv..."
-    /app/.venv/bin/python manage.py import_groups --source docker || echo "Warning: Could not load groups"
+    # 1. Load all default configurations (groups, users with associations, etc.)
+    echo "Loading default configurations..."
+    /app/.venv/bin/python manage.py load_defaults --source docker || echo "Warning: Could not load defaults"
     
-    # 2. Create initial users from config.yml.local if available
-    echo "Creating initial users..."
+    # 2. Update passwords for imported users from config.yml.local
+    echo "Setting user passwords from configuration..."
     if [ -f "/app/config.yml.local" ]; then
         echo "Loading user configuration from config.yml.local..."
         
@@ -166,17 +166,6 @@ try:
         print(config.get('admin', {}).get('username', 'admin'))
 except:
     print('admin')
-")
-        
-        ADMIN_EMAIL=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        email = config.get('admin', {}).get('email', '')
-        print(email if email else 'admin@example.com')
-except:
-    print('admin@example.com')
 ")
         
         ADMIN_PASSWORD=$(/app/.venv/bin/python -c "
@@ -200,17 +189,6 @@ except:
     print('demo')
 ")
         
-        DEMO_EMAIL=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        email = config.get('demo', {}).get('email', '')
-        print(email if email else 'demo@example.com')
-except:
-    print('demo@example.com')
-")
-        
         DEMO_PASSWORD=$(/app/.venv/bin/python -c "
 import yaml
 try:
@@ -221,64 +199,44 @@ except:
     print('demo1234')
 ")
         
-        # Create admin superuser
-        echo "Creating admin superuser..."
-        DJANGO_SUPERUSER_USERNAME="$ADMIN_USERNAME" \
-        DJANGO_SUPERUSER_EMAIL="$ADMIN_EMAIL" \
-        DJANGO_SUPERUSER_PASSWORD="$ADMIN_PASSWORD" \
-        /app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Admin user '$ADMIN_USERNAME' already exists"
-        
-        # Create demo superuser
-        echo "Creating demo superuser..."
-        DJANGO_SUPERUSER_USERNAME="$DEMO_USERNAME" \
-        DJANGO_SUPERUSER_EMAIL="$DEMO_EMAIL" \
-        DJANGO_SUPERUSER_PASSWORD="$DEMO_PASSWORD" \
-        /app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Demo user '$DEMO_USERNAME' already exists"
-        
-        echo "User creation completed."
-    else
-        echo "config.yml.local not found, skipping user creation"
-    fi
-    
-    # 3. Associate users with groups
-    echo "Associating users with groups..."
-    /app/.venv/bin/python -c "
+        # Update passwords for existing users
+        echo "Updating user passwords..."
+        /app/.venv/bin/python -c "
 import os
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Thoth.settings')
 django.setup()
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 
-# Associate admin with groups admin, editor, technical_user
-admin_user = User.objects.filter(username='admin').first()
+# Update admin password
+admin_user = User.objects.filter(username='$ADMIN_USERNAME').first()
 if admin_user:
-    groups = Group.objects.filter(name__in=['admin', 'editor', 'technical_user'])
-    if groups.exists():
-        admin_user.groups.set(groups)
-        print(f'Admin user associated with groups: {list(groups.values_list(\"name\", flat=True))}')
-    else:
-        print('Warning: Groups not found for admin user')
+    admin_user.set_password('$ADMIN_PASSWORD')
+    admin_user.is_superuser = True
+    admin_user.is_staff = True
+    admin_user.save()
+    print(f'Password updated for admin user: $ADMIN_USERNAME')
 else:
-    print('Warning: Admin user not found')
+    print('Warning: Admin user $ADMIN_USERNAME not found')
 
-# Associate demo with groups editor and technical_user
-demo_user = User.objects.filter(username='demo').first()
+# Update demo password
+demo_user = User.objects.filter(username='$DEMO_USERNAME').first()
 if demo_user:
-    groups = Group.objects.filter(name__in=['editor', 'technical_user'])
-    if groups.exists():
-        demo_user.groups.set(groups)
-        print(f'Demo user associated with groups: {list(groups.values_list(\"name\", flat=True))}')
-    else:
-        print('Warning: Groups not found for demo user')
+    demo_user.set_password('$DEMO_PASSWORD')
+    demo_user.is_superuser = True
+    demo_user.is_staff = True
+    demo_user.save()
+    print(f'Password updated for demo user: $DEMO_USERNAME')
 else:
-    print('Warning: Demo user not found')
+    print('Warning: Demo user $DEMO_USERNAME not found')
 "
+        
+        echo "User password configuration completed."
+    else
+        echo "config.yml.local not found, skipping password configuration"
+    fi
     
-    # 4. Load default configurations
-    echo "Loading default configurations..."
-    /app/.venv/bin/python manage.py load_defaults --source docker || echo "Warning: Could not load defaults"
-    
-    # 5. Link workspace demo to demo user
+    # 3. Link workspace demo to demo user
     echo "Setting up demo workspace for demo user..."
     /app/.venv/bin/python -c "
 import os
