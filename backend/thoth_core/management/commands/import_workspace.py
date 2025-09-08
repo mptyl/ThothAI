@@ -202,6 +202,12 @@ class Command(BaseCommand):
                                     f"Invalid evaluation_threshold '{row['evaluation_threshold']}' for Workspace '{row.get('name', 'unknown')}', using default"
                                 )
                             )
+                    
+                    # Handle belt_and_suspenders boolean field
+                    belt_and_suspenders = False  # default
+                    if row.get("belt_and_suspenders"):
+                        belt_value = row["belt_and_suspenders"].lower().strip()
+                        belt_and_suspenders = belt_value in ("true", "1", "yes", "on")
 
                     # Estrai l'ID dal CSV - richiesto obbligatoriamente
                     if not model_id:
@@ -236,6 +242,7 @@ class Command(BaseCommand):
                         obj.number_of_tests_to_generate = number_of_tests
                         obj.number_of_sql_to_generate = number_of_sql
                         obj.evaluation_threshold = eval_threshold
+                        obj.belt_and_suspenders = belt_and_suspenders
 
                         # Reset excluded fields to default values
                         obj.preprocessing_status = Workspace.PreprocessingStatus.IDLE
@@ -333,6 +340,7 @@ class Command(BaseCommand):
                             number_of_tests_to_generate=number_of_tests,
                             number_of_sql_to_generate=number_of_sql,
                             evaluation_threshold=eval_threshold,
+                            belt_and_suspenders=belt_and_suspenders,
                             # Note: Excluded fields will be set to their default values automatically
                         )
                         imported_count += 1

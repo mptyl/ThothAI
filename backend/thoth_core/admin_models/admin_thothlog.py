@@ -114,6 +114,9 @@ class ThothLogAdmin(admin.ModelAdmin):
         "test_generation_timing_display",
         "evaluation_timing_display",
         "sql_selection_timing_display",
+        "belt_and_suspenders_start_display",
+        "belt_and_suspenders_end_display",
+        "belt_and_suspenders_duration_display",
         "formatted_created_at",
         "formatted_updated_at",
     )
@@ -255,6 +258,8 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "evaluation_judgments_display",  # NEW
                     "pass_rates_display",
                     "evaluation_details_display",
+                    ("belt_and_suspenders_start_display", "belt_and_suspenders_end_display"),
+                    "belt_and_suspenders_duration_display",
                     "selected_sql_complexity",
                     "sql_status_display",
                     "selected_sql",
@@ -2638,6 +2643,24 @@ class ThothLogAdmin(admin.ModelAdmin):
             return f"{obj.evaluation_duration_ms / 1000:.1f}s"
         return "-"
     evaluation_duration_display.short_description = "Evaluation Duration"
+    
+    def belt_and_suspenders_start_display(self, obj):
+        if obj.belt_and_suspenders_start:
+            return timezone.localtime(obj.belt_and_suspenders_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    belt_and_suspenders_start_display.short_description = "B&S Start"
+    
+    def belt_and_suspenders_end_display(self, obj):
+        if obj.belt_and_suspenders_end:
+            return timezone.localtime(obj.belt_and_suspenders_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    belt_and_suspenders_end_display.short_description = "B&S End"
+    
+    def belt_and_suspenders_duration_display(self, obj):
+        if obj.belt_and_suspenders_duration_ms > 0:
+            return f"{obj.belt_and_suspenders_duration_ms / 1000:.1f}s"
+        return "-"
+    belt_and_suspenders_duration_display.short_description = "B&S Duration"
     
     def lsh_similar_columns_display(self, obj):
         """Display LSH similar columns as formatted JSON"""

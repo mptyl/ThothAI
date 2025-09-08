@@ -9,9 +9,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Unless required by applicable law or agreed to in writing, software
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
 FastAPI Main Application for SQL Generator
 
@@ -27,14 +24,13 @@ import logfire
 
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, PlainTextResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agents.core.agent_manager import ThothAgentManager
 from helpers.main_helpers.main_methods import  _get_workspace, initialize_database_plugins 
 from model.sql_explanation import SqlExplanationRequest, SqlExplanationResponse
 from services.paginated_query_service import PaginatedQueryService, PaginationRequest, PaginationResponse
@@ -128,8 +124,6 @@ else:
     logger.info("Logfire token not found, telemetry will not be sent to logfire service")
 
 
-# Global agent manager instance (legacy, not used directly anymore)
-agent_manager: Optional[ThothAgentManager] = None
 
 # Simple in-memory cache to reuse setup across calls in the same session/workspace
 # Key strategy: prefer client-provided 'X-Session-Id' header, otherwise fall back to the workspace ID
@@ -181,7 +175,7 @@ app = FastAPI(
 )
 
 # Import standardized error handling
-from helpers.error_response import handle_exception, create_error_response, ErrorCodes
+from helpers.error_response import handle_exception
 
 # Global exception handler with standardized error responses
 @app.exception_handler(Exception)

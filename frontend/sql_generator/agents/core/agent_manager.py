@@ -56,7 +56,6 @@ class ThothAgentManager(BaseAgentManager):
         # Initialize validators - only the ones we need for now
         self.sql_validators = None  # Will be initialized when SQL agents are activated
         self.test_validators = TestValidators()
-        # self.explanation_validators = ExplanationValidators()  # Not needed yet
     
     def initialize(self):
         """
@@ -134,29 +133,6 @@ class ThothAgentManager(BaseAgentManager):
             force_default_prompt=use_default
         )
     
-    def _create_column_selection_agents(self):
-        """Create column selection agents."""
-        # Use specific agents only, no fallback to default agent
-        sel_agent_1_config = self.workspace.get("sel_columns_agent_1")
-        sel_agent_2_config = self.workspace.get("sel_columns_agent_2")
-        default_model_config = self.workspace.get("default_model")
-        use_default_1 = sel_agent_1_config is None
-        use_default_2 = sel_agent_2_config is None
-        # No fallback to default_agent - if no specific agent, agent will be None
-        
-        self.select_columns_agent_1 = AgentInitializer.create_column_selection_agent(
-            sel_agent_1_config,
-            default_model_config,
-            self.get_retries(sel_agent_1_config),
-            force_default_prompt=use_default_1
-        )
-        
-        self.select_columns_agent_2 = AgentInitializer.create_column_selection_agent(
-            sel_agent_2_config,
-            default_model_config,
-            self.get_retries(sel_agent_2_config),
-            force_default_prompt=use_default_2
-        )
     
     def _create_sql_generation_agents(self):
         """Create SQL generation agents - one for each functionality level (BASIC, ADVANCED, EXPERT)."""
@@ -258,19 +234,6 @@ class ThothAgentManager(BaseAgentManager):
             self.get_retries(test_evaluator_config)
         )
     
-    def _create_ask_humans_agent(self):
-        """Create ask human agent."""
-        # Create evaluator agent (formerly ask_human_agent, repurposed for evaluation)
-        ask_human_agent_config = self.workspace.get("ask_human_help_agent")
-        default_model_config = self.workspace.get("default_model")
-        use_default_eval = ask_human_agent_config is None
-        
-        self.evaluate_agent = AgentInitializer.create_ask_human_agent(
-            ask_human_agent_config,
-            default_model_config,
-            self.get_retries(ask_human_agent_config),
-            force_default_prompt=use_default_eval
-        )
     
     def _create_sql_explainer_agent(self):
         """Create SQL explainer agent."""
@@ -491,23 +454,10 @@ class ThothAgentManager(BaseAgentManager):
     def _configure_test_validators(self):
         """Configure validators for test generation and execution agents."""
         # Validators disabled for test generation agents - we handle output directly
-        # Previously created but unused - removed:
-        # test_gen_validator = self.test_validators.create_test_gen_validator()
-        # test_exec_validator = self.test_validators.create_test_exec_validator()
-        # if self.test_gen_agent_1:
-        #     self.test_gen_agent_1.output_validator(test_gen_validator)
-        # if self.test_gen_agent_2:
-        #     self.test_gen_agent_2.output_validator(test_gen_validator)
-        # if self.test_gen_agent_3:
-        #     self.test_gen_agent_3.output_validator(test_gen_validator)
+        pass
         
     def _configure_explanation_validators(self):
         """Configure validators for SQL explanation agents."""
-        # explanation_validator = self.explanation_validators.create_explanation_validator()
-        
-        # # Apply validator to SQL explainer agent
-        # if self.sql_explainer_agent:
-        #     self.sql_explainer_agent.output_validator(explanation_validator)
         pass
     
     async def explain_generated_sql(

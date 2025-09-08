@@ -214,6 +214,11 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             "sql_selection_end": getattr(state.execution, 'sql_selection_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'sql_selection_end_time', None) else None,
             "sql_selection_duration_ms": int(getattr(state.execution, 'sql_selection_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             
+            # Belt and Suspenders timing (if performed)
+            "belt_and_suspenders_start": getattr(state.execution, 'belt_and_suspenders_start_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'belt_and_suspenders_start_time', None) else None,
+            "belt_and_suspenders_end": getattr(state.execution, 'belt_and_suspenders_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'belt_and_suspenders_end_time', None) else None,
+            "belt_and_suspenders_duration_ms": int(getattr(state.execution, 'belt_and_suspenders_duration_ms', 0)) if hasattr(state, 'execution') else 0,
+            
             # Final process end time
             "process_end_time": getattr(state.execution, 'process_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'process_end_time', None) else terminated_at.isoformat(),
             

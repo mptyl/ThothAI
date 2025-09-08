@@ -9,8 +9,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
 SQL Selection module for choosing the best SQL from generated candidates
 based on evaluation results and complexity analysis.
@@ -188,17 +186,6 @@ def calculate_detailed_sql_scores(
                     logger.debug(f"  - {failure}")
     
     return sql_scores
-
-
-# NOTE: Removed small_bug_fixer function
-# This function was automatically adding NULLS LAST/FIRST clauses that could cause issues with older SQLite versions
-# SQLite 3.30.0+ (October 2019) supports NULLS LAST/FIRST, so modern systems handle this correctly
-# NULLS LAST/FIRST handling is now done in SQL generation templates and works for all modern databases
-
-
-# NOTE: Removed fix_nulls_ordering function  
-# SQLite 3.30.0+ supports NULLS LAST/FIRST, so this workaround is no longer needed
-# The templates now generate proper NULLS clauses for all databases including modern SQLite
 
 
 async def select_best_sql(

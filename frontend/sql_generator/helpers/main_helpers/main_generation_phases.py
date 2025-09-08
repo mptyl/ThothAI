@@ -279,7 +279,6 @@ async def _evaluate_and_select_phase(
         # Save filtered tests as simple list for the backend
         state.generated_tests_json = json.dumps(state.filtered_tests, ensure_ascii=False)
 
-    # NOTE: Removed small_bug_fixer step - was adding NULLS LAST/FIRST that could break older SQLite versions
     # SQLite 3.30.0+ (October 2019) supports NULLS LAST/FIRST, so templates now handle this correctly for all databases
     from helpers.main_helpers.sql_selection import select_best_sql
     
@@ -408,7 +407,12 @@ async def _evaluate_and_select_phase(
         
         # Check if we can and should escalate
         if next_level and state.escalation_attempts < 2:  # Max 2 escalations (BASIC->ADVANCED->EXPERT)
-            yield f"THOTHLOG:Escalating from {current_level.display_name} to {next_level.display_name} due to evaluation failure\n"
+            if next_level.value == "ADVANCED":
+                yield f"THOTHLOG:Escalation to Advanced Agent\n"
+            elif next_level.value == "EXPERT":
+                yield f"THOTHLOG:Escalation to Expert Agent\n"
+            else:
+                yield f"THOTHLOG:Escalating to {next_level.display_name} agent\n"  # fallback generico
             logger.info(f"Escalating SQL generation from {current_level.value} to {next_level.value}")
             
             # Create escalation context
