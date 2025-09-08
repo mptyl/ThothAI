@@ -36,6 +36,106 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _finalize_execution_state_status(state, success: bool, selected_sql: str, selection_metrics: dict, evaluation_threshold: float) -> None:
+    """
+    Finalize ExecutionState status based on SQL selection results.
+    
+    Args:
+        state: SystemState containing execution context
+        success: Whether SQL selection was successful
+        selected_sql: The selected SQL query (if any)
+        selection_metrics: Metrics from SQL selection
+        evaluation_threshold: Threshold for SILVER status
+    """
+    if not success:
+        # SQL selection failed - set to FAILED status
+        state.execution.sql_status = "FAILED"
+        if hasattr(state.execution, 'evaluation_case') and state.execution.evaluation_case:
+            # Update case to reflect failure if not already D-FAILED
+            if not state.execution.evaluation_case.endswith("-FAILED"):
+                case_letter = state.execution.evaluation_case.split("-")[0] if "-" in state.execution.evaluation_case else "D"
+                state.execution.evaluation_case = f"{case_letter}-FAILED"
+        else:
+            state.execution.evaluation_case = "D-FAILED"
+        
+        logger.info(f"Finalized ExecutionState status: {state.execution.sql_status}, case: {state.execution.evaluation_case}")
+        return
+    
+    if not selected_sql:
+        # Should not happen with success=True, but handle gracefully
+        state.execution.sql_status = "FAILED" 
+        state.execution.evaluation_case = "D-FAILED"
+        logger.warning("SQL selection reported success but no SQL was selected")
+        return
+    
+    # SQL selection was successful - determine final status from selection_metrics
+    try:
+        # Get selection reason to understand the quality
+        selection_reason = selection_metrics.get('selection_reason', '').lower()
+        final_status = selection_metrics.get('final_status', '').upper()
+        
+        # Check if this is enhanced evaluation with explicit status
+        if final_status in ['GOLD', 'SILVER', 'FAILED']:
+            state.execution.sql_status = final_status
+        else:
+            # Determine status from selection reason keywords
+            if any(keyword in selection_reason for keyword in ['perfect', '100%', 'all tests pass', 'gold']):
+                state.execution.sql_status = "GOLD"
+            elif any(keyword in selection_reason for keyword in ['above threshold', f'{evaluation_threshold}%', 'silver']):
+                state.execution.sql_status = "SILVER"
+            elif any(keyword in selection_reason for keyword in ['below threshold', 'low confidence', 'failed']):
+                state.execution.sql_status = "FAILED"
+            else:
+                # Default to SILVER for successful selection if unclear
+                state.execution.sql_status = "SILVER"
+        
+        # Update evaluation_case to reflect final status if needed
+        if hasattr(state.execution, 'evaluation_case') and state.execution.evaluation_case:
+            current_case = state.execution.evaluation_case
+            if "-" in current_case:
+                case_letter, old_status = current_case.split("-", 1)
+                
+                # IMPORTANT: Do not downgrade status from GOLD to SILVER or SILVER to FAILED
+                # If evaluation already determined a higher status, preserve it
+                status_hierarchy = {"GOLD": 3, "SILVER": 2, "FAILED": 1}
+                old_status_level = status_hierarchy.get(old_status, 0)
+                new_status_level = status_hierarchy.get(state.execution.sql_status, 0)
+                
+                # Only update if the new status is higher than the old status
+                if new_status_level > old_status_level:
+                    state.execution.evaluation_case = f"{case_letter}-{state.execution.sql_status}"
+                    logger.info(f"Upgraded evaluation case from {current_case} to {state.execution.evaluation_case}")
+                elif old_status_level > new_status_level:
+                    # Keep the higher status from evaluation, update sql_status to match
+                    state.execution.sql_status = old_status
+                    logger.info(f"Preserved higher evaluation status: {current_case}, adjusted sql_status to {old_status}")
+                # If equal, keep current case unchanged
+            else:
+                # Add status suffix if missing
+                state.execution.evaluation_case = f"{current_case}-{state.execution.sql_status}"
+        else:
+            # Set default case if missing  
+            state.execution.evaluation_case = f"A-{state.execution.sql_status}"
+        
+        # Store complexity information if available
+        selected_sql_index = selection_metrics.get('selected_sql_index', 0)
+        if isinstance(selected_sql_index, int) and selected_sql_index >= 0:
+            # Could calculate complexity score here if needed
+            state.execution.selected_sql_complexity = 1.0 - (selected_sql_index / max(1, len(state.generated_sqls)))
+        
+        logger.info(f"Finalized ExecutionState status: {state.execution.sql_status}, case: {state.execution.evaluation_case}")
+        
+    except Exception as e:
+        logger.error(f"Error finalizing ExecutionState status: {e}", exc_info=True)
+        # Set safe fallback values
+        state.execution.sql_status = "SILVER"  # Assume silver since selection was successful
+        if hasattr(state.execution, 'evaluation_case') and state.execution.evaluation_case:
+            case_letter = state.execution.evaluation_case.split("-")[0] if "-" in state.execution.evaluation_case else "A"
+            state.execution.evaluation_case = f"{case_letter}-SILVER"
+        else:
+            state.execution.evaluation_case = "A-SILVER"
+
+
 async def _generate_sql_candidates_phase(
     state: SystemState,
     request: "GenerateSQLRequest",
@@ -240,7 +340,7 @@ async def _evaluate_and_select_phase(
     evaluation_threshold = state.workspace.get('evaluation_threshold', 90)
     logger.debug(f"Using evaluation threshold: {evaluation_threshold}%")
     
-    from helpers.main_helpers.main_evaluation import evaluate_sql_candidates
+    from helpers.main_helpers.main_evaluation import evaluate_sql_candidates, populate_execution_state_from_evaluation
     
     # Run standard evaluation flow
     evaluation_result = await evaluate_sql_candidates(state, state.agents_and_tools)
@@ -248,6 +348,9 @@ async def _evaluate_and_select_phase(
     # Store evaluation results in state
     state.evaluation_results = evaluation_result
     state.evaluation_results_json = json.dumps(evaluation_result, ensure_ascii=True)
+    
+    # Populate ExecutionState fields for ThothLog
+    populate_execution_state_from_evaluation(state, evaluation_result, evaluation_threshold)
     
     # Extract thinking and answers for compatibility
     if evaluation_result and len(evaluation_result) > 0:
@@ -345,6 +448,9 @@ async def _evaluate_and_select_phase(
     # Save selection metrics
     state.selection_metrics = selection_metrics
     state.selection_metrics_json = json.dumps(selection_metrics, ensure_ascii=True)
+    
+    # Finalize ExecutionState status based on SQL selection results
+    _finalize_execution_state_status(state, success, selected_sql, selection_metrics, evaluation_threshold)
     
     if success:
         if selected_sql:

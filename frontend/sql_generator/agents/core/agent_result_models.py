@@ -189,11 +189,6 @@ class EvaluationResult(BaseModel):
         return v
 
 
-class AskHumanResult(BaseModel):
-    activity_analysis: str 
-    human_help_request: str
-
-
 class EvaluationStatus(Enum):
     """Status for enhanced evaluation results"""
     GOLD = "GOLD"  # SQL is selected as the best choice with 100% pass rate

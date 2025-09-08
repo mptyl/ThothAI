@@ -119,6 +119,19 @@ class ThothLogAdmin(admin.ModelAdmin):
         "belt_and_suspenders_duration_display",
         "formatted_created_at",
         "formatted_updated_at",
+        # Inline timing methods
+        "validation_timing_inline",
+        "keyword_generation_timing_inline",
+        "context_retrieval_timing_inline",
+        "sql_generation_timing_inline",
+        "test_generation_timing_inline", 
+        "test_reduction_timing_inline",
+        "evaluation_timing_inline",
+        "sql_selection_timing_inline",
+        "belt_and_suspenders_timing_inline",
+        # Language methods
+        "question_language_display",
+        "db_language_display",
     )
 
     fieldsets = (
@@ -145,8 +158,8 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "workspace",
                     "formatted_started_at",
                     "formatted_terminated_at",
-                    "question_language",
-                    "db_language",
+                    "question_language_display",
+                    "db_language_display",
                     "directives",
                     "flags_activated_display",
                 ),
@@ -160,8 +173,7 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Phase 1: Question Validation",
             {
                 "fields": (
-                    ("validation_start_display", "validation_end_display"),
-                    "validation_duration_display",
+                    "validation_timing_inline",
                 ),
                 "description": "Question validation phase timing",
                 "classes": ("collapse",),
@@ -170,21 +182,15 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         # Phase 2: Keywords and Schema
         (
-            "Phase 2: Keywords Generation and Data Preparation",
+            "Phase 2: Keywords Generation & Data Preparation",
             {
                 "fields": (
-                    ("keyword_generation_start_display", "keyword_generation_end_display"),
-                    "keyword_generation_duration_display",
+                    "keyword_generation_timing_inline",
                     "formatted_keywords_list",
-                    ("schema_preparation_start_display", "schema_preparation_end_display"),
-                    "schema_preparation_duration_display",
-                    "lsh_similar_columns_display",  # NEW
-                    "formatted_schema_with_examples",
-                    "formatted_schema_from_vector_db",
-                    "formatted_reduced_schema",
-                    "formatted_used_mschema",
+                    "lsh_similar_columns_display",  # LHS similar columns (collapsible)
+                    "formatted_reduced_schema",  # Reduced Schema (collapsible)
                 ),
-                "description": "Keywords extraction and schema preparation with LSH and Vector DB",
+                "description": "Keywords extraction and data preparation",
                 "classes": ("collapse",),
             },
         ),
@@ -194,10 +200,9 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Phase 3: Context Helpers Generation",
             {
                 "fields": (
-                    ("context_retrieval_start_display", "context_retrieval_end_display"),
-                    "context_retrieval_duration_display",
+                    "context_retrieval_timing_inline",
                     "formatted_evidences",
-                    "gold_sql_extracted_display",  # NEW
+                    "gold_sql_extracted_display",  # Gold Examples in collapsible block
                 ),
                 "description": "Evidence and gold SQL retrieval from vector database",
                 "classes": ("collapse",),
@@ -209,8 +214,7 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Phase 4: SQL Generation",
             {
                 "fields": (
-                    ("sql_generation_start_display", "sql_generation_end_display"),
-                    "sql_generation_duration_display",
+                    "sql_generation_timing_inline",
                     "pool_of_generated_sql_display",
                     "sql_generation_failure_message",
                 ),
@@ -224,8 +228,7 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Phase 5: Test Generation",
             {
                 "fields": (
-                    ("test_generation_start_display", "test_generation_end_display"),
-                    "test_generation_duration_display",
+                    "test_generation_timing_inline",
                     "generated_tests_display",
                     "generated_tests_count",
                 ),
@@ -234,13 +237,12 @@ class ThothLogAdmin(admin.ModelAdmin):
             },
         ),
         
-        # Phase 6: Test Reduction (optional)
+        # Phase 6: Test Reduction
         (
-            "Phase 6: Test Reduction (if performed)",
+            "Phase 6: Test Reduction",
             {
                 "fields": (
-                    ("test_reduction_start_display", "test_reduction_end_display"),
-                    "test_reduction_duration_display",
+                    "test_reduction_timing_inline",
                     "reduced_tests_display",  # NEW
                 ),
                 "description": "Semantic test reduction (if executed)",
@@ -248,38 +250,24 @@ class ThothLogAdmin(admin.ModelAdmin):
             },
         ),
         
-        # Phase 7: Evaluation and Selection
+        # Phase 7: SQL Evaluation and Winner Selection
         (
             "Phase 7: SQL Evaluation and Winner Selection",
             {
                 "fields": (
-                    ("evaluation_start_display", "evaluation_end_display"),
-                    "evaluation_duration_display",
+                    "evaluation_timing_inline",
+                    "sql_selection_timing_inline",
+                    "belt_and_suspenders_timing_inline",
                     "evaluation_judgments_display",  # NEW
                     "pass_rates_display",
                     "evaluation_details_display",
-                    ("belt_and_suspenders_start_display", "belt_and_suspenders_end_display"),
-                    "belt_and_suspenders_duration_display",
+                    "enhanced_evaluation_answers_display",  # Renamed: Evaluation Answers
                     "selected_sql_complexity",
                     "sql_status_display",
                     "selected_sql",
                     "sql_explanation",
                 ),
                 "description": "SQL candidates evaluation and winner selection",
-                "classes": ("collapse",),
-            },
-        ),
-        
-        # Enhanced Evaluation (manteniamo per compatibilità)
-        (
-            "Advanced Evaluation",
-            {
-                "fields": (
-                    "enhanced_evaluation_thinking_display",
-                    "enhanced_evaluation_answers_display",
-                    "enhanced_evaluation_selected_sql_display",
-                ),
-                "description": "Advanced evaluation results",
                 "classes": ("collapse",),
             },
         ),
@@ -368,7 +356,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     pool_of_generated_sql_display.short_description = "Pool of Generated SQL"
 
     def formatted_keywords_list(self, obj):
-        """Display keywords_list as a formatted list in an expandable container"""
+        """Display keywords_list as a formatted list (non-collapsible as per requirements)"""
         if not obj.keywords_list:
             return "-"
 
@@ -376,28 +364,26 @@ class ThothLogAdmin(admin.ModelAdmin):
             # Try to parse as Python list
             keywords = ast.literal_eval(obj.keywords_list)
             if isinstance(keywords, list):
-                html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-                html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Keywords List (click to expand)</summary>'
-                html_content += (
-                    '<div class="readonly" style="margin-top: 10px; padding: 10px;">'
-                )
+                html_content = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 12px; margin: 5px 0; background-color: var(--darkened-bg, #f8f9fa);">'
+                html_content += '<h4 style="margin-top: 0; margin-bottom: 10px;">Keywords List</h4>'
+                html_content += '<div class="readonly" style="padding: 8px;">'
                 for i, keyword in enumerate(keywords, 1):
-                    html_content += f"{i}. {keyword}<br>"
+                    html_content += f'<span style="display: inline-block; background: #e9ecef; padding: 4px 8px; margin: 2px; border-radius: 3px; font-size: 12px;">{keyword}</span>'
+                html_content += '</div>'
+                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer; font-size: 11px; color: #6c757d;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; font-size: 10px;">{obj.keywords_list}</pre></details>'
                 html_content += "</div>"
-                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px;">{obj.keywords_list}</pre></details>'
-                html_content += "</details>"
                 return mark_safe(html_content)
         except:
             pass
 
-        # Fallback to raw display in expandable container
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Keywords List (click to expand)</summary>'
+        # Fallback to raw display in non-collapsible container
+        html_content = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 12px; margin: 5px 0; background-color: var(--darkened-bg, #f8f9fa);">'
+        html_content += '<h4 style="margin-top: 0; margin-bottom: 10px;">Keywords List</h4>'
         html_content += format_html(
-            '<pre class="readonly" style="margin-top: 10px; padding: 10px;">{}</pre>',
+            '<pre class="readonly" style="padding: 8px;">{}</pre>',
             obj.keywords_list,
         )
-        html_content += "</details>"
+        html_content += "</div>"
         return mark_safe(html_content)
 
     formatted_keywords_list.short_description = "Keywords List"
@@ -2401,7 +2387,7 @@ class ThothLogAdmin(admin.ModelAdmin):
             return format_html('<pre style="font-family: monospace; font-size: 13px;">{}</pre>', 
                               obj.enhanced_evaluation_answers)
     
-    enhanced_evaluation_answers_display.short_description = "Enhanced Evaluation Answers"
+    enhanced_evaluation_answers_display.short_description = "Evaluation Answers"
     
     def enhanced_evaluation_selected_sql_display(self, obj):
         """Display enhanced evaluation selected SQL with syntax highlighting styling"""
@@ -2428,8 +2414,43 @@ class ThothLogAdmin(admin.ModelAdmin):
     # NEW METHODS for reorganized logging
     
     def evaluation_case_badge(self, obj):
-        """Badge colorato per esito (Gold, Silver, Bronze, etc.)"""
-        case = obj.evaluation_case or "Unknown"
+        """Badge colorato per esito (A-GOLD, B-SILVER, etc.) with improved status detection"""
+        case = obj.evaluation_case
+        
+        # If evaluation_case is not set, try to infer from other fields
+        if not case:
+            if obj.generated_sql:
+                # If we have generated SQL, try to determine status from pass rates or other indicators
+                if obj.pass_rates:
+                    try:
+                        if isinstance(obj.pass_rates, dict):
+                            pass_rate = obj.pass_rates.get('overall_pass_rate', 0)
+                        else:
+                            pass_rate = 0
+                        
+                        if pass_rate >= 90:
+                            case = "A-GOLD"
+                        elif pass_rate >= 80:
+                            case = "B-GOLD"
+                        elif pass_rate >= 70:
+                            case = "A-SILVER"
+                        elif pass_rate >= 60:
+                            case = "B-SILVER"
+                        elif pass_rate >= 50:
+                            case = "C-SILVER"
+                        else:
+                            case = "D-FAILED"
+                    except:
+                        case = "EVALUATED"
+                else:
+                    case = "COMPLETED"
+            elif obj.sql_generation_failure_message:
+                case = "FAILED"
+            elif obj.terminated_at:
+                case = "PENDING"
+            else:
+                case = "RUNNING"
+        
         color_map = {
             "A-GOLD": "#ffd700",
             "B-GOLD": "#ffd700", 
@@ -2440,6 +2461,10 @@ class ThothLogAdmin(admin.ModelAdmin):
             "GOLD": "#ffd700",
             "SILVER": "#c0c0c0",
             "FAILED": "#dc3545",
+            "COMPLETED": "#28a745",
+            "EVALUATED": "#17a2b8",
+            "PENDING": "#ffc107",
+            "RUNNING": "#007bff",
         }
         color = color_map.get(case, "#6c757d")
         text_color = "white" if case in ["D-FAILED", "FAILED"] else "black"
@@ -2474,7 +2499,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     duration_display.short_description = "Duration"
     
     def flags_activated_display(self, obj):
-        """Display all flags present in JSON with their on/off status"""
+        """Display all flags present in JSON with their on/off status, including belt_and_suspenders"""
         if not obj.flags_activated:
             return "-"
         
@@ -2483,10 +2508,18 @@ class ThothLogAdmin(admin.ModelAdmin):
                 flags = json.loads(obj.flags_activated)
             else:
                 flags = obj.flags_activated
+            
+            # Get workspace belt_and_suspenders setting if available
+            # This would need to be populated from the workspace during workflow
+            # For now, we'll check if belt_and_suspenders timestamps exist to infer usage
+            if hasattr(obj, 'belt_and_suspenders_start') and obj.belt_and_suspenders_start:
+                flags['belt_and_suspenders'] = True
+            elif 'belt_and_suspenders' not in flags:
+                # Add as inactive if not present
+                flags['belt_and_suspenders'] = False
                 
             html = '<div style="margin: 5px 0;">'
             for flag_name, flag_value in flags.items():
-                # Include treat_empty_result_as_error if present
                 if flag_value:
                     # Green badge for active flags
                     html += f'<span style="background: #28a745; color: white; padding: 3px 8px; margin: 2px; border-radius: 3px; font-size: 12px; display: inline-block;">{flag_name}</span> '
@@ -2661,6 +2694,90 @@ class ThothLogAdmin(admin.ModelAdmin):
             return f"{obj.belt_and_suspenders_duration_ms / 1000:.1f}s"
         return "-"
     belt_and_suspenders_duration_display.short_description = "B&S Duration"
+    
+    # Inline timestamp display methods (start, end, duration on same line)
+    def validation_timing_inline(self, obj):
+        """Display validation timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.validation_start).strftime("%H:%M:%S") if obj.validation_start else "-"
+        end = timezone.localtime(obj.validation_end).strftime("%H:%M:%S") if obj.validation_end else "-"
+        duration = f"{obj.validation_duration_ms / 1000:.1f}s" if obj.validation_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    validation_timing_inline.short_description = "Start | End | Duration"
+    
+    def keyword_generation_timing_inline(self, obj):
+        """Display keyword generation timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.keyword_generation_start).strftime("%H:%M:%S") if obj.keyword_generation_start else "-"
+        end = timezone.localtime(obj.keyword_generation_end).strftime("%H:%M:%S") if obj.keyword_generation_end else "-"
+        duration = f"{obj.keyword_generation_duration_ms / 1000:.1f}s" if obj.keyword_generation_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    keyword_generation_timing_inline.short_description = "Start | End | Duration"
+    
+    def context_retrieval_timing_inline(self, obj):
+        """Display context retrieval timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.context_retrieval_start).strftime("%H:%M:%S") if obj.context_retrieval_start else "-"
+        end = timezone.localtime(obj.context_retrieval_end).strftime("%H:%M:%S") if obj.context_retrieval_end else "-"
+        duration = f"{obj.context_retrieval_duration_ms / 1000:.1f}s" if obj.context_retrieval_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    context_retrieval_timing_inline.short_description = "Start | End | Duration"
+    
+    def sql_generation_timing_inline(self, obj):
+        """Display SQL generation timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.sql_generation_start).strftime("%H:%M:%S") if obj.sql_generation_start else "-"
+        end = timezone.localtime(obj.sql_generation_end).strftime("%H:%M:%S") if obj.sql_generation_end else "-"
+        duration = f"{obj.sql_generation_duration_ms / 1000:.1f}s" if obj.sql_generation_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    sql_generation_timing_inline.short_description = "Start | End | Duration"
+    
+    def test_generation_timing_inline(self, obj):
+        """Display test generation timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.test_generation_start).strftime("%H:%M:%S") if obj.test_generation_start else "-"
+        end = timezone.localtime(obj.test_generation_end).strftime("%H:%M:%S") if obj.test_generation_end else "-"
+        duration = f"{obj.test_generation_duration_ms / 1000:.1f}s" if obj.test_generation_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    test_generation_timing_inline.short_description = "Start | End | Duration"
+    
+    def test_reduction_timing_inline(self, obj):
+        """Display test reduction timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.test_reduction_start).strftime("%H:%M:%S") if obj.test_reduction_start else "-"
+        end = timezone.localtime(obj.test_reduction_end).strftime("%H:%M:%S") if obj.test_reduction_end else "-"
+        duration = f"{obj.test_reduction_duration_ms / 1000:.1f}s" if obj.test_reduction_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    test_reduction_timing_inline.short_description = "Start | End | Duration"
+    
+    def evaluation_timing_inline(self, obj):
+        """Display evaluation timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.evaluation_start).strftime("%H:%M:%S") if obj.evaluation_start else "-"
+        end = timezone.localtime(obj.evaluation_end).strftime("%H:%M:%S") if obj.evaluation_end else "-"
+        duration = f"{obj.evaluation_duration_ms / 1000:.1f}s" if obj.evaluation_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    evaluation_timing_inline.short_description = "Start | End | Duration"
+    
+    def sql_selection_timing_inline(self, obj):
+        """Display SQL selection timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.sql_selection_start).strftime("%H:%M:%S") if obj.sql_selection_start else "-"
+        end = timezone.localtime(obj.sql_selection_end).strftime("%H:%M:%S") if obj.sql_selection_end else "-"
+        duration = f"{obj.sql_selection_duration_ms / 1000:.1f}s" if obj.sql_selection_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    sql_selection_timing_inline.short_description = "Start | End | Duration"
+    
+    def belt_and_suspenders_timing_inline(self, obj):
+        """Display belt and suspenders timing in one line: start | end | duration"""
+        start = timezone.localtime(obj.belt_and_suspenders_start).strftime("%H:%M:%S") if obj.belt_and_suspenders_start else "-"
+        end = timezone.localtime(obj.belt_and_suspenders_end).strftime("%H:%M:%S") if obj.belt_and_suspenders_end else "-"
+        duration = f"{obj.belt_and_suspenders_duration_ms / 1000:.1f}s" if obj.belt_and_suspenders_duration_ms > 0 else "-"
+        return format_html('{} | {} | {}', start, end, duration)
+    belt_and_suspenders_timing_inline.short_description = "Start | End | Duration"
+    
+    # Language display methods
+    def question_language_display(self, obj):
+        """Display question language with proper labeling"""
+        return obj.question_language or "Not detected"
+    question_language_display.short_description = "Question Language"
+    
+    def db_language_display(self, obj):
+        """Display database language with proper labeling"""  
+        return obj.db_language or "Not set"
+    db_language_display.short_description = "Database Language"
     
     def lsh_similar_columns_display(self, obj):
         """Display LSH similar columns as formatted JSON"""

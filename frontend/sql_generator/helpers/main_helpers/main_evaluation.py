@@ -117,17 +117,17 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     
     if not evaluator_agent:
         logger.error("No evaluator_agent found in workspace configuration")
-        return ("No evaluator agent available", [], [])
+        return [("No evaluator agent available", [])]
     
     # Check if we have tests to evaluate
     if not hasattr(state, 'generated_tests') or not state.generated_tests:
         logger.warning("No generated tests found for evaluation")
-        return ("No tests available for evaluation", [], [])
+        return [("No tests available for evaluation", [])]
     
     # Check if we have SQL candidates to evaluate
     if not hasattr(state, 'generated_sqls') or not state.generated_sqls:
         logger.warning("No SQL candidates found for evaluation")
-        return ("No SQL candidates to evaluate", [], [])
+        return [("No SQL candidates to evaluate", [])]
     
     # Extract all test answers from all generated tests
     all_test_answers = []
@@ -150,7 +150,7 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     
     if not unique_test_answers:
         logger.error("No valid test answers after deduplication")
-        return ("No valid tests available after deduplication", ["Failed - no tests"] * len(state.generated_sqls), [])
+        return [("No valid tests available after deduplication", ["Failed - no tests"] * len(state.generated_sqls))]
     
     logger.info(f"Deduplicated {len(all_test_answers)} test answers to {len(unique_test_answers)} unique tests")
     
@@ -445,3 +445,97 @@ def process_evaluation_results(results: List[Any], num_sql_candidates: int) -> L
                 processed.append(("Error processing evaluation result", error_answers))
     
     return processed
+
+
+def populate_execution_state_from_evaluation(state, evaluation_results: List[Tuple[str, List[str]]], evaluation_threshold: float = 0.9) -> None:
+    """
+    Populate ExecutionState fields from evaluation results for ThothLog.
+    
+    Args:
+        state: SystemState containing execution context
+        evaluation_results: List of tuples (thinking, sql_verdicts)
+        evaluation_threshold: Threshold for SILVER status (default 90%)
+    """
+    if not evaluation_results or not evaluation_results[0]:
+        logger.warning("No evaluation results to process for ExecutionState")
+        return
+    
+    thinking, sql_verdicts = evaluation_results[0]
+    
+    if not sql_verdicts:
+        logger.warning("No SQL verdicts found in evaluation results")
+        return
+    
+    try:
+        # Determine evaluation case and details
+        case, details = determine_evaluation_case(sql_verdicts, evaluation_threshold / 100.0)
+        
+        # Extract data from details
+        pass_rates = details.get('pass_rates', {})
+        perfect_sqls = details.get('perfect_sqls', [])
+        above_threshold = details.get('above_threshold', [])
+        below_threshold = details.get('below_threshold', [])
+        
+        # Determine overall SQL status
+        if perfect_sqls:
+            sql_status = "GOLD"
+        elif above_threshold:
+            sql_status = "SILVER"
+        else:
+            sql_status = "FAILED"
+        
+        # Create evaluation case with status suffix
+        evaluation_case = f"{case}-{sql_status}"
+        
+        # Convert pass_rates keys to be more readable (remove 'SQL #' prefix)
+        formatted_pass_rates = {}
+        for sql_id, rate in pass_rates.items():
+            # Convert "SQL #1" to "sql_1" for consistency
+            key = sql_id.replace("SQL #", "sql_").lower()
+            formatted_pass_rates[key] = round(rate, 3)  # Round to 3 decimal places
+        
+        # Create evaluation details with formatted information
+        evaluation_details = []
+        for sql_verdict in sql_verdicts:
+            if sql_verdict.startswith("SQL #"):
+                # Parse SQL verdict for detailed info
+                parts = sql_verdict.split(":", 1)
+                if len(parts) == 2:
+                    sql_id = parts[0].strip()
+                    test_results = parts[1].strip()
+                    
+                    # Count results
+                    results_list = [r.strip() for r in test_results.split(",")]
+                    ok_count = sum(1 for r in results_list if r == "OK")
+                    total_count = len(results_list)
+                    pass_rate = (ok_count / total_count) if total_count > 0 else 0.0
+                    
+                    detail = {
+                        "sql_id": sql_id,
+                        "pass_rate": round(pass_rate, 3),
+                        "passed_tests": ok_count,
+                        "total_tests": total_count,
+                        "status": "GOLD" if pass_rate >= 1.0 else ("SILVER" if pass_rate >= (evaluation_threshold / 100.0) else "FAILED"),
+                        "test_results": results_list
+                    }
+                    evaluation_details.append(detail)
+        
+        # Update ExecutionState fields
+        state.execution.sql_status = sql_status
+        state.execution.evaluation_case = evaluation_case
+        state.execution.pass_rates = formatted_pass_rates
+        state.execution.evaluation_details = evaluation_details
+        
+        # Store complexity information if available (will be set during selection)
+        if not hasattr(state.execution, 'selected_sql_complexity'):
+            state.execution.selected_sql_complexity = None
+        
+        logger.info(f"Populated ExecutionState: case={evaluation_case}, status={sql_status}, pass_rates={len(formatted_pass_rates)} SQLs")
+        
+    except Exception as e:
+        logger.error(f"Error populating ExecutionState from evaluation results: {e}", exc_info=True)
+        # Set fallback values
+        state.execution.sql_status = "FAILED"
+        state.execution.evaluation_case = "D-FAILED"
+        state.execution.pass_rates = {}
+        state.execution.evaluation_details = [{"error": f"Failed to process evaluation: {str(e)}"}]

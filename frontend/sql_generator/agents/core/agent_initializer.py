@@ -20,7 +20,6 @@ from pydantic_ai import Agent
 from .agent_ai_model_factory import create_fallback_model
 from helpers.template_preparation import TemplateLoader, clean_template_for_llm
 from .agent_result_models import (
-    AskHumanResult,
     CheckQuestionResult,
     TranslationResult,
     ExtractKeywordsResult,
@@ -37,8 +36,7 @@ from model.agent_dependencies import (
     ValidationDeps,
     TestGenerationDeps,
     TranslationDeps,
-    SqlExplanationDeps,
-    AskHumanDeps
+    SqlExplanationDeps
 )
 
 
@@ -283,62 +281,6 @@ class AgentInitializer:
         return agent
     
     @staticmethod
-    def create_ask_human_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3, force_default_prompt: bool = False) -> Optional[Agent]:
-        """
-        Create an evaluation agent that can request human assistance when needed.
-        
-        This agent is responsible for evaluating complex situations or edge cases that
-        require human judgment or intervention. It uses a specialized prompt template
-        designed to formulate clear requests for human assistance and process the
-        responses appropriately.
-        
-        Args:
-            agent_config: Dictionary containing agent configuration parameters including
-                          model settings, name, and optional system prompt. Must include
-                          'name' key and AI model configuration.
-            default_model_config: Configuration for default fallback model from workspace
-            retries: Number of retry attempts the agent should make if initial evaluation
-                     fails. Default is 3 attempts.
-            force_default_prompt: If True, always use the default human assistance prompt
-                                  template regardless of whether a system_prompt is provided
-                                  in agent_config. Default is False.
-            
-        Returns:
-            Configured Agent instance ready for evaluation and human assistance tasks, or None if no valid configuration.
-        """
-        # Create model with fallback
-        model = create_fallback_model(agent_config, default_model_config)
-        if not model:
-            return None
-        
-        # Determina nome agent
-        if agent_config:
-            agent_name = agent_config['name']
-        elif default_model_config:
-            agent_name = f"Fallback Ask Human - {default_model_config.get('name', 'Default')}"
-        else:
-            return None
-        
-        # Determina system prompt
-        if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('system_templates/system_template_ask_human.txt')
-        else:
-            system_prompt = agent_config.get('system_prompt')
-        
-        agent = Agent(
-            model=model,
-            name=agent_name,
-            system_prompt=clean_template_for_llm(system_prompt),
-            output_type=AskHumanResult,
-            deps_type=AskHumanDeps,  # Use lightweight deps for ask human
-            retries=retries
-        )
-        agent_type = agent_config.get("agent_type") if agent_config else None
-        if agent_type:
-            setattr(agent, "agent_type", agent_type)
-        return agent
-    
-    @staticmethod
     def create_question_validator_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3, force_default_prompt: bool = False) -> Optional[Agent]:
         """
         Create a question validator agent that validates user questions before processing.
@@ -568,55 +510,6 @@ class AgentInitializer:
             name=agent_name,
             system_prompt=clean_template_for_llm(system_prompt),
             output_type=TestReducerResult,
-            deps_type=EvaluatorDeps,  # Use same deps as Evaluator
-            retries=retries
-        )
-        
-        agent_type = agent_config.get("agent_type") if agent_config else None
-        if agent_type:
-            setattr(agent, "agent_type", agent_type)
-        return agent
-    
-    @staticmethod
-    def create_sql_selector_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3) -> Optional[Agent]:
-        """
-        Create a SqlSelector agent for choosing the best SQL from equivalent candidates.
-        
-        This agent handles Case B in the 4-case evaluation system: when multiple 
-        SQL candidates have achieved 100% test pass rates, it selects the best one
-        based on quality criteria. It uses the same model configuration as the 
-        Evaluator for consistency.
-        
-        Args:
-            agent_config: Dictionary containing agent configuration parameters,
-                         typically the same as the Evaluator's configuration
-            default_model_config: Configuration for default fallback model from workspace
-            retries: Number of retry attempts for agent execution. Default is 3.
-            
-        Returns:
-            Configured SqlSelector Agent instance, or None if creation fails
-        """
-        # Create model with fallback
-        model = create_fallback_model(agent_config, default_model_config)
-        if not model:
-            return None
-        
-        # Determine agent name
-        if agent_config:
-            agent_name = f"SqlSelector - {agent_config['name']}"
-        elif default_model_config:
-            agent_name = f"Fallback SqlSelector - {default_model_config.get('name', 'Default')}"
-        else:
-            return None
-        
-        # Always use the SqlSelector system template
-        system_prompt = TemplateLoader.load('system_templates/system_template_sql_selector.txt')
-        
-        agent = Agent(
-            model=model,
-            name=agent_name,
-            system_prompt=clean_template_for_llm(system_prompt),
-            output_type=SqlSelectorResult,
             deps_type=EvaluatorDeps,  # Use same deps as Evaluator
             retries=retries
         )

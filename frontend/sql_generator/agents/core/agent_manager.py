@@ -67,9 +67,7 @@ class ThothAgentManager(BaseAgentManager):
         self._create_keyword_extraction_agent()
         self._create_test_agents()  # Only test generation agents for now
         
-        # Column selection agents not needed in current workflow
         self._create_sql_generation_agents()
-        # Ask human agent not needed in current workflow
         self._create_sql_explainer_agent()
         
         # Only initialize validators we need

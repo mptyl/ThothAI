@@ -17,7 +17,7 @@ Contains runtime state information that changes during SQL generation execution,
 including error states, execution results, and strategy decisions.
 """
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, validator
 
@@ -254,7 +254,7 @@ class ExecutionState(BaseModel):
         description="SQL status: GOLD, SILVER, FAILED"
     )
     
-    evaluation_details: List[str] = Field(
+    evaluation_details: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="Detailed evaluation results for each SQL"
     )
