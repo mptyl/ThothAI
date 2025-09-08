@@ -81,3 +81,37 @@ fieldset:first-of-type .form-row label {
     padding-top: 3px !important;
     line-height: 1.5 !important;
 }
+
+/* Special styling for timing display field */
+.field-timing_display .readonly {
+    width: 100% !important;
+    display: block !important;
+}
+
+/* Special styling for user_workspace_display field */
+.field-user_workspace_display .readonly {
+    width: 100% !important;
+    display: block !important;
+}
+
+.field-user_workspace_display label {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+}
+
+/* Special styling for languages_display field */
+.field-languages_display .readonly {
+    width: 100% !important;
+    display: block !important;
+}
+
+.field-languages_display label {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+}
+
+/* Fix vertical alignment for directives field */
+.field-directives .readonly {
+    vertical-align: middle !important;
+    padding-top: 8px !important;
+}

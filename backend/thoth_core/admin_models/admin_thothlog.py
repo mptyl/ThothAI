@@ -79,6 +79,9 @@ class ThothLogAdmin(admin.ModelAdmin):
         "formatted_started_at",
         "formatted_terminated_at",
         "duration_display",
+        "timing_display",
+        "user_workspace_display",
+        "languages_display",
         "question",
         "selected_sql_or_error",
         "db_language",
@@ -153,13 +156,9 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Time and Language",
             {
                 "fields": (
-                    "duration_display",
-                    "username",
-                    "workspace",
-                    "formatted_started_at",
-                    "formatted_terminated_at",
-                    "question_language_display",
-                    "db_language_display",
+                    "timing_display",
+                    "user_workspace_display",
+                    "languages_display",
                     "directives",
                     "flags_activated_display",
                 ),
@@ -255,9 +254,9 @@ class ThothLogAdmin(admin.ModelAdmin):
             "Phase 7: SQL Evaluation and Winner Selection",
             {
                 "fields": (
-                    "evaluation_timing_inline",
-                    "sql_selection_timing_inline",
-                    "belt_and_suspenders_timing_inline",
+                    ("evaluation_timing_inline",),  # Will show as "Evaluation Timing"
+                    ("sql_selection_timing_inline",),  # Will show as "SQL Selection Timing"
+                    ("belt_and_suspenders_timing_inline",),  # Will show as "Belt & Suspenders Timing"
                     "evaluation_judgments_display",  # NEW
                     "pass_rates_display",
                     "evaluation_details_display",
@@ -356,7 +355,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     pool_of_generated_sql_display.short_description = "Pool of Generated SQL"
 
     def formatted_keywords_list(self, obj):
-        """Display keywords_list as a formatted list (non-collapsible as per requirements)"""
+        """Display keywords_list as bullet points aligned with label"""
         if not obj.keywords_list:
             return "-"
 
@@ -364,14 +363,11 @@ class ThothLogAdmin(admin.ModelAdmin):
             # Try to parse as Python list
             keywords = ast.literal_eval(obj.keywords_list)
             if isinstance(keywords, list):
-                html_content = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 12px; margin: 5px 0; background-color: var(--darkened-bg, #f8f9fa);">'
-                html_content += '<h4 style="margin-top: 0; margin-bottom: 10px;">Keywords List</h4>'
-                html_content += '<div class="readonly" style="padding: 8px;">'
-                for i, keyword in enumerate(keywords, 1):
-                    html_content += f'<span style="display: inline-block; background: #e9ecef; padding: 4px 8px; margin: 2px; border-radius: 3px; font-size: 12px;">{keyword}</span>'
-                html_content += '</div>'
-                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer; font-size: 11px; color: #6c757d;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; font-size: 10px;">{obj.keywords_list}</pre></details>'
-                html_content += "</div>"
+                # Use Django admin styling with CSS variables for theme compatibility
+                html_content = '<ul style="margin: 0; padding-left: 20px; list-style-type: disc;">'
+                for keyword in keywords:
+                    html_content += f'<li style="margin: 2px 0; font-size: 13px; color: var(--body-fg, #333);">{keyword}</li>'
+                html_content += '</ul>'
                 return mark_safe(html_content)
         except:
             pass
@@ -785,15 +781,15 @@ class ThothLogAdmin(admin.ModelAdmin):
     formatted_schema_from_vector_db.short_description = "Schema from Vector DB"
 
     def formatted_reduced_schema(self, obj):
-        """Display reduced_schema in an expandable container"""
+        """Display reduced_schema in a collapsible section with Django admin styling"""
         if not obj.reduced_schema:
             return "-"
 
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Reduced Schema (click to expand)</summary>'
+        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
+        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">Reduced Schema (click to expand)</summary>'
         html_content += '<div style="margin-top: 10px; padding: 10px;">'
         html_content += format_html(
-            '<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{}</pre>',
+            '<pre class="readonly" style="max-height: 400px; overflow-y: auto; background: white; padding: 10px; border: 1px solid #ddd; border-radius: 3px; font-family: monospace; font-size: 12px;">{}</pre>',
             obj.reduced_schema,
         )
         html_content += "</div>"
@@ -2358,7 +2354,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     enhanced_evaluation_thinking_display.short_description = "Enhanced Evaluation Thinking"
     
     def enhanced_evaluation_answers_display(self, obj):
-        """Display enhanced evaluation answers as formatted JSON"""
+        """Display enhanced evaluation answers using Django admin standard styling"""
         if not obj.enhanced_evaluation_answers:
             return "-"
         
@@ -2371,20 +2367,18 @@ class ThothLogAdmin(admin.ModelAdmin):
             if isinstance(answers, str):
                 answers = json.loads(answers)
             
-            html_content = '<div style="background: #f0f8ff; border-left: 4px solid #28a745; padding: 15px; margin: 10px 0;">'
-            html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Answers</h4>'
-            html_content += '<ol style="margin: 10px 0; padding-left: 20px;">'
+            # Use Django admin standard styling - simple ordered list without custom colors
+            html_content = '<ol style="margin: 0; padding-left: 25px; list-style-type: decimal;">'
             
             for answer in answers:
-                html_content += f'<li style="margin: 5px 0; font-family: monospace; font-size: 13px; color: #555;">{format_html("{}", answer)}</li>'
+                html_content += f'<li style="margin: 3px 0; font-family: monospace; font-size: 13px; color: var(--body-fg, #333); line-height: 1.4;">{format_html("{}", answer)}</li>'
             
             html_content += '</ol>'
-            html_content += '</div>'
             
             return mark_safe(html_content)
         except (json.JSONDecodeError, TypeError):
             # If JSON parsing fails, display raw text
-            return format_html('<pre style="font-family: monospace; font-size: 13px;">{}</pre>', 
+            return format_html('<pre style="font-family: monospace; font-size: 13px; color: var(--body-fg, #333);">{}</pre>', 
                               obj.enhanced_evaluation_answers)
     
     enhanced_evaluation_answers_display.short_description = "Evaluation Answers"
@@ -2498,25 +2492,118 @@ class ThothLogAdmin(admin.ModelAdmin):
         return "-"
     duration_display.short_description = "Duration"
     
+    def timing_display(self, obj):
+        """Display Started At, Terminated At, and Duration in a horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.started_at:
+            local_time = timezone.localtime(obj.started_at)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.terminated_at:
+            local_time = timezone.localtime(obj.terminated_at)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.duration:
+            duration = obj.duration
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    timing_display.short_description = "Timing Information"
+    
+    def user_workspace_display(self, obj):
+        """Display Username and Workspace side by side"""
+        username = obj.username if obj.username else "-"
+        workspace = obj.workspace if obj.workspace else "-"
+        
+        html = '''
+        <table style="width: 100%; table-layout: fixed; border: none;">
+            <tr>
+                <td style="width: 50%; padding-right: 20px; border: none;">
+                    <strong>Username:</strong> {}
+                </td>
+                <td style="width: 50%; border: none;">
+                    <strong>Workspace:</strong> {}
+                </td>
+            </tr>
+        </table>
+        '''.format(username, workspace)
+        
+        return format_html(html)
+    user_workspace_display.short_description = "User and Workspace"
+    
+    def languages_display(self, obj):
+        """Display Question Language and Database Language side by side"""
+        question_lang = obj.question_language if obj.question_language else "-"
+        db_lang = obj.db_language if obj.db_language else "-"
+        
+        html = '''
+        <table style="width: 100%; table-layout: fixed; border: none;">
+            <tr>
+                <td style="width: 50%; padding-right: 20px; border: none;">
+                    <strong>Question Language:</strong> {}
+                </td>
+                <td style="width: 50%; border: none;">
+                    <strong>Database Language:</strong> {}
+                </td>
+            </tr>
+        </table>
+        '''.format(question_lang, db_lang)
+        
+        return format_html(html)
+    languages_display.short_description = "Languages"
+    
     def flags_activated_display(self, obj):
-        """Display all flags present in JSON with their on/off status, including belt_and_suspenders"""
+        """Display frontend UI flags with their on/off status"""
         if not obj.flags_activated:
             return "-"
         
         try:
             if isinstance(obj.flags_activated, str):
-                flags = json.loads(obj.flags_activated)
+                all_flags = json.loads(obj.flags_activated)
             else:
-                flags = obj.flags_activated
+                all_flags = obj.flags_activated
             
-            # Get workspace belt_and_suspenders setting if available
-            # This would need to be populated from the workspace during workflow
-            # For now, we'll check if belt_and_suspenders timestamps exist to infer usage
-            if hasattr(obj, 'belt_and_suspenders_start') and obj.belt_and_suspenders_start:
-                flags['belt_and_suspenders'] = True
-            elif 'belt_and_suspenders' not in flags:
-                # Add as inactive if not present
-                flags['belt_and_suspenders'] = False
+            # Define frontend UI flags to display (hide backend technical flags)
+            frontend_flags = [
+                'show_sql',
+                'explain_generated_query', 
+                'treat_empty_result_as_error',
+                'belt_and_suspenders'
+            ]
+            
+            # Filter to show only frontend flags
+            flags = {}
+            for flag_name in frontend_flags:
+                if flag_name in all_flags:
+                    flags[flag_name] = all_flags[flag_name]
+                elif flag_name == 'belt_and_suspenders':
+                    # Special handling for belt_and_suspenders - check timestamps if not in flags
+                    if hasattr(obj, 'belt_and_suspenders_start') and obj.belt_and_suspenders_start:
+                        flags[flag_name] = True
+                    else:
+                        flags[flag_name] = False
+                else:
+                    # Default to False for missing frontend flags
+                    flags[flag_name] = False
                 
             html = '<div style="margin: 5px 0;">'
             for flag_name, flag_value in flags.items():
@@ -2697,76 +2784,337 @@ class ThothLogAdmin(admin.ModelAdmin):
     
     # Inline timestamp display methods (start, end, duration on same line)
     def validation_timing_inline(self, obj):
-        """Display validation timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.validation_start).strftime("%H:%M:%S") if obj.validation_start else "-"
-        end = timezone.localtime(obj.validation_end).strftime("%H:%M:%S") if obj.validation_end else "-"
-        duration = f"{obj.validation_duration_ms / 1000:.1f}s" if obj.validation_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    validation_timing_inline.short_description = "Start | End | Duration"
+        """Display validation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.validation_start:
+            local_time = timezone.localtime(obj.validation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.validation_end:
+            local_time = timezone.localtime(obj.validation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.validation_duration_ms and obj.validation_duration_ms > 0:
+            duration = f"{obj.validation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    validation_timing_inline.short_description = "Timing Information"
     
     def keyword_generation_timing_inline(self, obj):
-        """Display keyword generation timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.keyword_generation_start).strftime("%H:%M:%S") if obj.keyword_generation_start else "-"
-        end = timezone.localtime(obj.keyword_generation_end).strftime("%H:%M:%S") if obj.keyword_generation_end else "-"
-        duration = f"{obj.keyword_generation_duration_ms / 1000:.1f}s" if obj.keyword_generation_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    keyword_generation_timing_inline.short_description = "Start | End | Duration"
+        """Display keyword generation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.keyword_generation_start:
+            local_time = timezone.localtime(obj.keyword_generation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.keyword_generation_end:
+            local_time = timezone.localtime(obj.keyword_generation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.keyword_generation_duration_ms and obj.keyword_generation_duration_ms > 0:
+            duration = f"{obj.keyword_generation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    keyword_generation_timing_inline.short_description = "Timing Information"
     
     def context_retrieval_timing_inline(self, obj):
-        """Display context retrieval timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.context_retrieval_start).strftime("%H:%M:%S") if obj.context_retrieval_start else "-"
-        end = timezone.localtime(obj.context_retrieval_end).strftime("%H:%M:%S") if obj.context_retrieval_end else "-"
-        duration = f"{obj.context_retrieval_duration_ms / 1000:.1f}s" if obj.context_retrieval_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    context_retrieval_timing_inline.short_description = "Start | End | Duration"
+        """Display context retrieval timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.context_retrieval_start:
+            local_time = timezone.localtime(obj.context_retrieval_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.context_retrieval_end:
+            local_time = timezone.localtime(obj.context_retrieval_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.context_retrieval_duration_ms and obj.context_retrieval_duration_ms > 0:
+            duration = f"{obj.context_retrieval_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    context_retrieval_timing_inline.short_description = "Timing Information"
     
     def sql_generation_timing_inline(self, obj):
-        """Display SQL generation timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.sql_generation_start).strftime("%H:%M:%S") if obj.sql_generation_start else "-"
-        end = timezone.localtime(obj.sql_generation_end).strftime("%H:%M:%S") if obj.sql_generation_end else "-"
-        duration = f"{obj.sql_generation_duration_ms / 1000:.1f}s" if obj.sql_generation_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    sql_generation_timing_inline.short_description = "Start | End | Duration"
+        """Display SQL generation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.sql_generation_start:
+            local_time = timezone.localtime(obj.sql_generation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_generation_end:
+            local_time = timezone.localtime(obj.sql_generation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_generation_duration_ms and obj.sql_generation_duration_ms > 0:
+            duration = f"{obj.sql_generation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    sql_generation_timing_inline.short_description = "Timing Information"
     
     def test_generation_timing_inline(self, obj):
-        """Display test generation timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.test_generation_start).strftime("%H:%M:%S") if obj.test_generation_start else "-"
-        end = timezone.localtime(obj.test_generation_end).strftime("%H:%M:%S") if obj.test_generation_end else "-"
-        duration = f"{obj.test_generation_duration_ms / 1000:.1f}s" if obj.test_generation_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    test_generation_timing_inline.short_description = "Start | End | Duration"
+        """Display test generation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.test_generation_start:
+            local_time = timezone.localtime(obj.test_generation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_generation_end:
+            local_time = timezone.localtime(obj.test_generation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_generation_duration_ms and obj.test_generation_duration_ms > 0:
+            duration = f"{obj.test_generation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    test_generation_timing_inline.short_description = "Timing Information"
     
     def test_reduction_timing_inline(self, obj):
-        """Display test reduction timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.test_reduction_start).strftime("%H:%M:%S") if obj.test_reduction_start else "-"
-        end = timezone.localtime(obj.test_reduction_end).strftime("%H:%M:%S") if obj.test_reduction_end else "-"
-        duration = f"{obj.test_reduction_duration_ms / 1000:.1f}s" if obj.test_reduction_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    test_reduction_timing_inline.short_description = "Start | End | Duration"
+        """Display test reduction timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.test_reduction_start:
+            local_time = timezone.localtime(obj.test_reduction_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_reduction_end:
+            local_time = timezone.localtime(obj.test_reduction_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_reduction_duration_ms and obj.test_reduction_duration_ms > 0:
+            duration = f"{obj.test_reduction_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    test_reduction_timing_inline.short_description = "Timing Information"
     
     def evaluation_timing_inline(self, obj):
-        """Display evaluation timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.evaluation_start).strftime("%H:%M:%S") if obj.evaluation_start else "-"
-        end = timezone.localtime(obj.evaluation_end).strftime("%H:%M:%S") if obj.evaluation_end else "-"
-        duration = f"{obj.evaluation_duration_ms / 1000:.1f}s" if obj.evaluation_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    evaluation_timing_inline.short_description = "Start | End | Duration"
+        """Display evaluation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.evaluation_start:
+            local_time = timezone.localtime(obj.evaluation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.evaluation_end:
+            local_time = timezone.localtime(obj.evaluation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.evaluation_duration_ms and obj.evaluation_duration_ms > 0:
+            duration = f"{obj.evaluation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    evaluation_timing_inline.short_description = "Evaluation Timing"
     
     def sql_selection_timing_inline(self, obj):
-        """Display SQL selection timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.sql_selection_start).strftime("%H:%M:%S") if obj.sql_selection_start else "-"
-        end = timezone.localtime(obj.sql_selection_end).strftime("%H:%M:%S") if obj.sql_selection_end else "-"
-        duration = f"{obj.sql_selection_duration_ms / 1000:.1f}s" if obj.sql_selection_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    sql_selection_timing_inline.short_description = "Start | End | Duration"
+        """Display SQL selection timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.sql_selection_start:
+            local_time = timezone.localtime(obj.sql_selection_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_selection_end:
+            local_time = timezone.localtime(obj.sql_selection_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_selection_duration_ms and obj.sql_selection_duration_ms > 0:
+            duration = f"{obj.sql_selection_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    sql_selection_timing_inline.short_description = "SQL Selection Timing"
     
     def belt_and_suspenders_timing_inline(self, obj):
-        """Display belt and suspenders timing in one line: start | end | duration"""
-        start = timezone.localtime(obj.belt_and_suspenders_start).strftime("%H:%M:%S") if obj.belt_and_suspenders_start else "-"
-        end = timezone.localtime(obj.belt_and_suspenders_end).strftime("%H:%M:%S") if obj.belt_and_suspenders_end else "-"
-        duration = f"{obj.belt_and_suspenders_duration_ms / 1000:.1f}s" if obj.belt_and_suspenders_duration_ms > 0 else "-"
-        return format_html('{} | {} | {}', start, end, duration)
-    belt_and_suspenders_timing_inline.short_description = "Start | End | Duration"
+        """Display belt and suspenders timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.belt_and_suspenders_start:
+            local_time = timezone.localtime(obj.belt_and_suspenders_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.belt_and_suspenders_end:
+            local_time = timezone.localtime(obj.belt_and_suspenders_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.belt_and_suspenders_duration_ms and obj.belt_and_suspenders_duration_ms > 0:
+            duration = f"{obj.belt_and_suspenders_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    belt_and_suspenders_timing_inline.short_description = "Belt & Suspenders Timing"
     
     # Language display methods
     def question_language_display(self, obj):
@@ -2780,16 +3128,27 @@ class ThothLogAdmin(admin.ModelAdmin):
     db_language_display.short_description = "Database Language"
     
     def lsh_similar_columns_display(self, obj):
-        """Display LSH similar columns as formatted JSON"""
+        """Display LSH similar columns in a collapsible section"""
         if not obj.lsh_similar_columns:
             return "-"
+        
         try:
             if isinstance(obj.lsh_similar_columns, str):
                 data = json.loads(obj.lsh_similar_columns)
             else:
                 data = obj.lsh_similar_columns
-            return format_html('<pre style="font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">{}</pre>', 
-                             json.dumps(data, indent=2, ensure_ascii=False))
+            
+            # Create collapsible container using Django admin styling
+            html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
+            html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">LSH Similar Columns (click to expand)</summary>'
+            html_content += '<div style="margin-top: 10px; padding: 10px;">'
+            html_content += format_html(
+                '<pre style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: white; padding: 10px; border: 1px solid #ddd; border-radius: 3px;">{}</pre>',
+                json.dumps(data, indent=2, ensure_ascii=False)
+            )
+            html_content += '</div>'
+            html_content += '</details>'
+            return mark_safe(html_content)
         except:
             return str(obj.lsh_similar_columns)[:200] + "..."
     lsh_similar_columns_display.short_description = "LSH Similar Columns"

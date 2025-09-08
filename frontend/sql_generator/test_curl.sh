@@ -20,10 +20,10 @@ curl -X POST "${BASE_URL}/generate-sql" \
         "question": "How many schools are exclusively virtual?",
         "functionality_level": "BASIC",
         "flags": {
-            "use_schema": true,
-            "use_examples": true,
-            "use_lsh": true,
-            "use_vector": true
+            "show_sql": true,
+            "explain_generated_query": true,
+            "treat_empty_result_as_error": false,
+            "belt_and_suspenders": false
         }
     }'
 
@@ -43,10 +43,10 @@ curl -X POST "${BASE_URL}/generate-sql" \
         "question": "How many schools with an average score in Math greater than 400 in the SAT test are exclusively virtual?",
         "functionality_level": "BASIC",
         "flags": {
-            "use_schema": true,
-            "use_examples": true,
-            "use_lsh": true,
-            "use_vector": true
+            "show_sql": true,
+            "explain_generated_query": true,
+            "treat_empty_result_as_error": false,
+            "belt_and_suspenders": false
         }
     }'
 
