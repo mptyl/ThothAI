@@ -219,6 +219,10 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             "belt_and_suspenders_end": getattr(state.execution, 'belt_and_suspenders_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'belt_and_suspenders_end_time', None) else None,
             "belt_and_suspenders_duration_ms": int(getattr(state.execution, 'belt_and_suspenders_duration_ms', 0)) if hasattr(state, 'execution') else 0,
             
+            # Escalation tracking flags
+            "advanced_escalation": getattr(state.execution, 'advanced_escalation', False) if hasattr(state, 'execution') else False,
+            "expert_escalation": getattr(state.execution, 'expert_escalation', False) if hasattr(state, 'execution') else False,
+            
             # Final process end time
             "process_end_time": getattr(state.execution, 'process_end_time', None).isoformat() if hasattr(state, 'execution') and getattr(state.execution, 'process_end_time', None) else terminated_at.isoformat(),
             

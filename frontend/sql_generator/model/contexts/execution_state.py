@@ -85,6 +85,17 @@ class ExecutionState(BaseModel):
         description="Context information from previous escalation attempts"
     )
     
+    # Escalation tracking flags
+    advanced_escalation: bool = Field(
+        default=False,
+        description="Flag indicating if escalation to ADVANCED level occurred"
+    )
+    
+    expert_escalation: bool = Field(
+        default=False,
+        description="Flag indicating if escalation to EXPERT level occurred"
+    )
+    
     # Timing fields for performance tracking
     sql_generation_start_time: Optional[datetime] = Field(
         default=None,

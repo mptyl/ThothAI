@@ -56,7 +56,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     form = ThothLogAdminForm
     list_display = (
         "id",
-        "test_status_badge",
+        "evaluation_case_badge",
         "username",
         "workspace",
         "formatted_started_at",
@@ -120,6 +120,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         "belt_and_suspenders_start_display",
         "belt_and_suspenders_end_display",
         "belt_and_suspenders_duration_display",
+        "escalation_flags_display",
         "formatted_created_at",
         "formatted_updated_at",
         # Inline timing methods
@@ -216,6 +217,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                     "sql_generation_timing_inline",
                     "pool_of_generated_sql_display",
                     "sql_generation_failure_message",
+                    "escalation_flags_display",
                 ),
                 "description": "SQL candidates generation",
                 "classes": ("collapse",),
@@ -2544,6 +2546,35 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         return format_html(html)
     languages_display.short_description = "Languages"
+    
+    def escalation_flags_display(self, obj):
+        """Display escalation flags with visual indicators."""
+        # Check if any escalation occurred
+        advanced = getattr(obj, 'advanced_escalation', False)
+        expert = getattr(obj, 'expert_escalation', False)
+        
+        if not advanced and not expert:
+            return format_html(
+                '<span style="color: #666; font-style: italic;">No escalation</span>'
+            )
+        
+        flags_html = []
+        if advanced:
+            flags_html.append(
+                '<span style="background: #ffc107; color: #000; padding: 2px 8px; border-radius: 3px; margin-right: 5px;">'
+                '⬆️ ADVANCED'
+                '</span>'
+            )
+        if expert:
+            flags_html.append(
+                '<span style="background: #dc3545; color: #fff; padding: 2px 8px; border-radius: 3px;">'
+                '⬆️⬆️ EXPERT'
+                '</span>'
+            )
+        
+        return format_html(''.join(flags_html))
+    
+    escalation_flags_display.short_description = "Escalation Status"
     
     def flags_activated_display(self, obj):
         """Display frontend UI flags with their on/off status"""

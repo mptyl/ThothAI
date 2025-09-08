@@ -232,6 +232,15 @@ class EscalationManager:
         # Update functionality level
         state.functionality_level = next_level.display_name
         
+        # Set escalation flags based on the level we're escalating to
+        if hasattr(state, 'execution'):
+            if next_level == GeneratorType.ADVANCED:
+                state.execution.advanced_escalation = True
+                logger.info("Setting advanced_escalation flag to True")
+            elif next_level == GeneratorType.EXPERT:
+                state.execution.expert_escalation = True
+                logger.info("Setting expert_escalation flag to True")
+        
         # Add escalation history
         if not hasattr(state, 'escalation_history'):
             state.escalation_history = []

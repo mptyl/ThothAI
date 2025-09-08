@@ -1014,6 +1014,16 @@ class ThothLog(models.Model):
         help_text="Belt and suspenders evaluation duration in milliseconds"
     )
     
+    # Escalation tracking flags
+    advanced_escalation = models.BooleanField(
+        default=False,
+        help_text="Flag indicating if escalation to ADVANCED level occurred"
+    )
+    expert_escalation = models.BooleanField(
+        default=False,
+        help_text="Flag indicating if escalation to EXPERT level occurred"
+    )
+    
     # New data fields
     flags_activated = models.JSONField(
         blank=True,
