@@ -553,6 +553,9 @@ async def _evaluate_and_select_phase(
             state.escalation_attempts += 1
             state.escalation_context = escalation_context.to_context_string()
             
+            # Update escalation flags using EscalationManager
+            EscalationManager.update_state_for_escalation(state, next_level, escalation_context)
+            
             # Update request with new functionality level
             request.functionality_level = next_level.display_name
             
