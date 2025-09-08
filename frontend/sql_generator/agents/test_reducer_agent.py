@@ -57,7 +57,7 @@ def create_test_reducer_agent(
     
     # Load system template
     try:
-        system_prompt = TemplateLoader.load('sys_test_reducer')
+        system_prompt = TemplateLoader.load('system_templates/system_template_test_reducer')
     except Exception as e:
         logger.error(f"Failed to load TestReducer system template: {e}")
         return None
@@ -87,9 +87,9 @@ def create_test_reducer_agent(
 async def run_test_reducer(
     test_reducer_agent: Agent,
     original_tests: List[str],
-    test_thinking: str,
-    question: str,
-    database_schema: str
+    test_thinking: str = None,
+    question: str = None,
+    database_schema: str = None
 ) -> Optional[TestReducerResult]:
     """
     Execute test reduction using the TestReducer agent.
@@ -108,14 +108,11 @@ async def run_test_reducer(
         # Format original tests for template
         original_tests_str = "\n".join([f"{i}. {test}" for i, test in enumerate(original_tests, 1)])
         
-        # Create user template
+        # Create user template - simplified, only tests
         user_template = TemplateLoader.format(
-            'user_test_reducer',
+            'template_test_reducer.txt',
             safe=True,
-            ORIGINAL_TESTS=original_tests_str,
-            TEST_THINKING=test_thinking,
-            QUESTION=question,
-            DATABASE_SCHEMA=database_schema
+            ORIGINAL_TESTS=original_tests_str
         )
         
         # Run the agent

@@ -1,4 +1,4 @@
 id,name,description,generated_comment,sql_db
-284,frpm,,"Details pertaining to Free or Reduced-Price Meal (FRPM) eligibility, enrollment, and school characteristics at various educational entities within California.",7
-285,satscores,,"SAT scores and related demographic information for schools, districts, or counties. Each record provides details on student enrollment, test participation, average scores in reading, math, and writing, and the number of high-achieving students.",7
-286,schools,,"Contains detailed information about individual schools, including their identification, location, operational status, and administrative contacts. It also captures specific attributes like charter status, funding type, and educational offerings.",7
+284,frpm,,"Details pertaining to Free or Reduced-Price Meal (FRPM) eligibility, enrollment, and school characteristics at various educational entities within California.",1
+285,satscores,,"SAT scores and related demographic information for schools, districts, or counties. Each record provides details on student enrollment, test participation, average scores in reading, math, and writing, and the number of high-achieving students.",1
+286,schools,,"Contains detailed information about individual schools, including their identification, location, operational status, and administrative contacts. It also captures specific attributes like charter status, funding type, and educational offerings.",1

@@ -28,7 +28,7 @@ check_command() {
 
 # Function to check Python version
 check_python_version() {
-    if python3 -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
+    if $PYTHON_CMD -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
         return 0
     else
         print_color "Error: Python 3.9+ is required" "$RED"
@@ -36,8 +36,45 @@ check_python_version() {
     fi
 }
 
+# Function to show usage
+show_usage() {
+    print_color "Usage: $0 [OPTIONS]" "$BLUE"
+    print_color "" "$NC"
+    print_color "Options:" "$YELLOW"
+    print_color "  --clean-cache    Clean Docker build cache before building" "$NC"
+    print_color "  --prune-all      Prune all Docker resources (images, containers, volumes)" "$NC"
+    print_color "  --help           Show this help message" "$NC"
+    echo ""
+}
+
 # Main installation flow
 main() {
+    # Parse command line arguments
+    CLEAN_CACHE=false
+    PRUNE_ALL=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --clean-cache)
+                CLEAN_CACHE=true
+                shift
+                ;;
+            --prune-all)
+                PRUNE_ALL=true
+                shift
+                ;;
+            --help)
+                show_usage
+                exit 0
+                ;;
+            *)
+                print_color "Unknown option: $1" "$RED"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
     print_color "============================================" "$BLUE"
     print_color "       Thoth AI Installer" "$BLUE"
     print_color "============================================" "$BLUE"
@@ -60,6 +97,16 @@ main() {
         exit 1
     fi
 
+    # Determine Python command (prefer python3, fallback to python)
+    if check_command python3; then
+        PYTHON_CMD=python3
+    elif check_command python; then
+        PYTHON_CMD=python
+    else
+        print_color "Please install Python 3.9+: https://www.python.org" "$RED"
+        exit 1
+    fi
+    
     # Check prerequisites
     print_color "Checking prerequisites..." "$YELLOW"
     
@@ -76,39 +123,32 @@ main() {
         exit 1
     fi
     
-    # Check for Python
-    if ! check_command python3; then
-        print_color "Please install Python 3.9+: https://www.python.org" "$RED"
-        exit 1
-    fi
-    
     # Check Python version
     if ! check_python_version; then
         exit 1
     fi
 
-    
     # Check for required Python packages
     print_color "Installing required Python packages..." "$YELLOW"
     
     # Check if we're in a virtual environment
     if [ -n "$VIRTUAL_ENV" ]; then
         # In virtual environment, don't use --user
-        pip3 install --quiet pyyaml requests toml 2>/dev/null || {
+        $PYTHON_CMD -m pip install --quiet pyyaml requests toml 2>/dev/null || {
             print_color "Warning: Could not install Python packages. Trying with python -m pip..." "$YELLOW"
-            python3 -m pip install --quiet pyyaml requests toml || {
+            $PYTHON_CMD -m pip install --quiet pyyaml requests toml || {
                 print_color "Error: Failed to install required Python packages" "$RED"
-                print_color "Please run: pip3 install pyyaml requests toml" "$RED"
+                print_color "Please run: pip install pyyaml requests toml" "$RED"
                 exit 1
             }
         }
     else
         # Not in virtual environment, use --user
-        pip3 install --quiet --user pyyaml requests toml 2>/dev/null || {
+        $PYTHON_CMD -m pip install --quiet --user pyyaml requests toml 2>/dev/null || {
             print_color "Warning: Could not install Python packages. Trying with system pip..." "$YELLOW"
-            python3 -m pip install --quiet --user pyyaml requests toml || {
+            $PYTHON_CMD -m pip install --quiet --user pyyaml requests toml || {
                 print_color "Error: Failed to install required Python packages" "$RED"
-                print_color "Please run: pip3 install pyyaml requests toml" "$RED"
+                print_color "Please run: pip install --user pyyaml requests toml" "$RED"
                 exit 1
             }
         }
@@ -116,10 +156,30 @@ main() {
     
     print_color "Prerequisites OK" "$GREEN"
     echo ""
+    
+    # Clean Docker cache if requested
+    if [ "$PRUNE_ALL" = true ]; then
+        print_color "Pruning all Docker resources..." "$YELLOW"
+        print_color "WARNING: This will remove all Docker images, containers, and volumes!" "$RED"
+        read -p "Are you sure? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            docker system prune -a --volumes -f
+            print_color "Docker resources pruned" "$GREEN"
+        else
+            print_color "Skipping Docker prune" "$YELLOW"
+        fi
+        echo ""
+    elif [ "$CLEAN_CACHE" = true ]; then
+        print_color "Cleaning Docker build cache..." "$YELLOW"
+        docker builder prune -a -f
+        print_color "Docker build cache cleaned" "$GREEN"
+        echo ""
+    fi
 
     # Validate configuration
     print_color "Validating configuration..." "$YELLOW"
-    if python3 scripts/validate_config.py config.yml.local; then
+    if $PYTHON_CMD scripts/validate_config.py config.yml.local; then
         print_color "Configuration validation passed" "$GREEN"
     else
         print_color "Configuration validation failed" "$RED"
@@ -128,9 +188,15 @@ main() {
     fi
     echo ""
 
+    # Pass clean cache option to Python installer
+    INSTALLER_ARGS=""
+    if [ "$CLEAN_CACHE" = true ] || [ "$PRUNE_ALL" = true ]; then
+        INSTALLER_ARGS="--no-cache"
+    fi
+    
     # Run installer
     print_color "Starting installation..." "$BLUE"
-    if python3 scripts/installer.py; then
+    if $PYTHON_CMD scripts/installer.py $INSTALLER_ARGS; then
         print_color "" "$NC"
         print_color "============================================" "$GREEN"
         print_color "    Installation completed successfully!" "$GREEN"

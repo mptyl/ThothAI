@@ -40,10 +40,10 @@ test_sql_generation() {
             \"question\": \"${question}\",
             \"functionality_level\": \"${functionality_level}\",
             \"flags\": {
-                \"use_schema\": true,
-                \"use_examples\": true,
-                \"use_lsh\": true,
-                \"use_vector\": true
+                \"show_sql\": true,
+                \"explain_generated_query\": true,
+                \"treat_empty_result_as_error\": false,
+                \"belt_and_suspenders\": false
             }
         }" 2>/dev/null
     

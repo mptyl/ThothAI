@@ -5,6 +5,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { Send, Sparkles, Loader2, LogOut, Bot, User, Database, Code2, Brain, Zap, UserCircle, Crown } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -170,7 +171,8 @@ function markdownToHtml(text: string): string {
     html += '</ul>';
   }
   
-  return html;
+  // Sanitize HTML to prevent XSS attacks
+  return DOMPurify.sanitize(html);
 }
 
 export default function ChatPage() {
@@ -279,7 +281,10 @@ export default function ChatPage() {
   // Listen for app-reset event from RESET button
   useEffect(() => {
     const handleAppReset = () => {
-      console.log('[ChatPage] Received app-reset event, clearing messages');
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[ChatPage] Received app-reset event, clearing messages');
+      }
       // Clear all messages except the initial welcome message
       setMessages([{
         id: '1',
@@ -463,7 +468,10 @@ export default function ChatPage() {
                 }
               } else if (line.startsWith('QUERY_RESULTS:')) {
                 // Legacy support - should not be received anymore
-                console.log('Received legacy QUERY_RESULTS marker - ignoring');
+                // Debug logging in development only
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Received legacy QUERY_RESULTS marker - ignoring');
+                }
                 
               } else if (line.startsWith('QUERY_ERROR:')) {
                 // Extract query error from backend
@@ -523,7 +531,10 @@ export default function ChatPage() {
                   const failureData = JSON.parse(failureJson);
                   // The error message has already been sent as regular content
                   // We just need to mark the generation as failed and not add this JSON to the display
-                  console.log('SQL generation failed:', failureData);
+                  // Debug logging in development only
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('SQL generation failed:', failureData);
+                  }
                   // Don't add this line to filteredChunk - the error message was already sent
                 } catch (e) {
                   console.error('Failed to parse SQL generation failure:', e);
@@ -1009,7 +1020,10 @@ export default function ChatPage() {
                   enabled={likeButtonEnabled}
                   workspaceId={selectedWorkspace?.id || 0}
                   onSuccess={() => {
-                    console.log('SQL feedback saved successfully');
+                    // Debug logging in development only
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('SQL feedback saved successfully');
+                    }
                   }}
                   onError={(error) => {
                     console.error('Failed to save SQL feedback:', error);

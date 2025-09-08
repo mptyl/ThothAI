@@ -84,9 +84,9 @@ class SqlExplanationDeps(BaseModel):
 
 class AskHumanDeps(BaseModel):
     """
-    Dependencies for ask human agent.
+    Dependencies for human assistance agent.
     
-    Contains context needed when requesting human assistance.
+    Contains information needed when human assistance is required.
     """
     question: str
     context: str

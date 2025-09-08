@@ -50,6 +50,17 @@ class GenerationResults(BaseModel):
         description="JSON string representation of generated_tests for storage"
     )
     
+    # Semantically filtered tests
+    filtered_tests: List[str] = Field(
+        default_factory=list,
+        description="Semantically filtered tests from TestReducer"
+    )
+    
+    filtered_tests_json: str = Field(
+        default="",
+        description="JSON string of filtered tests for backend"
+    )
+    
     # SQL generation results  
     generated_sqls: List[str] = Field(
         default_factory=list,
@@ -102,6 +113,39 @@ class GenerationResults(BaseModel):
     sql_explanation: Optional[str] = Field(
         default=None,
         description="Human-readable explanation of the generated SQL query"
+    )
+    
+    # Enhanced evaluation results (stored as compatible tuple format)
+    enhanced_evaluation_result: Optional[Tuple[str, List[str]]] = Field(
+        default=None,
+        description="Enhanced evaluation result as (thinking, answers) tuple for compatibility"
+    )
+    
+    # Enhanced evaluation metadata for selection process
+    enhanced_evaluation_status: Optional[str] = Field(
+        default=None,
+        description="Status from enhanced evaluation (GOLD, FAILED, NEEDS_REEVALUATION)"
+    )
+    
+    enhanced_evaluation_selected_sql: Optional[str] = Field(
+        default=None,
+        description="SQL selected by enhanced evaluation process"
+    )
+    
+    enhanced_evaluation_case: Optional[str] = Field(
+        default=None,
+        description="Evaluation case (A, B, C, D) from enhanced evaluation"
+    )
+    
+    enhanced_evaluation_selected_sql_index: Optional[int] = Field(
+        default=None,
+        description="Index of selected SQL in enhanced evaluation"
+    )
+    
+    # Evaluation logs from enhanced evaluation flow
+    evaluation_logs: Optional[str] = Field(
+        default=None,
+        description="Detailed logs from the enhanced evaluation process"
     )
     
     # Compatibility field for backward compatibility
@@ -200,6 +244,26 @@ class GenerationResults(BaseModel):
             bool: True if explanation exists
         """
         return self.sql_explanation is not None and bool(self.sql_explanation.strip())
+        
+    def has_enhanced_evaluation(self) -> bool:
+        """
+        Check if enhanced evaluation result is available.
+        
+        Returns:
+            bool: True if enhanced evaluation result exists
+        """
+        return (self.enhanced_evaluation_result is not None and 
+                isinstance(self.enhanced_evaluation_result, tuple) and 
+                len(self.enhanced_evaluation_result) == 2)
+        
+    def has_evaluation_logs(self) -> bool:
+        """
+        Check if evaluation logs are available.
+        
+        Returns:
+            bool: True if evaluation logs exist
+        """
+        return self.evaluation_logs is not None and bool(self.evaluation_logs.strip())
         
     def has_selection_metrics(self) -> bool:
         """

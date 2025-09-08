@@ -6,108 +6,173 @@
   **Advanced AI-powered Text-to-SQL generation platform**
   
   [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-  [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://hub.docker.com/r/marcopancotti/thoth)
   [![Python](https://img.shields.io/badge/Python-3.13-green.svg)](https://www.python.org/)
   [![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
 </div>
 
+## 📚 Official Documentation
+
+Full documentation is available at: [https://thoth-ai.readthedocs.io](https://thoth-ai.readthedocs.io)
+
 ## 🚀 Quick Start
 
-### Using Docker (Recommended)
+### Docker Installation (Recommended)
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 
-# 2. Copy environment template and configure
-cp .env.template .env
-# Edit .env with your API keys
+# 2. Copy and configure environment file
+cp config.yml.template config.yml.local
+# Edit config.yml.local with your API keys and configuration
 
-# 3. Start all services
+# 3. Run the installer
+./install.sh
+
+# 4. Start all services
 docker-compose up -d
 
-# 4. Access the application
-# Frontend: http://localhost:3001
+# 5. Access the application
+# Frontend: http://localhost:3040
 # Backend Admin: http://localhost:8040/admin
 # API: http://localhost:8040/api
 ```
 
-### Using Pre-built Docker Image
+### Local Development Setup
 
 ```bash
-# Pull and run the latest image
-docker run -d \
-  --name thoth \
-  -p 80:80 \
-  -v $(pwd)/data_exchange:/app/data_exchange \
-  -v $(pwd)/logs:/app/logs \
-  -v $(pwd)/data:/app/data \
-  -e OPENAI_API_KEY=your-key \
-  -e LOGFIRE_TOKEN=your-token \
-  marcopancotti/thoth:latest
+# 1. Prerequisites
+# Install uv for Python management
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Copy and configure environment
+cp .env.template .env.local
+# Edit .env.local with your configuration
+
+# 3. Configure test database path
+export DB_ROOT_PATH=/absolute/path/to/your/dev_databases  # Directory containing BIRD test databases
+
+# 4. Start all services locally
+./start-all.sh
+
+# 5. Access services
+# Frontend: http://localhost:3200
+# Backend: http://localhost:8200
+# SQL Generator: http://localhost:8180
+# Qdrant: http://localhost:6334
 ```
 
 ## 📋 Prerequisites
 
-- Docker & Docker Compose
+- Docker & Docker Compose (for Docker installation)
+- Python 3.13+ with uv (for local development)
 - At least one LLM API key (OpenAI, Gemini, or Anthropic)
 - 4GB RAM minimum
 - 5GB disk space
 
-## 🏗️ Architecture
+## 🏗️ Project Structure
 
+### Primary Directory Structure
 ```
 ThothAI/
-├── backend/          # Django backend (API & Admin)
-│   └── logs/        # Backend service logs
-├── frontend/         # Next.js frontend
-│   └── sql_generator/
-│       └── logs/    # SQL generator logs
-├── docker/           # Dockerfiles
-├── scripts/          # Utility scripts
-├── setup_csv/        # Initial configuration data
-├── data_exchange/    # Runtime import/export directory
-├── data/            # User databases (SQLite)
-└── logs/            # Centralized logs (Docker volume)
+├── backend/              # Django backend (API & Admin)
+├── frontend/             # Next.js frontend + SQL Generator
+├── docker/               # Dockerfiles for all services
+├── scripts/              # Utility and deployment scripts
+├── config.yml.template   # Configuration template
+├── docker-compose.yml    # Service orchestration
+└── install.sh           # Interactive installer
 ```
 
-### Shared Directories
+### Secondary Directory Structure
+```
+backend/
+├── thoth_core/          # Core models, admin interface
+├── thoth_ai_backend/    # AI workflow implementation
+├── tests/               # Test suites
+└── logs/               # Backend logs (local only)
 
-The project uses several shared directories that are bind-mounted in Docker containers:
+frontend/
+├── sql_generator/       # FastAPI SQL generation service
+│   ├── agents/         # PydanticAI agents
+│   └── logs/          # SQL generator logs (local only)
+├── src/                # Next.js application source
+└── public/            # Static assets
+```
 
-#### setup_csv/
-- **Purpose**: Initial system configuration data for `load_defaults` command
-- **Usage**: Contains CSV files with default models, users, settings, and database structures
-- **Docker**: Copied into container during build (not a volume)
-- **Structure**: Includes `local/` and `docker/` subdirectories for environment-specific configs
+## 📂 Data Management
 
-#### data_exchange/
-- **Purpose**: Runtime data import/export directory
-- **Usage**: 
-  - CSV exports from Django admin actions
+### setup_csv/
+- **Purpose**: Initial configuration data for system setup
+- **Contents**: CSV files with default models, users, database structures
+- **Usage**: Loaded via `python manage.py load_defaults` command
+- **Docker**: Copied during build, not bind-mounted
+- **Structure**: `local/` and `docker/` subdirectories for environment-specific configs
+
+### data_exchange/
+- **Purpose**: Runtime data import/export between host and containers
+- **Contents**: 
+  - CSV exports from Django admin
   - Generated PDF documentation
   - Qdrant vector database backups
   - User-provided import files
 - **Docker**: Bind-mounted at `/app/data_exchange`
-- **Access**: Read/write for both host and containers
+- **Local**: Used directly from project root
 
-#### data/
-- **Purpose**: Shared data between services
-- **Usage**: Inter-service data exchange and temporary storage
-- **Docker**: Bind-mounted at `/app/data`
-- **Access**: Read/write
+### DB_ROOT_PATH Configuration
+- **Purpose**: Points to directory containing BIRD test databases
+- **Format**: Absolute path to directory with `dev_databases/` subdirectory
+- **Example**: `/Users/username/test_data` containing `dev_databases/*.json`
+- **Usage**: Required for SQL generation testing and validation
 
-**Note**: The `data_exchange/` and `data/` directories are excluded from version control and created automatically on first run. Service logs are stored locally in each service's `logs/` directory and are not shared between host and containers.
+## 📊 Logging
 
-### Services
+### Docker Environment
+- **Centralized**: All logs collected via Docker logging driver
+- **Access**: `docker-compose logs [service-name]`
+- **Persistence**: Logs maintained by Docker daemon
+- **Rotation**: Automatic based on Docker configuration
 
-- **Backend**: Django REST API with admin interface
-- **Frontend**: Next.js React application
-- **SQL Generator**: AI-powered SQL generation service
-- **PostgreSQL**: Main database
-- **Qdrant**: Vector database for embeddings
-- **Nginx Proxy**: Reverse proxy and static file serving
+### Local Development
+- **Backend logs**: `backend/logs/`
+- **SQL Generator logs**: `frontend/sql_generator/logs/`
+- **Frontend logs**: Console output
+- **Qdrant logs**: Console output
+- **Access**: Direct file access or terminal output
+
+## 🔧 Services
+
+### Core Services
+
+| Service | Purpose | Port (Docker) | Port (Local) |
+|---------|---------|---------------|--------------|
+| Backend | Django REST API & Admin | 8000 (internal) | 8200 |
+| Frontend | Next.js web interface | 3040 | 3200 |
+| SQL Generator | FastAPI with PydanticAI | 8020 | 8180 |
+| PostgreSQL | Main database | 5432 | 5433 |
+| Qdrant | Vector database | 6333 | 6334 |
+| Nginx Proxy | Reverse proxy | 8040 (external) | - |
+
+### Service Communication
+- **Docker**: Services communicate via Docker network
+- **Local**: Direct HTTP calls to localhost ports
+- **API Gateway**: Nginx proxy (Docker) or direct access (local)
+
+## 🤖 SQL Generation Process
+
+ThothAI uses a multi-agent architecture powered by PydanticAI for intelligent SQL generation:
+
+1. **Question Analysis**: Natural language processing to understand user intent
+2. **Schema Retrieval**: LSH-based schema matching + vector similarity search
+3. **SQL Generation**: Multiple PydanticAI agents generate candidate queries
+4. **Validation & Selection**: Evaluator agent validates syntax and selects best query
+5. **Execution & Formatting**: Query execution with result pagination and explanation
+
+### Agent System
+- **test_generator_with_evaluator**: Main SQL generation agent
+- **sql_selector_agent**: Selects best SQL from candidates
+- **test_reducer_agent**: Optimizes test cases
 
 ## 🔧 Configuration
 
@@ -124,17 +189,12 @@ EMBEDDING_API_KEY=your-embedding-key
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 
+# Database Path (for testing)
+DB_ROOT_PATH=/absolute/path/to/dev_databases
+
 # Optional: Monitoring
 LOGFIRE_TOKEN=your-logfire-token
 ```
-
-### Port Configuration
-
-Default ports (configurable in .env):
-- Web Interface: 80
-- Backend API: 8040
-- Frontend: 3001
-- SQL Generator: 8005
 
 ## 🔐 Gestione Configurazione Ambiente
 
@@ -211,37 +271,22 @@ Il progetto usa `uv` per gestire Python in modo consistente:
 3. **Non modificare** `.env.docker` manualmente (rigenerato automaticamente)
 4. **Backup delle configurazioni** prima di aggiornamenti maggiori
 
-## 🛠️ Development
+## 📝 Notes
 
-### Local Development Setup
+### Important Considerations
+- **API Keys**: Never commit API keys to version control
+- **Database Path**: DB_ROOT_PATH must be absolute path for test databases
+- **Port Conflicts**: Check port availability before starting services
+- **Docker Network**: Created automatically by docker-compose
+- **Python Version**: Managed by uv, not system Python
+- **Log Files**: Local logs not shared with Docker containers
 
-```bash
-# Backend
-cd backend
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-
-# Frontend
-cd frontend
-npm install
-npm run dev
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-./scripts/test-local.sh
-
-# Backend tests only
-cd backend && python manage.py test
-
-# Frontend tests only
-cd frontend && npm test
-```
+### Common Issues
+- **Port conflicts**: Update ports in config.yml.local or .env.local
+- **API key errors**: Ensure at least one LLM provider configured
+- **Docker build fails**: Check Docker daemon is running
+- **Qdrant connection**: Verify port 6333/6334 is available
+- **Test failures**: Ensure DB_ROOT_PATH points to valid test databases
 
 ## 🚢 Deployment
 
@@ -263,31 +308,12 @@ docker login
 ./scripts/build-unified.sh v1.0.0
 ```
 
-## 📚 Documentation
-
-- [Installation Guide](docs/INSTALLATION.md)
-- [Configuration Guide](docs/CONFIGURATION.md)
-- [API Documentation](docs/API.md)
-- [Development Guide](docs/DEVELOPMENT.md)
-- [Logging - Local Development](docs/LOGGING_LOCAL.md)
-- [Logging - Docker](docs/LOGGING_DOCKER.md)
-
 ## 🔒 Security
 
 - All API keys should be kept secure and never committed to version control
 - Use strong passwords for database and admin accounts
 - Enable HTTPS in production environments
 - Regularly update dependencies
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ## 📄 License
 

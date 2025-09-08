@@ -16,8 +16,10 @@ SQL generation orchestration for parallel SQL generation.
 
 import asyncio
 import logging
+import traceback
 from typing import List, Tuple
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from model.state_factory import StateFactory
 from helpers.template_preparation import format_example_shots
 from helpers.main_helpers.main_generate_mschema import generate_dynamic_mschema
@@ -71,10 +73,11 @@ def prepare_user_prompt_with_method(
     
     if db_type_lower == "sqlite":
         null_handling_rules = """
-CRITICAL DATABASE RULE FOR SQLite:
-- DO NOT use NULLS FIRST or NULLS LAST in ORDER BY clauses
-- SQLite does not support this syntax and will throw an error
-- Use plain ORDER BY without NULL position specifiers"""
+CRITICAL DATABASE RULE FOR SQLite (3.30.0+):
+- ALWAYS use NULLS LAST with ORDER BY ASC to put NULL values at the end
+- ALWAYS use NULLS FIRST with ORDER BY DESC to put NULL values at the beginning
+- SQLite 3.30.0+ supports NULLS FIRST/LAST syntax
+- Example: ORDER BY column ASC NULLS LAST"""
     else:
         null_handling_rules = f"""
 DATABASE RULE FOR {database_type}:
@@ -98,7 +101,7 @@ DATABASE RULE FOR {database_type}:
     return filled_template
 
 
-async def generate_sql_units(state, agents_and_tools, functionality_level) -> List[Tuple[bool, str]]:
+async def generate_sql_units(state, agents_and_tools, functionality_level, timeout_seconds: int = 20) -> List[Tuple[bool, str]]:
     """
     Generate multiple SQL statements using the same agent with different user prompts and temperatures.
     Cycles through different methodologies (default, step_by_step, divide_and_conquer).
@@ -107,39 +110,68 @@ async def generate_sql_units(state, agents_and_tools, functionality_level) -> Li
         state: System state object containing configuration
         agents_and_tools: Agent manager with SQL agents
         functionality_level: Functionality level ("BASIC", "ADVANCED", "EXPERT")
+        timeout_seconds: Max seconds to wait for each individual agent run before timing out
     
     Returns:
         List of tuples containing (success, sql) for each generated SQL
     """
+    logger.debug(f"Starting generate_sql_units - functionality_level: {functionality_level}, num_to_generate: {state.number_of_sql_to_generate}")
+    logger.debug(f"agents_and_tools type: {type(agents_and_tools)}, has agents: {hasattr(agents_and_tools, 'sql_basic_agent')}")
    
-    # Calculate temperature values from 0.3 to 0.8 for SQL generation
-    min_temp = 0.3
-    max_temp = 0.8
+    # Calculate diverse temperature values for better SQL variation
+    def calculate_diverse_temperatures(num_sqls):
+        """Generate diverse temperatures for better SQL variation"""
+        if num_sqls == 1:
+            return [0.5]
+        
+        # Three groups of temperatures for maximum diversity
+        low_temps = [0.1, 0.2, 0.3]   # Low creativity
+        mid_temps = [0.5, 0.6, 0.7]   # Moderate creativity
+        high_temps = [0.8, 0.9, 1.0]  # High creativity
+        
+        temperatures = []
+        for i in range(num_sqls):
+            # Distribute temperatures across groups in round-robin fashion
+            # This ensures each method (query_plan, step_by_step, divide_and_conquer)
+            # gets a mix of temperature ranges
+            group_idx = i % 3
+            within_group_idx = i // 3
+            
+            if group_idx == 0:
+                temps = low_temps
+            elif group_idx == 1:
+                temps = mid_temps
+            else:
+                temps = high_temps
+                
+            temp_idx = within_group_idx % len(temps)
+            temperatures.append(temps[temp_idx])
+        
+        return temperatures
     
-    # Create temperature values with max 2 decimal places
-    temperature_values = []
-    for i in range(state.number_of_sql_to_generate):
-        if state.number_of_sql_to_generate == 1:
-            temp = min_temp
-        else:
-            temp = min_temp + (max_temp - min_temp) * (i / (state.number_of_sql_to_generate - 1))
-        # Round to 2 decimal places
-        temp = round(temp, 2)
-        temperature_values.append(temp)
+    temperature_values = calculate_diverse_temperatures(state.number_of_sql_to_generate)
+    logger.info(f"Using diverse temperatures for SQL generation: {temperature_values}")
   
     # Get the appropriate agent based on functionality level
     level = functionality_level.lower() if functionality_level else 'basic'
+    logger.debug(f" Looking for agent with level: {level}")
+    
     if level == "basic":
         agent = agents_and_tools.sql_basic_agent
+        logger.debug(f" Found sql_basic_agent: {agent is not None}")
     elif level == "advanced":
         agent = agents_and_tools.sql_advanced_agent
+        logger.debug(f" Found sql_advanced_agent: {agent is not None}")
     elif level == "expert":
         agent = agents_and_tools.sql_expert_agent
+        logger.debug(f" Found sql_expert_agent: {agent is not None}")
     else:
         agent = agents_and_tools.sql_basic_agent  # Default to basic
+        logger.debug(f" Defaulting to sql_basic_agent: {agent is not None}")
     
     if not agent:
-        logger.error(f"No SQL agent found for functionality level: {functionality_level}")
+        logger.error(f"[CRITICAL] No SQL agent found for functionality level: {functionality_level}")
+        logger.error(f"[CRITICAL] Available agents - basic: {hasattr(agents_and_tools, 'sql_basic_agent')}, advanced: {hasattr(agents_and_tools, 'sql_advanced_agent')}, expert: {hasattr(agents_and_tools, 'sql_expert_agent')}")
         return [(False, "") for _ in range(state.number_of_sql_to_generate)]
     
     logger.info(f"Using {functionality_level} SQL agent for {state.number_of_sql_to_generate} generations")
@@ -153,31 +185,50 @@ async def generate_sql_units(state, agents_and_tools, functionality_level) -> Li
         # Round-robin selection of method
         method = methods[i % len(methods)]
         
-        logger.info(f"SQL generation {i+1}: using {functionality_level} agent with {method} method, temp={temp}")
+        logger.debug(f" SQL generation {i+1}: using {functionality_level} agent with {method} method, temp={temp}")
         
         # Create a task for each temperature value with selected method
-        task = generate_single_sql_with_method(state, agent, temp, method, agent_index=i)
+        task = generate_single_sql_with_method(state, agent, temp, method, agent_index=i, timeout_seconds=timeout_seconds)
         tasks.append(task)
+    
+    logger.debug(f" Created {len(tasks)} tasks for parallel SQL generation")
     
     # Execute all tasks in parallel and collect results
     sql_results = await asyncio.gather(*tasks, return_exceptions=True)
     
     # Process results, handling any exceptions
     processed_results = []
+    has_critical_db_error = False
+    critical_error_message = ""
+    
     for i, result in enumerate(sql_results):
         if isinstance(result, Exception):
-            logger.error(f"SQL generation {i+1} failed with exception: {result}")
+            logger.error(f" SQL generation {i+1} failed with exception: {type(result).__name__}: {result}")
             processed_results.append((False, ""))
         else:
             success, sql = result
-            logger.info(f"SQL generation {i+1}: success={success}, sql_length={len(sql) if sql else 0}")
-            processed_results.append(result)
+            logger.debug(f" SQL generation {i+1}: success={success}, sql_length={len(sql) if sql else 0}")
+            
+            # Check for critical database error
+            if not success and sql and sql.startswith("CRITICAL_DB_ERROR:"):
+                has_critical_db_error = True
+                critical_error_message = sql.replace("CRITICAL_DB_ERROR: ", "")
+                logger.critical(f"Critical database error detected: {critical_error_message}")
+                # Add as a failed result but with the error message
+                processed_results.append((False, f"DATABASE_ERROR: {critical_error_message}"))
+            elif not success:
+                logger.warning(f" SQL generation {i+1} returned success=False")
+                processed_results.append(result)
+            else:
+                processed_results.append(result)
     
-    logger.info(f"Parallel SQL generation complete: {len(processed_results)} results")
+    # Log summary of results
+    successful_count = sum(1 for success, _ in processed_results if success)
+    logger.debug(f" Parallel SQL generation complete: {len(processed_results)} results, {successful_count} successful")
     return processed_results
 
 
-async def generate_single_sql_with_method(state, agent, temperature, method, agent_index=0):
+async def generate_single_sql_with_method(state, agent, temperature, method, agent_index=0, timeout_seconds: int = 20):
     """
     Generate a single SQL statement with a specific temperature and method.
     
@@ -187,10 +238,12 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         temperature: Temperature value for this generation
         method: Method to use ("query_plan", "step_by_step", "divide_and_conquer")
         agent_index: Index for logging purposes
+        timeout_seconds: Max seconds to wait for this agent run before timing out
     
     Returns:
         Tuple of (success, sql_string)
     """
+    logger.debug(f" Starting generate_single_sql_with_method - index: {agent_index}, method: {method}, temp: {temperature}")
     try:
         # Create lightweight dependencies using StateFactory
         sql_deps = StateFactory.create_agent_deps(state, "sql_generation")
@@ -217,23 +270,48 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
             method=method
         )
         
-        # Run the agent with lightweight deps and specified temperature
-        await agent.run(
-            user_prompt,
-            deps=sql_deps,
-            model_settings=ModelSettings(temperature=temperature)
-        )
+        # Run the agent with lightweight deps and specified temperature, with timeout protection
+        logger.debug(f" About to run agent for SQL generation {agent_index + 1}, agent type: {type(agent)}")
+        logger.debug(f" Agent exists: {agent is not None}, sql_deps exists: {sql_deps is not None}")
+        
+        try:
+            await asyncio.wait_for(
+                agent.run(
+                    user_prompt,
+                    deps=sql_deps,
+                    model_settings=ModelSettings(temperature=temperature)
+                ),
+                timeout=timeout_seconds
+            )
+            logger.debug(f" Agent run completed for SQL generation {agent_index + 1}")
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"SQL generation timed out after {timeout_seconds}s (method={method}, temp={temperature}, index={agent_index})"
+            )
+            return (False, "")
         
         # Check if generation was successful
+        logger.debug(f" Checking SQL generation result - last_generation_success: {sql_deps.last_generation_success}, has last_SQL: {bool(sql_deps.last_SQL)}")
+        
         if sql_deps.last_generation_success and sql_deps.last_SQL:
-            logger.info(f"SQL generation with {method} method successful (temp={temperature}): {sql_deps.last_SQL[:50]}...")
+            logger.debug(f" SQL generation with {method} method successful (temp={temperature}): {sql_deps.last_SQL[:50]}...")
             return (True, sql_deps.last_SQL)
         else:
-            logger.warning(f"SQL generation with {method} method failed (temp={temperature})")
+            logger.warning(f" SQL generation with {method} method failed - success: {sql_deps.last_generation_success}, SQL empty: {not bool(sql_deps.last_SQL)}, temp={temperature}")
+            if hasattr(sql_deps, 'last_execution_error') and sql_deps.last_execution_error:
+                logger.warning(f" Last execution error: {sql_deps.last_execution_error}")
             return (False, "")
             
+    except UnexpectedModelBehavior as e:
+        # Critical PydanticAI error - likely database or critical resource unavailable
+        logger.critical(f"CRITICAL: PydanticAI UnexpectedModelBehavior error - Database or critical resource unavailable: {e}")
+        logger.critical(f"Traceback: {traceback.format_exc()}")
+        logger.critical("Database appears to be unavailable or corrupted - will report to backend")
+        # Return a special error indicator that will be sent to backend
+        return (False, f"CRITICAL_DB_ERROR: Database unavailable - {str(e)[:200]}")
     except Exception as e:
-        logger.error(f"Individual SQL generation failed with {method} method: {e}")
+        logger.error(f" Individual SQL generation failed with {method} method: {type(e).__name__}: {e}")
+        logger.error(f" Traceback: {traceback.format_exc()}")
         return (False, "")
 
 
@@ -243,20 +321,29 @@ def clean_sql_results(sql_list):
     1. Extracting SQL from tuples (success, sql)
     2. Removing entries containing 'GENERATION FAILED'
     3. Removing duplicate SQL statements
+    4. Detecting critical database errors and returning them specially
     
-    Returns a list of unique, valid SQL strings
+    Returns a list of unique, valid SQL strings or a special error indicator
     """
     if not sql_list:
         return []
     
     cleaned_sqls = []
     seen_sqls = set()
+    database_errors = []
     
     for item in sql_list:
         # Handle tuple format (success, sql) from generate_sql_units
         if isinstance(item, tuple):
             success, sql = item
-            # Skip failed generations
+            
+            # Check for database error
+            if not success and sql and sql.startswith("DATABASE_ERROR:"):
+                database_errors.append(sql)
+                logger.critical(f"Database error detected in SQL results: {sql}")
+                continue
+                
+            # Skip other failed generations
             if not success:
                 continue
         else:
@@ -278,5 +365,10 @@ def clean_sql_results(sql_list):
         if normalized_sql not in seen_sqls:
             seen_sqls.add(normalized_sql)
             cleaned_sqls.append(normalized_sql)
+    
+    # If we have database errors and no valid SQL, return the error as a special case
+    if database_errors and not cleaned_sqls:
+        # Return a list with a single error indicator that will be handled specially
+        return ["CRITICAL_DATABASE_ERROR: " + database_errors[0].replace("DATABASE_ERROR: ", "")]
     
     return cleaned_sqls

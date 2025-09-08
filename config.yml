@@ -51,6 +51,11 @@ ai_providers:
   lm_studio:
     enabled: false
     api_base: "http://localhost:1234"
+  
+  # Groq (Fast inference)
+  groq:
+    enabled: false
+    api_key: ""
 
 # Embedding Service Configuration (Required)
 # Configure the embedding provider for semantic search

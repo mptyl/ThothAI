@@ -58,6 +58,7 @@ export function aggregateGroupFlags(groupProfiles: User['group_profiles']): Omit
   const defaultFlags = {
     show_sql: false,
     explain_generated_query: false,
+    belt_and_suspenders: false,
   };
 
   if (!groupProfiles || groupProfiles.length === 0) {
@@ -65,6 +66,7 @@ export function aggregateGroupFlags(groupProfiles: User['group_profiles']): Omit
     return {
       show_sql: true,
       explain_generated_query: true,
+      belt_and_suspenders: false,
     };
   }
 
@@ -74,6 +76,7 @@ export function aggregateGroupFlags(groupProfiles: User['group_profiles']): Omit
   for (const profile of groupProfiles) {
     if (profile.show_sql) aggregated.show_sql = true;
     if (profile.explain_generated_query) aggregated.explain_generated_query = true;
+    // Note: belt_and_suspenders is not currently part of GroupProfile, so defaults to false
   }
 
   return aggregated;
@@ -122,7 +125,8 @@ export async function initializePostLoginState(user: User): Promise<PostLoginSta
       sidebarFlags: {
         show_sql: true,
         explain_generated_query: true,
-        treat_empty_result_as_error: false
+        treat_empty_result_as_error: false,
+        belt_and_suspenders: false
       }
     };
   }

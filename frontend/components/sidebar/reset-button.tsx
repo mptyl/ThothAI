@@ -18,14 +18,20 @@ export function ResetButton() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const handleReset = async () => {
-    console.log('[ResetButton] Reset clicked, operation in progress:', isOperationInProgress);
+    // Debug logging in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[ResetButton] Reset clicked, operation in progress:', isOperationInProgress);
+    }
     
     setIsCancelling(true);
     
     try {
       // If an operation is in progress, cancel it first
       if (isOperationInProgress) {
-        console.log('[ResetButton] Cancelling ongoing operation...');
+        // Debug logging in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ResetButton] Cancelling ongoing operation...');
+        }
         cancelCurrentOperation();
         toast.info('Operation cancelled');
       }
@@ -38,7 +44,10 @@ export function ResetButton() {
         window.dispatchEvent(new CustomEvent('app-reset'));
       }
       
-      console.log('[ResetButton] Reset complete');
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[ResetButton] Reset complete');
+      }
       toast.success('Reset complete');
       
     } catch (error) {

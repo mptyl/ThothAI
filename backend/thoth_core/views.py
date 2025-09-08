@@ -99,11 +99,7 @@ def test_token(request):
 @permission_classes([HasValidApiKey])
 def test_api_key(request):
     """Test endpoint for API key authentication"""
-    import sys
-
-    print("test_api_key view called!", file=sys.stderr)
-    print(f"Request user: {request.user}", file=sys.stderr)
-    print(f"Request auth: {request.auth}", file=sys.stderr)
+    logger.debug(f"test_api_key view called - User: {request.user}, Auth: {request.auth}")
     return Response(
         {
             "message": "API key authentication successful!",
@@ -247,16 +243,8 @@ def get_user_workspaces_list(request):
     Includes workspaces associated with the user and default workspaces.
     """
     # Debug logging
-    import sys
-
-    print("get_user_workspaces_list called", file=sys.stderr)
-    print(f"Request user: {request.user}", file=sys.stderr)
-    print(f"Request auth: {request.auth}", file=sys.stderr)
-    print(
-        f"Request headers X-API-KEY: {request.headers.get('X-API-KEY')}",
-        file=sys.stderr,
-    )
-
+    logger.debug(f"get_user_workspaces_list called - User: {request.user}, Auth: {request.auth}")
+    
     # Check if authentication was done via API key
     if request.auth is True and request.user is None:
         # Authentication via API key
@@ -556,7 +544,8 @@ def get_workspace_agent_pools(request, workspace_id):
             }
             if agent.ai_model.basic_model:
                 agent_data["ai_model"]["basic_model"] = {
-                    "name": agent.ai_model.basic_model.name
+                    "name": agent.ai_model.basic_model.name,
+                    "provider": agent.ai_model.basic_model.provider
                 }
 
         # Classify agent by type and level
@@ -1194,7 +1183,40 @@ class ThothLogListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         """
         Set the username to the current user if not provided.
+        Also check for duplicate logs within the same time window.
         """
+        from datetime import timedelta
+        from django.utils import timezone
+        
+        # Get the data from the serializer
+        validated_data = serializer.validated_data
+        
+        # Check for duplicate log within the last 5 seconds
+        # This prevents duplicate logs from being created if the API is called twice
+        recent_cutoff = timezone.now() - timedelta(seconds=5)
+        
+        duplicate_check = ThothLog.objects.filter(
+            username=validated_data.get('username', 'anonymous'),
+            workspace=validated_data.get('workspace', ''),
+            question=validated_data.get('question', ''),
+            started_at__gte=recent_cutoff
+        )
+        
+        if duplicate_check.exists():
+            # If a duplicate log exists, update it instead of creating a new one
+            existing_log = duplicate_check.first()
+            logger.warning(f"Duplicate ThothLog detected for workspace {validated_data.get('workspace')} - updating existing log ID {existing_log.id}")
+            
+            # Update the existing log with new data
+            for key, value in validated_data.items():
+                setattr(existing_log, key, value)
+            existing_log.save()
+            
+            # Set the instance on the serializer to return the updated log
+            serializer.instance = existing_log
+            return
+        
+        # No duplicate found, create new log
         if hasattr(self.request, "user") and self.request.user:
             serializer.save(username=self.request.user.username)
         else:

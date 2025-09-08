@@ -65,7 +65,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           } catch (networkError) {
             // If network error, assume token is valid and let user continue
             // The error will surface when they try to make API calls
-            console.log('Network error during token validation, assuming token valid');
+            // Debug logging in development only
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Network error during token validation, assuming token valid');
+            }
             setState({
               user: storedUser,
               token: storedToken,
@@ -81,7 +84,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // No valid auth found
-      console.log('No valid auth found, setting unauthenticated');
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No valid auth found, setting unauthenticated');
+      }
       setState(prev => ({
         ...prev,
         isLoading: false,

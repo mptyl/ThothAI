@@ -34,6 +34,48 @@ from helpers.main_helpers.main_methods import (
 from helpers.db_info import get_db_schema
 from helpers.dual_logger import log_error
 
+# Valid UI flags that should be preserved and saved
+VALID_UI_FLAGS = {
+    'show_sql',
+    'explain_generated_query', 
+    'treat_empty_result_as_error',
+    'belt_and_suspenders'
+}
+
+def _filter_ui_flags(flags: dict) -> dict:
+    """
+    Filter request flags to include only valid UI flags.
+    
+    Removes backend technical flags (use_schema, use_examples, use_lsh, use_vector)
+    and keeps only frontend UI flags for display and behavior control.
+    
+    Args:
+        flags: Dictionary of flags from the request
+        
+    Returns:
+        Dictionary containing only valid UI flags
+    """
+    if not flags:
+        return {}
+    
+    # Filter to only valid UI flags
+    filtered_flags = {k: v for k, v in flags.items() if k in VALID_UI_FLAGS}
+    
+    # Ensure all UI flags are present with default values if missing
+    for flag_name in VALID_UI_FLAGS:
+        if flag_name not in filtered_flags:
+            # Default values for missing UI flags
+            if flag_name == 'show_sql':
+                filtered_flags[flag_name] = True
+            elif flag_name == 'explain_generated_query':
+                filtered_flags[flag_name] = True
+            elif flag_name == 'treat_empty_result_as_error':
+                filtered_flags[flag_name] = False
+            elif flag_name == 'belt_and_suspenders':
+                filtered_flags[flag_name] = False
+    
+    return filtered_flags
+
 
 async def _initialize_request_state(
     request: "GenerateSQLRequest", 
@@ -70,9 +112,15 @@ async def _initialize_request_state(
     database_context = DatabaseContext()
     
     # Initialize SystemState with the contexts
+    from model.system_state import SemanticContext, SchemaDerivations, GenerationResults, ExecutionState
+    
     state = SystemState(
         request=request_context,
         database=database_context,
+        semantic=SemanticContext(),  # Empty initially
+        schemas=SchemaDerivations(),  # Empty initially
+        generation=GenerationResults(),  # Empty initially
+        execution=ExecutionState(),  # Empty initially
         original_question=request.question,  # Copy of original
         submitted_question=request.question  # Initially same as original
     )
@@ -107,9 +155,13 @@ async def _initialize_request_state(
         "language": language
     })
     
-    # Update database context with configuration from setup  
+    # Update database context with configuration from setup
+    # Also get treat_empty_result_as_error from request flags if provided
+    treat_empty_as_error = request.flags.get("treat_empty_result_as_error", False) if request.flags else False
+    
     updated_database = database_context.model_copy(update={
-        "dbmanager": setup_result.get("dbmanager")
+        "dbmanager": setup_result.get("dbmanager"),
+        "treat_empty_result_as_error": treat_empty_as_error
     })
     
     # Create services context with external services from setup
@@ -121,14 +173,18 @@ async def _initialize_request_state(
         workspace=workspace_config,
         number_of_tests_to_generate=workspace_config.get("number_of_tests_to_generate", 3),
         number_of_sql_to_generate=workspace_config.get("number_of_sql_to_generate", 12),
-        # Store the flags from the request for later use
-        request_flags=request.flags
+        # Store only UI flags from the request (filter out backend flags)
+        request_flags=_filter_ui_flags(request.flags)
     )
     
     # Recreate SystemState with updated contexts
     state = SystemState(
         request=updated_request,
         database=updated_database,
+        semantic=SemanticContext(),  # Empty initially
+        schemas=SchemaDerivations(),  # Empty initially
+        generation=GenerationResults(),  # Empty initially
+        execution=ExecutionState(),  # Empty initially
         services=services_context,
         original_question=request.question,  # Keep original
         submitted_question=request.question  # Initially same as original

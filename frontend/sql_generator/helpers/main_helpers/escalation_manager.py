@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class EscalationReason(Enum):
     """Reasons for escalating to higher functionality level"""
-    ALL_FAILED_EVALUATION = "all_sql_failed_evaluation"  # Case D: all SQLs < 90%
+    ALL_FAILED_EVALUATION = "all_sql_failed_evaluation"  # Case D: all SQLs below threshold
     NO_SQL_GENERATED = "no_sql_generated"  # SQL generation completely failed
     VALIDATION_FAILED = "validation_failed"  # SQL validation issues
     EXECUTION_FAILED = "execution_failed"  # SQL execution problems
@@ -121,7 +121,8 @@ class EscalationManager:
     def should_escalate(
         current_level: GeneratorType,
         evaluation_results: Dict[str, Any],
-        attempt_count: int
+        attempt_count: int,
+        evaluation_threshold: int = 90
     ) -> Tuple[bool, EscalationReason]:
         """
         Determine if escalation is needed based on evaluation results.
@@ -130,6 +131,7 @@ class EscalationManager:
             current_level: Current functionality level
             evaluation_results: Results from evaluation process
             attempt_count: Number of attempts at current level
+            evaluation_threshold: Minimum pass rate threshold (0-100)
             
         Returns:
             Tuple of (should_escalate, reason)
@@ -151,8 +153,9 @@ class EscalationManager:
         status = evaluation_results.get('status')
         if status == 'FAILED':
             best_pass_rate = evaluation_results.get('best_pass_rate', 0.0)
-            if best_pass_rate < 0.9:  # Below 90% threshold
-                logger.info(f"All SQLs below 90% threshold (best: {best_pass_rate:.1%})")
+            threshold_ratio = evaluation_threshold / 100.0
+            if best_pass_rate < threshold_ratio:
+                logger.info(f"All SQLs below {evaluation_threshold}% threshold (best: {best_pass_rate:.1%})")
                 return True, EscalationReason.ALL_FAILED_EVALUATION
         
         # Check for SQL generation failures
@@ -228,6 +231,15 @@ class EscalationManager:
         """
         # Update functionality level
         state.functionality_level = next_level.display_name
+        
+        # Set escalation flags based on the level we're escalating to
+        if hasattr(state, 'execution'):
+            if next_level == GeneratorType.ADVANCED:
+                state.execution.advanced_escalation = True
+                logger.info("Setting advanced_escalation flag to True")
+            elif next_level == GeneratorType.EXPERT:
+                state.execution.expert_escalation = True
+                logger.info("Setting expert_escalation flag to True")
         
         # Add escalation history
         if not hasattr(state, 'escalation_history'):

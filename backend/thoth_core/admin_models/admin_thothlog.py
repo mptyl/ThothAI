@@ -26,24 +26,28 @@ class ThothLogAdminForm(forms.ModelForm):
         model = ThothLog
         fields = "__all__"
         widgets = {
-            "question": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "translated_question": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "directives": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "keywords_list": forms.Textarea(attrs={"rows": 3, "cols": 80}),
-            "evidences": forms.Textarea(attrs={"rows": 5, "cols": 80}),
-            "similar_questions": forms.Textarea(attrs={"rows": 5, "cols": 80}),
-            "similar_columns": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "reduced_schema": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "schema_with_examples": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "schema_from_vector_db": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "used_mschema": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "generated_tests": forms.Textarea(attrs={"rows": 5, "cols": 80}),
-            "pool_of_generated_sql": forms.Textarea(attrs={"rows": 8, "cols": 80}),
-            "generated_sql": forms.Textarea(attrs={"rows": 10, "cols": 80}),
-            "sql_generation_failure_message": forms.Textarea(
-                attrs={"rows": 3, "cols": 80}
-            ),
-            "sql_explanation": forms.Textarea(attrs={"rows": 5, "cols": 80}),
+            "question": forms.Textarea(attrs={"rows": 3, "class": "vLargeTextField"}),
+            "translated_question": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "directives": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "keywords_list": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "evidences": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "similar_questions": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "similar_columns": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "reduced_schema": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "schema_with_examples": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "schema_from_vector_db": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "used_mschema": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "generated_tests": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "pool_of_generated_sql": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "generated_sql": forms.Textarea(attrs={"rows": 10, "cols": 80, "class": "vLargeTextField"}),
+            "sql_generation_failure_message": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "sql_explanation": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            # Nuovi campi aggiunti per la riorganizzazione
+            "lsh_similar_columns": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "gold_sql_extracted": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
+            "reduced_tests": forms.Textarea(attrs={"rows": 5, "cols": 80, "class": "vLargeTextField"}),
+            "flags_activated": forms.Textarea(attrs={"rows": 3, "cols": 80, "class": "vLargeTextField"}),
+            "evaluation_judgments": forms.Textarea(attrs={"rows": 8, "cols": 80, "class": "vLargeTextField"}),
         }
 
 
@@ -52,7 +56,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     form = ThothLogAdminForm
     list_display = (
         "id",
-        "test_status_badge",
+        "evaluation_case_badge",
         "username",
         "workspace",
         "formatted_started_at",
@@ -74,8 +78,12 @@ class ThothLogAdmin(admin.ModelAdmin):
         "workspace",
         "formatted_started_at",
         "formatted_terminated_at",
-        "duration",
+        "duration_display",
+        "timing_display",
+        "user_workspace_display",
+        "languages_display",
         "question",
+        "selected_sql_or_error",
         "db_language",
         "question_language",
         "translated_question",
@@ -89,8 +97,12 @@ class ThothLogAdmin(admin.ModelAdmin):
         "formatted_reduced_schema",
         "formatted_used_mschema",
         "generated_tests_display",
+        "generated_tests_count",
         "evaluation_results_display",
-        "selection_metrics_display",
+        "sql_status_display",
+        "evaluation_case_display",
+        "evaluation_details_display",
+        "pass_rates_display",
         "pool_of_generated_sql_display",
         "selected_sql",
         "sql_generation_failure_message",
@@ -98,110 +110,152 @@ class ThothLogAdmin(admin.ModelAdmin):
         "formatted_available_context_tokens",
         "formatted_full_schema_tokens_count",
         "formatted_schema_link_strategy",
+        "enhanced_evaluation_thinking_display",
+        "enhanced_evaluation_answers_display",
+        "enhanced_evaluation_selected_sql_display",
+        "sql_generation_timing_display",
+        "test_generation_timing_display",
+        "evaluation_timing_display",
+        "sql_selection_timing_display",
+        "belt_and_suspenders_start_display",
+        "belt_and_suspenders_end_display",
+        "belt_and_suspenders_duration_display",
+        "escalation_flags_display",
         "formatted_created_at",
         "formatted_updated_at",
+        # Inline timing methods
+        "validation_timing_inline",
+        "keyword_generation_timing_inline",
+        "context_retrieval_timing_inline",
+        "sql_generation_timing_inline",
+        "test_generation_timing_inline", 
+        "test_reduction_timing_inline",
+        "evaluation_timing_inline",
+        "sql_selection_timing_inline",
+        "belt_and_suspenders_timing_inline",
+        # Language methods
+        "question_language_display",
+        "db_language_display",
     )
 
     fieldsets = (
+        # SECTION 1: Main Information
         (
-            "Basic Information",
-            {
-                "fields": (
-                    "test_status_display",
-                    "username",
-                    "workspace",
-                    "formatted_started_at",
-                    "formatted_terminated_at",
-                    "duration",
-                ),
-                "description": "Basic information about the workflow execution.",
-            },
-        ),
-        (
-            "Question Details",
+            "Main Information",
             {
                 "fields": (
                     "question",
-                    "db_language",
-                    "question_language",
-                    "translated_question",
+                    "generated_sql_textarea",
+                    "evaluation_case_display",
+                ),
+                "description": "Core query and result information",
+            },
+        ),
+        
+        # SECTION 2: Time and Language
+        (
+            "Time and Language",
+            {
+                "fields": (
+                    "timing_display",
+                    "user_workspace_display",
+                    "languages_display",
                     "directives",
+                    "flags_activated_display",
                 ),
-                "description": "Original question and language information.",
-            },
-        ),
-        (
-            "Token Management",
-            {
-                "fields": (
-                    "formatted_available_context_tokens",
-                    "formatted_full_schema_tokens_count",
-                    "formatted_schema_link_strategy",
-                ),
-                "description": "Information about token usage and context window management.",
+                "description": "Timing, user context, and language settings",
                 "classes": ("collapse",),
             },
         ),
+        
+        # Phase 1: Validation
         (
-            "Processing Information",
+            "Phase 1: Question Validation",
             {
                 "fields": (
+                    "validation_timing_inline",
+                ),
+                "description": "Question validation phase timing",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Phase 2: Keywords and Schema
+        (
+            "Phase 2: Keywords Generation & Data Preparation",
+            {
+                "fields": (
+                    "keyword_generation_timing_inline",
                     "formatted_keywords_list",
+                    "lsh_similar_columns_display",  # LHS similar columns (collapsible)
+                    "formatted_reduced_schema",  # Reduced Schema (collapsible)
+                ),
+                "description": "Keywords extraction and data preparation",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Phase 3: Context Retrieval
+        (
+            "Phase 3: Context Helpers Generation",
+            {
+                "fields": (
+                    "context_retrieval_timing_inline",
                     "formatted_evidences",
-                    "formatted_similar_questions",
+                    "gold_sql_extracted_display",  # Gold Examples in collapsible block
                 ),
-                "description": "Information extracted and retrieved during processing.",
+                "description": "Evidence and gold SQL retrieval from vector database",
                 "classes": ("collapse",),
             },
         ),
+        
+        # Phase 4: SQL Generation
         (
-            "Schema Information",
+            "Phase 4: SQL Generation",
             {
                 "fields": (
-                    "formatted_similar_columns",
-                    "formatted_schema_with_examples",
-                    "formatted_schema_from_vector_db",
-                    "formatted_reduced_schema",
-                    "formatted_used_mschema",
-                ),
-                "description": "Database schema information used for query generation.",
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Generated Tests",
-            {
-                "fields": ("generated_tests_display",),
-                "description": "Generated tests for validation.",
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Evaluation Results",
-            {
-                "fields": ("evaluation_results_display", "selection_metrics_display"),
-                "description": "Evaluation of SQL candidates against tests and selection metrics.",
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Generated Output",
-            {
-                "fields": (
+                    "sql_generation_timing_inline",
                     "pool_of_generated_sql_display",
-                    "selected_sql",
                     "sql_generation_failure_message",
+                    "escalation_flags_display",
+                ),
+                "description": "SQL candidates generation",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Phase 5: Test Generation
+        (
+            "Phase 5: Test Generation",
+            {
+                "fields": (
+                    "test_generation_timing_inline",
+                    "generated_tests_display",
+                    "generated_tests_count",
+                ),
+                "description": "Test generation for SQL validation",
+                "classes": ("collapse",),
+            },
+        ),
+        
+        # Phase 6: SQL Evaluation and Winner Selection (renamed from Phase 7)
+        (
+            "Phase 6: SQL Evaluation and Winner Selection",
+            {
+                "fields": (
+                    ("evaluation_timing_inline",),  # Will show as "Evaluation Timing"
+                    ("sql_selection_timing_inline",),  # Will show as "SQL Selection Timing"
+                    ("belt_and_suspenders_timing_inline",),  # Will show as "Belt & Suspenders Timing"
+                    "evaluation_judgments_display",  # NEW
+                    "pass_rates_display",
+                    "evaluation_details_display",
+                    "enhanced_evaluation_answers_display",  # Renamed: Evaluation Answers
+                    "selected_sql_complexity",
+                    "sql_status_display",
+                    "selected_sql",
                     "sql_explanation",
                 ),
-                "description": "Final SQL query and its explanation.",
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            "Timestamps",
-            {
-                "fields": ("formatted_created_at", "formatted_updated_at"),
-                "description": "Record creation and update timestamps.",
+                "description": "SQL candidates evaluation and winner selection",
                 "classes": ("collapse",),
             },
         ),
@@ -276,7 +330,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     pool_of_generated_sql_display.short_description = "Pool of Generated SQL"
 
     def formatted_keywords_list(self, obj):
-        """Display keywords_list as a formatted list in an expandable container"""
+        """Display keywords_list as bullet points aligned with label"""
         if not obj.keywords_list:
             return "-"
 
@@ -284,28 +338,23 @@ class ThothLogAdmin(admin.ModelAdmin):
             # Try to parse as Python list
             keywords = ast.literal_eval(obj.keywords_list)
             if isinstance(keywords, list):
-                html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-                html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Keywords List (click to expand)</summary>'
-                html_content += (
-                    '<div class="readonly" style="margin-top: 10px; padding: 10px;">'
-                )
-                for i, keyword in enumerate(keywords, 1):
-                    html_content += f"{i}. {keyword}<br>"
-                html_content += "</div>"
-                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px;">{obj.keywords_list}</pre></details>'
-                html_content += "</details>"
+                # Use Django admin styling with CSS variables for theme compatibility
+                html_content = '<ul style="margin: 0; padding-left: 20px; list-style-type: disc;">'
+                for keyword in keywords:
+                    html_content += f'<li style="margin: 2px 0; font-size: 13px; color: var(--body-fg, #333);">{keyword}</li>'
+                html_content += '</ul>'
                 return mark_safe(html_content)
         except:
             pass
 
-        # Fallback to raw display in expandable container
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Keywords List (click to expand)</summary>'
+        # Fallback to raw display in non-collapsible container
+        html_content = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 12px; margin: 5px 0; background-color: var(--darkened-bg, #f8f9fa);">'
+        html_content += '<h4 style="margin-top: 0; margin-bottom: 10px;">Keywords List</h4>'
         html_content += format_html(
-            '<pre class="readonly" style="margin-top: 10px; padding: 10px;">{}</pre>',
+            '<pre class="readonly" style="padding: 8px;">{}</pre>',
             obj.keywords_list,
         )
-        html_content += "</details>"
+        html_content += "</div>"
         return mark_safe(html_content)
 
     formatted_keywords_list.short_description = "Keywords List"
@@ -707,15 +756,15 @@ class ThothLogAdmin(admin.ModelAdmin):
     formatted_schema_from_vector_db.short_description = "Schema from Vector DB"
 
     def formatted_reduced_schema(self, obj):
-        """Display reduced_schema in an expandable container"""
+        """Display reduced_schema in a collapsible section with Django admin styling"""
         if not obj.reduced_schema:
             return "-"
 
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Reduced Schema (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px; padding: 10px;">'
+        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
+        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">Reduced Schema (click to expand)</summary>'
+        html_content += '<div style="margin-top: 10px;">'
         html_content += format_html(
-            '<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{}</pre>',
+            '<pre class="readonly" style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: var(--body-bg, #ffffff); color: var(--body-fg, #333); padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 3px; margin: 0;">{}</pre>',
             obj.reduced_schema,
         )
         html_content += "</div>"
@@ -743,20 +792,42 @@ class ThothLogAdmin(admin.ModelAdmin):
     formatted_used_mschema.short_description = "Used Schema"
 
     def generated_tests_display(self, obj):
-        """Render generated_tests as a list of tuples: (thinking: str, answers: list[str]).
-        Falls back to JSON and then raw text if needed. Evaluations are now shown separately."""
+        """Render generated_tests as either a simple list of strings (new filtered format)
+        or as a list of tuples (legacy format). Falls back to JSON and then raw text if needed."""
         if not obj.generated_tests:
             return "-"
 
         # Wrap everything in an expandable container
         html_wrapper = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_wrapper += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Generated Tests (click to expand)</summary>'
+        html_wrapper += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Selected Tests (click to expand)</summary>'
         html_wrapper += '<div style="margin-top: 10px;">'
 
-        # 1) Try Python literal (list[tuple[str, list[str]]])
+        # 1) Try Python literal - check for simple list first
         try:
             data = ast.literal_eval(obj.generated_tests)
-            if isinstance(data, list):
+            
+            # Check if it's a simple list of strings (new filtered tests format)
+            if isinstance(data, list) and data and all(isinstance(item, str) for item in data):
+                # Simple list format (filtered tests)
+                html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
+                html_content += '<h4 style="margin: 10px 0;">Semantically Filtered Tests:</h4>'
+                html_content += '<ol style="margin-left: 20px;">'
+                for test in data:
+                    html_content += f'<li style="margin: 5px 0;">{test}</li>'
+                html_content += '</ol>'
+                
+                # Show raw data
+                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.generated_tests}</pre></details>'
+                html_content += '</div>'
+                
+                # Close the wrapper
+                html_wrapper += html_content
+                html_wrapper += '</div>'
+                html_wrapper += '</details>'
+                return mark_safe(html_wrapper)
+                
+            # Legacy format: list of tuples (thinking, answers)
+            elif isinstance(data, list):
                 html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto; font-size: 0.95em;">'
                 for i, item in enumerate(data, 1):
                     thinking = ""
@@ -901,7 +972,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         html_wrapper += "</details>"
         return mark_safe(html_wrapper)
 
-    generated_tests_display.short_description = "Generated Tests"
+    generated_tests_display.short_description = "Selected Tests"
 
     def evaluation_results_display(self, obj):
         """Render evaluation_results as either a single tuple (thinking: str, verdicts: list[str])
@@ -1455,37 +1526,45 @@ class ThothLogAdmin(admin.ModelAdmin):
                     html_content += f'<p style="margin: 5px 0; font-weight: bold;">SQL #{sql_index + 1} {icon}</p>'
                     html_content += f'<p style="margin: 5px 0 5px 15px;">Tests Passed: <span style="color: {color}; font-weight: bold;">{passed_count}/{total_tests} ({pass_percentage:.1f}%)</span></p>'
 
-                    # Show test details if available
+                    # Show test details if available - only show failed tests
                     test_details = score.get("test_details", [])
                     if test_details:
-                        html_content += '<details style="margin: 5px 0 5px 15px;">'
-                        html_content += (
-                            '<summary style="cursor: pointer;">Test Details</summary>'
-                        )
-                        html_content += (
-                            '<ul style="margin: 5px 0 0 20px; font-size: 0.9em;">'
-                        )
+                        # Filter for failed tests only
+                        failed_tests = []
                         for i, detail in enumerate(test_details, 1):
                             # Handle new format: [description, result] instead of dict
                             if isinstance(detail, list) and len(detail) >= 2:
                                 test_desc = detail[0]
                                 result = detail[1]
-                                # Check if test passed based on result
+                                # Check if test failed based on result
                                 passed = result.strip().upper() == "OK"
-                                if passed:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--body-success-fg, #28a745);">✓</span> {test_desc}: <span style="color: var(--body-success-fg, #28a745);">{result}</span></li>'
-                                else:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--error-fg, #ba2121);">✗</span> {test_desc}: <span style="color: var(--error-fg, #ba2121);">{result}</span></li>'
+                                if not passed:
+                                    # Extract reason from result if available
+                                    if " - " in result:
+                                        _, reason = result.split(" - ", 1)
+                                        failed_tests.append((i, f"FAILED - {reason}"))
+                                    else:
+                                        failed_tests.append((i, "FAILED - " + result))
                             elif isinstance(detail, dict):
                                 # Keep backward compatibility with dict format
                                 test_desc = detail.get("test_desc", f"Test {i}")
                                 passed = detail.get("passed", False)
-                                if passed:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--body-success-fg, #28a745);">✓</span> {test_desc}</li>'
-                                else:
-                                    html_content += f'<li style="margin: 3px 0;"><span style="color: var(--error-fg, #ba2121);">✗</span> {test_desc}</li>'
-                        html_content += "</ul>"
-                        html_content += "</details>"
+                                if not passed:
+                                    failed_tests.append((i, "FAILED"))
+                        
+                        # Only show Test Details section if there are failed tests
+                        if failed_tests:
+                            html_content += '<details style="margin: 5px 0 5px 15px;">'
+                            html_content += (
+                                '<summary style="cursor: pointer;">Test Details</summary>'
+                            )
+                            html_content += (
+                                '<ul style="margin: 5px 0 0 20px; font-size: 0.9em;">'
+                            )
+                            for test_num, failure_desc in failed_tests:
+                                html_content += f'<li style="margin: 3px 0;"><span style="color: var(--error-fg, #ba2121);">✗</span> Test {test_num}: <span style="color: var(--error-fg, #ba2121);">{failure_desc}</span></li>'
+                            html_content += "</ul>"
+                            html_content += "</details>"
 
                     # Show failure reasons if any
                     failure_reasons = score.get("failure_reasons", [])
@@ -1739,6 +1818,216 @@ class ThothLogAdmin(admin.ModelAdmin):
 
     formatted_terminated_at.short_description = "Terminated At"
 
+    def sql_status_display(self, obj):
+        """Display SQL execution status with visual badge"""
+        if not obj.sql_status:
+            return "-"
+        
+        status = obj.sql_status.lower()
+        color = "#28a745" if "pass" in status else "#dc3545" if "fail" in status or "error" in status else "#ffc107"
+        
+        html = f'''
+        <span style="
+            display: inline-block;
+            background-color: {color};
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        ">{obj.sql_status}</span>
+        '''
+        return mark_safe(html)
+    
+    sql_status_display.short_description = "SQL Status"
+
+    def evaluation_case_display(self, obj):
+        """Display evaluation case category"""
+        if not obj.evaluation_case:
+            return "-"
+        return obj.evaluation_case
+    
+    evaluation_case_display.short_description = "Evaluation Case"
+
+    def evaluation_details_display(self, obj):
+        """Display detailed evaluation results as formatted JSON"""
+        if not obj.evaluation_details:
+            return "-"
+        
+        html = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 10px; background-color: var(--darkened-bg, #f8f9fa);">'
+        html += '<h4 style="margin-top: 0;">Evaluation Details</h4>'
+        
+        try:
+            # evaluation_details is already a JSONField, so it should be a Python object
+            details = obj.evaluation_details if isinstance(obj.evaluation_details, list) else json.loads(obj.evaluation_details) if isinstance(obj.evaluation_details, str) else []
+            
+            for i, detail in enumerate(details, 1):
+                html += f'<div style="margin: 10px 0; padding: 10px; background-color: var(--body-bg, white); border-radius: 3px;">'
+                html += f'<strong>Test {i}:</strong><br>'
+                if isinstance(detail, dict):
+                    for key, value in detail.items():
+                        html += f'<span style="margin-left: 20px;"><strong>{key}:</strong> {value}</span><br>'
+                else:
+                    html += f'<span style="margin-left: 20px;">{detail}</span><br>'
+                html += '</div>'
+        except Exception as e:
+            html += f'<pre style="color: var(--error-fg, #dc3545);">Error parsing evaluation details: {e}</pre>'
+        
+        html += '</div>'
+        return mark_safe(html)
+    
+    evaluation_details_display.short_description = "Evaluation Details"
+
+    def pass_rates_display(self, obj):
+        """Display pass rates as formatted statistics"""
+        if not obj.pass_rates:
+            return "-"
+        
+        html = '<div style="padding: 10px; background-color: var(--darkened-bg, #f8f9fa); border-radius: 4px;">'
+        
+        try:
+            # pass_rates is a JSONField, so it should be a dict
+            rates = obj.pass_rates if isinstance(obj.pass_rates, dict) else json.loads(obj.pass_rates) if isinstance(obj.pass_rates, str) else {}
+            
+            for key, value in rates.items():
+                # Format percentage if it's a number
+                if isinstance(value, (int, float)):
+                    # Convert from decimal to percentage if value is ≤1
+                    percentage_value = value * 100 if value <= 1 else value
+                    display_value = f"{percentage_value:.1f}%"
+                    # Use white color for text
+                    color = "#ffffff"
+                else:
+                    display_value = str(value)
+                    color = "#ffffff"
+                
+                html += f'''
+                <div style="margin: 5px 0;">
+                    <strong>{key}:</strong>
+                    <span style="color: {color}; font-weight: bold; margin-left: 10px;">{display_value}</span>
+                </div>
+                '''
+        except Exception as e:
+            html += f'<pre style="color: var(--error-fg, #dc3545);">Error: {e}</pre>'
+        
+        html += '</div>'
+        return mark_safe(html)
+    
+    pass_rates_display.short_description = "Pass Rates"
+
+    def selected_sql_complexity_display(self, obj):
+        """Display SQL complexity level with visual indicator"""
+        if not obj.selected_sql_complexity:
+            return "-"
+        
+        complexity = str(obj.selected_sql_complexity).lower()
+        
+        # Determine color based on complexity
+        if "low" in complexity or "simple" in complexity:
+            color = "#28a745"
+        elif "high" in complexity or "complex" in complexity:
+            color = "#dc3545"
+        else:
+            color = "#ffc107"
+        
+        html = f'''
+        <span style="
+            display: inline-block;
+            background-color: {color};
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        ">{obj.selected_sql_complexity}</span>
+        '''
+        return mark_safe(html)
+    
+    selected_sql_complexity_display.short_description = "SQL Complexity"
+
+    def test_generation_timing_display(self, obj):
+        """Display test generation timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.test_generation_start:
+            start = timezone.localtime(obj.test_generation_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.test_generation_end:
+            end = timezone.localtime(obj.test_generation_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.test_generation_duration_ms > 0:
+            duration_sec = obj.test_generation_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.test_generation_start or obj.test_generation_duration_ms else "-"
+    
+    test_generation_timing_display.short_description = "Test Generation Timing"
+
+    def evaluation_timing_display(self, obj):
+        """Display evaluation timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.evaluation_start:
+            start = timezone.localtime(obj.evaluation_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.evaluation_end:
+            end = timezone.localtime(obj.evaluation_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.evaluation_duration_ms > 0:
+            duration_sec = obj.evaluation_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.evaluation_start or obj.evaluation_duration_ms else "-"
+    
+    evaluation_timing_display.short_description = "Evaluation Timing"
+
+    def sql_selection_timing_display(self, obj):
+        """Display SQL selection timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.sql_selection_start:
+            start = timezone.localtime(obj.sql_selection_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_selection_end:
+            end = timezone.localtime(obj.sql_selection_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_selection_duration_ms > 0:
+            duration_sec = obj.sql_selection_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.sql_selection_start or obj.sql_selection_duration_ms else "-"
+    
+    sql_selection_timing_display.short_description = "SQL Selection Timing"
+    
+    def sql_generation_timing_display(self, obj):
+        """Display SQL generation timing information"""
+        html = '<div style="font-family: monospace; line-height: 1.6;">'
+        
+        if obj.sql_generation_start:
+            start = timezone.localtime(obj.sql_generation_start)
+            html += f'<strong>Started:</strong> {start.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_generation_end:
+            end = timezone.localtime(obj.sql_generation_end)
+            html += f'<strong>Ended:</strong> {end.strftime("%H:%M:%S.%f")[:-3]}<br>'
+        
+        if obj.sql_generation_duration_ms > 0:
+            duration_sec = obj.sql_generation_duration_ms / 1000
+            html += f'<strong>Duration:</strong> {duration_sec:.1f}s'
+        
+        html += '</div>'
+        return mark_safe(html) if obj.sql_generation_start or obj.sql_generation_duration_ms else "-"
+    
+    sql_generation_timing_display.short_description = "SQL Generation Timing"
+
     def formatted_created_at(self, obj):
         """Format created_at timestamp with seconds in local timezone"""
         if obj.created_at:
@@ -1820,8 +2109,53 @@ class ThothLogAdmin(admin.ModelAdmin):
 
     selected_sql.short_description = "Selected SQL"
 
+    def selected_sql_or_error(self, obj):
+        """Display the selected SQL or error message if SQL generation failed"""
+        if obj.generated_sql:
+            # If we have a generated SQL, show it using Django admin styles
+            sql_text = obj.generated_sql[:500]  # Limit to first 500 chars for basic info
+            if len(obj.generated_sql) > 500:
+                sql_text += "..."
+            
+            html = f'''
+            <div class="readonly">
+                <span style="color: var(--body-loud-color, #0c4b33); font-weight: bold;">✓ SQL Generated</span>
+                <textarea readonly class="vLargeTextField" style="margin-top: 8px; font-family: 'Bitstream Vera Sans Mono', Monaco, 'Courier New', Courier, monospace; font-size: 12px; width: 100%; min-height: 100px;">{sql_text}</textarea>
+            </div>
+            '''
+            return mark_safe(html)
+        elif obj.sql_generation_failure_message:
+            # If we have a failure message, show it using Django admin error styles
+            html = f'''
+            <div class="readonly">
+                <span style="color: var(--error-fg, #ba2121); font-weight: bold;">✗ SQL Generation Failed</span>
+                <div style="margin-top: 8px; color: var(--error-fg, #ba2121); background: var(--error-bg, #ffe6e6); padding: 10px; border-radius: 4px;">{obj.sql_generation_failure_message}</div>
+            </div>
+            '''
+            return mark_safe(html)
+        else:
+            # No SQL and no error message
+            return mark_safe('<div class="readonly" style="color: var(--body-quiet-color, #666); font-style: italic;">- No SQL generated -</div>')
+    selected_sql_or_error.short_description = "Selected SQL / Error"
+
     def get_test_status(self, obj):
         """Calculate the test status based on selection_metrics and evaluation_results"""
+        # Check evaluation_case FIRST for A-GOLD, B-GOLD, etc. statuses
+        # This takes priority over sql_generation_failure_message
+        if obj.evaluation_case:
+            case = obj.evaluation_case.upper()
+            if "GOLD" in case:
+                return "GOLD", {"pass_rate": 100, "message": f"Test passed: {obj.evaluation_case}"}
+            elif "SILVER" in case:
+                # For silver cases, still show as passed (star)
+                return "GOLD", {"pass_rate": 90, "message": f"Test passed: {obj.evaluation_case}"}
+            elif "FAILED" in case:
+                return "KO", {"pass_rate": 0, "message": f"Test failed: {obj.evaluation_case}"}
+        
+        # Check for SQL generation failure only if no evaluation_case
+        if obj.sql_generation_failure_message:
+            return "KO", {"pass_rate": 0, "message": "SQL generation failed"}
+        
         if not obj.selection_metrics:
             return None, None  # status, details
         
@@ -1975,4 +2309,920 @@ class ThothLogAdmin(admin.ModelAdmin):
         html_content += '</div>'
         return mark_safe(html_content)
     
+    def enhanced_evaluation_thinking_display(self, obj):
+        """Display enhanced evaluation thinking with user-friendly formatting"""
+        if not obj.enhanced_evaluation_thinking:
+            return "-"
+        
+        from django.utils.safestring import mark_safe
+        
+        # Create a nicely formatted display with Django admin styling
+        html_content = '<div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 10px 0;">'
+        html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Reasoning</h4>'
+        html_content += '<pre style="white-space: pre-wrap; font-family: monospace; font-size: 13px; color: #555; margin: 0;">'
+        html_content += format_html("{}", obj.enhanced_evaluation_thinking)
+        html_content += '</pre>'
+        html_content += '</div>'
+        
+        return mark_safe(html_content)
+    
+    enhanced_evaluation_thinking_display.short_description = "Enhanced Evaluation Thinking"
+    
+    def enhanced_evaluation_answers_display(self, obj):
+        """Display enhanced evaluation answers using Django admin standard styling"""
+        if not obj.enhanced_evaluation_answers:
+            return "-"
+        
+        from django.utils.safestring import mark_safe
+        import json
+        
+        try:
+            # Format the JSON data nicely
+            answers = obj.enhanced_evaluation_answers
+            if isinstance(answers, str):
+                answers = json.loads(answers)
+            
+            # Use Django admin standard styling - simple ordered list without custom colors
+            html_content = '<ol style="margin: 0; padding-left: 25px; list-style-type: decimal;">'
+            
+            for answer in answers:
+                html_content += f'<li style="margin: 3px 0; font-family: monospace; font-size: 13px; color: var(--body-fg, #333); line-height: 1.4;">{format_html("{}", answer)}</li>'
+            
+            html_content += '</ol>'
+            
+            return mark_safe(html_content)
+        except (json.JSONDecodeError, TypeError):
+            # If JSON parsing fails, display raw text
+            return format_html('<pre style="font-family: monospace; font-size: 13px; color: var(--body-fg, #333);">{}</pre>', 
+                              obj.enhanced_evaluation_answers)
+    
+    enhanced_evaluation_answers_display.short_description = "Evaluation Answers"
+    
+    def enhanced_evaluation_selected_sql_display(self, obj):
+        """Display enhanced evaluation selected SQL with syntax highlighting styling"""
+        if not obj.enhanced_evaluation_selected_sql:
+            return "-"
+        
+        from django.utils.safestring import mark_safe
+        
+        # Create SQL display with code-like formatting
+        html_content = '<div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin: 10px 0;">'
+        html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Selected SQL</h4>'
+        html_content += '<pre style="background: #282c34; color: #abb2bf; padding: 12px; border-radius: 4px; '
+        html_content += 'font-family: \'Courier New\', monospace; font-size: 13px; overflow-x: auto; margin: 0;">'
+        html_content += format_html("{}", obj.enhanced_evaluation_selected_sql)
+        html_content += '</pre>'
+        html_content += '</div>'
+        
+        return mark_safe(html_content)
+    
+    enhanced_evaluation_selected_sql_display.short_description = "Enhanced Selected SQL"
+    
     test_status_display.short_description = "Test Execution Status"
+    
+    # NEW METHODS for reorganized logging
+    
+    def evaluation_case_badge(self, obj):
+        """Simple badge for evaluation case - used in list display"""
+        case = obj.evaluation_case
+        
+        if not case:
+            return "-"
+        
+        color_map = {
+            "A-GOLD": "#FFD700",  # Gold yellow
+            "B-GOLD": "#FFD700",  # Gold yellow
+            "A-SILVER": "#C0C0C0",  # Silver gray
+            "B-SILVER": "#C0C0C0",  # Silver gray
+            "C-FAILED": "#dc3545",  # Red (same as D-FAILED)
+            "D-FAILED": "#dc3545",  # Red
+        }
+        color = color_map.get(case, "#6c757d")
+        # Better text contrast - use black for gold/silver, white for red failed cases
+        text_color = "white" if case in ["D-FAILED", "C-FAILED"] else "black"
+        return format_html(
+            '<span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            color, text_color, case
+        )
+    evaluation_case_badge.short_description = "Result"
+    
+    def evaluation_case_display(self, obj):
+        """Badge with explanation for evaluation case - used in detail form"""
+        case = obj.evaluation_case
+        
+        if not case:
+            return "-"
+        
+        # Case explanations (updated for new algorithm logic)
+        case_explanations = {
+            "A-GOLD": "Single perfect SQL (100% pass rate) - direct selection",
+            "B-GOLD": "Multiple perfect SQLs (100% pass rate) - best SQL selected via agent",
+            "A-SILVER": "Single SQL above threshold - direct selection", 
+            "B-SILVER": "Multiple SQLs above threshold - best SQL selected via agent",
+            "C-FAILED": "No SQL met the quality threshold",
+            "D-FAILED": "SQL generation or evaluation failed",
+        }
+        
+        color_map = {
+            "A-GOLD": "#FFD700",  # Gold yellow
+            "B-GOLD": "#FFD700",  # Gold yellow
+            "A-SILVER": "#C0C0C0",  # Silver gray
+            "B-SILVER": "#C0C0C0",  # Silver gray
+            "C-FAILED": "#dc3545",  # Red (same as D-FAILED)
+            "D-FAILED": "#dc3545",  # Red
+        }
+        color = color_map.get(case, "#6c757d")
+        # Better text contrast - use black for gold/silver, white for red failed cases
+        text_color = "white" if case in ["D-FAILED", "C-FAILED"] else "black"
+        
+        # Get explanation
+        explanation = case_explanations.get(case, "")
+        
+        # Return badge followed by explanation
+        return format_html(
+            '<span style="background-color: {}; color: {}; padding: 5px 10px; border-radius: 3px; font-weight: bold; margin-right: 10px;">{}</span>'
+            '<span style="color: #666; font-style: italic;">{}</span>',
+            color, text_color, case, explanation
+        )
+    evaluation_case_display.short_description = "Evaluation Result"
+    
+    def generated_sql_textarea(self, obj):
+        """SQL with fixed width textarea"""
+        if obj.generated_sql:
+            return format_html(
+                '<textarea readonly style="width: 600px; height: 150px; font-family: monospace;" class="vLargeTextField">{}</textarea>',
+                obj.generated_sql
+            )
+        elif obj.sql_generation_failure_message:
+            return format_html(
+                '<div style="color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px;">'
+                '<strong>❌ SQL Generation Failed:</strong><br>{}'
+                '</div>',
+                obj.sql_generation_failure_message
+            )
+        return "-"
+    generated_sql_textarea.short_description = "SQL Generation"
+    
+    def duration_display(self, obj):
+        """Display duration without label"""
+        if obj.duration:
+            return format_html('<strong>{}</strong>', obj.duration)
+        return "-"
+    duration_display.short_description = "Duration"
+    
+    def timing_display(self, obj):
+        """Display Started At, Terminated At, and Duration in a horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.started_at:
+            local_time = timezone.localtime(obj.started_at)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.terminated_at:
+            local_time = timezone.localtime(obj.terminated_at)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.duration:
+            duration = obj.duration
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    timing_display.short_description = "Timing Information"
+    
+    def user_workspace_display(self, obj):
+        """Display Username and Workspace side by side"""
+        username = obj.username if obj.username else "-"
+        workspace = obj.workspace if obj.workspace else "-"
+        
+        html = '''
+        <table style="width: 100%; table-layout: fixed; border: none;">
+            <tr>
+                <td style="width: 50%; padding-right: 20px; border: none;">
+                    <strong>Username:</strong> {}
+                </td>
+                <td style="width: 50%; border: none;">
+                    <strong>Workspace:</strong> {}
+                </td>
+            </tr>
+        </table>
+        '''.format(username, workspace)
+        
+        return format_html(html)
+    user_workspace_display.short_description = "User and Workspace"
+    
+    def languages_display(self, obj):
+        """Display Question Language and Database Language side by side"""
+        question_lang = obj.question_language if obj.question_language else "-"
+        db_lang = obj.db_language if obj.db_language else "-"
+        
+        html = '''
+        <table style="width: 100%; table-layout: fixed; border: none;">
+            <tr>
+                <td style="width: 50%; padding-right: 20px; border: none;">
+                    <strong>Question Language:</strong> {}
+                </td>
+                <td style="width: 50%; border: none;">
+                    <strong>Database Language:</strong> {}
+                </td>
+            </tr>
+        </table>
+        '''.format(question_lang, db_lang)
+        
+        return format_html(html)
+    languages_display.short_description = "Languages"
+    
+    def escalation_flags_display(self, obj):
+        """Display escalation flags with visual indicators."""
+        # Check if any escalation occurred
+        advanced = getattr(obj, 'advanced_escalation', False)
+        expert = getattr(obj, 'expert_escalation', False)
+        
+        if not advanced and not expert:
+            return format_html(
+                '<span style="color: #666; font-style: italic;">No escalation</span>'
+            )
+        
+        flags_html = []
+        if advanced:
+            flags_html.append(
+                '<span style="background: #ffc107; color: #000; padding: 2px 8px; border-radius: 3px; margin-right: 5px;">'
+                '⬆️ ADVANCED'
+                '</span>'
+            )
+        if expert:
+            flags_html.append(
+                '<span style="background: #dc3545; color: #fff; padding: 2px 8px; border-radius: 3px;">'
+                '⬆️⬆️ EXPERT'
+                '</span>'
+            )
+        
+        return format_html(''.join(flags_html))
+    
+    escalation_flags_display.short_description = "Escalation Status"
+    
+    def flags_activated_display(self, obj):
+        """Display frontend UI flags with their on/off status"""
+        if not obj.flags_activated:
+            return "-"
+        
+        try:
+            if isinstance(obj.flags_activated, str):
+                all_flags = json.loads(obj.flags_activated)
+            else:
+                all_flags = obj.flags_activated
+            
+            # Define frontend UI flags to display (hide backend technical flags)
+            frontend_flags = [
+                'show_sql',
+                'explain_generated_query', 
+                'treat_empty_result_as_error',
+                'belt_and_suspenders'
+            ]
+            
+            # Filter to show only frontend flags
+            flags = {}
+            for flag_name in frontend_flags:
+                if flag_name in all_flags:
+                    flags[flag_name] = all_flags[flag_name]
+                elif flag_name == 'belt_and_suspenders':
+                    # Special handling for belt_and_suspenders - check timestamps if not in flags
+                    if hasattr(obj, 'belt_and_suspenders_start') and obj.belt_and_suspenders_start:
+                        flags[flag_name] = True
+                    else:
+                        flags[flag_name] = False
+                else:
+                    # Default to False for missing frontend flags
+                    flags[flag_name] = False
+                
+            html = '<div style="margin: 5px 0;">'
+            for flag_name, flag_value in flags.items():
+                if flag_value:
+                    # Green badge for active flags
+                    html += f'<span style="background: #28a745; color: white; padding: 3px 8px; margin: 2px; border-radius: 3px; font-size: 12px; display: inline-block;">{flag_name}</span> '
+                else:
+                    # Gray badge for inactive flags
+                    html += f'<span style="background: #6c757d; color: white; padding: 3px 8px; margin: 2px; border-radius: 3px; font-size: 12px; opacity: 0.5; display: inline-block;">{flag_name}</span> '
+            html += '</div>'
+            return mark_safe(html)
+        except Exception as e:
+            return f"Error: {str(e)}"
+    flags_activated_display.short_description = "Flags Attivati"
+    
+    # Timestamp display methods for new phases
+    def validation_start_display(self, obj):
+        if obj.validation_start:
+            return timezone.localtime(obj.validation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    validation_start_display.short_description = "Start"
+    
+    def validation_end_display(self, obj):
+        if obj.validation_end:
+            return timezone.localtime(obj.validation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    validation_end_display.short_description = "End"
+    
+    def validation_duration_display(self, obj):
+        if obj.validation_duration_ms > 0:
+            return f"{obj.validation_duration_ms / 1000:.1f}s"
+        return "-"
+    validation_duration_display.short_description = "Validation Duration"
+    
+    def keyword_generation_start_display(self, obj):
+        if obj.keyword_generation_start:
+            return timezone.localtime(obj.keyword_generation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    keyword_generation_start_display.short_description = "Start"
+    
+    def keyword_generation_end_display(self, obj):
+        if obj.keyword_generation_end:
+            return timezone.localtime(obj.keyword_generation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    keyword_generation_end_display.short_description = "End"
+    
+    def keyword_generation_duration_display(self, obj):
+        if obj.keyword_generation_duration_ms > 0:
+            return f"{obj.keyword_generation_duration_ms / 1000:.1f}s"
+        return "-"
+    keyword_generation_duration_display.short_description = "Keywords Duration"
+    
+    def schema_preparation_start_display(self, obj):
+        if obj.schema_preparation_start:
+            return timezone.localtime(obj.schema_preparation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    schema_preparation_start_display.short_description = "Start"
+    
+    def schema_preparation_end_display(self, obj):
+        if obj.schema_preparation_end:
+            return timezone.localtime(obj.schema_preparation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    schema_preparation_end_display.short_description = "End"
+    
+    def schema_preparation_duration_display(self, obj):
+        if obj.schema_preparation_duration_ms > 0:
+            return f"{obj.schema_preparation_duration_ms / 1000:.1f}s"
+        return "-"
+    schema_preparation_duration_display.short_description = "Schema Prep Duration"
+    
+    def context_retrieval_start_display(self, obj):
+        if obj.context_retrieval_start:
+            return timezone.localtime(obj.context_retrieval_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    context_retrieval_start_display.short_description = "Start"
+    
+    def context_retrieval_end_display(self, obj):
+        if obj.context_retrieval_end:
+            return timezone.localtime(obj.context_retrieval_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    context_retrieval_end_display.short_description = "End"
+    
+    def context_retrieval_duration_display(self, obj):
+        if obj.context_retrieval_duration_ms > 0:
+            return f"{obj.context_retrieval_duration_ms / 1000:.1f}s"
+        return "-"
+    context_retrieval_duration_display.short_description = "Context Duration"
+    
+    def test_reduction_start_display(self, obj):
+        if obj.test_reduction_start:
+            return timezone.localtime(obj.test_reduction_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    test_reduction_start_display.short_description = "Start"
+    
+    def test_reduction_end_display(self, obj):
+        if obj.test_reduction_end:
+            return timezone.localtime(obj.test_reduction_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    test_reduction_end_display.short_description = "End"
+    
+    def test_reduction_duration_display(self, obj):
+        if obj.test_reduction_duration_ms > 0:
+            return f"{obj.test_reduction_duration_ms / 1000:.1f}s"
+        return "-"
+    test_reduction_duration_display.short_description = "Test Reduction Duration"
+    
+    def sql_generation_start_display(self, obj):
+        if obj.sql_generation_start:
+            return timezone.localtime(obj.sql_generation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    sql_generation_start_display.short_description = "Start"
+    
+    def sql_generation_end_display(self, obj):
+        if obj.sql_generation_end:
+            return timezone.localtime(obj.sql_generation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    sql_generation_end_display.short_description = "End"
+    
+    def sql_generation_duration_display(self, obj):
+        if obj.sql_generation_duration_ms > 0:
+            return f"{obj.sql_generation_duration_ms / 1000:.1f}s"
+        return "-"
+    sql_generation_duration_display.short_description = "SQL Gen Duration"
+    
+    def test_generation_start_display(self, obj):
+        if obj.test_generation_start:
+            return timezone.localtime(obj.test_generation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    test_generation_start_display.short_description = "Start"
+    
+    def test_generation_end_display(self, obj):
+        if obj.test_generation_end:
+            return timezone.localtime(obj.test_generation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"  
+    test_generation_end_display.short_description = "End"
+    
+    def test_generation_duration_display(self, obj):
+        if obj.test_generation_duration_ms > 0:
+            return f"{obj.test_generation_duration_ms / 1000:.1f}s"
+        return "-"
+    test_generation_duration_display.short_description = "Test Gen Duration"
+    
+    def evaluation_start_display(self, obj):
+        if obj.evaluation_start:
+            return timezone.localtime(obj.evaluation_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    evaluation_start_display.short_description = "Start"
+    
+    def evaluation_end_display(self, obj):
+        if obj.evaluation_end:
+            return timezone.localtime(obj.evaluation_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    evaluation_end_display.short_description = "End"
+    
+    def evaluation_duration_display(self, obj):
+        if obj.evaluation_duration_ms > 0:
+            return f"{obj.evaluation_duration_ms / 1000:.1f}s"
+        return "-"
+    evaluation_duration_display.short_description = "Evaluation Duration"
+    
+    def belt_and_suspenders_start_display(self, obj):
+        if obj.belt_and_suspenders_start:
+            return timezone.localtime(obj.belt_and_suspenders_start).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    belt_and_suspenders_start_display.short_description = "B&S Start"
+    
+    def belt_and_suspenders_end_display(self, obj):
+        if obj.belt_and_suspenders_end:
+            return timezone.localtime(obj.belt_and_suspenders_end).strftime("%H:%M:%S.%f")[:-3]
+        return "-"
+    belt_and_suspenders_end_display.short_description = "B&S End"
+    
+    def belt_and_suspenders_duration_display(self, obj):
+        if obj.belt_and_suspenders_duration_ms > 0:
+            return f"{obj.belt_and_suspenders_duration_ms / 1000:.1f}s"
+        return "-"
+    belt_and_suspenders_duration_display.short_description = "B&S Duration"
+    
+    # Inline timestamp display methods (start, end, duration on same line)
+    def validation_timing_inline(self, obj):
+        """Display validation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.validation_start:
+            local_time = timezone.localtime(obj.validation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.validation_end:
+            local_time = timezone.localtime(obj.validation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.validation_duration_ms and obj.validation_duration_ms > 0:
+            duration = f"{obj.validation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    validation_timing_inline.short_description = "Timing Information"
+    
+    def keyword_generation_timing_inline(self, obj):
+        """Display keyword generation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.keyword_generation_start:
+            local_time = timezone.localtime(obj.keyword_generation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.keyword_generation_end:
+            local_time = timezone.localtime(obj.keyword_generation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.keyword_generation_duration_ms and obj.keyword_generation_duration_ms > 0:
+            duration = f"{obj.keyword_generation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    keyword_generation_timing_inline.short_description = "Timing Information"
+    
+    def context_retrieval_timing_inline(self, obj):
+        """Display context retrieval timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.context_retrieval_start:
+            local_time = timezone.localtime(obj.context_retrieval_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.context_retrieval_end:
+            local_time = timezone.localtime(obj.context_retrieval_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.context_retrieval_duration_ms and obj.context_retrieval_duration_ms > 0:
+            duration = f"{obj.context_retrieval_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    context_retrieval_timing_inline.short_description = "Timing Information"
+    
+    def sql_generation_timing_inline(self, obj):
+        """Display SQL generation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.sql_generation_start:
+            local_time = timezone.localtime(obj.sql_generation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_generation_end:
+            local_time = timezone.localtime(obj.sql_generation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_generation_duration_ms and obj.sql_generation_duration_ms > 0:
+            duration = f"{obj.sql_generation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    sql_generation_timing_inline.short_description = "Timing Information"
+    
+    def test_generation_timing_inline(self, obj):
+        """Display test generation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.test_generation_start:
+            local_time = timezone.localtime(obj.test_generation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_generation_end:
+            local_time = timezone.localtime(obj.test_generation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_generation_duration_ms and obj.test_generation_duration_ms > 0:
+            duration = f"{obj.test_generation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    test_generation_timing_inline.short_description = "Timing Information"
+    
+    def test_reduction_timing_inline(self, obj):
+        """Display test reduction timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.test_reduction_start:
+            local_time = timezone.localtime(obj.test_reduction_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_reduction_end:
+            local_time = timezone.localtime(obj.test_reduction_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.test_reduction_duration_ms and obj.test_reduction_duration_ms > 0:
+            duration = f"{obj.test_reduction_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    test_reduction_timing_inline.short_description = "Timing Information"
+    
+    def evaluation_timing_inline(self, obj):
+        """Display evaluation timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.evaluation_start:
+            local_time = timezone.localtime(obj.evaluation_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.evaluation_end:
+            local_time = timezone.localtime(obj.evaluation_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.evaluation_duration_ms and obj.evaluation_duration_ms > 0:
+            duration = f"{obj.evaluation_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    evaluation_timing_inline.short_description = "Evaluation Timing"
+    
+    def sql_selection_timing_inline(self, obj):
+        """Display SQL selection timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.sql_selection_start:
+            local_time = timezone.localtime(obj.sql_selection_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_selection_end:
+            local_time = timezone.localtime(obj.sql_selection_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.sql_selection_duration_ms and obj.sql_selection_duration_ms > 0:
+            duration = f"{obj.sql_selection_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    sql_selection_timing_inline.short_description = "SQL Selection Timing"
+    
+    def belt_and_suspenders_timing_inline(self, obj):
+        """Display belt and suspenders timing with full date/time in horizontal layout"""
+        started = "-"
+        terminated = "-"
+        duration = "-"
+        
+        if obj.belt_and_suspenders_start:
+            local_time = timezone.localtime(obj.belt_and_suspenders_start)
+            started = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.belt_and_suspenders_end:
+            local_time = timezone.localtime(obj.belt_and_suspenders_end)
+            terminated = local_time.strftime("%Y-%m-%d %H:%M:%S")
+        
+        if obj.belt_and_suspenders_duration_ms and obj.belt_and_suspenders_duration_ms > 0:
+            duration = f"{obj.belt_and_suspenders_duration_ms / 1000:.1f}s"
+        
+        html = '''
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Started At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Terminated At:</strong>
+                <span>{}</span>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <strong style="margin-bottom: 5px;">Duration:</strong>
+                <span>{}</span>
+            </div>
+        </div>
+        '''.format(started, terminated, duration)
+        
+        return format_html(html)
+    belt_and_suspenders_timing_inline.short_description = "Belt & Suspenders Timing"
+    
+    # Language display methods
+    def question_language_display(self, obj):
+        """Display question language with proper labeling"""
+        return obj.question_language or "Not detected"
+    question_language_display.short_description = "Question Language"
+    
+    def db_language_display(self, obj):
+        """Display database language with proper labeling"""  
+        return obj.db_language or "Not set"
+    db_language_display.short_description = "Database Language"
+    
+    def lsh_similar_columns_display(self, obj):
+        """Display LSH similar columns in a collapsible section"""
+        if not obj.lsh_similar_columns:
+            return "-"
+        
+        try:
+            if isinstance(obj.lsh_similar_columns, str):
+                data = json.loads(obj.lsh_similar_columns)
+            else:
+                data = obj.lsh_similar_columns
+            
+            # Create collapsible container using Django admin styling with proper theme support
+            html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
+            html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">LSH Similar Columns (click to expand)</summary>'
+            html_content += '<div style="margin-top: 10px;">'
+            html_content += format_html(
+                '<pre class="readonly" style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: var(--body-bg, #ffffff); color: var(--body-fg, #333); padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 3px; margin: 0;">{}</pre>',
+                json.dumps(data, indent=2, ensure_ascii=False)
+            )
+            html_content += '</div>'
+            html_content += '</details>'
+            return mark_safe(html_content)
+        except:
+            return str(obj.lsh_similar_columns)[:200] + "..."
+    lsh_similar_columns_display.short_description = "LSH Similar Columns"
+    
+    def gold_sql_extracted_display(self, obj):
+        """Display gold SQL extracted from vector DB"""
+        if not obj.gold_sql_extracted:
+            return "-"
+        try:
+            if isinstance(obj.gold_sql_extracted, str):
+                data = json.loads(obj.gold_sql_extracted)
+            else:
+                data = obj.gold_sql_extracted
+            
+            html = '<div style="max-height: 300px; overflow-y: auto;">'
+            for i, item in enumerate(data[:5]):  # Show max 5 items
+                html += f'<div style="margin: 10px 0; padding: 10px; border-left: 3px solid #28a745;">'
+                html += f'<strong>Example {i+1}:</strong><br>'
+                html += f'<em>Q:</em> {item.get("question", "N/A")}<br>'
+                html += f'<code style="background: #f8f9fa; padding: 5px;">{item.get("sql", "N/A")}</code>'
+                html += '</div>'
+            if len(data) > 5:
+                html += f'<div style="text-align: center; color: #666;">... and {len(data) - 5} more examples</div>'
+            html += '</div>'
+            return mark_safe(html)
+        except:
+            return str(obj.gold_sql_extracted)[:200] + "..."
+    gold_sql_extracted_display.short_description = "Gold SQL Examples"
+    
+    def reduced_tests_display(self, obj):
+        """Display reduced tests if available"""
+        if not obj.reduced_tests:
+            return "-"
+        try:
+            if isinstance(obj.reduced_tests, str):
+                data = json.loads(obj.reduced_tests)
+            else:
+                data = obj.reduced_tests
+            return format_html('<pre style="font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;">{}</pre>', 
+                             json.dumps(data, indent=2, ensure_ascii=False))
+        except:
+            return str(obj.reduced_tests)[:200] + "..."
+    reduced_tests_display.short_description = "Reduced Tests"
+    
+    def evaluation_judgments_display(self, obj):
+        """Display evaluation judgments"""
+        if not obj.evaluation_judgments:
+            return "-"
+        try:
+            if isinstance(obj.evaluation_judgments, str):
+                data = json.loads(obj.evaluation_judgments)
+            else:
+                data = obj.evaluation_judgments
+            return format_html('<pre style="font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">{}</pre>', 
+                             json.dumps(data, indent=2, ensure_ascii=False))
+        except:
+            return str(obj.evaluation_judgments)[:200] + "..."
+    evaluation_judgments_display.short_description = "Evaluation Judgments"
+    
+    def process_end_time_display(self, obj):
+        """Display process end time"""
+        if obj.process_end_time:
+            return timezone.localtime(obj.process_end_time).strftime("%Y-%m-%d %H:%M:%S")
+        return "-"
+    process_end_time_display.short_description = "Process End Time"
+    
+    class Media:
+        css = {
+            'all': ('admin/css/custom_thothlog.css',)
+        }

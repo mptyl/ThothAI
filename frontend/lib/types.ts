@@ -80,6 +80,7 @@ export interface Workspace {
   sql_db: SqlDb;
   default_workspace: number[]; // Array of user IDs who have this as default
   treat_empty_result_as_error?: boolean;
+  belt_and_suspenders: boolean;
 }
 
 // Sidebar flag types
@@ -87,6 +88,7 @@ export interface SidebarFlags {
   show_sql: boolean;
   explain_generated_query: boolean;
   treat_empty_result_as_error: boolean;
+  belt_and_suspenders: boolean;
 }
 
 // SQL Generation Strategy

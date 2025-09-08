@@ -60,6 +60,7 @@ class ThothLLMClient:
         LLMChoices.MISTRAL: "mistral/",
         LLMChoices.OLLAMA: "ollama/",
         LLMChoices.OPENROUTER: "openrouter/",
+        LLMChoices.GROQ: "groq/",  # GROQ provider
         # These use OpenAI-compatible endpoints
         LLMChoices.CODESTRAL: "",
         LLMChoices.DEEPSEEK: "",
@@ -110,6 +111,34 @@ class ThothLLMClient:
         ]:
             # These use OpenAI-compatible format without prefix
             return model
+        
+        # For GROQ, handle special model names that GROQ accepts
+        if self.provider == LLMChoices.GROQ:
+            # GROQ accepts models with these prefixes as-is
+            special_prefixes = [
+                "openai/",      # e.g., openai/gpt-oss-20b
+                "meta-llama/",  # e.g., meta-llama/llama-guard-4-12b
+                "moonshotai/",  # e.g., moonshotai/kimi-k2-instruct
+                "qwen/",        # e.g., qwen/qwen3-32b
+            ]
+            
+            # Check if the model starts with any special prefix
+            for prefix in special_prefixes:
+                if model.startswith(prefix):
+                    # Keep the full name as GROQ accepts it
+                    return f"groq/{model}"  # e.g., groq/openai/gpt-oss-20b or groq/meta-llama/llama-guard-4-12b
+            
+            # For other models, remove any existing prefix and add groq/
+            if "/" in model:
+                model = model.split("/", 1)[1]
+            return f"groq/{model}"
+        
+        # For OpenRouter, always use openrouter/ prefix
+        if self.provider == LLMChoices.OPENROUTER:
+            # Remove any existing prefix and add openrouter/
+            if "/" in model:
+                model = model.split("/", 1)[1]
+            return f"openrouter/{model}"
 
         return f"{prefix}{model}" if prefix else model
 
@@ -124,6 +153,7 @@ class ThothLLMClient:
             LLMChoices.CODESTRAL: "MISTRAL_API_KEY",  # Codestral uses Mistral key
             LLMChoices.DEEPSEEK: "DEEPSEEK_API_KEY",
             LLMChoices.OPENROUTER: "OPENROUTER_API_KEY",
+            LLMChoices.GROQ: "GROQ_API_KEY",  # GROQ API key
             LLMChoices.LMSTUDIO: None,  # LM Studio doesn't need API key
             LLMChoices.OLLAMA: None,  # Ollama doesn't need API key
             LLMChoices.LLAMA: None,  # Llama via Ollama doesn't need API key
@@ -198,6 +228,10 @@ class ThothLLMClient:
         # Add API key if available
         if self.api_key:
             completion_args["api_key"] = self.api_key
+        
+        # Force custom_llm_provider for GROQ to ensure proper routing
+        if self.provider == LLMChoices.GROQ:
+            completion_args["custom_llm_provider"] = "groq"
 
         # Add custom endpoint if needed
         if self.custom_endpoint:

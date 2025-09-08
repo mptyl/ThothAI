@@ -115,17 +115,16 @@ async def extract_keywords_step(state: Any, http_request: Any) -> AsyncGenerator
 async def retrieve_context_step(
     state: Any, 
     http_request: Any,
-    use_vector: bool,
-    use_lsh: bool,
     vdbmanager: Any
 ) -> AsyncGenerator[str, None]:
     """
     Step 3: Retrieve context from vector DB and LSH.
     
+    Always executes vector DB and LSH operations for optimal SQL generation.
     Yields status messages about context retrieval.
     """
-    # Vector DB retrieval
-    if use_vector and vdbmanager:
+    # Vector DB retrieval - Always execute if vdbmanager is available
+    if vdbmanager:
         if await http_request.is_disconnected():
             logger.info("Client disconnected before vector DB operations")
             yield "CANCELLED:Operation cancelled by user\n"
@@ -168,8 +167,8 @@ async def retrieve_context_step(
             logger.error(f"Error extracting schema from vector DB: {e}")
             yield f"WARNING:Vector DB extraction failed: {str(e)}\n"
     
-    # LSH retrieval
-    if use_lsh and state.dbmanager:
+    # LSH retrieval - Always execute if dbmanager is available
+    if state.dbmanager:
         if await http_request.is_disconnected():
             logger.info("Client disconnected before LSH extraction")
             yield "CANCELLED:Operation cancelled by user\n"

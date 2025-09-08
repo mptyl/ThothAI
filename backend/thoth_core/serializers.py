@@ -217,6 +217,13 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     explain_sql_agent = AgentSerializer()
     ask_human_help_agent = AgentSerializer()
     setting = SettingSerializer()
+    
+    # Override level field to return only the string value, not the tuple
+    level = serializers.SerializerMethodField()
+    
+    def get_level(self, obj):
+        """Return only the string value of the level choice field."""
+        return obj.level
 
     class Meta:
         model = Workspace
@@ -243,6 +250,8 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             "users",
             "number_of_tests_to_generate",
             "number_of_sql_to_generate",
+            "evaluation_threshold",
+            "belt_and_suspenders",
             "created_at",
             "updated_at",
         ]

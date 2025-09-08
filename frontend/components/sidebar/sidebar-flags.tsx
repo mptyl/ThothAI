@@ -14,6 +14,7 @@ export function SidebarFlags() {
     show_sql: 'Show SQL',
     explain_generated_query: 'Explain SQL',
     treat_empty_result_as_error: 'Treat void result as error',
+    belt_and_suspenders: 'Belt and Suspenders',
   };
 
   return (

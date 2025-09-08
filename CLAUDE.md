@@ -154,7 +154,6 @@ npm run format
 The SQL Generator uses PydanticAI agents located in `frontend/sql_generator/agents/`:
 - **test_generator_with_evaluator**: Main SQL generation agent
 - **sql_selector_agent**: Selects best SQL from candidates
-- **evaluator_supervisor_agent**: Validates and improves SQL queries
 - **test_reducer_agent**: Optimizes test cases
 
 ## API Endpoints
@@ -235,3 +234,50 @@ The SQL generation follows a multi-agent pattern:
 - **Dependencies**: Use `uv sync` to resolve Python dependency issues
 - **Qdrant**: Ensure port 6334 (local) or 6333 (Docker) is available
 - **Test containers**: Use `docker ps` to check if test containers are running
+
+
+## CURL test 
+TESTA SEMPRE SU DOCKER SE NON DIVERSAMENTE RICCHIESTO!!
+Il che significa che ogni volta che vuoi testare con un curl devi proma fare la build del servizio che devi testara
+
+In local development environment:
+```bash
+curl -X POST "http://localhost:8180/generate-sql" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": 1,
+    "question": "Please list the lowest three eligible free rates for students aged 5-17 in continuation schools.",
+    "username": "demo",
+    "functionality_level": "BASIC",
+    "flags": {
+      "use_schema": true,
+      "use_examples": true,
+      "use_lsh": true,
+      "use_vector": true
+    }
+  }' 2>/dev/null | python -m json.tool
+```
+In docker development environment:
+```bash
+curl -X POST "http://localhost:8020/generate-sql" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workspace_id": 1,
+    "question": "Please list the lowest three eligible free rates for students aged 5-17 in continuation schools.",
+    "username": "demo",
+    "functionality_level": "BASIC",
+    "flags": {
+      "use_schema": true,
+      "use_examples": true,
+      "use_lsh": true,
+      "use_vector": true
+    }
+  }' 2>/dev/null | python -m json.tool
+```
+## Deploy su Docker:
+Devi sempre posizionarti sulla root directory per eseguire il deploy su docker
+i docker locali possno essere attivati e disattivati solo dopo aver fatto un docker compose generale
+
+```bash
+docker-compose up --build
+```

@@ -50,8 +50,31 @@ function Test-PythonVersion {
     }
 }
 
+# Function to show usage
+function Show-Usage {
+    Write-Color "Usage: .\install.ps1 [OPTIONS]" "Blue"
+    Write-Host ""
+    Write-Color "Options:" "Yellow"
+    Write-Color "  -CleanCache    Clean Docker build cache before building" "White"
+    Write-Color "  -PruneAll      Prune all Docker resources (images, containers, volumes)" "White"
+    Write-Color "  -Help          Show this help message" "White"
+    Write-Host ""
+}
+
 # Main installation flow
 function Main {
+    param(
+        [switch]$CleanCache,
+        [switch]$PruneAll,
+        [switch]$Help
+    )
+    
+    # Show help if requested
+    if ($Help) {
+        Show-Usage
+        exit 0
+    }
+    
     Write-Color "============================================" "Blue"
     Write-Color "       Thoth AI Installer" "Blue"
     Write-Color "============================================" "Blue"
@@ -143,17 +166,48 @@ function Main {
     catch {
         Write-Color "Warning: Could not install Python packages. Trying again..." "Yellow"
         try {
-            & $pythonCmd -m pip install --quiet pyyaml requests toml
+            if ($inVirtualEnv) {
+                & $pythonCmd -m pip install pyyaml requests toml
+            }
+            else {
+                & $pythonCmd -m pip install --user pyyaml requests toml
+            }
         }
         catch {
             Write-Color "Error: Failed to install required Python packages" "Red"
-            Write-Color "Please run: pip install pyyaml requests toml" "Red"
+            if ($inVirtualEnv) {
+                Write-Color "Please run: pip install pyyaml requests toml (inside your virtualenv)" "Red"
+            }
+            else {
+                Write-Color "Please run: pip install --user pyyaml requests toml" "Red"
+            }
             exit 1
         }
     }
     
     Write-Color "Prerequisites OK" "Green"
     Write-Host ""
+    
+    # Clean Docker cache if requested
+    if ($PruneAll) {
+        Write-Color "Pruning all Docker resources..." "Yellow"
+        Write-Color "WARNING: This will remove all Docker images, containers, and volumes!" "Red"
+        $confirmation = Read-Host "Are you sure? (y/N)"
+        if ($confirmation -eq 'y' -or $confirmation -eq 'Y') {
+            docker system prune -a --volumes -f
+            Write-Color "Docker resources pruned" "Green"
+        }
+        else {
+            Write-Color "Skipping Docker prune" "Yellow"
+        }
+        Write-Host ""
+    }
+    elseif ($CleanCache) {
+        Write-Color "Cleaning Docker build cache..." "Yellow"
+        docker builder prune -a -f
+        Write-Color "Docker build cache cleaned" "Green"
+        Write-Host ""
+    }
 
     # Fix line endings for Windows (CRLF -> LF)
     Write-Color "Fixing line endings for Docker compatibility..." "Yellow"
@@ -211,6 +265,12 @@ function Main {
     }
     Write-Host ""
 
+    # Pass clean cache option to Python installer
+    $installerArgs = @()
+    if ($CleanCache -or $PruneAll) {
+        $installerArgs += "--no-cache"
+    }
+    
     # Run installer
     Write-Color "Starting installation..." "Blue"
     
@@ -223,7 +283,12 @@ function Main {
     }
     
     try {
-        & $pythonCmd scripts\installer.py
+        if ($installerArgs.Count -gt 0) {
+            & $pythonCmd scripts\installer.py $installerArgs
+        }
+        else {
+            & $pythonCmd scripts\installer.py
+        }
         if ($LASTEXITCODE -eq 0) {
             Write-Host ""
             Write-Color "============================================" "Green"
@@ -245,12 +310,19 @@ function Main {
     }
 }
 
+# Parse command line arguments
+param(
+    [switch]$CleanCache,
+    [switch]$PruneAll,
+    [switch]$Help
+)
+
 # Handle script directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Push-Location $ScriptDir
 
 try {
-    Main
+    Main -CleanCache:$CleanCache -PruneAll:$PruneAll -Help:$Help
 }
 finally {
     Pop-Location

@@ -305,7 +305,7 @@ API_KEY = os.environ.get("DJANGO_API_KEY")
 if not API_KEY:
     try:
         # Try to load from secrets volume if in Docker
-        api_key_file = "/vol/secrets/django_api_key"
+        api_key_file = "/secrets/django_api_key"
         if os.path.exists(api_key_file):
             with open(api_key_file, "r") as f:
                 API_KEY = f.read().strip()

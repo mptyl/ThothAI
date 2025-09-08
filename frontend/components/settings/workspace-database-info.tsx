@@ -22,27 +22,33 @@ export function WorkspaceDatabaseInfo() {
   // Debug logging for development
   useEffect(() => {
     if (fullWorkspaceData?.sql_db?.vector_db) {
-      console.log('Vector DB Configuration:', {
-        provider: fullWorkspaceData.sql_db.vector_db.embedding_provider,
-        model: fullWorkspaceData.sql_db.vector_db.embedding_model,
-        configured: fullWorkspaceData.sql_db.vector_db.embedding_configured,
-        hasApiKey: fullWorkspaceData.sql_db.vector_db.has_api_key,
-        connection: {
-          type: fullWorkspaceData.sql_db.vector_db.vect_type,
-          host: fullWorkspaceData.sql_db.vector_db.host,
-          port: fullWorkspaceData.sql_db.vector_db.port,
-          collection: fullWorkspaceData.sql_db.vector_db.name
-        }
-      });
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Vector DB Configuration:', {
+          provider: fullWorkspaceData.sql_db.vector_db.embedding_provider,
+          model: fullWorkspaceData.sql_db.vector_db.embedding_model,
+          configured: fullWorkspaceData.sql_db.vector_db.embedding_configured,
+          hasApiKey: fullWorkspaceData.sql_db.vector_db.has_api_key,
+          connection: {
+            type: fullWorkspaceData.sql_db.vector_db.vect_type,
+            host: fullWorkspaceData.sql_db.vector_db.host,
+            port: fullWorkspaceData.sql_db.vector_db.port,
+            collection: fullWorkspaceData.sql_db.vector_db.name
+          }
+        });
+      }
       
       // Warn about potential connection issues
       const host = fullWorkspaceData.sql_db.vector_db.host;
       if (host && host !== 'localhost' && host !== '127.0.0.1') {
-        console.warn(
-          `Warning: Vector DB is configured to connect to "${host}". ` +
-          `If you see connection errors, this hostname might not be resolvable from your current environment. ` +
-          `Consider using "localhost" for local development.`
-        );
+        // Debug logging in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(
+            `Warning: Vector DB is configured to connect to "${host}". ` +
+            `If you see connection errors, this hostname might not be resolvable from your current environment. ` +
+            `Consider using "localhost" for local development.`
+          );
+        }
       }
     }
   }, [fullWorkspaceData])
@@ -65,7 +71,10 @@ export function WorkspaceDatabaseInfo() {
       
       const data = await response.json()
       setVectorDbTestData(data)
-      console.log('Vector DB Test Results:', data)
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Vector DB Test Results:', data)
+      }
     } catch (error) {
       console.error('Failed to test vector DB:', error)
       setVectorDbTestData({ error: 'Failed to connect to test endpoint' })
@@ -92,7 +101,10 @@ export function WorkspaceDatabaseInfo() {
       
       const data = await response.json()
       setDiagnosticData(data)
-      console.log('Embedding Diagnostic Results:', data)
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Embedding Diagnostic Results:', data)
+      }
     } catch (error) {
       console.error('Failed to run diagnostics:', error)
       setDiagnosticData({ error: 'Failed to connect to diagnostic endpoint' })
@@ -152,6 +164,33 @@ export function WorkspaceDatabaseInfo() {
               <p className="text-sm mt-1">{description}</p>
             </div>
           )}
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Belt and Suspenders</p>
+            <div className="flex items-center gap-2 mt-1">
+              {fullWorkspaceData.belt_and_suspenders ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-sm">Enabled</span>
+                  <Badge variant="outline" className="text-green-600 border-green-600/50">
+                    Enhanced SQL Selection
+                  </Badge>
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm">Disabled</span>
+                  <Badge variant="outline" className="text-gray-600 border-gray-600/50">
+                    Standard Selection
+                  </Badge>
+                </>
+              )}
+            </div>
+            {fullWorkspaceData.belt_and_suspenders && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Uses enhanced SQL selection for borderline evaluation cases
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -499,7 +538,8 @@ export function WorkspaceDatabaseInfo() {
         <AlertDescription className="text-base">
           <span className="flex items-start gap-2">
             <span>
-              Database and embedding configurations are managed at the workspace level through the Django admin interface. 
+              Workspace configurations including database settings, embedding configurations, and Belt and Suspenders feature 
+              are managed at the workspace level through the Django admin interface. 
               Contact your administrator to modify these settings.
             </span>
           </span>

@@ -17,7 +17,8 @@ Contains runtime state information that changes during SQL generation execution,
 including error states, execution results, and strategy decisions.
 """
 
-from typing import Optional
+from typing import Optional, Dict, List, Any
+from datetime import datetime
 from pydantic import BaseModel, Field, validator
 
 
@@ -71,6 +72,212 @@ class ExecutionState(BaseModel):
     full_schema_tokens_count: Optional[int] = Field(
         default=None,
         description="Token count required for the full M-Schema representation"
+    )
+    
+    # Escalation tracking
+    escalation_attempts: int = Field(
+        default=0,
+        description="Number of escalation attempts from BASIC to ADVANCED/EXPERT"
+    )
+    
+    escalation_context: Optional[str] = Field(
+        default=None,
+        description="Context information from previous escalation attempts"
+    )
+    
+    # Escalation tracking flags
+    advanced_escalation: bool = Field(
+        default=False,
+        description="Flag indicating if escalation to ADVANCED level occurred"
+    )
+    
+    expert_escalation: bool = Field(
+        default=False,
+        description="Flag indicating if escalation to EXPERT level occurred"
+    )
+    
+    # Timing fields for performance tracking
+    sql_generation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL generation started"
+    )
+    
+    sql_generation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL generation completed"
+    )
+    
+    sql_generation_duration_ms: float = Field(
+        default=0.0,
+        description="SQL generation duration in milliseconds"
+    )
+    
+    test_generation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test generation started"
+    )
+    
+    test_generation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test generation completed"
+    )
+    
+    test_generation_duration_ms: float = Field(
+        default=0.0,
+        description="Test generation duration in milliseconds"
+    )
+    
+    evaluation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when evaluation started"
+    )
+    
+    evaluation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when evaluation completed"
+    )
+    
+    evaluation_duration_ms: float = Field(
+        default=0.0,
+        description="Evaluation duration in milliseconds"
+    )
+    
+    sql_selection_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL selection started"
+    )
+    
+    sql_selection_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when SQL selection completed"
+    )
+    
+    sql_selection_duration_ms: float = Field(
+        default=0.0,
+        description="SQL selection duration in milliseconds"
+    )
+    
+    # New timing fields for additional phases
+    validation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when question validation started"
+    )
+    
+    validation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when question validation completed"
+    )
+    
+    validation_duration_ms: float = Field(
+        default=0.0,
+        description="Question validation duration in milliseconds"
+    )
+    
+    keyword_generation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when keyword generation started"
+    )
+    
+    keyword_generation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when keyword generation completed"
+    )
+    
+    keyword_generation_duration_ms: float = Field(
+        default=0.0,
+        description="Keyword generation duration in milliseconds"
+    )
+    
+    schema_preparation_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when schema preparation (LSH + Vector) started"
+    )
+    
+    schema_preparation_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when schema preparation completed"
+    )
+    
+    schema_preparation_duration_ms: float = Field(
+        default=0.0,
+        description="Schema preparation duration in milliseconds"
+    )
+    
+    context_retrieval_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when context retrieval (evidence + SQL examples) started"
+    )
+    
+    context_retrieval_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when context retrieval completed"
+    )
+    
+    context_retrieval_duration_ms: float = Field(
+        default=0.0,
+        description="Context retrieval duration in milliseconds"
+    )
+    
+    test_reduction_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test reduction started (if performed)"
+    )
+    
+    test_reduction_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when test reduction completed"
+    )
+    
+    test_reduction_duration_ms: float = Field(
+        default=0.0,
+        description="Test reduction duration in milliseconds"
+    )
+    
+    process_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Final timestamp when the entire process completed"
+    )
+    
+    # Belt and Suspenders timing fields
+    belt_and_suspenders_start_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when Belt and Suspenders selection started (if enabled)"
+    )
+    
+    belt_and_suspenders_end_time: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp when Belt and Suspenders selection completed"
+    )
+    
+    belt_and_suspenders_duration_ms: float = Field(
+        default=0.0,
+        description="Belt and Suspenders selection duration in milliseconds"
+    )
+    
+    # Evaluation results and status
+    evaluation_case: str = Field(
+        default="",
+        description="Evaluation case: A-GOLD, B-GOLD, A-SILVER, B-SILVER, C-SILVER, D-FAILED"
+    )
+    
+    sql_status: str = Field(
+        default="",
+        description="SQL status: GOLD, SILVER, FAILED"
+    )
+    
+    evaluation_details: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Detailed evaluation results for each SQL"
+    )
+    
+    pass_rates: Dict[str, float] = Field(
+        default_factory=dict,
+        description="Pass rates for each SQL candidate"
+    )
+    
+    selected_sql_complexity: Optional[float] = Field(
+        default=None,
+        description="Complexity score of selected SQL (for case B selection)"
     )
     
     class Config:

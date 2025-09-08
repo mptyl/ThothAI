@@ -9,9 +9,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Unless required by applicable law or agreed to in writing, software
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
 FastAPI Main Application for SQL Generator
 
@@ -22,18 +19,18 @@ It exposes a single API endpoint: generate_sql that receives question and worksp
 import logging
 import os
 import time
+import json
 import logfire
 
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, PlainTextResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agents.core.agent_manager import ThothAgentManager
 from helpers.main_helpers.main_methods import  _get_workspace, initialize_database_plugins 
 from model.sql_explanation import SqlExplanationRequest, SqlExplanationResponse
 from services.paginated_query_service import PaginatedQueryService, PaginationRequest, PaginationResponse
@@ -59,19 +56,22 @@ from helpers.main_helpers.main_methods import _setup_dbmanager_and_agents
 # Load environment variables FIRST, before any other imports
 # Determine which .env file to use based on environment
 is_docker = os.getenv('DOCKER_CONTAINER', 'false').lower() == 'true'
-project_root = Path(__file__).parent.parent  # thoth_ui dir
+environment_name = 'Docker' if is_docker else 'Local'
 
+# Store configuration source for later logging
+config_source = None
 if is_docker:
-    # Docker environment - use .env.docker from project root
-    env_path = project_root / '.env.docker'
+    # Docker environment - env vars are already loaded by docker-compose
+    config_source = "Docker environment variables"
 else:
-    # Local development - use .env.local from project root
+    # Local development - load .env.local from project root
+    project_root = Path(__file__).parent.parent.parent  # ThothAI root dir
     env_path = project_root / '.env.local'
-
-if env_path.exists():
-    load_dotenv(env_path)
-else:
-    print(f"WARNING: No .env file found at {env_path}")
+    if env_path.exists():
+        load_dotenv(env_path)
+        config_source = f"Configuration file: {env_path}"
+    else:
+        config_source = "No .env.local file found - using system environment variables"
 
 # Configure logfire and instrument PydanticAI at startup
 logfire.configure(
@@ -94,6 +94,26 @@ log_level = get_logging_level()
 # Create logger for this module
 logger = logging.getLogger(__name__)
 
+# Log comprehensive startup environment info
+logger.info("="*60)
+logger.info(f"🚀 Starting SQL Generator Service - {environment_name} Environment")
+logger.info("="*60)
+logger.info(f"Configuration source: {config_source}")
+logger.info(f"Service port: {os.getenv('PORT', '8180' if not is_docker else '8020')}")
+logger.info(f"Django API: {os.getenv('DJANGO_API_URL', 'auto-detect')}")
+logger.info(f"Qdrant URL: {os.getenv('QDRANT_URL', 'auto-detect')}")
+logger.info(f"Log level: {log_level}")
+logger.info("="*60)
+
+# Validate environment variables before proceeding
+from helpers.env_validator import validate_environment
+if not validate_environment():
+    logger.critical("Environment validation failed. Please check configuration and restart.")
+    # In production, we should exit. In development, we continue with warnings
+    if os.getenv('ENVIRONMENT', 'development') == 'production':
+        import sys
+        sys.exit(1)
+
 # Initialize database plugins
 available_plugins = initialize_database_plugins()
 
@@ -104,8 +124,6 @@ else:
     logger.info("Logfire token not found, telemetry will not be sent to logfire service")
 
 
-# Global agent manager instance (legacy, not used directly anymore)
-agent_manager: Optional[ThothAgentManager] = None
 
 # Simple in-memory cache to reuse setup across calls in the same session/workspace
 # Key strategy: prefer client-provided 'X-Session-Id' header, otherwise fall back to the workspace ID
@@ -156,18 +174,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Global exception handler to avoid generic 500 with empty body
+# Import standardized error handling
+from helpers.error_response import handle_exception
+
+# Global exception handler with standardized error responses
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    log_error(f"Unhandled exception: {type(exc).__name__}: {str(exc)}")
-    logger.exception("Unhandled exception")
-    detail = (
-        "ERROR: Unhandled server error while processing your request.\n"
-        f"Path: {request.url.path}\n"
-        f"Reason: {type(exc).__name__}: {str(exc)}\n"
-        "Hints: Verify environment configuration (DJANGO_API_KEY, DB plugins, vector DB backends).\n"
+    # Extract request ID if available
+    request_id = request.headers.get("X-Request-ID", None)
+    
+    # Use standardized error handling
+    return handle_exception(
+        exception=exc,
+        default_message=f"Unhandled server error while processing {request.url.path}",
+        request_id=request_id
     )
-    return PlainTextResponse(detail, status_code=500)
 
 # Add CORS middleware
 # Configure CORS to support common localhost variants and any port
@@ -204,12 +225,6 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
     2. Sets up dbmanager and agent pool based on workspace ID
     3. Returns streaming response with query results, hints, and agent config
     """
-    # TEST INJECTION - Remove this block after testing
-    from helpers.main_helpers.test_error_injector import inject_test_error
-    test_error = await inject_test_error(request.question, request.workspace_id)
-    if test_error:
-        return test_error
-    
     # Initialize and validate request state
     state, error_response = await _initialize_request_state(request, http_request)
     if error_response:
@@ -232,32 +247,54 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
         ]
         
         # Execute phases 1-4 with standard error handling
+        has_critical_error = False
+        critical_error_message = None
+        
         for phase_name, phase_generator in phases:
             async for message in phase_generator:
                 if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:")):
                     yield message
-                    return
-                yield message
-                if "CRITICAL_ERROR:" in message:
-                    return
+                    if message.startswith("CRITICAL_ERROR:"):
+                        has_critical_error = True
+                        # Extract error message from JSON if possible
+                        try:
+                            error_data = json.loads(message.split(":", 1)[1])
+                            critical_error_message = error_data.get("message", "Critical error occurred")
+                        except:
+                            critical_error_message = "Critical error in SQL generation"
+                        # Store error in state for logging
+                        state.execution.sql_generation_failure_message = critical_error_message
+                        state.execution.sql_status = "FAILED"
+                        # Don't return for CRITICAL_ERROR - we need to log it
+                    elif message.startswith("CANCELLED:"):
+                        return  # Only return for CANCELLED (user disconnection)
+                else:
+                    yield message
         
-        # Phase 5: Evaluation and Selection (special handling for result tuple)
+        # Phase 5: Evaluation and Selection (skip if critical error)
         success = False
         selected_sql = None
-        async for message in _evaluate_and_select_phase(state, request, http_request):
-            if isinstance(message, tuple) and len(message) == 3 and message[0] == "RESULT":
-                # This is the result tuple (success, selected_sql)
-                _, success, selected_sql = message
-                break
-            if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:", "SQL_GENERATION_FAILED:")):
-                yield message
-                # Don't return for SQL_GENERATION_FAILED - we need to log it
-                if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:")):
-                    return
-            else:
-                yield message
         
-        # Phase 6: Final Response Preparation
+        if not has_critical_error:
+            async for message in _evaluate_and_select_phase(state, request, http_request):
+                if isinstance(message, tuple) and len(message) == 3 and message[0] == "RESULT":
+                    # This is the result tuple (success, selected_sql)
+                    _, success, selected_sql = message
+                    break
+                if message.startswith(("CANCELLED:", "CRITICAL_ERROR:", "ERROR:", "SQL_GENERATION_FAILED:")):
+                    yield message
+                    # Don't return for SQL_GENERATION_FAILED - we need to log it
+                    if message.startswith("CANCELLED:"):
+                        return  # Only return for CANCELLED
+                else:
+                    yield message
+        else:
+            # If we had a critical error, ensure success is False
+            success = False
+            logger.info(f"Skipping Phase 5 due to critical error: {critical_error_message}")
+            yield f"THOTHLOG:Skipping evaluation phase due to critical error: {critical_error_message}\n"
+        
+        # Phase 6: Final Response Preparation - ALWAYS CALLED for logging
         async for message in _prepare_final_response_phase(state, request, http_request, success, selected_sql):
             yield message
 
@@ -398,6 +435,9 @@ async def execute_query(request: PaginationRequest):
             )
         
         logger.debug(f"Database manager initialized: {type(dbmanager)}")
+        
+        # Note: SQL delimiters are already corrected during generation phase
+        # No need to correct them again here to avoid discrepancy between displayed and executed SQL
         
         # Create paginated query service
         paginated_service = PaginatedQueryService(dbmanager)

@@ -25,6 +25,4 @@ Please respond with a python object containing:
 
 For each aspect of the question, provide a clear and concise explanation of your reasoning behind selecting the columns.
 
-Take a deep breath and think logically.
-
 Only output the expected python object as your response.

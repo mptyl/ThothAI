@@ -38,6 +38,7 @@ class WorkspaceAdminForm(forms.ModelForm):
             "sql_db": "Primary SQL database for this workspace",
             "vector_db": "Vector database for semantic operations",
             "setting": "AI and system settings configuration",
+            "belt_and_suspenders": "Enable enhanced SQL selection for borderline evaluation cases (multiple perfect SQLs or some above threshold but not perfect). Uses SqlEvaluator agent for better decision making.",
         }
         widgets = {
             "description": forms.Textarea(attrs={"rows": 3, "cols": 80}),
@@ -157,6 +158,7 @@ class WorkspaceAdmin(admin.ModelAdmin):
                     "test_evaluator_agent",
                     "number_of_tests_to_generate",
                     "evaluation_threshold",
+                    "belt_and_suspenders",
                 ),
                 "classes": ("collapse",),
                 "description": "Configure agents for test generation and SQL evaluation.",

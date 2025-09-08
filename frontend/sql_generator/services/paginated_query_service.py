@@ -135,9 +135,9 @@ class PaginatedQueryService:
         # Rimuovi spazi extra
         expr = expression.strip()
         
-        # Helper function to check for parentheses outside of quotes
-        def has_unquoted_parens(s: str) -> bool:
-            """Check if string has parentheses that aren't inside quoted field names.
+        # Helper function to check for operators outside of quotes
+        def has_unquoted_operator(s: str, operator: str) -> bool:
+            """Check if string has an operator that isn't inside quoted field names.
             Handles all database quoting styles:
             - Double quotes: "field" (PostgreSQL, Oracle, SQLite, ANSI mode)
             - Single quotes: 'field' (for string literals, not field names)
@@ -164,13 +164,26 @@ class PaginatedQueryService:
                 elif quote_char or in_brackets:
                     # Inside quotes or brackets, skip
                     continue
-                elif char in ['(', ')']:
-                    # Found parenthesis outside of quotes and brackets
+                elif char == operator:
+                    # Found operator outside of quotes and brackets
                     return True
             return False
         
+        # Helper function to check for parentheses outside of quotes
+        def has_unquoted_parens(s: str) -> bool:
+            """Check if string has parentheses that aren't inside quoted field names."""
+            return has_unquoted_operator(s, '(') or has_unquoted_operator(s, ')')
+        
+        # PRIMA controlla se è un campo semplice con prefisso tabella
+        # Pattern: TableAlias.Field or TableAlias."Field Name" or TableAlias.`Field Name` or TableAlias.[Field Name]
+        table_field_pattern = r'^([A-Za-z][A-Za-z0-9_]*)\.([\"\`\[]?[^\"\`\]]+[\"\`\]]?)$'
+        match = re.match(table_field_pattern, expr)
+        if match:
+            # È un campo semplice con prefisso tabella, estrai solo il nome del campo
+            field_with_quotes = match.group(2)
+            base_alias = self._clean_field_name_for_alias(field_with_quotes)
         # Caso divisione
-        if '/' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '/') and not has_unquoted_parens(expr):
             parts = expr.split('/')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
@@ -190,7 +203,7 @@ class PaginatedQueryService:
                     base_alias = f"{left}_per_{right}"
         
         # Caso moltiplicazione
-        elif '*' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '*') and not has_unquoted_parens(expr):
             parts = expr.split('*')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
@@ -203,7 +216,7 @@ class PaginatedQueryService:
                     base_alias = f"{left}_times_{right}"
         
         # Caso addizione
-        elif '+' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '+') and not has_unquoted_parens(expr):
             parts = expr.split('+')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
@@ -218,7 +231,7 @@ class PaginatedQueryService:
                     base_alias = f"{left}_plus_{right}"
         
         # Caso sottrazione  
-        elif '-' in expr and not has_unquoted_parens(expr):
+        elif has_unquoted_operator(expr, '-') and not has_unquoted_parens(expr):
             parts = expr.split('-')
             if len(parts) == 2:
                 left = self._clean_field_name_for_alias(parts[0])
@@ -548,11 +561,23 @@ class PaginatedQueryService:
                 col_id = sort_item.get('colId', '')
                 sort_direction = sort_item.get('sort', 'asc').upper()
                 if col_id and col_id not in ['', 'undefined', '__selection__']:
-                    # Handle column names with spaces or special characters
-                    if ' ' in col_id or '-' in col_id:
+                    # Check if column name needs quoting
+                    needs_quoting = False
+                    
+                    # Check if it contains any special characters that require quoting
+                    if any(char in col_id for char in [' ', '-', '(', ')', '%', '/', '*', '+', '=', '<', '>', '!', '#', '@']):
+                        needs_quoting = True
+                    
+                    # Check if it starts with a number
+                    if col_id and col_id[0].isdigit():
+                        needs_quoting = True
+                    
+                    # Apply appropriate quoting or keep as-is
+                    if needs_quoting:
                         col_id_safe = f'"{col_id}"'
                     else:
-                        col_id_safe = re.sub(r'[^\w\.]', '', col_id)
+                        # Column is safe as-is (alphanumeric with underscores and dots)
+                        col_id_safe = col_id
                     
                     # Add NULLS LAST for consistency with original query
                     nulls_clause = 'NULLS LAST' if sort_direction == 'ASC' else 'NULLS FIRST'
@@ -579,10 +604,23 @@ class PaginatedQueryService:
                 col_id = sort_item.get('colId', '')
                 sort_direction = sort_item.get('sort', 'asc').upper()
                 if col_id and col_id not in ['', 'undefined', '__selection__']:
-                    if ' ' in col_id or '-' in col_id:
+                    # Check if column name needs quoting
+                    needs_quoting = False
+                    
+                    # Check if it contains any special characters that require quoting
+                    if any(char in col_id for char in [' ', '-', '(', ')', '%', '/', '*', '+', '=', '<', '>', '!', '#', '@']):
+                        needs_quoting = True
+                    
+                    # Check if it starts with a number
+                    if col_id and col_id[0].isdigit():
+                        needs_quoting = True
+                    
+                    # Apply appropriate quoting or keep as-is
+                    if needs_quoting:
                         col_id_safe = f'"{col_id}"'
                     else:
-                        col_id_safe = re.sub(r'[^\w\.]', '', col_id)
+                        # Column is safe as-is (alphanumeric with underscores and dots)
+                        col_id_safe = col_id
                     
                     # Add NULLS LAST for consistency
                     nulls_clause = 'NULLS LAST' if sort_direction == 'ASC' else 'NULLS FIRST'
@@ -616,12 +654,24 @@ class PaginatedQueryService:
                 
                 if filter_value:
                     # Handle column names with spaces or special characters
-                    if ' ' in column or '-' in column:
+                    # Check if column name needs quoting
+                    needs_quoting = False
+                    
+                    # Check if it contains any special characters that require quoting
+                    if any(char in column for char in [' ', '-', '(', ')', '%', '/', '*', '+', '=', '<', '>', '!', '#', '@']):
+                        needs_quoting = True
+                    
+                    # Check if it starts with a number
+                    if column and column[0].isdigit():
+                        needs_quoting = True
+                    
+                    # Apply appropriate quoting or keep as-is
+                    if needs_quoting:
                         # Quote the column name for SQL
                         column_safe = f'"{column}"'
                     else:
-                        # Sanitize column name
-                        column_safe = re.sub(r'[^\w\.]', '', column)
+                        # Column is safe as-is (alphanumeric with underscores and dots)
+                        column_safe = column
                     
                     # Escape single quotes in filter value
                     filter_value = filter_value.replace("'", "''")

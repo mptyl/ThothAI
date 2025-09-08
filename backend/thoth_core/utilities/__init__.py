@@ -9,3 +9,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from .test_llm_provider import test_llm_provider, test_multiple_providers
+
+__all__ = ['test_llm_provider', 'test_multiple_providers']

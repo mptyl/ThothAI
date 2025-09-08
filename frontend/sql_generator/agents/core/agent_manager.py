@@ -43,18 +43,12 @@ class ThothAgentManager(BaseAgentManager):
         self.test_gen_agent_1: Optional[Agent] = None
         self.test_gen_agent_2: Optional[Agent] = None
         self.test_gen_agent_3: Optional[Agent] = None
-        # test_exec_agent removed - no longer used in the workflow
         self.evaluator_agent: Optional[Agent] = None
-        
-        # Comment out agents we don't need yet
-        # self.select_columns_agent_1: Optional[Agent] = None
-        # self.select_columns_agent_2: Optional[Agent] = None
         self.sql_basic_agent: Optional[Agent] = None
         self.sql_advanced_agent: Optional[Agent] = None
         self.sql_expert_agent: Optional[Agent] = None
-        # NOTE: ask_human_agent is currently not used but maintained for future implementation
-        # self.ask_human_agent: Optional[Agent] = None
         self.sql_explainer_agent: Optional[Agent] = None
+        self.sql_evaluator_agent: Optional[Agent] = None
         
         # Initialize agent pools
         self.agent_pools = AgentPools()
@@ -62,7 +56,6 @@ class ThothAgentManager(BaseAgentManager):
         # Initialize validators - only the ones we need for now
         self.sql_validators = None  # Will be initialized when SQL agents are activated
         self.test_validators = TestValidators()
-        # self.explanation_validators = ExplanationValidators()  # Not needed yet
     
     def initialize(self):
         """
@@ -74,15 +67,11 @@ class ThothAgentManager(BaseAgentManager):
         self._create_keyword_extraction_agent()
         self._create_test_agents()  # Only test generation agents for now
         
-        # Comment out agents we don't need yet
-        # self._create_column_selection_agents()
         self._create_sql_generation_agents()
-        # NOTE: ask_human_agent creation is currently not used but maintained for future implementation
-        # self._create_ask_humans_agent()
         self._create_sql_explainer_agent()
         
         # Only initialize validators we need
-        self.sql_validators = SqlValidators(None, self.dbmanager)  # Enable SQL validators with dbmanager (test_exec_agent no longer used)
+        self.sql_validators = SqlValidators(None, self.dbmanager)  # Enable SQL validators with dbmanager
         
         self._populate_agent_pools()
         self._configure_tools_and_validators()  # Enable tools and validators
@@ -142,29 +131,6 @@ class ThothAgentManager(BaseAgentManager):
             force_default_prompt=use_default
         )
     
-    def _create_column_selection_agents(self):
-        """Create column selection agents."""
-        # Use specific agents only, no fallback to default agent
-        sel_agent_1_config = self.workspace.get("sel_columns_agent_1")
-        sel_agent_2_config = self.workspace.get("sel_columns_agent_2")
-        default_model_config = self.workspace.get("default_model")
-        use_default_1 = sel_agent_1_config is None
-        use_default_2 = sel_agent_2_config is None
-        # No fallback to default_agent - if no specific agent, agent will be None
-        
-        self.select_columns_agent_1 = AgentInitializer.create_column_selection_agent(
-            sel_agent_1_config,
-            default_model_config,
-            self.get_retries(sel_agent_1_config),
-            force_default_prompt=use_default_1
-        )
-        
-        self.select_columns_agent_2 = AgentInitializer.create_column_selection_agent(
-            sel_agent_2_config,
-            default_model_config,
-            self.get_retries(sel_agent_2_config),
-            force_default_prompt=use_default_2
-        )
     
     def _create_sql_generation_agents(self):
         """Create SQL generation agents - one for each functionality level (BASIC, ADVANCED, EXPERT)."""
@@ -212,7 +178,6 @@ class ThothAgentManager(BaseAgentManager):
         test_gen_1_config = self.workspace.get("test_gen_agent_1")
         test_gen_2_config = self.workspace.get("test_gen_agent_2")
         test_gen_3_config = self.workspace.get("test_gen_agent_3")
-        # test_exec_agent removed - no longer used in workflow
         default_model_config = self.workspace.get("default_model")
         use_default_gen_1 = test_gen_1_config is None
         use_default_gen_2 = test_gen_2_config is None
@@ -240,8 +205,6 @@ class ThothAgentManager(BaseAgentManager):
             force_default_prompt=use_default_gen_3
         )
         
-        # test_exec_agent creation removed - no longer used in workflow
-        
         # Create evaluator agent using dedicated test_evaluator_agent config from workspace
         test_evaluator_config = self.workspace.get("test_evaluator_agent")
         use_default_evaluator = test_evaluator_config is None
@@ -258,24 +221,17 @@ class ThothAgentManager(BaseAgentManager):
             self.get_retries(test_evaluator_config),
             force_default_prompt=use_default_evaluator  # Use default if no specific config
         )
-    
-    def _create_ask_humans_agent(self):
-        """Create ask human agent."""
-        # NOTE: This method creates the ask_human_agent but is currently not used in the system.
-        # The agent configuration is maintained for future implementation.
-        # Use specific agent only, no fallback to default agent
-        ask_human_agent_config = self.workspace.get("ask_human_help_agent")
-        default_model_config = self.workspace.get("default_model")
-        use_default_eval = ask_human_agent_config is None
-        # No fallback to default_agent - if no specific agent, agent will be None
         
-        # NOTE: Currently assigning to evaluate_agent instead of ask_human_agent for future compatibility
-        self.evaluate_agent = AgentInitializer.create_ask_human_agent(
-            ask_human_agent_config,
+        # Store the evaluator config for auxiliary agents to use
+        self.evaluator_config = test_evaluator_config
+        
+        # Create SqlEvaluator agent using the same config as TestEvaluator for consistency
+        self.sql_evaluator_agent = AgentInitializer.create_sql_evaluator_agent(
+            test_evaluator_config,
             default_model_config,
-            self.get_retries(ask_human_agent_config),
-            force_default_prompt=use_default_eval
+            self.get_retries(test_evaluator_config)
         )
+    
     
     def _create_sql_explainer_agent(self):
         """Create SQL explainer agent."""
@@ -383,31 +339,38 @@ class ThothAgentManager(BaseAgentManager):
             #     }
             # }
             
-            # Convert basic_model name to provider format
+            # Convert basic_model to provider format
             provider = None
             if agent_config.ai_model and agent_config.ai_model.basic_model:
-                basic_model_name = agent_config.ai_model.basic_model.get('name', '').upper()
-                # Map basic_model names to provider constants
-                if 'OPENROUTER' in basic_model_name:
-                    provider = 'OPENROUTER'
-                elif 'OPENAI' in basic_model_name or 'GPT' in basic_model_name:
-                    provider = 'OPENAI'
-                elif 'ANTHROPIC' in basic_model_name or 'CLAUDE' in basic_model_name:
-                    provider = 'ANTHROPIC'
-                elif 'MISTRAL' in basic_model_name:
-                    provider = 'MISTRAL'
-                elif 'CODESTRAL' in basic_model_name:
-                    provider = 'CODESTRAL'
-                elif 'GEMINI' in basic_model_name:
-                    provider = 'GEMINI'
-                elif 'DEEPSEEK' in basic_model_name:
-                    provider = 'DEEPSEEK'
-                elif 'OLLAMA' in basic_model_name:
-                    provider = 'OLLAMA'
-                elif 'LMSTUDIO' in basic_model_name or 'LM_STUDIO' in basic_model_name:
-                    provider = 'LMSTUDIO'
-                else:
-                    provider = 'OPENROUTER'  # Default fallback
+                # First try to get provider directly from basic_model if available
+                provider = agent_config.ai_model.basic_model.get('provider')
+                
+                # If provider field not present, fallback to name-based detection
+                if not provider:
+                    basic_model_name = agent_config.ai_model.basic_model.get('name', '').upper()
+                    # Map basic_model names to provider constants
+                    if 'OPENROUTER' in basic_model_name:
+                        provider = 'OPENROUTER'
+                    elif 'OPENAI' in basic_model_name or 'GPT' in basic_model_name:
+                        provider = 'OPENAI'
+                    elif 'ANTHROPIC' in basic_model_name or 'CLAUDE' in basic_model_name:
+                        provider = 'ANTHROPIC'
+                    elif 'MISTRAL' in basic_model_name:
+                        provider = 'MISTRAL'
+                    elif 'CODESTRAL' in basic_model_name:
+                        provider = 'CODESTRAL'
+                    elif 'GEMINI' in basic_model_name:
+                        provider = 'GEMINI'
+                    elif 'GROQ' in basic_model_name:
+                        provider = 'GROQ'
+                    elif 'DEEPSEEK' in basic_model_name:
+                        provider = 'DEEPSEEK'
+                    elif 'OLLAMA' in basic_model_name:
+                        provider = 'OLLAMA'
+                    elif 'LMSTUDIO' in basic_model_name or 'LM_STUDIO' in basic_model_name:
+                        provider = 'LMSTUDIO'
+                    else:
+                        provider = 'OPENROUTER'  # Default fallback
             
             # Build the config in the expected format
             config_dict = {
@@ -425,7 +388,7 @@ class ThothAgentManager(BaseAgentManager):
             
             # Log the config for debugging
             logger.info(f"Creating {agent_type} agent '{agent_config.name}' with provider={provider}, model={config_dict['ai_model']['specific_model']}")
-            print(f"DEBUG: Agent config being passed: {config_dict}", flush=True)
+            logger.debug(f"Agent config being passed: {config_dict}")
             
             # Map agent type to creation method
             if agent_type == 'sql_generation':
@@ -477,37 +440,22 @@ class ThothAgentManager(BaseAgentManager):
             
             # Apply validators to all SQL agents
             if self.sql_basic_agent:
-                print(f"DEBUG: Attaching validator to sql_basic_agent, dbmanager={self.dbmanager is not None}", flush=True)
+                logger.debug(f"Attaching validator to sql_basic_agent, dbmanager={self.dbmanager is not None}")
                 self.sql_basic_agent.output_validator(sql_validator)
             if self.sql_advanced_agent:
-                print(f"DEBUG: Attaching validator to sql_advanced_agent, dbmanager={self.dbmanager is not None}", flush=True)
+                logger.debug(f"Attaching validator to sql_advanced_agent, dbmanager={self.dbmanager is not None}")
                 self.sql_advanced_agent.output_validator(sql_validator)
             if self.sql_expert_agent:
-                print(f"DEBUG: Attaching validator to sql_expert_agent, dbmanager={self.dbmanager is not None}", flush=True)
+                logger.debug(f"Attaching validator to sql_expert_agent, dbmanager={self.dbmanager is not None}")
                 self.sql_expert_agent.output_validator(sql_validator)
     
     def _configure_test_validators(self):
         """Configure validators for test generation and execution agents."""
         # Validators disabled for test generation agents - we handle output directly
-        # Previously created but unused - removed:
-        # test_gen_validator = self.test_validators.create_test_gen_validator()
-        # test_exec_validator = self.test_validators.create_test_exec_validator()
-        # if self.test_gen_agent_1:
-        #     self.test_gen_agent_1.output_validator(test_gen_validator)
-        # if self.test_gen_agent_2:
-        #     self.test_gen_agent_2.output_validator(test_gen_validator)
-        # if self.test_gen_agent_3:
-        #     self.test_gen_agent_3.output_validator(test_gen_validator)
+        pass
         
-        # test_exec_agent validator application removed - agent no longer exists
-    
     def _configure_explanation_validators(self):
         """Configure validators for SQL explanation agents."""
-        # explanation_validator = self.explanation_validators.create_explanation_validator()
-        
-        # # Apply validator to SQL explainer agent
-        # if self.sql_explainer_agent:
-        #     self.sql_explainer_agent.output_validator(explanation_validator)
         pass
     
     async def explain_generated_sql(
@@ -564,8 +512,6 @@ class ThothAgentManager(BaseAgentManager):
                     return result.output.explanation
                 else:
                     return str(result.output)
-            elif hasattr(result, 'data') and result.data:
-                return str(result.data)
             else:
                 logger.warning("SQL explanation agent returned empty result")
                 return None

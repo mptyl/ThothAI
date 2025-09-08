@@ -72,7 +72,10 @@ export async function POST(req: Request): Promise<Response> {
         }
       } catch (error) {
         // Client disconnected or stream error - this is expected behavior
-        console.log('Stream processing stopped:', error instanceof Error ? error.message : 'Unknown error');
+        // Debug logging in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Stream processing stopped:', error instanceof Error ? error.message : 'Unknown error');
+        }
       } finally {
         try {
           await writer.close();

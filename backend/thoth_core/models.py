@@ -42,6 +42,7 @@ class LLMChoices(models.TextChoices):
     OLLAMA = "OLLAMA", "Ollama"
     OPENROUTER = "OPENROUTER", "OpenRouter"
     GEMINI = "GEMINI", "Gemini"
+    GROQ = "GROQ", "Groq"
 
 
 class DBMODEChoices(models.TextChoices):
@@ -674,6 +675,11 @@ class Workspace(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Minimum percentage of tests that a SQL must pass to be considered acceptable (0-100).",
     )
+    belt_and_suspenders = models.BooleanField(
+        default=False,
+        help_text="Enable enhanced SQL selection for borderline evaluation cases using SqlEvaluator agent.",
+        verbose_name="Belt and Suspenders",
+    )
 
     # New fields for async preprocessing
     preprocessing_status = models.CharField(
@@ -776,16 +782,6 @@ class ThothLog(models.Model):
     sql_generation_failure_message = models.TextField(
         blank=True, null=True
     )  # Failure message for logging
-    # Schema link strategy fields
-    available_context_tokens = models.IntegerField(
-        null=True, blank=True
-    )  # Context window size of the model
-    full_schema_tokens_count = models.IntegerField(
-        null=True, blank=True
-    )  # Token count of full_mschema
-    schema_link_strategy = models.TextField(
-        blank=True, default=""
-    )  # Strategy used for token management
     # New fields for schema analysis
     similar_columns = models.TextField(
         blank=True, default=""
@@ -800,10 +796,265 @@ class ThothLog(models.Model):
     selection_metrics = models.TextField(
         blank=True, default=""
     )  # JSON with selection metrics and test details
-    # Enhanced evaluation selected SQL - from enhanced_workflow branch
+    
+    # Enhanced Evaluation fields
+    enhanced_evaluation_thinking = models.TextField(
+        blank=True, 
+        default="",
+        help_text="Enhanced evaluation reasoning and analysis"
+    )
+    enhanced_evaluation_answers = models.JSONField(
+        blank=True, 
+        null=True,
+        help_text="Enhanced evaluation answers as JSON array"
+    )
     enhanced_evaluation_selected_sql = models.TextField(
-        blank=True, null=True, default=""
-    )  # Selected SQL after enhanced evaluation
+        blank=True, 
+        null=True,
+        default="",
+        help_text="SQL query selected by enhanced evaluation process"
+    )
+    
+    # Test generation and evaluation status fields
+    generated_tests_count = models.IntegerField(
+        default=0,
+        help_text="Number of tests generated"
+    )
+    sql_status = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="SQL execution status (e.g., passed, failed, error)"
+    )
+    evaluation_case = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Evaluation case category"
+    )
+    
+    # Detailed evaluation results
+    evaluation_details = models.JSONField(
+        blank=True,
+        null=True,
+        default=list,
+        help_text="Detailed evaluation results as JSON array"
+    )
+    pass_rates = models.JSONField(
+        blank=True,
+        null=True,
+        default=dict,
+        help_text="Pass rate statistics as JSON object"
+    )
+    selected_sql_complexity = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Complexity level of the selected SQL query"
+    )
+    
+    # Timing fields for SQL generation
+    sql_generation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL generation started"
+    )
+    sql_generation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL generation ended"
+    )
+    sql_generation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="SQL generation duration in milliseconds"
+    )
+    
+    # Timing fields for test generation
+    test_generation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test generation started"
+    )
+    test_generation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test generation ended"
+    )
+    test_generation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Test generation duration in milliseconds"
+    )
+    
+    # Timing fields for evaluation
+    evaluation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When evaluation started"
+    )
+    evaluation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When evaluation ended"
+    )
+    evaluation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Evaluation duration in milliseconds"
+    )
+    
+    # Timing fields for SQL selection
+    sql_selection_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL selection started"
+    )
+    sql_selection_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When SQL selection ended"
+    )
+    sql_selection_duration_ms = models.IntegerField(
+        default=0,
+        help_text="SQL selection duration in milliseconds"
+    )
+    
+    # New timing fields for additional phases
+    validation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When question validation started"
+    )
+    validation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When question validation ended"
+    )
+    validation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Question validation duration in milliseconds"
+    )
+    
+    keyword_generation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When keyword generation started"
+    )
+    keyword_generation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When keyword generation ended"
+    )
+    keyword_generation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Keyword generation duration in milliseconds"
+    )
+    
+    schema_preparation_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When schema preparation (LSH + Vector) started"
+    )
+    schema_preparation_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When schema preparation ended"
+    )
+    schema_preparation_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Schema preparation duration in milliseconds"
+    )
+    
+    context_retrieval_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When context retrieval (evidence + SQL examples) started"
+    )
+    context_retrieval_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When context retrieval ended"
+    )
+    context_retrieval_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Context retrieval duration in milliseconds"
+    )
+    
+    test_reduction_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test reduction started (if performed)"
+    )
+    test_reduction_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When test reduction ended"
+    )
+    test_reduction_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Test reduction duration in milliseconds"
+    )
+    
+    process_end_time = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Final timestamp when the entire process completed"
+    )
+    
+    belt_and_suspenders_start = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When belt and suspenders enhanced evaluation started"
+    )
+    belt_and_suspenders_end = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When belt and suspenders enhanced evaluation ended"
+    )
+    belt_and_suspenders_duration_ms = models.IntegerField(
+        default=0,
+        help_text="Belt and suspenders evaluation duration in milliseconds"
+    )
+    
+    # Escalation tracking flags
+    advanced_escalation = models.BooleanField(
+        default=False,
+        help_text="Flag indicating if escalation to ADVANCED level occurred"
+    )
+    expert_escalation = models.BooleanField(
+        default=False,
+        help_text="Flag indicating if escalation to EXPERT level occurred"
+    )
+    
+    # New data fields
+    flags_activated = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Configuration flags from UI sidebar"
+    )
+    
+    lsh_similar_columns = models.TextField(
+        blank=True,
+        default="",
+        help_text="Similar columns found via LSH search"
+    )
+    
+    gold_sql_extracted = models.TextField(
+        blank=True,
+        default="",
+        help_text="Gold SQL examples extracted from vector database"
+    )
+    
+    evaluation_judgments = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Test-by-test judgments for each SQL candidate"
+    )
+    
+    reduced_tests = models.TextField(
+        blank=True,
+        default="",
+        help_text="Reduced/filtered test list if test reduction was performed"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

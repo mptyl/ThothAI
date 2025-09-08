@@ -20,7 +20,6 @@ from pydantic_ai import Agent
 from .agent_ai_model_factory import create_fallback_model
 from helpers.template_preparation import TemplateLoader, clean_template_for_llm
 from .agent_result_models import (
-    AskHumanResult,
     CheckQuestionResult,
     TranslationResult,
     ExtractKeywordsResult,
@@ -28,7 +27,6 @@ from .agent_result_models import (
     EvaluationResult,
     TestReducerResult,
     SqlSelectorResult,
-    EvaluatorSupervisorResult,
     SqlResponse
 )
 from model.sql_generation_deps import SqlGenerationDeps
@@ -38,89 +36,10 @@ from model.agent_dependencies import (
     ValidationDeps,
     TestGenerationDeps,
     TranslationDeps,
-    SqlExplanationDeps,
-    AskHumanDeps
+    SqlExplanationDeps
 )
 
 
-def get_database_null_handling_rules(db_type: str) -> str:
-    """
-    Generate database-specific NULL handling rules for SQL generation.
-    
-    Args:
-        db_type: Database type (sqlite, postgresql, mysql, mariadb, oracle, etc.)
-    
-    Returns:
-        String containing database-specific rules for NULL handling
-    """
-    if db_type == "sqlite":
-        return """
-## NULL HANDLING FOR SQLite
-
-**CRITICAL**: SQLite does NOT support NULLS FIRST/LAST syntax!
-- DO NOT use NULLS FIRST or NULLS LAST in any ORDER BY clause
-- SQLite handles NULLs automatically:
-  - In ASC order: NULLs appear first
-  - In DESC order: NULLs appear last
-- Using NULLS FIRST/LAST will cause a syntax error
-
-CORRECT SQLite examples:
-```sql
-SELECT * FROM table ORDER BY column ASC      -- Correct
-SELECT * FROM table ORDER BY column DESC     -- Correct
-```
-
-WRONG SQLite examples:
-```sql
-SELECT * FROM table ORDER BY column ASC NULLS LAST   -- SYNTAX ERROR!
-SELECT * FROM table ORDER BY column DESC NULLS FIRST -- SYNTAX ERROR!
-```
-"""
-    else:
-        # For PostgreSQL, MySQL, MariaDB, Oracle, etc.
-        return f"""
-## NULL HANDLING FOR {db_type.upper()}
-
-This database supports NULLS FIRST/LAST syntax in ORDER BY clauses.
-- With ASC order: use NULLS LAST (recommended)
-- With DESC order: use NULLS FIRST (recommended)
-- Each column in ORDER BY should have its own NULLS specification
-
-CORRECT {db_type} examples:
-```sql
-SELECT * FROM table ORDER BY column ASC NULLS LAST
-SELECT * FROM table ORDER BY column DESC NULLS FIRST
-SELECT * FROM table ORDER BY col1 ASC NULLS LAST, col2 DESC NULLS FIRST
-```
-"""
-
-
-def get_test_generation_null_rules(db_type: str) -> str:
-    """
-    Generate database-specific NULL testing rules for test generation.
-    
-    Args:
-        db_type: Database type (sqlite, postgresql, mysql, mariadb, oracle, etc.)
-    
-    Returns:
-        String containing database-specific rules for NULL testing
-    """
-    if db_type == "sqlite":
-        return """
-## TESTING RULES FOR SQLite
-
-- DO NOT test for NULLS FIRST/LAST clauses - SQLite doesn't support them
-- SQLite handles NULLs automatically, so tests should NOT fail if these clauses are missing
-- Focus on testing ORDER BY functionality without NULL position specifiers
-"""
-    else:
-        return f"""
-## TESTING RULES FOR {db_type.upper()}
-
-- Test that ORDER BY clauses include appropriate NULLS handling
-- Verify: ASC should have NULLS LAST, DESC should have NULLS FIRST
-- This is important for consistent NULL handling across queries
-"""
 
 
 class AgentInitializer:
@@ -164,7 +83,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_keywords')
+            system_prompt = TemplateLoader.load('system_templates/system_template_extract_keywords_from_question.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
             
@@ -223,7 +142,7 @@ class AgentInitializer:
         # The differentiation happens at the USER PROMPT level, not system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
             # Always use the same SQL generator system template
-            system_prompt = TemplateLoader.load('sys_sql_gen')
+            system_prompt = TemplateLoader.load('system_templates/system_template_generate_sql.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -281,7 +200,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_test_gen')
+            system_prompt = TemplateLoader.load('system_templates/system_template_test_generator.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -337,7 +256,7 @@ class AgentInitializer:
             return None
         
         # Always use the evaluator system template (not test generator template)
-        system_prompt = TemplateLoader.load('sys_evaluator')
+        system_prompt = TemplateLoader.load('system_templates/system_template_evaluate.txt')
         
         # Create validator for evaluator
         from agents.validators.test_validators import TestValidators
@@ -356,62 +275,6 @@ class AgentInitializer:
         # Add the validator using decorator pattern
         if evaluator_validator:
             agent.output_validator(evaluator_validator)
-        agent_type = agent_config.get("agent_type") if agent_config else None
-        if agent_type:
-            setattr(agent, "agent_type", agent_type)
-        return agent
-    
-    @staticmethod
-    def create_ask_human_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3, force_default_prompt: bool = False) -> Optional[Agent]:
-        """
-        Create an evaluation agent that can request human assistance when needed.
-        
-        This agent is responsible for evaluating complex situations or edge cases that
-        require human judgment or intervention. It uses a specialized prompt template
-        designed to formulate clear requests for human assistance and process the
-        responses appropriately.
-        
-        Args:
-            agent_config: Dictionary containing agent configuration parameters including
-                          model settings, name, and optional system prompt. Must include
-                          'name' key and AI model configuration.
-            default_model_config: Configuration for default fallback model from workspace
-            retries: Number of retry attempts the agent should make if initial evaluation
-                     fails. Default is 3 attempts.
-            force_default_prompt: If True, always use the default human assistance prompt
-                                  template regardless of whether a system_prompt is provided
-                                  in agent_config. Default is False.
-            
-        Returns:
-            Configured Agent instance ready for evaluation and human assistance tasks, or None if no valid configuration.
-        """
-        # Create model with fallback
-        model = create_fallback_model(agent_config, default_model_config)
-        if not model:
-            return None
-        
-        # Determina nome agent
-        if agent_config:
-            agent_name = agent_config['name']
-        elif default_model_config:
-            agent_name = f"Fallback Ask Human - {default_model_config.get('name', 'Default')}"
-        else:
-            return None
-        
-        # Determina system prompt
-        if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_ask_human')
-        else:
-            system_prompt = agent_config.get('system_prompt')
-        
-        agent = Agent(
-            model=model,
-            name=agent_name,
-            system_prompt=clean_template_for_llm(system_prompt),
-            output_type=AskHumanResult,
-            deps_type=AskHumanDeps,  # Use lightweight deps for ask human
-            retries=retries
-        )
         agent_type = agent_config.get("agent_type") if agent_config else None
         if agent_type:
             setattr(agent, "agent_type", agent_type)
@@ -456,7 +319,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_check_question')
+            system_prompt = TemplateLoader.load('system_templates/system_template_check_question.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -510,7 +373,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_translator')
+            system_prompt = TemplateLoader.load('system_templates/system_template_translate_question.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -565,7 +428,7 @@ class AgentInitializer:
         
         # Determina system prompt
         if force_default_prompt or not (agent_config and agent_config.get('system_prompt')):
-            system_prompt = TemplateLoader.load('sys_sql_explain')
+            system_prompt = TemplateLoader.load('system_templates/system_template_explain_generated_sql.txt')
         else:
             system_prompt = agent_config.get('system_prompt')
         
@@ -640,7 +503,7 @@ class AgentInitializer:
             return None
         
         # Always use the TestReducer system template
-        system_prompt = TemplateLoader.load('sys_test_reducer')
+        system_prompt = TemplateLoader.load('system_templates/system_template_test_reducer.txt')
         
         agent = Agent(
             model=model,
@@ -655,25 +518,27 @@ class AgentInitializer:
         if agent_type:
             setattr(agent, "agent_type", agent_type)
         return agent
-    
+
     @staticmethod
-    def create_sql_selector_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3) -> Optional[Agent]:
+    def create_sql_evaluator_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3) -> Optional[Agent]:
         """
-        Create a SqlSelector agent for choosing the best SQL from equivalent candidates.
+        Create a SqlEvaluator agent for Belt and Suspenders enhanced SQL selection.
         
-        This agent handles Case B in the 4-case evaluation system: when multiple 
-        SQL candidates have achieved 100% test pass rates, it selects the best one
-        based on quality criteria. It uses the same model configuration as the 
-        Evaluator for consistency.
+        This agent is used when belt_and_suspenders is enabled and evaluation results
+        are borderline (cases B or C). It analyzes SQL candidates with their failed test
+        details to select the best option using domain knowledge about SQL correctness.
+        
+        Uses the same model as TestEvaluator for consistency and leverages existing
+        sql_selector templates for proven selection logic.
         
         Args:
             agent_config: Dictionary containing agent configuration parameters,
-                         typically the same as the Evaluator's configuration
+                         typically the same as the TestEvaluator's configuration
             default_model_config: Configuration for default fallback model from workspace
             retries: Number of retry attempts for agent execution. Default is 3.
             
         Returns:
-            Configured SqlSelector Agent instance, or None if creation fails
+            Configured SqlEvaluator Agent instance, or None if creation fails
         """
         # Create model with fallback
         model = create_fallback_model(agent_config, default_model_config)
@@ -682,70 +547,21 @@ class AgentInitializer:
         
         # Determine agent name
         if agent_config:
-            agent_name = f"SqlSelector - {agent_config['name']}"
+            agent_name = f"SqlEvaluator - {agent_config['name']}"
         elif default_model_config:
-            agent_name = f"Fallback SqlSelector - {default_model_config.get('name', 'Default')}"
+            agent_name = f"Fallback SqlEvaluator - {default_model_config.get('name', 'Default')}"
         else:
             return None
         
-        # Always use the SqlSelector system template
-        system_prompt = TemplateLoader.load('sys_sql_selector')
+        # Use the existing sql_selector templates
+        system_prompt = TemplateLoader.load('system_templates/system_template_sql_selector.txt')
         
         agent = Agent(
             model=model,
             name=agent_name,
             system_prompt=clean_template_for_llm(system_prompt),
             output_type=SqlSelectorResult,
-            deps_type=EvaluatorDeps,  # Use same deps as Evaluator
-            retries=retries
-        )
-        
-        agent_type = agent_config.get("agent_type") if agent_config else None
-        if agent_type:
-            setattr(agent, "agent_type", agent_type)
-        return agent
-
-    @staticmethod
-    def create_evaluator_supervisor_agent(agent_config: Dict[str, Any], default_model_config: Dict[str, Any] = None, retries: int = 3) -> Optional[Agent]:
-        """
-        Create an EvaluatorSupervisor agent for deep reevaluation of borderline cases.
-        
-        This agent handles Case C in the 4-case evaluation system: when SQL candidates 
-        score 90-99%, it performs extended analysis (8000+ token thinking) to make final 
-        GOLD/FAILED decisions. It uses the same model configuration as the Evaluator 
-        for consistency.
-        
-        Args:
-            agent_config: Dictionary containing agent configuration parameters,
-                         typically the same as the Evaluator's configuration
-            default_model_config: Configuration for default fallback model from workspace
-            retries: Number of retry attempts for agent execution. Default is 3.
-            
-        Returns:
-            Configured EvaluatorSupervisor Agent instance, or None if creation fails
-        """
-        # Create model with fallback
-        model = create_fallback_model(agent_config, default_model_config)
-        if not model:
-            return None
-        
-        # Determine agent name
-        if agent_config:
-            agent_name = f"EvaluatorSupervisor - {agent_config['name']}"
-        elif default_model_config:
-            agent_name = f"Fallback EvaluatorSupervisor - {default_model_config.get('name', 'Default')}"
-        else:
-            return None
-        
-        # Always use the EvaluatorSupervisor system template
-        system_prompt = TemplateLoader.load('sys_evaluator_supervisor')
-        
-        agent = Agent(
-            model=model,
-            name=agent_name,
-            system_prompt=clean_template_for_llm(system_prompt),
-            output_type=EvaluatorSupervisorResult,
-            deps_type=EvaluatorDeps,  # Use same deps as Evaluator
+            deps_type=EvaluatorDeps,  # Use same deps as Evaluator for simplicity
             retries=retries
         )
         

@@ -52,7 +52,10 @@ class SqlGeneratorApiClient {
     // Request interceptor for logging
     this.client.interceptors.request.use(
       (config) => {
-        console.log(`SQL Generator API: ${config.method?.toUpperCase()} ${config.url}`);
+        // Debug logging in development only
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`SQL Generator API: ${config.method?.toUpperCase()} ${config.url}`);
+        }
         return config;
       },
       (error) => Promise.reject(error)
@@ -91,7 +94,10 @@ class SqlGeneratorApiClient {
     if (this.currentRequestId) {
       const cancelled = abortManager.abort(this.currentRequestId, 'User cancelled operation');
       this.currentRequestId = null;
-      console.log('[SqlGeneratorApiClient] Request cancelled:', cancelled);
+      // Debug logging in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[SqlGeneratorApiClient] Request cancelled:', cancelled);
+      }
       return cancelled;
     }
     return false;

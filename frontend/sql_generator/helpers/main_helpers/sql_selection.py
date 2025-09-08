@@ -9,8 +9,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
 SQL Selection module for choosing the best SQL from generated candidates
 based on evaluation results and complexity analysis.
@@ -19,8 +17,9 @@ based on evaluation results and complexity analysis.
 import logging
 import random
 import re
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Any
 from helpers.sql_complexity_analyzer import SQLComplexityAnalyzer
+from .belt_and_suspenders_selection import perform_belt_and_suspenders_selection
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +129,8 @@ def calculate_detailed_sql_scores(
         
         # Process test results for this SQL
         for test_idx, test_result in enumerate(test_results):
-            test_name = test_units[test_idx] if test_idx < len(test_units) else f"Test {test_idx + 1}"
+            # Always use Test number format since test_units is empty in new format
+            test_name = f"Test {test_idx + 1}"
             
             sql_scores[sql_idx]["total_tests"] += 1
             
@@ -138,7 +138,7 @@ def calculate_detailed_sql_scores(
                 sql_scores[sql_idx]["passed_count"] += 1
                 sql_scores[sql_idx]["test_details"].append((test_name, "OK"))
             else:
-                # Extract failure reason from "KO - reason"
+                # Extract failure reason from "KO - reason" or provide meaningful default
                 if " - " in test_result:
                     _, reason = test_result.split(" - ", 1)
                     # Keep the full test description but format it nicely
@@ -149,10 +149,24 @@ def calculate_detailed_sql_scores(
                         "reason": reason
                     })
                 else:
+                    # Provide a more meaningful default reason based on the test result
+                    if test_result.strip().upper() in ["ERROR", "KO", "FAIL", "FAILED"]:
+                        default_reason = "SQL does not conform to test requirements - validation failed without specific details"
+                    elif test_result.strip().upper() == "TIMEOUT":
+                        default_reason = "Test execution timed out - SQL may be too complex or contain infinite loops"
+                    elif test_result.strip().upper() == "SYNTAX_ERROR":
+                        default_reason = "SQL syntax error detected during test execution"
+                    elif test_result.strip():
+                        # If there's some text but no dash separator, use it as the reason
+                        default_reason = f"Test validation failed: {test_result.strip()}"
+                    else:
+                        # Empty or whitespace-only result
+                        default_reason = "SQL does not conform to test requirements - no evaluation details available"
+                    
                     sql_scores[sql_idx]["failure_reasons"].append({
                         "test_num": test_idx + 1,
                         "test_desc": test_name,
-                        "reason": "Test failed (no specific reason provided)"
+                        "reason": default_reason
                     })
                 sql_scores[sql_idx]["test_details"].append((test_name, test_result))
     
@@ -174,20 +188,12 @@ def calculate_detailed_sql_scores(
     return sql_scores
 
 
-# NOTE: Removed small_bug_fixer function
-# This function was automatically adding NULLS LAST/FIRST clauses that caused SQLite compatibility issues
-# NULLS LAST/FIRST handling is now done conditionally in SQL generation templates based on database type
-
-
-# NOTE: Removed fix_nulls_ordering function
-# This function was automatically adding NULLS LAST/FIRST clauses that caused SQLite compatibility issues
-# NULLS LAST/FIRST handling is now done conditionally in SQL generation templates based on database type
-
-
-def select_best_sql(
+async def select_best_sql(
     generated_sqls: List[str],
     evaluation_results,  # List[Tuple[str, List[str]]] (new format)
-    evaluation_threshold: int = 90  # Now an integer percentage from workspace
+    evaluation_threshold: int = 90,  # Now an integer percentage from workspace
+    state: Optional[Any] = None,  # SystemState for Belt and Suspenders
+    agents_and_tools: Optional[Any] = None  # Agent manager for Belt and Suspenders
 ) -> Tuple[bool, Optional[str], Optional[str], Dict]:
     """
     Select the best SQL from generated candidates based on evaluation results.
@@ -196,6 +202,8 @@ def select_best_sql(
         generated_sqls: List of generated SQL queries
         evaluation_results: Tuple (thinking, answers, test_units) with detailed evaluations
         evaluation_threshold: Minimum percentage of tests to pass (from workspace, 0-100)
+        state: SystemState for Belt and Suspenders functionality (optional)
+        agents_and_tools: Agent manager for Belt and Suspenders functionality (optional)
         
     Returns:
         Tuple of (success, selected_sql, error_message, metrics)
@@ -245,119 +253,155 @@ def select_best_sql(
         
         # IMPORTANT: Always include detailed scores in metrics for logging
         metrics["sql_scores"] = sql_scores
+        
+        # Check for Belt and Suspenders enhanced selection
+        belt_and_suspenders_enabled = False
+        if state and hasattr(state, 'workspace') and state.workspace:
+            belt_and_suspenders_enabled = state.workspace.get('belt_and_suspenders', False)
+        
+        if belt_and_suspenders_enabled and agents_and_tools:
+            # Check if this is a borderline case (B or C)
+            if is_borderline_case(sql_scores, min_pass_threshold):
+                logger.info("Belt and Suspenders enabled for borderline evaluation case")
+                
+                # Attempt Belt and Suspenders selection
+                try:
+                    from datetime import datetime
+                    
+                    # Record timing
+                    if hasattr(state, 'execution'):
+                        state.execution.belt_and_suspenders_start_time = datetime.now()
+                    
+                    # Perform Belt and Suspenders selection
+                    success, selected_sql, error_message, bs_metrics = await perform_belt_and_suspenders_selection(
+                        state, generated_sqls, evaluation_results, agents_and_tools
+                    )
+                    
+                    # Record end timing
+                    if hasattr(state, 'execution') and state.execution.belt_and_suspenders_start_time:
+                        end_time = datetime.now()
+                        state.execution.belt_and_suspenders_end_time = end_time
+                        duration_ms = (end_time - state.execution.belt_and_suspenders_start_time).total_seconds() * 1000
+                        state.execution.belt_and_suspenders_duration_ms = duration_ms
+                    
+                    if success and selected_sql:
+                        # Update metrics with Belt and Suspenders results
+                        metrics.update(bs_metrics)
+                        metrics["selection_reason"] = bs_metrics.get("selection_reason", "Belt and Suspenders selection")
+                        logger.info("Belt and Suspenders selection completed successfully")
+                        return True, selected_sql, None, metrics
+                    else:
+                        logger.warning(f"Belt and Suspenders selection failed: {error_message}")
+                        # Continue with regular selection as fallback
+                        
+                except Exception as e:
+                    logger.error(f"Belt and Suspenders selection error: {str(e)}")
+                    # Continue with regular selection as fallback
+                    
+        else:
+            if belt_and_suspenders_enabled:
+                logger.debug("Belt and Suspenders enabled but agents_and_tools not available")
+            else:
+                logger.debug("Belt and Suspenders not enabled for this workspace")
         # test_units is not available in the new format
         if test_units:
             metrics["test_units"] = test_units  # Include test descriptions if available
         
-        # Find finalists (100% pass rate)
-        finalists = [s for s in sql_scores if s["pass_rate"] >= 1.0]
-        metrics["finalists"] = finalists
+        # Find SQLs above threshold and determine the best pass rate among them
+        candidates_above_threshold = [s for s in sql_scores if s["pass_rate"] >= min_pass_threshold]
         
-        # If we have finalists with 100% pass rate
-        if finalists:
+        if not candidates_above_threshold:
+            # No SQL meets the threshold - return formatted error message
+            # This will be handled below at line 336
+            pass
+        else:
+            # Sort by pass rate descending to find the best rate
+            candidates_above_threshold.sort(key=lambda x: x["pass_rate"], reverse=True)
+            best_rate = candidates_above_threshold[0]["pass_rate"]
+            
+            # Find all SQLs with the best pass rate (these are the true "finalists")
+            finalists = [s for s in candidates_above_threshold if s["pass_rate"] == best_rate]
+            metrics["finalists"] = finalists
+            
             if len(finalists) == 1:
-                # Single finalist - select it
+                # Single finalist - select it directly
                 selected_idx = finalists[0]["sql_index"]
                 selected_sql = generated_sqls[selected_idx]
-                metrics["selection_reason"] = "Single SQL with 100% pass rate"
-                logger.info(f"Selected SQL #{selected_idx + 1} - only finalist with 100% pass rate")
+                pass_rate = finalists[0]["pass_rate"]
+                if pass_rate == 1.0:
+                    metrics["selection_reason"] = "Single SQL with 100% pass rate"
+                    logger.info(f"Selected SQL #{selected_idx + 1} - only SQL with 100% pass rate")
+                else:
+                    metrics["selection_reason"] = f"Single best SQL with {pass_rate:.1%} pass rate"
+                    logger.info(f"Selected SQL #{selected_idx + 1} with highest pass rate {pass_rate:.1%}")
                 return True, selected_sql, None, metrics
             else:
-                # Multiple finalists - select the simplest
+                # Multiple finalists with same best pass rate - select the simplest
                 selected_sql = select_simplest_sql(
                     generated_sqls, 
                     [f["sql_index"] for f in finalists]
                 )
                 if selected_sql:
-                    metrics["selection_reason"] = "Simplest among multiple 100% pass finalists"
-                    logger.info(f"Selected simplest SQL from {len(finalists)} finalists")
+                    pass_rate = finalists[0]["pass_rate"]
+                    if pass_rate == 1.0:
+                        metrics["selection_reason"] = "Simplest among multiple 100% pass finalists"
+                        logger.info(f"Selected simplest SQL from {len(finalists)} SQLs with 100% pass rate")
+                    else:
+                        metrics["selection_reason"] = f"Simplest among {len(finalists)} SQLs with {pass_rate:.1%} pass rate"
+                        logger.info(f"Selected simplest SQL from {len(finalists)} SQLs with best pass rate {pass_rate:.1%}")
                     return True, selected_sql, None, metrics
                 else:
                     # Fallback: if select_simplest_sql fails, select the first finalist
                     selected_idx = finalists[0]["sql_index"]
                     selected_sql = generated_sqls[selected_idx]
-                    metrics["selection_reason"] = "First among multiple 100% pass finalists (complexity analysis failed)"
-                    logger.warning(f"Complexity analysis failed, selected first finalist SQL #{selected_idx + 1}")
+                    pass_rate = finalists[0]["pass_rate"]
+                    if pass_rate == 1.0:
+                        metrics["selection_reason"] = "First among multiple 100% pass finalists (complexity analysis failed)"
+                        logger.warning(f"Complexity analysis failed, selected first SQL #{selected_idx + 1} with 100% pass rate")
+                    else:
+                        metrics["selection_reason"] = f"First SQL with {pass_rate:.1%} pass rate (complexity analysis failed)"
+                        logger.warning(f"Complexity analysis failed, selected first SQL #{selected_idx + 1} with {pass_rate:.1%} pass rate")
                     return True, selected_sql, None, metrics
         
-        # No 100% pass rate - check if any SQL meets the threshold
-        candidates_above_threshold = [s for s in sql_scores if s["pass_rate"] >= min_pass_threshold]
+        # If we reach here, no SQL meets the threshold - return formatted error message
+        # Log detailed test results for Django
+        logger.warning(f"No SQL met the {evaluation_threshold}% threshold")
         
-        if candidates_above_threshold:
-            # Sort by pass rate descending
-            candidates_above_threshold.sort(key=lambda x: x["pass_rate"], reverse=True)
-            best_rate = candidates_above_threshold[0]["pass_rate"]
+        # Log complete evaluation details for each SQL
+        logger.info("=== DETAILED EVALUATION RESULTS ===")
+        for score in sql_scores:
+            sql_idx = score['sql_index']
+            logger.info(f"SQL #{sql_idx + 1}: {score['passed_count']}/{score['total_tests']} tests passed ({score['pass_rate']:.1%})")
             
-            # Find all SQLs with the best pass rate
-            best_performers = [s for s in candidates_above_threshold if s["pass_rate"] == best_rate]
+            # Log the actual SQL if available
+            if generated_sqls and sql_idx < len(generated_sqls):
+                logger.info(f"SQL #{sql_idx + 1} Query:")
+                logger.info(generated_sqls[sql_idx])
             
-            if len(best_performers) == 1:
-                # Single best performer
-                selected_idx = best_performers[0]["sql_index"]
-                selected_sql = generated_sqls[selected_idx]
-                pass_rate = best_performers[0]["pass_rate"]
-                metrics["selection_reason"] = f"Highest pass rate: {pass_rate:.1%}"
-                logger.info(f"Selected SQL #{selected_idx + 1} with {pass_rate:.1%} pass rate")
-                return True, selected_sql, None, metrics
-            else:
-                # Multiple SQLs with same pass rate - select simplest
-                selected_sql = select_simplest_sql(
-                    generated_sqls,
-                    [f["sql_index"] for f in best_performers]
-                )
-                if selected_sql:
-                    pass_rate = best_performers[0]["pass_rate"]
-                    metrics["selection_reason"] = f"Simplest among SQLs with {pass_rate:.1%} pass rate"
-                    logger.info(f"Selected simplest SQL from {len(best_performers)} with {pass_rate:.1%} pass rate")
-                    return True, selected_sql, None, metrics
-                else:
-                    # Fallback: if select_simplest_sql fails, select the first best performer
-                    selected_idx = best_performers[0]["sql_index"]
-                    selected_sql = generated_sqls[selected_idx]
-                    pass_rate = best_performers[0]["pass_rate"]
-                    metrics["selection_reason"] = f"First SQL with {pass_rate:.1%} pass rate (complexity analysis failed)"
-                    logger.warning(f"Complexity analysis failed, selected first SQL #{selected_idx + 1} with {pass_rate:.1%} pass rate")
-                    return True, selected_sql, None, metrics
-        else:
-            # No SQL meets the threshold - return formatted error message
-            # Log detailed test results for Django
-            logger.warning(f"No SQL met the {evaluation_threshold}% threshold")
-            
-            # Log complete evaluation details for each SQL
-            logger.info("=== DETAILED EVALUATION RESULTS ===")
-            for score in sql_scores:
-                sql_idx = score['sql_index']
-                logger.info(f"SQL #{sql_idx + 1}: {score['passed_count']}/{score['total_tests']} tests passed ({score['pass_rate']:.1%})")
-                
-                # Log the actual SQL if available
-                if generated_sqls and sql_idx < len(generated_sqls):
-                    logger.info(f"SQL #{sql_idx + 1} Query:")
-                    logger.info(generated_sqls[sql_idx])
-                
-                # Log all failed tests with details
-                if score['failure_reasons']:
-                    logger.info(f"Failed tests for SQL #{sql_idx + 1}:")
-                    for failure in score['failure_reasons']:
-                        if isinstance(failure, dict):
-                            logger.info(f"  Test {failure['test_num']}: {failure['test_desc']}")
-                            logger.info(f"    Reason: {failure['reason']}")
-                        else:
-                            logger.info(f"  {failure}")
-            
-            # Log all test units that were evaluated
-            if test_units:
-                logger.info("=== ALL TEST CRITERIA EVALUATED ===")
-                for idx, test_unit in enumerate(test_units, 1):
-                    logger.info(f"Test {idx}: {test_unit}")
-            
-            logger.info("=== END DETAILED EVALUATION ===")
-            
-            # Format user-friendly message (without test details)
-            error_msg = format_failure_message(sql_scores, evaluation_threshold, test_units, 
-                                              generated_sqls=generated_sqls)
-            # IMPORTANT: Still include all metrics for logging purposes
-            metrics["selection_reason"] = f"No SQL met the {evaluation_threshold}% threshold"
-            return False, None, error_msg, metrics
+            # Log all failed tests with details
+            if score['failure_reasons']:
+                logger.info(f"Failed tests for SQL #{sql_idx + 1}:")
+                for failure in score['failure_reasons']:
+                    if isinstance(failure, dict):
+                        logger.info(f"  Test {failure['test_num']}: {failure['test_desc']}")
+                        logger.info(f"    Reason: {failure['reason']}")
+                    else:
+                        logger.info(f"  {failure}")
+        
+        # Log all test units that were evaluated
+        if test_units:
+            logger.info("=== ALL TEST CRITERIA EVALUATED ===")
+            for idx, test_unit in enumerate(test_units, 1):
+                logger.info(f"Test {idx}: {test_unit}")
+        
+        logger.info("=== END DETAILED EVALUATION ===")
+        
+        # Format user-friendly message (without test details)
+        error_msg = format_failure_message(sql_scores, evaluation_threshold, test_units, 
+                                          generated_sqls=generated_sqls)
+        # IMPORTANT: Still include all metrics for logging purposes
+        metrics["selection_reason"] = f"No SQL met the {evaluation_threshold}% threshold"
+        return False, None, error_msg, metrics
     else:
         # Invalid format
         error_msg = "Invalid evaluation results format"
@@ -464,6 +508,47 @@ def find_finalists(sql_scores: List[Dict], threshold: float) -> List[Dict]:
     
     logger.info(f"Found {len(finalists)} SQLs with pass rate >= {threshold:.0%}")
     return finalists
+
+
+def is_borderline_case(sql_scores: List[Dict], min_pass_threshold: float) -> bool:
+    """
+    Determine if evaluation results represent a borderline case requiring SQL selector.
+    
+    Following the intended logic:
+    - Case A (single SQL): No selection needed
+    - Case B (multiple SQLs): SQL selector needed  
+    - Case C (no SQL >= threshold): No selection possible
+    
+    Args:
+        sql_scores: List of SQL score dictionaries with pass rates
+        min_pass_threshold: Minimum pass rate threshold (0.0 to 1.0)
+        
+    Returns:
+        True if SQL selector should be activated (Case B scenarios only)
+    """
+    # Find SQLs above threshold
+    candidates_above_threshold = [s for s in sql_scores if s["pass_rate"] >= min_pass_threshold]
+    
+    if not candidates_above_threshold:
+        return False  # Case C-FAILED - no selection possible
+    
+    # Find perfect SQLs (100% pass rate)
+    perfect_sqls = [s for s in candidates_above_threshold if s["pass_rate"] >= 1.0]
+    
+    # Case B-GOLD: Multiple perfect SQLs → SQL selector needed
+    if len(perfect_sqls) > 1:
+        return True
+    
+    # Case A-GOLD: Single perfect SQL → direct selection, no SQL selector
+    if len(perfect_sqls) == 1:
+        return False
+        
+    # Case B-SILVER: Multiple above threshold (but not perfect) → SQL selector needed
+    if len(candidates_above_threshold) > 1:
+        return True
+        
+    # Case A-SILVER: Single above threshold → direct selection, no SQL selector
+    return False
 
 
 def select_simplest_sql(

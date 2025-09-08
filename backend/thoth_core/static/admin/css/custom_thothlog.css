@@ -1,0 +1,117 @@
+/* Copyright (c) 2025 Marco Pancotti
+ * This file is part of ThothAI and is released under the Apache 2.0.
+ * See the LICENSE.md file in the project root for full license information.
+ */
+
+/* Custom CSS for ThothLog Admin */
+
+/* Align all labels to the right and vertically align to top */
+.form-row label {
+    text-align: right !important;
+    padding-right: 10px !important;
+    vertical-align: top !important;
+    padding-top: 12px !important;
+    line-height: 1.5 !important;
+}
+
+/* Ensure proper alignment for fieldsets */
+fieldset .form-row label {
+    text-align: right !important;
+    padding-right: 10px !important;
+    vertical-align: top !important;
+}
+
+/* Fix alignment for readonly fields with expand buttons */
+.form-row .readonly {
+    display: inline-block !important;
+    vertical-align: top !important;
+    line-height: 1.5 !important;
+}
+
+/* Align expand/collapse buttons properly */
+.form-row details {
+    display: inline-block !important;
+    vertical-align: top !important;
+    margin: 0 !important;
+}
+
+.form-row details summary {
+    padding: 3px 10px !important;
+    margin: 0 !important;
+    vertical-align: middle !important;
+    line-height: 1.5 !important;
+    display: inline-block !important;
+}
+
+/* Specific styling for the main information section */
+fieldset:first-of-type .form-row label {
+    font-weight: bold;
+    text-align: right !important;
+}
+
+/* Ensure Question textarea has good width */
+#id_question {
+    width: 600px !important;
+}
+
+/* Fix field alignment for Django admin */
+.form-row > div {
+    display: inline-block !important;
+    vertical-align: top !important;
+}
+
+/* Ensure field boxes align properly with labels */
+.form-row .field-box {
+    display: inline-block !important;
+    vertical-align: top !important;
+}
+
+/* Special alignment for fields with expandable content */
+.field-formatted_keywords_list details,
+.field-lsh_similar_columns_display details,
+.field-formatted_schema_with_examples details,
+.field-formatted_schema_from_vector_db details,
+.field-formatted_used_mschema details {
+    margin-top: 0px !important;
+}
+
+/* Ensure consistent alignment across all field types */
+.form-row > div.readonly,
+.form-row > div > .readonly {
+    padding-top: 3px !important;
+    line-height: 1.5 !important;
+}
+
+/* Special styling for timing display field */
+.field-timing_display .readonly {
+    width: 100% !important;
+    display: block !important;
+}
+
+/* Special styling for user_workspace_display field */
+.field-user_workspace_display .readonly {
+    width: 100% !important;
+    display: block !important;
+}
+
+.field-user_workspace_display label {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+}
+
+/* Special styling for languages_display field */
+.field-languages_display .readonly {
+    width: 100% !important;
+    display: block !important;
+}
+
+.field-languages_display label {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+}
+
+/* Fix vertical alignment for directives field */
+.field-directives .readonly {
+    vertical-align: middle !important;
+    padding-top: 8px !important;
+}

@@ -134,34 +134,48 @@ class TestUnitGeneratorResult(BaseModel):
 class EvaluationResult(BaseModel):
     """Result type for the evaluator agent that evaluates SQL candidates against test units
     
-    Each answer contains a formatted string:
-    - "SQL #n: test1_result, test2_result, ..."
-    where each test_result is either "OK" or "KO - reason"
+    New format supports both:
+    - Single SQL evaluation: "Test #n: OK" or "Test #n: KO - reason"
+    - Aggregated format: "SQL #n: test1_result, test2_result, ..."
     """
     thinking: str
-    answers: List[str]  # Each item is formatted as "SQL #n: OK, KO - reason, OK, ..."
+    answers: List[str]  # Can be Test results or SQL verdicts
     
     @field_validator('answers', mode='before')
     @classmethod
     def parse_answers(cls, v):
         """Parse answers field, converting from string to list if needed."""
         if isinstance(v, str):
-            # Split by SQL # patterns
-            lines = re.split(r'(?=SQL #\d+:)', v)
-            cleaned = []
-            for line in lines:
-                line = line.strip()
-                if line and line.startswith('SQL #'):
-                    cleaned.append(line)
-            if cleaned:
-                return cleaned
-                
-            # Fallback: split by newlines if they contain SQL #
+            # Check if it's Test # format (new single SQL evaluation)
+            if 'Test #' in v:
+                # Split by Test # patterns
+                lines = re.split(r'(?=Test #\d+:)', v)
+                cleaned = []
+                for line in lines:
+                    line = line.strip()
+                    if line and line.startswith('Test #'):
+                        cleaned.append(line)
+                if cleaned:
+                    return cleaned
+            
+            # Check if it's SQL # format (aggregated format)
+            if 'SQL #' in v:
+                # Split by SQL # patterns
+                lines = re.split(r'(?=SQL #\d+:)', v)
+                cleaned = []
+                for line in lines:
+                    line = line.strip()
+                    if line and line.startswith('SQL #'):
+                        cleaned.append(line)
+                if cleaned:
+                    return cleaned
+            
+            # Fallback: split by newlines
             lines = v.split('\n')
             cleaned = []
             for line in lines:
                 line = line.strip()
-                if line and 'SQL #' in line:
+                if line and ('SQL #' in line or 'Test #' in line):
                     cleaned.append(line)
             if cleaned:
                 return cleaned
@@ -175,16 +189,11 @@ class EvaluationResult(BaseModel):
         return v
 
 
-class AskHumanResult(BaseModel):
-    activity_analysis: str 
-    human_help_request: str
-
-
 class EvaluationStatus(Enum):
     """Status for enhanced evaluation results"""
-    GOLD = "GOLD"  # SQL is selected as the best choice (Case A or B outcome)
-    FAILED = "FAILED"  # All SQLs failed evaluation (Case D outcome)
-    NEEDS_REEVALUATION = "NEEDS_REEVALUATION"  # Borderline case requiring supervisor (Case C)
+    GOLD = "GOLD"  # SQL is selected as the best choice with 100% pass rate
+    SILVER = "SILVER"  # SQL is selected but with pass rate above threshold but not 100%
+    FAILED = "FAILED"  # All SQLs failed evaluation (below threshold)
 
 
 class EnhancedEvaluationResult(BaseModel):
@@ -212,7 +221,6 @@ class EnhancedEvaluationResult(BaseModel):
     # Auxiliary agent results
     reduced_tests: Optional[List[str]] = None  # TestReducer output
     selector_reasoning: Optional[str] = None  # SqlSelector reasoning for Case B
-    supervisor_assessment: Optional[str] = None  # EvaluatorSupervisor deep analysis for Case C
     
     # Escalation context
     escalation_context: Optional[str] = None  # Context for next functionality level
@@ -238,12 +246,3 @@ class SqlSelectorResult(BaseModel):
     selected_index: int  # 0-based index of selected SQL
     comparison_details: str
     confidence_score: float = 0.0
-
-
-class EvaluatorSupervisorResult(BaseModel):
-    """Result from EvaluatorSupervisor for deep reevaluation of borderline cases"""
-    thinking: str  # Extended thinking (8000+ tokens)
-    final_decision: EvaluationStatus  # GOLD or FAILED
-    confidence_level: str  # "HIGH", "MEDIUM", "LOW"
-    detailed_assessment: str
-    recommended_sql_index: Optional[int] = None

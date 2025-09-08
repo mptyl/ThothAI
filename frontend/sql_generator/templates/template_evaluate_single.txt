@@ -1,0 +1,29 @@
+*** SQL Query to Evaluate: ***
+{SQL_QUERY}
+
+*** Tests to Apply: ***
+{UNIT_TESTS}
+
+You are evaluating if this SQL query passes each test listed above.
+
+For your thinking field:
+- Keep it extremely brief or leave empty.
+
+For your answers field:
+Provide a LIST of strings - one for EACH test.
+
+Each string must be formatted as:
+"Test #{number}: {result}"
+
+Where result is EXACTLY one of:
+- "OK" if the SQL passes that specific test
+- "KO - {brief_reason}" if the SQL fails that specific test
+
+Example for 3 tests:
+[
+  "Test #1: OK",
+  "Test #2: KO - missing WHERE clause", 
+  "Test #3: OK"
+]
+
+CRITICAL: You MUST provide exactly as many answer strings as there are tests.

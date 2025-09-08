@@ -104,10 +104,20 @@ uv run pytest tests/
 
 ## AI Workflow Components
 
-Located in `thoth_core/thoth_ai/thoth_workflow/`:
+### Backend AI Components
+Located in `thoth_core/thoth_ai/`:
 - **Agents**: PydanticAI-based agents for different workflow steps
 - **Tools**: Database interaction, query execution, result processing
 - **Utilities**: Helper functions for SQL generation and validation
+
+### SQL Generator Service
+Located in `frontend/sql_generator/`:
+- **FastAPI Service**: Separate service for SQL generation using PydanticAI agents
+- **Agent System**: Specialized agents for question validation, translation, keyword extraction, SQL generation, and evaluation
+- **Workflow**: 6-phase process for natural language to SQL conversion
+- **Main Endpoint**: `/generate-sql` for converting questions to SQL queries
+
+**Note**: The backend and SQL generator communicate via API calls. The backend manages workspaces and metadata, while the SQL generator handles the AI-powered SQL conversion.
 
 ## API Endpoints
 
@@ -118,8 +128,10 @@ Main API routes in:
 Key endpoints:
 - `/api/login/`: Authentication
 - `/api/workspaces/`: Workspace management
-- `/api/run-workflow/`: Execute AI query workflow
-- `/api/export-results/`: Export query results
+- `/api/preprocess/`: Data preprocessing and management
+- `/api/evidence/`: Evidence management for AI training
+- `/api/questions/`: Question/SQL pair management
+- `/api/columns/`: Database column information
 
 ## Important Notes
 

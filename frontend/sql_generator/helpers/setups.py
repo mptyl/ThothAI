@@ -13,23 +13,14 @@
 # Unless required by applicable law or agreed to in writing, software
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 """
-Setup utilities for SQL generator - MIGRATED TO CENTRALIZED EMBEDDING MANAGEMENT
+Setup utilities for SQL generator.
 
-This module previously contained SafeSentenceTransformer workaround for Docker issues.
-Now all embedding management is delegated to thoth-qdrant with native Qdrant integration.
-
-MIGRATION NOTES:
-- SafeSentenceTransformer REMOVED (was a Docker workaround)
-- build_embedding_function REMOVED (not needed with centralized management)
-- All embedding operations now go through thoth_qdrant VectorStoreInterface
+All embedding management is handled by thoth-qdrant with native Qdrant integration.
 """
 
 import logging
 
 logger = logging.getLogger(__name__)
-
-# This file is kept for potential future setup utilities
-# All embedding operations are now handled by thoth-qdrant v0.1.1+
 
 def get_setup_info():
     """Returns information about the current setup configuration."""
@@ -37,8 +28,7 @@ def get_setup_info():
         "embedding_management": "centralized",
         "library": "thoth-qdrant>=0.1.1",
         "multilingual_support": True,
-        "docker_native": True,
-        "workarounds": "none - removed SafeSentenceTransformer"
+        "docker_native": True
     }
 
 
