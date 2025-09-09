@@ -1,0 +1,45 @@
+/* ThothLog Admin minimal styles
+   Uses Django admin CSS variables to support light/dark themes */
+
+.thoth-collapsible {
+  border: 1px solid var(--hairline-color, #e0e0e0);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 5px 0;
+  background: var(--body-bg, #ffffff);
+  color: var(--body-fg, #333333);
+}
+
+.thoth-ul {
+  margin: 6px 0 0 18px;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.thoth-dl {
+  margin: 6px 0;
+}
+.thoth-dl dt {
+  font-weight: bold;
+  color: var(--body-fg, #333333);
+}
+.thoth-dl dd {
+  margin: 0 0 6px 16px;
+}
+
+.thoth-pre.readonly,
+pre.readonly.thoth-pre {
+  background: var(--darkened-bg, #f0f0f0);
+  color: var(--body-fg, #333333);
+  border: 1px solid var(--hairline-color, #e0e0e0);
+  padding: 8px;
+  border-radius: 4px;
+  overflow: auto;
+}
+
+/* Details/summary tweaks for better hit area */
+details.thoth-collapsible > summary {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 5px;
+}

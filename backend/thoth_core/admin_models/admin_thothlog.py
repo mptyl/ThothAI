@@ -71,6 +71,13 @@ class ThothLogAdmin(admin.ModelAdmin):
     ordering = ("-started_at",)
     actions = [export_csv]
 
+    class Media:
+        css = {
+            "all": (
+                "thoth_core/admin/thothlog.css",
+            )
+        }
+
     # All fields are read-only as requested
     readonly_fields = (
         "test_status_display",
@@ -277,14 +284,14 @@ class ThothLogAdmin(admin.ModelAdmin):
             data = ast.literal_eval(obj.pool_of_generated_sql)
             if isinstance(data, list):
                 html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
-                html_content += '<ol style="margin: 6px 0 0 18px;">'
+                html_content += '<ul style="margin: 6px 0 0 18px; list-style: disc;">'
                 for item in data:
                     sql_text = str(item)
                     display_sql = (
                         sql_text[:800] + "..." if len(sql_text) > 800 else sql_text
                     )
                     html_content += f'<li><pre class="readonly" style="white-space: pre-wrap;">{display_sql}</pre></li>'
-                html_content += "</ol>"
+                html_content += "</ul>"
                 html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.pool_of_generated_sql}</pre></details>'
                 html_content += "</div>"
                 # Close the wrapper
@@ -300,14 +307,14 @@ class ThothLogAdmin(admin.ModelAdmin):
             data = json.loads(obj.pool_of_generated_sql)
             if isinstance(data, list):
                 html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
-                html_content += '<ol style="margin: 6px 0 0 18px;">'
+                html_content += '<ul style="margin: 6px 0 0 18px; list-style: disc;">'
                 for item in data:
                     sql_text = str(item)
                     display_sql = (
                         sql_text[:800] + "..." if len(sql_text) > 800 else sql_text
                     )
                     html_content += f'<li><pre class="readonly" style="white-space: pre-wrap;">{display_sql}</pre></li>'
-                html_content += "</ol>"
+                html_content += "</ul>"
                 html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre></details>'
                 html_content += "</div>"
                 # Close the wrapper
@@ -371,14 +378,14 @@ class ThothLogAdmin(admin.ModelAdmin):
                 html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
                 html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Evidences (click to expand)</summary>'
                 html_content += '<div class="readonly" style="max-height: 400px; overflow-y: auto; margin-top: 10px; padding: 10px;">'
-                for i, evidence in enumerate(evidences, 1):
+                html_content += '<ul style="margin: 6px 0 0 18px; list-style: disc;">'
+                for evidence in evidences:
                     # Truncate long evidences for display
                     display_evidence = (
                         evidence[:200] + "..." if len(evidence) > 200 else evidence
                     )
-                    html_content += "<div>"
-                    html_content += f"<strong>{i}.</strong> {display_evidence}"
-                    html_content += "</div>"
+                    html_content += f"<li>{display_evidence}</li>"
+                html_content += "</ul>"
                 html_content += "</div>"
                 html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.evidences}</pre></details>'
                 html_content += "</details>"
@@ -410,19 +417,21 @@ class ThothLogAdmin(admin.ModelAdmin):
                 html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
                 html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Similar Questions (click to expand)</summary>'
                 html_content += '<div class="readonly" style="max-height: 400px; overflow-y: auto; font-size: 0.85em; line-height: 1.2; margin-top: 10px; padding: 10px;">'
-                for i, item in enumerate(questions, 1):
+                html_content += '<ul style="margin: 6px 0 0 18px; list-style: disc;">'
+                for item in questions:
                     if isinstance(item, dict):
                         # Extract question and sql from dictionary
                         question_text = item.get("question", "")
                         sql_text = item.get("sql", "")
                         description = item.get("description", "")
 
-                        html_content += '<div style="margin-bottom: 8px;">'
-                        html_content += f"<strong>{i}.</strong> <strong>Question:</strong> {question_text}<br>"
-                        html_content += f'<span style="margin-left: 15px;"><strong>SQL:</strong> {sql_text}</span>'
+                        html_content += '<li style="margin-bottom: 8px;">'
+                        html_content += f"<div><strong>Question:</strong> {question_text}</div>"
+                        if sql_text:
+                            html_content += f'<div style="margin-left: 15px;"><strong>SQL:</strong> {sql_text}</div>'
                         if description:
-                            html_content += f'<br><span style="margin-left: 15px;"><strong>Description:</strong> {description}</span>'
-                        html_content += "</div>"
+                            html_content += f'<div style="margin-left: 15px;"><strong>Description:</strong> {description}</div>'
+                        html_content += "</li>"
                     else:
                         # Fallback for non-dict items
                         display_question = (
@@ -430,9 +439,8 @@ class ThothLogAdmin(admin.ModelAdmin):
                             if len(str(item)) > 200
                             else str(item)
                         )
-                        html_content += '<div style="margin-bottom: 5px;">'
-                        html_content += f"<strong>{i}.</strong> {display_question}"
-                        html_content += "</div>"
+                        html_content += f'<li style="margin-bottom: 5px;">{display_question}</li>'
+                html_content += "</ul>"
                 html_content += "</div>"
                 html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.similar_questions}</pre></details>'
                 html_content += "</details>"
@@ -811,10 +819,10 @@ class ThothLogAdmin(admin.ModelAdmin):
                 # Simple list format (filtered tests)
                 html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
                 html_content += '<h4 style="margin: 10px 0;">Semantically Filtered Tests:</h4>'
-                html_content += '<ol style="margin-left: 20px;">'
+                html_content += '<ul style="margin-left: 20px; list-style: disc;">'
                 for test in data:
                     html_content += f'<li style="margin: 5px 0;">{test}</li>'
-                html_content += '</ol>'
+                html_content += '</ul>'
                 
                 # Show raw data
                 html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.generated_tests}</pre></details>'
@@ -1101,12 +1109,12 @@ class ThothLogAdmin(admin.ModelAdmin):
                 # Show the test units that were evaluated SECOND
                 if test_units:
                     html_content += '<p style="margin: 10px 0 5px 0;"><b>Test Units Applied:</b></p>'
-                    html_content += '<ol style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0);">'
+                    html_content += '<ul style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0); list-style: disc;">'
                     for test in test_units:
                         html_content += (
                             f'<li style="margin: 3px 0; font-size: 0.9em;">{test}</li>'
                         )
-                    html_content += "</ol>"
+                    html_content += "</ul>"
 
                 # Show analysis (first 300 chars)
                 if thinking:
@@ -1228,12 +1236,12 @@ class ThothLogAdmin(admin.ModelAdmin):
                 # Show the test units that were evaluated SECOND
                 if test_units:
                     html_content += '<p style="margin: 10px 0 5px 0;"><b>Test Units Applied:</b></p>'
-                    html_content += '<ol style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0);">'
+                    html_content += '<ul style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0); list-style: disc;">'
                     for test in test_units:
                         html_content += (
                             f'<li style="margin: 3px 0; font-size: 0.9em;">{test}</li>'
                         )
-                    html_content += "</ol>"
+                    html_content += "</ul>"
 
                 # Show analysis (first 300 chars)
                 if thinking:
@@ -1600,10 +1608,10 @@ class ThothLogAdmin(admin.ModelAdmin):
                 html_content += (
                     '<h5 style="margin: 15px 0 10px 0;">Test Units Applied:</h5>'
                 )
-                html_content += '<ol style="margin: 5px 0 0 20px; padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px; font-size: 0.9em;">'
+                html_content += '<ul style="margin: 5px 0 0 20px; padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px; font-size: 0.9em; list-style: disc;">'
                 for test in test_units:
                     html_content += f'<li style="margin: 3px 0;">{test}</li>'
-                html_content += "</ol>"
+                html_content += "</ul>"
 
             html_content += "</div>"
 
@@ -2342,13 +2350,13 @@ class ThothLogAdmin(admin.ModelAdmin):
             if isinstance(answers, str):
                 answers = json.loads(answers)
             
-            # Use Django admin standard styling - simple ordered list without custom colors
-            html_content = '<ol style="margin: 0; padding-left: 25px; list-style-type: decimal;">'
+            # Use Django admin standard styling - bullet list without custom colors
+            html_content = '<ul style="margin: 0; padding-left: 25px; list-style: disc;">'
             
             for answer in answers:
                 html_content += f'<li style="margin: 3px 0; font-family: monospace; font-size: 13px; color: var(--body-fg, #333); line-height: 1.4;">{format_html("{}", answer)}</li>'
             
-            html_content += '</ol>'
+            html_content += '</ul>'
             
             return mark_safe(html_content)
         except (json.JSONDecodeError, TypeError):
