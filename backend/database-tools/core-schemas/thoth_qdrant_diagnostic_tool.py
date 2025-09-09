@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Debug script to test the exact import path Django uses."""
+"""Diagnostic tool for thoth_qdrant library integration testing and troubleshooting.
+
+This script helps developers diagnose issues with thoth_qdrant library by:
+- Testing import paths and Django environment compatibility
+- Verifying VectorStoreFactory API availability
+- Checking method signatures and parameters
+- Inspecting library installation and module locations
+- Identifying connection issues and configuration problems
+
+Usage: python thoth_qdrant_diagnostic_tool.py
+"""
 
 import sys
 import os
@@ -21,7 +31,10 @@ import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings")
 
 # Add the project root to Python path (same as Django)
-sys.path.insert(0, "/Users/mp/DjangoExperimental/Thoth")
+import os
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent  # Go up three levels from core-schemas to backend root
+sys.path.insert(0, str(project_root))
 
 print("Python path:")
 for i, path in enumerate(sys.path[:5]):

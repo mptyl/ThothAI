@@ -1,47 +1,28 @@
-# Windows Installation Guide for ThothAI
+# Windows Installation Guide for ThothAI (WSL-based)
 
-This guide provides step-by-step instructions for installing ThothAI on Windows using Docker and WSL.
+This guide assumes you are on Windows with WSL 2 enabled and Docker Desktop configured to use the WSL backend. All shell commands that use `.sh` scripts should be run inside your WSL distribution. PowerShell commands (e.g., `install.ps1`) are run from Windows PowerShell.
 
 ## Prerequisites
 
-### 1. Install Required Software
+Ensure the following are already installed and configured on your system:
 
-#### Docker Desktop
-1. Download [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
-2. Install Docker Desktop with WSL 2 backend (recommended)
-3. After installation, ensure Docker is running (you'll see the whale icon in the system tray)
+- Windows Subsystem for Linux (WSL 2)
+- Docker Desktop for Windows with WSL 2 integration enabled
+- Git (Windows)
 
-#### Git for Windows
-1. Download [Git for Windows](https://git-scm.com/download/win)
-2. During installation, choose:
-   - **Line ending conversions**: "Checkout as-is, commit Unix-style line endings"
-   - This prevents issues with shell scripts in Docker containers
-
-#### WSL 2 (Windows Subsystem for Linux)
-1. Open PowerShell as Administrator and run:
-   ```powershell
-   wsl --install
-   ```
-2. Restart your computer if prompted
-3. Set WSL 2 as default:
-   ```powershell
-   wsl --set-default-version 2
-   ```
+Quick WSL setup (if needed):
+```powershell
+wsl --install
+wsl --set-default-version 2
+```
 
 ## Installation Steps
 
 ### Step 1: Clone the Repository
 
-**Option A: Using PowerShell (Recommended for Windows)**
+Use Windows PowerShell to clone the repository (so you can run `install.ps1`).
 ```powershell
 cd C:\Projects  # or your preferred directory
-git clone https://github.com/mptyl/ThothAI.git
-cd ThothAI
-```
-
-**Option B: Using WSL**
-```bash
-cd ~
 git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 ```
@@ -67,33 +48,32 @@ cd ThothAI
 
 The installer will:
 - Validate your configuration
-- Create necessary environment files
+- Create necessary environment files (including `.env.docker`)
 - Set up Docker networks and volumes
 - Build and start all services
 
-### Step 4: Prepare Docker Environment (For Subsequent Runs)
+Notes:
+- You can re-run `install.ps1` at any time, including after a `git pull`, to rebuild/restart services. This is the recommended update flow on Windows.
 
-After the initial installation, for subsequent runs:
+### Step 4: Optional preparation utilities
 
-1. **Prepare the environment:**
-   ```powershell
-   .\scripts\prepare-docker-env.ps1
-   ```
+These utilities can help if you are running Docker commands manually (without `install.ps1`) or if you encounter line-ending issues:
 
-2. **Fix line endings (critical on Windows):**
-   ```bash
-   # In WSL or Git Bash
-   ./scripts/prepare-docker-build.sh
-   ```
+- PowerShell: `./scripts/prepare-docker-env.ps1`
+  - Creates `.env.docker` if missing, prepares folders, and calls the build preparation script.
+- WSL bash: `./scripts/prepare-docker-build.sh`
+  - Converts CRLF to LF and makes scripts executable.
+
+If you use `install.ps1` for install and updates, you do not need to run these manually.
 
 ### Step 5: Start the Services
 
+If you used `install.ps1`, services are already started. To start manually:
 ```powershell
-# Build and start all services
-docker-compose up --build
+docker compose up --build
 
 # Or run in background
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ## Troubleshooting Common Windows Issues
@@ -104,9 +84,8 @@ docker-compose up -d --build
 
 **Solution**:
 ```bash
-# In WSL or Git Bash
-./scripts/fix-line-endings.sh
-docker-compose build --no-cache
+# In WSL
+./scripts/prepare-docker-build.sh
 ```
 
 ### Issue 2: Missing files during Docker build
@@ -114,9 +93,9 @@ docker-compose build --no-cache
 **Cause**: Files not synchronized to Git repository
 
 **Solution**:
-```bash
+```powershell
 git pull
-docker-compose build --no-cache
+.\install.ps1
 ```
 
 ### Issue 3: Services stuck during startup
@@ -131,10 +110,13 @@ docker-compose build --no-cache
 
 2. Fix and rebuild:
    ```bash
+   # In WSL
    ./scripts/prepare-docker-build.sh
-   docker-compose down
-   docker-compose build --no-cache
-   docker-compose up
+   ```
+   ```powershell
+   docker compose down
+   docker compose build --no-cache
+   docker compose up -d
    ```
 
 ### Issue 4: Port conflicts
@@ -159,7 +141,7 @@ Once running, access ThothAI at:
 
 Default credentials (if not changed in config.yml.local):
 - Username: `admin`
-- Password: `admin`
+- Password: `admin123`
 
 **⚠️ Important**: Change these credentials immediately after first login!
 
@@ -167,57 +149,48 @@ Default credentials (if not changed in config.yml.local):
 
 ### Starting ThothAI
 
-After initial installation, you can start ThothAI with:
+Preferred ways to start after the first installation:
 
 ```powershell
-# Quick start (if environment is already prepared)
-docker-compose up
+# Re-run installer (recommended, also after updates)
+.\install.ps1
 
-# Full preparation and start (recommended)
-.\scripts\prepare-docker-env.ps1
-docker-compose up --build
+# Or start directly
+docker compose up -d
 ```
 
 ### Stopping ThothAI
 
 ```powershell
 # Stop services
-docker-compose down
+docker compose down
 
 # Stop and remove volumes (careful - removes data!)
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Updating ThothAI
 
+The recommended update flow on Windows is:
 ```powershell
-# Pull latest changes
 git pull
-
-# Prepare environment for Windows
-.\scripts\prepare-docker-env.ps1
-
-# In WSL/Git Bash - fix line endings
-./scripts/prepare-docker-build.sh
-
-# Rebuild and start
-docker-compose build --no-cache
-docker-compose up
+.\install.ps1
 ```
+`install.ps1` can be used after the first installation and will handle rebuilding/restarting services as needed.
 
 ## Best Practices for Windows
 
-1. **Always use WSL or Git Bash** for running shell scripts
+1. **Always use WSL** for running shell scripts
 2. **Configure Git** to handle line endings correctly:
    ```bash
    git config --global core.autocrlf input
    ```
 
 3. **Store the project in WSL filesystem** for better performance:
-   - Clone to `\\wsl$\Ubuntu\home\username\projects\` instead of `C:\`
-   - Access in Windows Explorer via `\\wsl$`
+   - Clone to `\\wsl$\Ubuntu\home\username\projects\` when you primarily work from WSL
+   - Or keep under `C:\` if you primarily use PowerShell and `install.ps1`
 
-4. **Use PowerShell scripts** when provided (`.ps1` files)
+4. **Use PowerShell scripts** when provided (`.ps1` files). `install.ps1` can be re-run after `git pull`.
 
 5. **Monitor Docker resources**:
    - Docker Desktop → Settings → Resources
@@ -247,7 +220,7 @@ docker-compose up
    
    # Update if needed
    git pull
-   docker-compose build --no-cache
+   .\install.ps1
    ```
 
 ## Getting Help
@@ -280,13 +253,13 @@ If you encounter issues:
 
 | Task | Command |
 |------|---------|
-| First installation | `.\install.ps1` |
-| Prepare environment | `.\scripts\prepare-docker-env.ps1` |
-| Fix line endings | `./scripts/prepare-docker-build.sh` |
-| Start services | `docker-compose up --build` |
-| Stop services | `docker-compose down` |
-| View logs | `.\scripts\check-docker-logs.ps1` |
-| Rebuild everything | `docker-compose build --no-cache` |
+| First installation / Update | `./install.ps1` |
+| Optional prep (manual only) | `./scripts/prepare-docker-env.ps1` |
+| Fix line endings (WSL) | `./scripts/prepare-docker-build.sh` |
+| Start services | `docker compose up -d` |
+| Stop services | `docker compose down` |
+| View logs | `./scripts/check-docker-logs.ps1` |
+| Clean rebuild | `docker compose build --no-cache` |
 
 ### File Locations
 

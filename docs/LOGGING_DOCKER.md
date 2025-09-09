@@ -1,293 +1,292 @@
-# Gestione Log - Ambiente Docker
+# Log Management - Docker Environment
 
-## 📋 Panoramica
+## Overview
 
-In ambiente Docker, ThothAI implementa un sistema di logging avanzato che combina:
-- **Visibilità in tempo reale** tramite Docker Desktop e `docker logs`
-- **Persistenza su volume** per analisi e backup
-- **Pulizia automatica** tramite cron job
-- **Configurazione centralizzata** tramite variabili d'ambiente
+In a Docker environment, ThothAI implements a logging system that combines:
+- Real-time visibility via Docker Desktop and `docker logs`
+- Persistence on a volume for analysis and backup
+- Automatic cleanup via cron job
+- Centralized configuration via environment variables
 
-## 🏗️ Architettura del Sistema di Logging
+## Logging System Architecture
 
-### Doppio Output
+### Dual Output
 
-Tutti i servizi scrivono i log su due canali:
+Services write logs as follows:
 
-1. **Console (stdout/stderr)**: Per visibilità immediata in Docker Desktop
-2. **File su volume**: Per persistenza e pulizia automatica
+1. Console (stdout/stderr): All services (frontend, backend, sql-generator, proxy) emit logs to the console for immediate visibility in Docker Desktop.
+2. Files on a volume: Log persistence on the `thoth-logs` volume is enabled for the `thoth-backend` and `thoth-sql-generator` services, mounted at `/app/logs`. The frontend does not mount the logs volume and typically does not persist to files (stdout only), unless customized.
 
 ```yaml
-# docker-compose.yml
+# docker-compose.yml (excerpt)
+services:
+  backend:
+    container_name: thoth-backend
+    volumes:
+      - thoth-logs:/app/logs
+
+  sql-generator:
+    container_name: thoth-sql-generator
+    volumes:
+      - thoth-logs:/app/logs
+
 volumes:
-  thoth-logs:         # Volume condiviso per tutti i log
+  thoth-logs:
     name: thoth-logs
 ```
 
-### Struttura dei Log nel Container
+### Log Structure in the Container
 
 ```
-/app/logs/                       # Volume montato thoth-logs
-├── thoth.log                   # Log backend Django
-├── thoth.log.2024-01-15        # Log ruotati backend
-├── sql-generator.log            # Log SQL generator
-├── sql-generator.log.1          # Log ruotati SQL generator
-└── sql-generator-app.log        # Log applicazione
+/app/logs/                       # Mounted thoth-logs volume
+├── thoth.log                    # Backend Django log
+├── thoth.log.2025-09-07         # Rotated backend logs (daily)
+├── sql-generator.log            # SQL generator log
+├── sql-generator.log.1          # Rotated SQL generator logs
+└── sql-generator-app.log        # SQL generator application log
 ```
 
-## ⚙️ Configurazione
+## Configuration
 
-### Variabili d'Ambiente
+### Environment Variables
 
-Le variabili sono definite in `.env.docker` (generato automaticamente da `config.yml.local`):
+The variables are defined in `.env.docker` (you can start from `.env.docker.template` and parameters in `config.yml.local`):
 
 ```bash
-# Livello log backend
-BACKEND_LOGGING_LEVEL=INFO
+# Backend log level (template default: WARNING)
+BACKEND_LOGGING_LEVEL=WARNING
 
-# Livello log frontend e SQL generator
-FRONTEND_LOGGING_LEVEL=INFO
+# Frontend log level (template default: WARNING)
+FRONTEND_LOGGING_LEVEL=WARNING
 
-# Path database backend (isolato)
+# Generic log level
+LOGGING_LEVEL=WARNING
+
+# Backend database path (isolated)
 DB_NAME_DOCKER=/app/backend_db/db.sqlite3
 
-# Path dati utente
+# User data path
 DB_ROOT_PATH=/app/data
 ```
 
-### Livelli di Logging
+### Logging Levels
 
-- `DEBUG`: Informazioni dettagliate (alta verbosità)
-- `INFO`: Operazioni normali (default)
-- `WARNING`: Situazioni anomale ma gestibili
-- `ERROR`: Errori che non bloccano il sistema
-- `CRITICAL`: Errori critici del sistema
+- DEBUG: Detailed information (high verbosity)
+- INFO: Normal operations
+- WARNING: Abnormal but manageable situations (recommended default in production)
+- ERROR: Errors that do not stop the system
+- CRITICAL: Critical system errors
 
-## 🔄 Rotazione e Pulizia Automatica
+## Rotation and Automatic Cleanup
 
-### Sistema Cron Integrato
+### Integrated Cron System
 
-Il container backend include un cron job che esegue automaticamente la pulizia:
+The backend container includes a cron job that automatically performs cleanup:
 
 ```bash
-# Esecuzione ogni 6 ore
-0 */6 * * * python manage.py cleanup_logs
+# Runs every 6 hours (logging to /var/log/cron.log)
+0 */6 * * * cd /app && python manage.py cleanup_logs >> /var/log/cron.log 2>&1
 ```
 
-### Politica di Retention
+### Retention Policy
 
-- **Compressione**: Non utilizzata in Docker (spazio su volume)
-- **Rimozione**: Log più vecchi di 7 giorni (configurabile)
-- **Pattern gestiti**:
+- Compression: Not used in Docker (volume storage)
+- Removal: By default, logs older than 30 days (configurable with `--days`)
+- Patterns handled by the `manage.py cleanup_logs` command:
   - `thoth.log.*` (backend)
   - `sql-generator.log.*` (SQL generator)
-  - `*.log.gz` (eventuali compressi)
+  - `sql-generator-app.log.*` (SQL generator app)
+  - `*.log.*` (other rotated logs)
+  - `*.log.gz` (compressed logs, if any)
 
-## 📊 Monitoraggio dei Log
+## Log Monitoring
 
-### Visualizzazione in Tempo Reale
+### Real-time Viewing
 
 ```bash
-# Log del backend
-docker logs -f backend
+# Backend logs
+docker logs -f thoth-backend
 
-# Log del SQL generator
-docker logs -f sql-generator
+# SQL generator logs
+docker logs -f thoth-sql-generator
 
-# Ultimi 100 log con timestamp
-docker logs --tail 100 -t backend
+# Frontend logs
+docker logs -f thoth-frontend
 
-# Log da un momento specifico
-docker logs --since 2h backend  # Ultimi 2 ore
+# Last 100 log lines with timestamp
+docker logs --tail 100 -t thoth-backend
+
+# Logs since a specific time
+docker logs --since 2h thoth-backend  # Last 2 hours
 ```
 
-### Accesso ai File di Log
+### Accessing Log Files
 
 ```bash
-# Esegui shell nel container
-docker exec -it backend bash
+# Start a shell in the backend container
+docker exec -it thoth-backend bash
 cd /app/logs
 tail -f thoth.log
 
-# Copia log sul host
-docker cp backend:/app/logs/thoth.log ./thoth-backup.log
+# Copy log to the host
+docker cp thoth-backend:/app/logs/thoth.log ./thoth-backup.log
 
-# Visualizza direttamente dal host
-docker exec backend tail -n 100 /app/logs/thoth.log
+# View directly from the host
+docker exec thoth-backend tail -n 100 /app/logs/thoth.log
 ```
 
-## 🧹 Gestione Manuale
+## Manual Management
 
-### Pulizia Manuale
+### Manual Cleanup
 
-Se necessario, puoi eseguire la pulizia manualmente:
+If needed, you can run cleanup manually:
 
 ```bash
-# Esegui comando di pulizia
-docker exec backend python manage.py cleanup_logs
+# Run the cleanup command
+docker exec thoth-backend python manage.py cleanup_logs
 
-# Con parametri personalizzati
-docker exec backend python manage.py cleanup_logs --days 3
+# With custom parameters
+docker exec thoth-backend python manage.py cleanup_logs --days 3
 
-# Modalità dry-run
-docker exec backend python manage.py cleanup_logs --dry-run
+# Dry-run mode
+docker exec thoth-backend python manage.py cleanup_logs --dry-run
 ```
 
-### Backup dei Log
+### Log Backup
 
-Per salvare i log prima di una pulizia o per analisi:
+To save logs before cleanup or for analysis:
 
 ```bash
-# Backup completo della directory log
-docker cp backend:/app/logs ./backup-logs-$(date +%Y%m%d)
+# Full backup of the log directory
+docker cp thoth-backend:/app/logs ./backup-logs-$(date +%Y%m%d)
 
-# Backup specifico file
-docker cp backend:/app/logs/thoth.log ./thoth-$(date +%Y%m%d).log
+# Specific file backup
+docker cp thoth-backend:/app/logs/thoth.log ./thoth-$(date +%Y%m%d).log
 ```
 
-## 🔍 Docker Desktop
+## Docker Desktop
 
-### Visualizzazione in Docker Desktop
+### Viewing in Docker Desktop
 
-1. Apri Docker Desktop
-2. Vai alla sezione "Containers"
-3. Clicca sul container desiderato (backend, sql-generator)
-4. Tab "Logs" mostra l'output in tempo reale
+1. Open Docker Desktop
+2. Go to the “Containers” section
+3. Click the desired container (`thoth-backend`, `thoth-sql-generator`, `thoth-frontend`, `thoth-proxy`)
+4. The “Logs” tab shows real-time output
 
-### Funzionalità Docker Desktop
+### Docker Desktop Features
 
-- **Ricerca**: Usa Ctrl+F per cercare nei log
-- **Download**: Esporta i log visibili
-- **Clear**: Pulisce la visualizzazione (non cancella i file)
-- **Auto-scroll**: Segue automaticamente i nuovi log
+- Search: Use Ctrl+F to search within logs
+- Download: Export visible logs
+- Clear: Clears the view (does not delete files)
+- Auto-scroll: Automatically follows new logs
 
-## 📈 Metriche e Statistiche
-
-### Controllo Spazio Volume
+## Metrics and Statistics
 
 ```bash
-# Dimensione del volume logs
+# Logs volume size
 docker volume inspect thoth-logs | grep -A 5 "UsageData"
 
-# Spazio utilizzato nel container
-docker exec backend du -sh /app/logs
+# Space used in the backend container
+docker exec thoth-backend du -sh /app/logs
 
-# Dettaglio per file
-docker exec backend ls -lah /app/logs
+# File details
+docker exec thoth-backend ls -lah /app/logs
 ```
 
-### Analisi Log
+### Log Analysis
 
 ```bash
-# Conta errori nelle ultime 24 ore
-docker exec backend grep -c "ERROR" /app/logs/thoth.log
+# Count errors in the last 24 hours
+docker exec thoth-backend grep -c "ERROR" /app/logs/thoth.log
 
-# Analizza pattern di errori
-docker exec backend grep "ERROR" /app/logs/thoth.log | tail -20
+# Analyze error patterns
+docker exec thoth-backend grep "ERROR" /app/logs/thoth.log | tail -20
 
-# Statistiche SQL generator
-docker exec sql-generator wc -l /app/logs/sql-generator.log
+# SQL generator statistics
+docker exec thoth-sql-generator wc -l /app/logs/sql-generator.log
 ```
 
-## ⚠️ Best Practices
+## Best Practices
 
-### Produzione
+### Production
 
-1. **Mantieni INFO come livello default**: Bilanciamento tra dettaglio e performance
-2. **Monitora lo spazio del volume**: I volumi Docker hanno limiti
-3. **Backup regolari**: Esporta log importanti prima della pulizia
-4. **Centralizzazione**: Considera log aggregation per deployment multi-nodo
+1. Keep WARNING as the default level: Balance between detail and performance
+2. Monitor volume space: Docker volumes have limits
+3. Regular backups: Export important logs before cleanup
+4. Centralization: Consider log aggregation for multi-node deployments
 
 ### Troubleshooting
 
-1. **Aumenta temporaneamente il livello**:
+1. Temporarily increase the level:
    ```bash
-   # Modifica .env.docker
-   BACKEND_LOGGING_LEVEL=DEBUG
-   # Riavvia container
-   docker-compose restart backend
-   ```
+# Edit .env.docker
+BACKEND_LOGGING_LEVEL=DEBUG
+# Restart the backend service (docker compose uses the service name)
+docker compose restart backend
+```
 
-2. **Analisi post-mortem**:
+2. Post-mortem analysis:
    ```bash
-   # Salva log per analisi
-   docker logs backend > backend-crash.log 2>&1
-   ```
+# Save logs for analysis
+docker logs thoth-backend > backend-crash.log 2>&1
+```
 
-## 🛠️ Risoluzione Problemi
+## Troubleshooting
 
-### Log non visibili in Docker Desktop
+### Logs not visible in Docker Desktop
 
-Se i log non appaiono in Docker Desktop:
+If logs do not appear in Docker Desktop:
 
-1. Verifica che il servizio scriva su stdout:
+1. Verify the service writes to stdout:
    ```bash
-   docker exec backend ps aux | grep python
-   ```
+docker exec thoth-backend ps aux | grep python
+```
 
-2. Controlla la configurazione del logging:
+2. Check the logging configuration:
    ```bash
-   docker exec backend env | grep LOGGING
-   ```
+docker exec thoth-backend env | grep LOGGING
+```
 
-### Volume pieno
+### Volume full
 
-Se il volume dei log è pieno:
+If the logs volume is full:
 
-1. Pulizia immediata:
+1. Immediate cleanup:
    ```bash
-   docker exec backend python manage.py cleanup_logs --days 1
-   ```
+docker exec thoth-backend python manage.py cleanup_logs --days 1
+```
 
-2. Ricrea il volume (perdita dati):
+2. Recreate the volume (data loss):
    ```bash
-   docker-compose down
-   docker volume rm thoth-logs
-   docker-compose up -d
-   ```
+docker compose down
+docker volume rm thoth-logs
+docker compose up -d
+```
 
-### Cron non funzionante
+### Cron not working
 
-Se la pulizia automatica non funziona:
+If automatic cleanup doesn’t work:
 
-1. Verifica cron attivo:
+1. Check that cron is active:
    ```bash
-   docker exec backend service cron status
-   ```
+docker exec thoth-backend service cron status
+```
 
-2. Controlla crontab:
+2. Check crontab:
    ```bash
-   docker exec backend crontab -l
-   ```
+docker exec thoth-backend crontab -l
+```
 
-3. Verifica log di cron:
+3. Check cron logs:
    ```bash
-   docker exec backend cat /var/log/cron.log
-   ```
+docker exec thoth-backend cat /var/log/cron.log
+```
 
-## 🔐 Sicurezza
+## Security
 
-### Protezione dei Log
+### Log Protection
 
-1. **Non esporre il volume logs** pubblicamente
-2. **Sanitizza i log** prima di condividerli (rimuovi API keys, password)
-3. **Limita l'accesso** al volume in produzione
-4. **Cripta i backup** dei log sensibili
-
-### Compliance
-
-Per ambienti regolamentati:
-
-1. **Retention policy**: Configura secondo i requisiti normativi
-2. **Audit trail**: I log possono contenere dati di audit
-3. **Data residency**: Assicurati che i volumi rispettino i requisiti geografici
-
-## 📝 Note Finali
-
-Il sistema di logging Docker di ThothAI è progettato per:
-- **Semplicità**: Visibilità immediata senza configurazioni complesse
-- **Affidabilità**: Persistenza su volume con pulizia automatica
-- **Flessibilità**: Configurabile per diversi ambienti
-- **Performance**: Minimo impatto sulle prestazioni del sistema
-
-Per deployment enterprise, considera l'integrazione con stack di logging dedicati come ELK o Splunk.
+1. Do not expose the logs volume publicly
+2. Sanitize logs before sharing (remove API keys, passwords)
+3. Restrict access to the volume in production
+4. Encrypt backups of sensitive logs

@@ -18,6 +18,8 @@ Full documentation is available at: [https://thoth-ai.readthedocs.io](https://th
 
 ### Docker Installation (Recommended)
 
+For the complete step-by-step guide, see: [Docker Installation Guide](docs/DOCKER_INSTALLATION.md). On Windows, refer also to [Windows Installation (WSL-based)](docs/WINDOWS_INSTALLATION.md).
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/mptyl/ThothAI.git
@@ -28,10 +30,11 @@ cp config.yml.template config.yml.local
 # Edit config.yml.local with your API keys and configuration
 
 # 3. Run the installer
-./install.sh
+./install.sh   # Linux/macOS
+# Windows PowerShell: .\install.ps1
 
-# 4. Start all services
-docker-compose up -d
+# 4. Start all services (if not already started by installer)
+docker compose up -d
 
 # 5. Access the application
 # Frontend: http://localhost:3040
@@ -65,7 +68,7 @@ export DB_ROOT_PATH=/absolute/path/to/your/dev_databases  # Directory containing
 
 ## 📋 Prerequisites
 
-- Docker & Docker Compose (for Docker installation)
+- Docker & Docker Compose v2 (for Docker installation)
 - Python 3.13+ with uv (for local development)
 - At least one LLM API key (OpenAI, Gemini, or Anthropic)
 - 4GB RAM minimum
@@ -130,7 +133,7 @@ frontend/
 
 ### Docker Environment
 - **Centralized**: All logs collected via Docker logging driver
-- **Access**: `docker-compose logs [service-name]`
+- **Access**: `docker compose logs [service-name]`
 - **Persistence**: Logs maintained by Docker daemon
 - **Rotation**: Automatic based on Docker configuration
 
@@ -294,10 +297,10 @@ Il progetto usa `uv` per gestire Python in modo consistente:
 
 ```bash
 # Build multi-architecture image
-./scripts/build-unified.sh v1.0.0
+docker compose build --pull --no-cache
 
 # Build locally
-docker-compose build
+docker compose build
 ```
 
 ### Docker Hub Publishing

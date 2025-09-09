@@ -1,149 +1,149 @@
-# Gestione Log - Sviluppo Locale
+# Log Management - Local Development
 
-## 📋 Panoramica
+## Overview
 
-Durante lo sviluppo locale, ThothAI genera log per tutti i servizi principali. La gestione dei log è ottimizzata per fornire informazioni dettagliate durante il debug mantenendo sotto controllo lo spazio su disco.
+During local development, ThothAI generates logs for all main services. Log management is optimized to provide detailed insight during debugging while keeping disk space under control.
 
-## 📁 Struttura dei Log
+## Log Structure
 
-I log vengono salvati in diverse directory in base al servizio:
+Logs are saved in different directories depending on the service:
 
 ```
 ThothAI/
 ├── backend/
 │   └── logs/
-│       └── thoth.log          # Log del backend Django
+│       └── thoth.log          # Backend Django log
 ├── frontend/
 │   └── sql_generator/
 │       └── logs/
 │           └── temp/
-│               ├── sql-generator.log    # Log del generatore SQL
-│               └── thoth_app.log        # Log dell'applicazione
-└── logs/                      # Directory per log centralizzati (futura espansione)
+│               ├── sql-generator.log    # SQL generator log
+│               └── thoth_app.log        # Application log
+└── logs/                      # Directory for centralized logs (future expansion)
 ```
 
-## ⚙️ Configurazione
+## Configuration
 
-### Variabili d'Ambiente
+### Environment Variables
 
-I livelli di logging sono configurabili tramite il file `.env.local`:
+Logging levels are configurable via the `.env.local` file:
 
 ```bash
-# Livello di log per il backend Django
+# Log level for the Django backend
 BACKEND_LOGGING_LEVEL=INFO
 
-# Livello di log per frontend e SQL generator
+# Log level for frontend and SQL generator
 FRONTEND_LOGGING_LEVEL=INFO
 ```
 
-### Livelli Disponibili
+### Available Levels
 
-- `DEBUG`: Informazioni dettagliate per debug
-- `INFO`: Informazioni generali sul funzionamento (default)
-- `WARNING`: Avvisi su potenziali problemi
-- `ERROR`: Errori che non interrompono l'esecuzione
-- `CRITICAL`: Errori critici che possono causare interruzioni
+- `DEBUG`: Detailed information for debugging
+- `INFO`: General operational information (default)
+- `WARNING`: Warnings about potential issues
+- `ERROR`: Errors that do not stop execution
+- `CRITICAL`: Critical errors that may cause interruptions
 
-## 🔄 Rotazione dei Log
+## Log Rotation
 
 ### Backend (Django)
 
-Il backend utilizza `TimedRotatingFileHandler` che ruota automaticamente i log:
-- **Rotazione**: ogni mezzanotte
-- **Pattern file**: `thoth.log.YYYY-MM-DD`
-- **Retention**: gestita manualmente tramite script di pulizia
+The backend uses `TimedRotatingFileHandler`, which automatically rotates logs:
+- Rotation: at midnight
+- File pattern: `thoth.log.YYYY-MM-DD`
+- Retention: handled manually via cleanup scripts
 
 ### SQL Generator
 
-Il generatore SQL utilizza `RotatingFileHandler`:
-- **Dimensione massima**: 10 MB per file
-- **File di backup**: massimo 5 (`sql-generator.log.1`, `.2`, etc.)
-- **Rotazione automatica**: quando il file raggiunge 10 MB
+The SQL generator uses `RotatingFileHandler`:
+- Maximum size: 10 MB per file
+- Backup files: up to 5 (`sql-generator.log.1`, `.2`, etc.)
+- Automatic rotation: when the file reaches 10 MB
 
-## 🧹 Pulizia Manuale dei Log
+## Manual Log Cleanup
 
-ThothAI fornisce due script per la pulizia manuale dei log:
+ThothAI provides two scripts for manual log cleanup:
 
-### Script Bash
+### Bash Script
 
 ```bash
-# Pulizia con impostazioni predefinite (mantiene 7 giorni, comprime dopo 1 giorno)
+# Cleanup with default settings (keeps 7 days, compresses after 1 day)
 ./scripts/cleanup-logs.sh
 
-# Specifica giorni da mantenere e quando comprimere
-./scripts/cleanup-logs.sh 30 3  # Mantiene 30 giorni, comprime dopo 3
+# Specify days to keep and when to compress
+./scripts/cleanup-logs.sh 30 3  # Keeps 30 days, compresses after 3
 
-# Modalità dry-run (mostra cosa verrebbe fatto senza modificare i file)
+# Dry-run mode (shows what would be done without modifying files)
 ./scripts/cleanup-logs.sh --dry-run
 
-# Visualizza help
+# Show help
 ./scripts/cleanup-logs.sh --help
 ```
 
-### Script Python
+### Python Script
 
 ```bash
-# Pulizia con impostazioni predefinite
+# Cleanup with default settings
 python scripts/cleanup_logs.py
 
-# Con parametri personalizzati
+# With custom parameters
 python scripts/cleanup_logs.py --days 30 --compress-after 3
 
-# Modalità dry-run
+# Dry-run mode
 python scripts/cleanup_logs.py --dry-run
 
-# Visualizza help
+# Show help
 python scripts/cleanup_logs.py --help
 ```
 
-## 📊 Funzionalità degli Script
+## Script Features
 
-Entrambi gli script offrono:
+Both scripts offer:
 
-1. **Compressione Automatica**: I log più vecchi del periodo specificato vengono compressi con gzip
-2. **Rimozione Sicura**: I log molto vecchi vengono rimossi definitivamente
-3. **Statistiche**: Mostra lo spazio occupato prima e dopo la pulizia
-4. **Modalità Dry-Run**: Permette di vedere cosa verrebbe fatto senza modificare i file
-5. **Gestione Multi-Servizio**: Pulisce i log di tutti i servizi contemporaneamente
+1. **Automatic Compression**: Logs older than the specified period are compressed with gzip
+2. **Safe Removal**: Very old logs are permanently removed
+3. **Statistics**: Shows space usage before and after cleanup
+4. **Dry-Run Mode**: Lets you preview actions without modifying files
+5. **Multi-Service Handling**: Cleans logs for all services together
 
-## 💡 Best Practices
+## Best Practices
 
-### Durante lo Sviluppo
+### During Development
 
-1. **Livello DEBUG solo quando necessario**: Genera molti log e può riempire rapidamente il disco
-2. **Pulizia settimanale**: Esegui lo script di pulizia almeno una volta a settimana
-3. **Monitora lo spazio**: Controlla periodicamente lo spazio occupato dai log
+1. **Use DEBUG only when needed**: It generates many logs and can fill the disk quickly
+2. **Weekly cleanup**: Run the cleanup script at least once a week
+3. **Monitor space**: Periodically check disk space used by logs
 
-### Risoluzione Problemi
+### Troubleshooting
 
-Per analizzare problemi specifici:
+To analyze specific issues:
 
 ```bash
-# Visualizza ultimi errori del backend
+# View latest backend errors
 tail -f backend/logs/thoth.log | grep ERROR
 
-# Visualizza log in tempo reale del SQL generator
+# View real-time logs of the SQL generator
 tail -f frontend/sql_generator/logs/temp/sql-generator.log
 
-# Cerca un pattern specifico nei log
+# Search for a specific pattern in logs
 grep "workspace_id" backend/logs/thoth.log*
 ```
 
-## 🔍 Monitoraggio
+## Monitoring
 
-### Controllo Spazio Occupato
+### Checking Used Space
 
 ```bash
-# Spazio totale occupato dai log
+# Total space used by logs
 du -sh backend/logs frontend/sql_generator/logs
 
-# Dettaglio per directory
+# Details per directory
 du -h backend/logs frontend/sql_generator/logs
 ```
 
 ### Log Watching
 
-Per monitorare i log in tempo reale durante lo sviluppo:
+To monitor logs in real time during development:
 
 ```bash
 # Backend
@@ -152,49 +152,49 @@ tail -f backend/logs/thoth.log
 # SQL Generator
 tail -f frontend/sql_generator/logs/temp/sql-generator.log
 
-# Tutti i log contemporaneamente (richiede multitail)
+# All logs at once (requires multitail)
 multitail backend/logs/thoth.log frontend/sql_generator/logs/temp/*.log
 ```
 
-## ⚠️ Note Importanti
+## Important Notes
 
-1. **Non committare i log**: Le directory dei log sono già nel `.gitignore`
-2. **Backup prima di pulizia massiva**: Se hai log importanti, fai un backup prima di eseguire la pulizia
-3. **Spazio disco**: Mantieni almeno 1 GB di spazio libero per il corretto funzionamento
-4. **Performance**: Log level DEBUG può impattare le performance in sviluppo
+1. **Do not commit logs**: Log directories are already in `.gitignore`
+2. **Backup before mass cleanup**: If you have important logs, create a backup before running cleanup
+3. **Disk space**: Keep at least 1 GB of free space for proper operation
+4. **Performance**: DEBUG log level can impact performance during development
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
-### Log non generati
+### Logs not generated
 
-Se i log non vengono generati:
+If logs are not generated:
 
-1. Verifica che le directory esistano:
+1. Verify that the directories exist:
    ```bash
    mkdir -p backend/logs
    mkdir -p frontend/sql_generator/logs/temp
    ```
 
-2. Controlla i permessi:
+2. Check permissions:
    ```bash
    chmod 755 backend/logs
    chmod 755 frontend/sql_generator/logs/temp
    ```
 
-3. Verifica le variabili d'ambiente in `.env.local`
+3. Verify environment variables in `.env.local`
 
-### Spazio disco esaurito
+### Disk space exhausted
 
-Se lo spazio su disco si esaurisce:
+If disk space runs out:
 
-1. Esegui immediatamente la pulizia:
+1. Run cleanup immediately:
    ```bash
-   ./scripts/cleanup-logs.sh 1 0  # Mantiene solo 1 giorno
+   ./scripts/cleanup-logs.sh 1 0  # Keeps only 1 day
    ```
 
-2. Rimuovi manualmente i log più vecchi:
+2. Manually remove older logs:
    ```bash
    find backend/logs frontend/sql_generator/logs -name "*.log.*" -delete
    ```
 
-3. Considera di ridurre il livello di logging a WARNING o ERROR
+3. Consider lowering the logging level to WARNING or ERROR
