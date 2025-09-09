@@ -159,7 +159,6 @@ services:
       - "6333:6333"
     volumes:
       - qdrant-data:/qdrant/storage
-      - ./backend/qdrant_storage:/qdrant/storage_backup:ro
     networks:
       - thoth-network
     healthcheck:

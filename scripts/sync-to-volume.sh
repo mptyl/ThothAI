@@ -11,6 +11,17 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Load DB_ROOT_PATH from .env.local if present, and export it
+if [ -f "$PROJECT_ROOT/.env.local" ]; then
+    # shellcheck disable=SC1090
+    set -a
+    . "$PROJECT_ROOT/.env.local"
+    set +a
+    if [ -n "$DB_ROOT_PATH" ]; then
+        echo "Using DB_ROOT_PATH from .env.local: $DB_ROOT_PATH"
+    fi
+fi
+
 echo "=========================================="
 echo "Quick Sync: dev_databases → Docker Volume"
 echo "=========================================="

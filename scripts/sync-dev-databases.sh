@@ -10,13 +10,21 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-SOURCE_DIR="$PROJECT_ROOT/data/dev_databases"
+# Determine source directory. If DB_ROOT_PATH is provided (e.g., via .env.local), use it.
+if [ -n "$DB_ROOT_PATH" ]; then
+    SOURCE_DIR="$DB_ROOT_PATH/dev_databases"
+else
+    SOURCE_DIR="$PROJECT_ROOT/data/dev_databases"
+fi
 VOLUME_NAME="thoth-shared-data"
 
 echo "======================================"
 echo "Syncing dev_databases to Docker volume"
 echo "======================================"
 echo "Source: $SOURCE_DIR"
+if [ -n "$DB_ROOT_PATH" ]; then
+    echo "(DB_ROOT_PATH is set to: $DB_ROOT_PATH)"
+fi
 echo "Target Volume: $VOLUME_NAME"
 echo ""
 
