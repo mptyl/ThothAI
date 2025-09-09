@@ -19,6 +19,12 @@ import json
 import ast
 from thoth_core.models import ThothLog
 from thoth_core.utilities.utils import export_csv
+from thoth_core.admin_utils import (
+    parse_value,
+    render_value,
+    render_collapsible,
+    render_raw_toggle,
+)
 
 
 class ThothLogAdminForm(forms.ModelForm):
@@ -70,6 +76,13 @@ class ThothLogAdmin(admin.ModelAdmin):
     date_hierarchy = "started_at"
     ordering = ("-started_at",)
     actions = [export_csv]
+
+    class Media:
+        css = {
+            "all": (
+                "thoth_core/admin/thothlog.css",
+            )
+        }
 
     # All fields are read-only as requested
     readonly_fields = (
@@ -262,70 +275,25 @@ class ThothLogAdmin(admin.ModelAdmin):
     )
 
     def pool_of_generated_sql_display(self, obj):
-        """Render pool_of_generated_sql as a list of SQL strings.
-        Accepts Python literal or JSON list; falls back to raw text."""
+        """Render `pool_of_generated_sql` using shared utilities: lists as bullets; theme-safe."""
         if not obj.pool_of_generated_sql:
             return "-"
 
-        # Wrap everything in an expandable container
-        html_wrapper = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_wrapper += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Pool of Generated SQL (click to expand)</summary>'
-        html_wrapper += '<div style="margin-top: 10px;">'
+        parsed = parse_value(obj.pool_of_generated_sql)
+        if isinstance(parsed, list):
+            inner = '<div class="readonly" style="max-height: 450px; overflow: auto;">'
+            # Truncate long SQL strings within items
+            inner += render_value([s if not isinstance(s, str) else (s[:800] + "…" if len(s) > 800 else s) for s in parsed])
+            inner += "</div>"
+            inner += render_raw_toggle(obj.pool_of_generated_sql)
+            return mark_safe(render_collapsible("Pool of Generated SQL (click to expand)", inner))
 
-        # 1) Try Python literal (list[str])
-        try:
-            data = ast.literal_eval(obj.pool_of_generated_sql)
-            if isinstance(data, list):
-                html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
-                html_content += '<ol style="margin: 6px 0 0 18px;">'
-                for item in data:
-                    sql_text = str(item)
-                    display_sql = (
-                        sql_text[:800] + "..." if len(sql_text) > 800 else sql_text
-                    )
-                    html_content += f'<li><pre class="readonly" style="white-space: pre-wrap;">{display_sql}</pre></li>'
-                html_content += "</ol>"
-                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.pool_of_generated_sql}</pre></details>'
-                html_content += "</div>"
-                # Close the wrapper
-                html_wrapper += html_content
-                html_wrapper += "</div>"
-                html_wrapper += "</details>"
-                return mark_safe(html_wrapper)
-        except Exception:
-            pass
-
-        # 2) Fallback: try JSON
-        try:
-            data = json.loads(obj.pool_of_generated_sql)
-            if isinstance(data, list):
-                html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
-                html_content += '<ol style="margin: 6px 0 0 18px;">'
-                for item in data:
-                    sql_text = str(item)
-                    display_sql = (
-                        sql_text[:800] + "..." if len(sql_text) > 800 else sql_text
-                    )
-                    html_content += f'<li><pre class="readonly" style="white-space: pre-wrap;">{display_sql}</pre></li>'
-                html_content += "</ol>"
-                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre></details>'
-                html_content += "</div>"
-                # Close the wrapper
-                html_wrapper += html_content
-                html_wrapper += "</div>"
-                html_wrapper += "</details>"
-                return mark_safe(html_wrapper)
-        except Exception:
-            pass
-
-        # 3) Final fallback: raw text wrapped in expandable container
-        html_wrapper += format_html(
-            '<pre class="readonly" style="max-height: 300px; overflow-y: auto;">{}</pre>',
+        # Fallback: raw text in collapsible
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 300px; overflow: auto;">{}</pre>',
             obj.pool_of_generated_sql,
         )
-        html_wrapper += "</div>"
-        html_wrapper += "</details>"
-        return mark_safe(html_wrapper)
+        return mark_safe(render_collapsible("Pool of Generated SQL (click to expand)", inner))
 
     pool_of_generated_sql_display.short_description = "Pool of Generated SQL"
 
@@ -360,41 +328,23 @@ class ThothLogAdmin(admin.ModelAdmin):
     formatted_keywords_list.short_description = "Keywords List"
 
     def formatted_evidences(self, obj):
-        """Display evidences as a formatted list in an expandable container"""
+        """Display evidences as bullets using shared renderer in a collapsible block."""
         if not obj.evidences:
             return "-"
 
-        try:
-            # Try to parse as Python list
-            evidences = ast.literal_eval(obj.evidences)
-            if isinstance(evidences, list):
-                html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-                html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Evidences (click to expand)</summary>'
-                html_content += '<div class="readonly" style="max-height: 400px; overflow-y: auto; margin-top: 10px; padding: 10px;">'
-                for i, evidence in enumerate(evidences, 1):
-                    # Truncate long evidences for display
-                    display_evidence = (
-                        evidence[:200] + "..." if len(evidence) > 200 else evidence
-                    )
-                    html_content += "<div>"
-                    html_content += f"<strong>{i}.</strong> {display_evidence}"
-                    html_content += "</div>"
-                html_content += "</div>"
-                html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.evidences}</pre></details>'
-                html_content += "</details>"
-                return mark_safe(html_content)
-        except:
-            pass
+        parsed = parse_value(obj.evidences)
+        if isinstance(parsed, list):
+            inner = '<div class="readonly" style="max-height: 400px; overflow: auto;">'
+            inner += render_value([e if not isinstance(e, str) else (e[:200] + "…" if len(e) > 200 else e) for e in parsed])
+            inner += "</div>"
+            inner += render_raw_toggle(obj.evidences)
+            return mark_safe(render_collapsible("Evidences (click to expand)", inner))
 
-        # Fallback to raw display in expandable container
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Evidences (click to expand)</summary>'
-        html_content += format_html(
-            '<pre class="readonly" style="max-height: 300px; overflow-y: auto; margin-top: 10px; padding: 10px;">{}</pre>',
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 300px; overflow: auto;">{}</pre>',
             obj.evidences,
         )
-        html_content += "</details>"
-        return mark_safe(html_content)
+        return mark_safe(render_collapsible("Evidences (click to expand)", inner))
 
     formatted_evidences.short_description = "Evidences"
 
@@ -410,19 +360,21 @@ class ThothLogAdmin(admin.ModelAdmin):
                 html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
                 html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Similar Questions (click to expand)</summary>'
                 html_content += '<div class="readonly" style="max-height: 400px; overflow-y: auto; font-size: 0.85em; line-height: 1.2; margin-top: 10px; padding: 10px;">'
-                for i, item in enumerate(questions, 1):
+                html_content += '<ul style="margin: 6px 0 0 18px; list-style: disc;">'
+                for item in questions:
                     if isinstance(item, dict):
                         # Extract question and sql from dictionary
                         question_text = item.get("question", "")
                         sql_text = item.get("sql", "")
                         description = item.get("description", "")
 
-                        html_content += '<div style="margin-bottom: 8px;">'
-                        html_content += f"<strong>{i}.</strong> <strong>Question:</strong> {question_text}<br>"
-                        html_content += f'<span style="margin-left: 15px;"><strong>SQL:</strong> {sql_text}</span>'
+                        html_content += '<li style="margin-bottom: 8px;">'
+                        html_content += f"<div><strong>Question:</strong> {question_text}</div>"
+                        if sql_text:
+                            html_content += f'<div style="margin-left: 15px;"><strong>SQL:</strong> {sql_text}</div>'
                         if description:
-                            html_content += f'<br><span style="margin-left: 15px;"><strong>Description:</strong> {description}</span>'
-                        html_content += "</div>"
+                            html_content += f'<div style="margin-left: 15px;"><strong>Description:</strong> {description}</div>'
+                        html_content += "</li>"
                     else:
                         # Fallback for non-dict items
                         display_question = (
@@ -430,9 +382,8 @@ class ThothLogAdmin(admin.ModelAdmin):
                             if len(str(item)) > 200
                             else str(item)
                         )
-                        html_content += '<div style="margin-bottom: 5px;">'
-                        html_content += f"<strong>{i}.</strong> {display_question}"
-                        html_content += "</div>"
+                        html_content += f'<li style="margin-bottom: 5px;">{display_question}</li>'
+                html_content += "</ul>"
                 html_content += "</div>"
                 html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.similar_questions}</pre></details>'
                 html_content += "</details>"
@@ -453,341 +404,80 @@ class ThothLogAdmin(admin.ModelAdmin):
     formatted_similar_questions.short_description = "Similar Questions"
 
     def formatted_similar_columns(self, obj):
-        """Display similar_columns in an expandable container with human-friendly formatting"""
+        """Display similar_columns using shared renderer with bullets and theme-safe styles."""
         if not obj.similar_columns:
             return "-"
+        parsed = parse_value(obj.similar_columns)
+        if isinstance(parsed, (list, dict)):
+            inner = '<div class="readonly" style="max-height: 400px; overflow: auto;">' + render_value(parsed) + "</div>"
+            inner += render_raw_toggle(obj.similar_columns, label="Show raw JSON")
+            return mark_safe(render_collapsible("Similar Columns (click to expand)", inner))
 
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Similar Columns (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px; padding: 10px;">'
-
-        try:
-            # Try to parse as JSON
-            data = json.loads(obj.similar_columns)
-
-            if isinstance(data, list):
-                # If it's a list of column information
-                html_content += '<div class="readonly" style="max-height: 400px; overflow-y: auto;">'
-                for i, item in enumerate(data, 1):
-                    if isinstance(item, dict):
-                        # Display each column info in a structured way
-                        html_content += '<div style="margin-bottom: 15px; padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; background: var(--body-bg, #f8f9fa);">'
-                        html_content += f"<strong>Column {i}:</strong><br>"
-                        for key, value in item.items():
-                            # Format key names nicely
-                            display_key = key.replace("_", " ").title()
-                            html_content += f'<span style="margin-left: 15px;"><strong>{display_key}:</strong> {value}</span><br>'
-                        html_content += "</div>"
-                    elif isinstance(item, str):
-                        # If it's just a string, display it
-                        html_content += (
-                            f'<div style="margin-bottom: 5px;">{i}. {item}</div>'
-                        )
-                    else:
-                        # Fallback for other types
-                        html_content += (
-                            f'<div style="margin-bottom: 5px;">{i}. {str(item)}</div>'
-                        )
-                html_content += "</div>"
-            elif isinstance(data, dict):
-                # If it's a dictionary, display key-value pairs
-                html_content += '<div class="readonly" style="max-height: 400px; overflow-y: auto;">'
-                for key, value in data.items():
-                    display_key = key.replace("_", " ").title()
-                    if isinstance(value, (list, dict)):
-                        # For nested structures, pretty print them
-                        html_content += '<div style="margin-bottom: 10px;">'
-                        html_content += f"<strong>{display_key}:</strong><br>"
-                        html_content += f'<pre style="margin-left: 15px; background: var(--body-bg, #f8f9fa); padding: 8px; border-radius: 4px;">{json.dumps(value, indent=2, ensure_ascii=False)}</pre>'
-                        html_content += "</div>"
-                    else:
-                        html_content += f'<div style="margin-bottom: 5px;"><strong>{display_key}:</strong> {value}</div>'
-                html_content += "</div>"
-            else:
-                # If it's another type, just display it as formatted JSON
-                html_content += f'<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre>'
-
-            # Add raw data toggle
-            html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw JSON</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre></details>'
-
-        except (json.JSONDecodeError, Exception):
-            # Fallback to raw display if not valid JSON
-            html_content += format_html(
-                '<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{}</pre>',
-                obj.similar_columns,
-            )
-
-        html_content += "</div>"
-        html_content += "</details>"
-        return mark_safe(html_content)
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 400px; overflow: auto;">{}</pre>',
+            obj.similar_columns,
+        )
+        return mark_safe(render_collapsible("Similar Columns (click to expand)", inner))
 
     formatted_similar_columns.short_description = "Similar Columns"
 
     def formatted_schema_with_examples(self, obj):
-        """Display schema_with_examples in an expandable container with human-friendly formatting"""
+        """Display schema_with_examples using shared renderer (bullets/dl) with raw toggle."""
         if not obj.schema_with_examples:
             return "-"
+        parsed = parse_value(obj.schema_with_examples)
+        if isinstance(parsed, (list, dict)):
+            inner = '<div class="readonly" style="max-height: 500px; overflow: auto;">' + render_value(parsed) + "</div>"
+            inner += render_raw_toggle(obj.schema_with_examples, label="Show raw JSON")
+            return mark_safe(render_collapsible("Schema with Examples (click to expand)", inner))
 
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Schema with Examples (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px; padding: 10px;">'
-
-        try:
-            # Try to parse as JSON
-            data = json.loads(obj.schema_with_examples)
-
-            html_content += (
-                '<div class="readonly" style="max-height: 500px; overflow-y: auto;">'
-            )
-
-            if isinstance(data, dict):
-                # Likely contains tables as keys with their schemas and examples
-                for table_name, table_info in data.items():
-                    html_content += '<div style="margin-bottom: 20px; padding: 15px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; background: var(--body-bg, #f8f9fa);">'
-                    html_content += f'<h5 style="margin-top: 0; color: var(--primary, #4a90e2);">Table: {table_name}</h5>'
-
-                    if isinstance(table_info, dict):
-                        # Check for columns
-                        if "columns" in table_info:
-                            html_content += '<div style="margin-bottom: 10px;">'
-                            html_content += "<strong>Columns:</strong>"
-                            html_content += '<ul style="margin: 5px 0 0 20px;">'
-                            columns = table_info["columns"]
-                            if isinstance(columns, list):
-                                for col in columns:
-                                    if isinstance(col, dict):
-                                        col_name = col.get(
-                                            "name", col.get("column_name", "")
-                                        )
-                                        col_type = col.get(
-                                            "type", col.get("data_type", "")
-                                        )
-                                        html_content += f"<li><strong>{col_name}</strong>: {col_type}</li>"
-                                    else:
-                                        html_content += f"<li>{col}</li>"
-                            elif isinstance(columns, dict):
-                                for col_name, col_type in columns.items():
-                                    html_content += f"<li><strong>{col_name}</strong>: {col_type}</li>"
-                            html_content += "</ul>"
-                            html_content += "</div>"
-
-                        # Check for examples
-                        if "examples" in table_info or "sample_data" in table_info:
-                            examples = table_info.get(
-                                "examples", table_info.get("sample_data", [])
-                            )
-                            if examples:
-                                html_content += '<div style="margin-bottom: 10px;">'
-                                html_content += "<strong>Sample Data:</strong>"
-                                html_content += '<pre class="readonly" style="margin: 5px 0 0 15px; padding: 8px; border-radius: 4px; font-size: 0.9em;">'
-                                if isinstance(examples, list):
-                                    html_content += json.dumps(
-                                        examples[:3], indent=2, ensure_ascii=False
-                                    )  # Show first 3 examples
-                                else:
-                                    html_content += json.dumps(
-                                        examples, indent=2, ensure_ascii=False
-                                    )
-                                html_content += "</pre>"
-                                html_content += "</div>"
-
-                        # Display any other keys
-                        for key, value in table_info.items():
-                            if key not in ["columns", "examples", "sample_data"]:
-                                display_key = key.replace("_", " ").title()
-                                if isinstance(value, (list, dict)):
-                                    html_content += '<div style="margin-bottom: 10px;">'
-                                    html_content += f"<strong>{display_key}:</strong>"
-                                    html_content += f'<pre class="readonly" style="margin: 5px 0 0 15px; padding: 8px; border-radius: 4px; font-size: 0.9em;">{json.dumps(value, indent=2, ensure_ascii=False)}</pre>'
-                                    html_content += "</div>"
-                                else:
-                                    html_content += f'<div style="margin-bottom: 5px;"><strong>{display_key}:</strong> {value}</div>'
-                    else:
-                        # If table_info is not a dict, just display it
-                        html_content += f'<pre class="readonly" style="padding: 8px; border-radius: 4px;">{json.dumps(table_info, indent=2, ensure_ascii=False)}</pre>'
-
-                    html_content += "</div>"
-            elif isinstance(data, list):
-                # If it's a list of schemas
-                for i, schema_item in enumerate(data, 1):
-                    html_content += '<div style="margin-bottom: 15px; padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; background: var(--body-bg, #f8f9fa);">'
-                    html_content += f"<strong>Schema {i}:</strong><br>"
-                    html_content += f'<pre class="readonly" style="margin-top: 5px; padding: 8px; border-radius: 4px;">{json.dumps(schema_item, indent=2, ensure_ascii=False)}</pre>'
-                    html_content += "</div>"
-            else:
-                # Fallback: display as formatted JSON
-                html_content += f'<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre>'
-
-            html_content += "</div>"
-
-            # Add raw data toggle
-            html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw JSON</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre></details>'
-
-        except (json.JSONDecodeError, Exception):
-            # Fallback to raw display if not valid JSON
-            html_content += format_html(
-                '<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{}</pre>',
-                obj.schema_with_examples,
-            )
-
-        html_content += "</div>"
-        html_content += "</details>"
-        return mark_safe(html_content)
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 400px; overflow: auto;">{}</pre>',
+            obj.schema_with_examples,
+        )
+        return mark_safe(render_collapsible("Schema with Examples (click to expand)", inner))
 
     formatted_schema_with_examples.short_description = "Schema with Examples"
 
     def formatted_schema_from_vector_db(self, obj):
-        """Display schema_from_vector_db in an expandable container with human-friendly formatting"""
+        """Display schema_from_vector_db using shared renderer with bullets/dl and raw toggle."""
         if not obj.schema_from_vector_db:
             return "-"
+        parsed = parse_value(obj.schema_from_vector_db)
+        if isinstance(parsed, (list, dict)):
+            inner = '<div class="readonly" style="max-height: 500px; overflow: auto;">' + render_value(parsed) + "</div>"
+            inner += render_raw_toggle(obj.schema_from_vector_db, label="Show raw JSON")
+            return mark_safe(render_collapsible("Schema from Vector DB (click to expand)", inner))
 
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Schema from Vector DB (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px; padding: 10px;">'
-
-        try:
-            # Try to parse as JSON
-            data = json.loads(obj.schema_from_vector_db)
-
-            html_content += (
-                '<div class="readonly" style="max-height: 500px; overflow-y: auto;">'
-            )
-
-            if isinstance(data, list):
-                # If it's a list of schema items from vector DB
-                for i, item in enumerate(data, 1):
-                    html_content += '<div style="margin-bottom: 15px; padding: 15px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; background: var(--body-bg, #f8f9fa);">'
-
-                    if isinstance(item, dict):
-                        # Check for common fields like table_name, column_name, description, etc.
-                        table_name = item.get("table_name", item.get("table", ""))
-                        column_name = item.get("column_name", item.get("column", ""))
-                        description = item.get("description", item.get("desc", ""))
-                        data_type = item.get("data_type", item.get("type", ""))
-
-                        if table_name or column_name:
-                            html_content += '<div style="margin-bottom: 8px;">'
-                            if table_name and column_name:
-                                html_content += f'<h5 style="margin-top: 0; color: var(--primary, #4a90e2);">{table_name}.{column_name}</h5>'
-                            elif table_name:
-                                html_content += f'<h5 style="margin-top: 0; color: var(--primary, #4a90e2);">Table: {table_name}</h5>'
-                            else:
-                                html_content += f'<h5 style="margin-top: 0; color: var(--primary, #4a90e2);">Column: {column_name}</h5>'
-
-                            if data_type:
-                                html_content += f'<span style="color: var(--body-quiet-color, #666);">Type: {data_type}</span>'
-                            html_content += "</div>"
-
-                        if description:
-                            html_content += f'<div style="margin-bottom: 10px; font-style: italic; color: var(--body-quiet-color, #666);">{description}</div>'
-
-                        # Display other fields
-                        displayed_keys = [
-                            "table_name",
-                            "table",
-                            "column_name",
-                            "column",
-                            "description",
-                            "desc",
-                            "data_type",
-                            "type",
-                        ]
-                        for key, value in item.items():
-                            if key not in displayed_keys:
-                                display_key = key.replace("_", " ").title()
-                                if isinstance(value, (list, dict)):
-                                    html_content += '<div style="margin-top: 8px;">'
-                                    html_content += f"<strong>{display_key}:</strong>"
-                                    html_content += f'<pre class="readonly" style="margin: 5px 0 0 15px; padding: 8px; border-radius: 4px; font-size: 0.9em;">{json.dumps(value, indent=2, ensure_ascii=False)}</pre>'
-                                    html_content += "</div>"
-                                else:
-                                    html_content += f'<div style="margin-top: 5px;"><strong>{display_key}:</strong> {value}</div>'
-                    elif isinstance(item, str):
-                        # If it's just a string description
-                        html_content += f"<div>{item}</div>"
-                    else:
-                        # Fallback for other types
-                        html_content += f'<pre class="readonly" style="padding: 8px; border-radius: 4px;">{json.dumps(item, indent=2, ensure_ascii=False)}</pre>'
-
-                    html_content += "</div>"
-            elif isinstance(data, dict):
-                # If it's a dictionary with schema information
-                for key, value in data.items():
-                    html_content += '<div style="margin-bottom: 15px; padding: 15px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; background: var(--body-bg, #f8f9fa);">'
-                    html_content += f'<h5 style="margin-top: 0; color: var(--primary, #4a90e2);">{key}</h5>'
-
-                    if isinstance(value, dict):
-                        # Display nested dictionary nicely
-                        for sub_key, sub_value in value.items():
-                            display_key = sub_key.replace("_", " ").title()
-                            if isinstance(sub_value, (list, dict)):
-                                html_content += '<div style="margin-top: 8px;">'
-                                html_content += f"<strong>{display_key}:</strong>"
-                                html_content += f'<pre class="readonly" style="margin: 5px 0 0 15px; padding: 8px; border-radius: 4px; font-size: 0.9em;">{json.dumps(sub_value, indent=2, ensure_ascii=False)}</pre>'
-                                html_content += "</div>"
-                            else:
-                                html_content += f'<div style="margin-top: 5px;"><strong>{display_key}:</strong> {sub_value}</div>'
-                    elif isinstance(value, list):
-                        html_content += f'<pre class="readonly" style="margin-top: 5px; padding: 8px; border-radius: 4px;">{json.dumps(value, indent=2, ensure_ascii=False)}</pre>'
-                    else:
-                        html_content += f'<div style="margin-top: 5px;">{value}</div>'
-
-                    html_content += "</div>"
-            else:
-                # Fallback: display as formatted JSON
-                html_content += f'<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre>'
-
-            html_content += "</div>"
-
-            # Add raw data toggle
-            html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw JSON</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{json.dumps(data, indent=2, ensure_ascii=False)}</pre></details>'
-
-        except (json.JSONDecodeError, Exception):
-            # Fallback to raw display if not valid JSON
-            html_content += format_html(
-                '<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{}</pre>',
-                obj.schema_from_vector_db,
-            )
-
-        html_content += "</div>"
-        html_content += "</details>"
-        return mark_safe(html_content)
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 400px; overflow: auto;">{}</pre>',
+            obj.schema_from_vector_db,
+        )
+        return mark_safe(render_collapsible("Schema from Vector DB (click to expand)", inner))
 
     formatted_schema_from_vector_db.short_description = "Schema from Vector DB"
 
     def formatted_reduced_schema(self, obj):
-        """Display reduced_schema in a collapsible section with Django admin styling"""
+        """Display reduced_schema in a collapsible section (theme-safe)."""
         if not obj.reduced_schema:
             return "-"
-
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">Reduced Schema (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px;">'
-        html_content += format_html(
-            '<pre class="readonly" style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: var(--body-bg, #ffffff); color: var(--body-fg, #333); padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 3px; margin: 0;">{}</pre>',
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 400px; overflow: auto;">{}</pre>',
             obj.reduced_schema,
         )
-        html_content += "</div>"
-        html_content += "</details>"
-        return mark_safe(html_content)
+        return mark_safe(render_collapsible("Reduced Schema (click to expand)", inner))
 
     formatted_reduced_schema.short_description = "Reduced Schema"
 
     def formatted_used_mschema(self, obj):
-        """Display used_mschema in an expandable container"""
+        """Display used_mschema in an expandable container (theme-safe)."""
         if not obj.used_mschema:
             return "-"
-
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Used Schema (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px; padding: 10px;">'
-        html_content += format_html(
-            '<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{}</pre>',
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 400px; overflow: auto;">{}</pre>',
             obj.used_mschema,
         )
-        html_content += "</div>"
-        html_content += "</details>"
-        return mark_safe(html_content)
+        return mark_safe(render_collapsible("Used Schema (click to expand)", inner))
 
     formatted_used_mschema.short_description = "Used Schema"
 
@@ -811,10 +501,10 @@ class ThothLogAdmin(admin.ModelAdmin):
                 # Simple list format (filtered tests)
                 html_content = '<div class="readonly" style="max-height: 450px; overflow-y: auto;">'
                 html_content += '<h4 style="margin: 10px 0;">Semantically Filtered Tests:</h4>'
-                html_content += '<ol style="margin-left: 20px;">'
+                html_content += '<ul style="margin-left: 20px; list-style: disc;">'
                 for test in data:
                     html_content += f'<li style="margin: 5px 0;">{test}</li>'
-                html_content += '</ol>'
+                html_content += '</ul>'
                 
                 # Show raw data
                 html_content += f'<details style="margin-top: 10px;"><summary style="cursor: pointer;">Show raw data</summary><pre class="readonly" style="margin-top: 5px; max-height: 300px; overflow-y: auto;">{obj.generated_tests}</pre></details>'
@@ -1024,7 +714,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                 if verdicts:
                     html_content += '<p style="margin: 10px 0 5px 0;"><b>SQL Candidate Verdicts:</b></p>'
                     html_content += (
-                        '<ul style="margin: 5px 0 0 20px; list-style: none;">'
+                        '<ul style="margin: 5px 0 0 20px; list-style: disc;">'
                     )
                     for j, verdict in enumerate(verdicts, 1):
                         verdict_str = str(verdict).strip()
@@ -1101,12 +791,12 @@ class ThothLogAdmin(admin.ModelAdmin):
                 # Show the test units that were evaluated SECOND
                 if test_units:
                     html_content += '<p style="margin: 10px 0 5px 0;"><b>Test Units Applied:</b></p>'
-                    html_content += '<ol style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0);">'
+                    html_content += '<ul style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0); list-style: disc;">'
                     for test in test_units:
                         html_content += (
                             f'<li style="margin: 3px 0; font-size: 0.9em;">{test}</li>'
                         )
-                    html_content += "</ol>"
+                    html_content += "</ul>"
 
                 # Show analysis (first 300 chars)
                 if thinking:
@@ -1151,7 +841,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                 if verdicts:
                     html_content += '<p style="margin: 5px 0;"><b>Verdicts:</b></p>'
                     html_content += (
-                        '<ul style="margin: 5px 0 0 20px; list-style: none;">'
+                        '<ul style="margin: 5px 0 0 20px; list-style: disc;">'
                     )
                     for j, verdict in enumerate(verdicts, 1):
                         verdict_str = str(verdict).strip()
@@ -1228,12 +918,12 @@ class ThothLogAdmin(admin.ModelAdmin):
                 # Show the test units that were evaluated SECOND
                 if test_units:
                     html_content += '<p style="margin: 10px 0 5px 0;"><b>Test Units Applied:</b></p>'
-                    html_content += '<ol style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0);">'
+                    html_content += '<ul style="margin: 5px 0 15px 20px; padding: 10px; border-radius: 5px; border: 1px solid var(--hairline-color, #e0e0e0); list-style: disc;">'
                     for test in test_units:
                         html_content += (
                             f'<li style="margin: 3px 0; font-size: 0.9em;">{test}</li>'
                         )
-                    html_content += "</ol>"
+                    html_content += "</ul>"
 
                 # Show analysis (first 300 chars)
                 if thinking:
@@ -1600,10 +1290,10 @@ class ThothLogAdmin(admin.ModelAdmin):
                 html_content += (
                     '<h5 style="margin: 15px 0 10px 0;">Test Units Applied:</h5>'
                 )
-                html_content += '<ol style="margin: 5px 0 0 20px; padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px; font-size: 0.9em;">'
+                html_content += '<ul style="margin: 5px 0 0 20px; padding: 10px; background: var(--body-bg, #f8f9fa); border-radius: 5px; font-size: 0.9em; list-style: disc;">'
                 for test in test_units:
                     html_content += f'<li style="margin: 3px 0;">{test}</li>'
-                html_content += "</ol>"
+                html_content += "</ul>"
 
             html_content += "</div>"
 
@@ -2342,13 +2032,13 @@ class ThothLogAdmin(admin.ModelAdmin):
             if isinstance(answers, str):
                 answers = json.loads(answers)
             
-            # Use Django admin standard styling - simple ordered list without custom colors
-            html_content = '<ol style="margin: 0; padding-left: 25px; list-style-type: decimal;">'
+            # Use Django admin standard styling - bullet list without custom colors
+            html_content = '<ul style="margin: 0; padding-left: 25px; list-style: disc;">'
             
             for answer in answers:
                 html_content += f'<li style="margin: 3px 0; font-family: monospace; font-size: 13px; color: var(--body-fg, #333); line-height: 1.4;">{format_html("{}", answer)}</li>'
             
-            html_content += '</ol>'
+            html_content += '</ul>'
             
             return mark_safe(html_content)
         except (json.JSONDecodeError, TypeError):
@@ -2359,22 +2049,18 @@ class ThothLogAdmin(admin.ModelAdmin):
     enhanced_evaluation_answers_display.short_description = "Evaluation Answers"
     
     def enhanced_evaluation_selected_sql_display(self, obj):
-        """Display enhanced evaluation selected SQL with syntax highlighting styling"""
+        """Display enhanced evaluation selected SQL (theme-safe)"""
         if not obj.enhanced_evaluation_selected_sql:
             return "-"
         
-        from django.utils.safestring import mark_safe
-        
-        # Create SQL display with code-like formatting
-        html_content = '<div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin: 10px 0;">'
-        html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Selected SQL</h4>'
-        html_content += '<pre style="background: #282c34; color: #abb2bf; padding: 12px; border-radius: 4px; '
-        html_content += 'font-family: \'Courier New\', monospace; font-size: 13px; overflow-x: auto; margin: 0;">'
-        html_content += format_html("{}", obj.enhanced_evaluation_selected_sql)
-        html_content += '</pre>'
-        html_content += '</div>'
-        
-        return mark_safe(html_content)
+        inner = (
+            '<div style="margin-top: 8px;">'
+            '<pre class="readonly thoth-pre" style="overflow: auto; white-space: pre;">' 
+            f"{format_html('{}', obj.enhanced_evaluation_selected_sql)}" 
+            "</pre>"
+            "</div>"
+        )
+        return mark_safe(render_collapsible("Enhanced Evaluation Selected SQL", inner))
     
     enhanced_evaluation_selected_sql_display.short_description = "Enhanced Selected SQL"
     
