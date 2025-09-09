@@ -458,38 +458,26 @@ class ThothLogAdmin(admin.ModelAdmin):
     formatted_schema_from_vector_db.short_description = "Schema from Vector DB"
 
     def formatted_reduced_schema(self, obj):
-        """Display reduced_schema in a collapsible section with Django admin styling"""
+        """Display reduced_schema in a collapsible section (theme-safe)."""
         if not obj.reduced_schema:
             return "-"
-
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0; background-color: var(--darkened-bg, #f9f9f9);">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px; color: var(--body-fg, #333);">Reduced Schema (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px;">'
-        html_content += format_html(
-            '<pre class="readonly" style="font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto; background: var(--body-bg, #ffffff); color: var(--body-fg, #333); padding: 10px; border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 3px; margin: 0;">{}</pre>',
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 400px; overflow: auto;">{}</pre>',
             obj.reduced_schema,
         )
-        html_content += "</div>"
-        html_content += "</details>"
-        return mark_safe(html_content)
+        return mark_safe(render_collapsible("Reduced Schema (click to expand)", inner))
 
     formatted_reduced_schema.short_description = "Reduced Schema"
 
     def formatted_used_mschema(self, obj):
-        """Display used_mschema in an expandable container"""
+        """Display used_mschema in an expandable container (theme-safe)."""
         if not obj.used_mschema:
             return "-"
-
-        html_content = '<details style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 8px; margin: 5px 0;">'
-        html_content += '<summary style="cursor: pointer; font-weight: bold; padding: 5px;">Used Schema (click to expand)</summary>'
-        html_content += '<div style="margin-top: 10px; padding: 10px;">'
-        html_content += format_html(
-            '<pre class="readonly" style="max-height: 400px; overflow-y: auto;">{}</pre>',
+        inner = format_html(
+            '<pre class="readonly thoth-pre" style="max-height: 400px; overflow: auto;">{}</pre>',
             obj.used_mschema,
         )
-        html_content += "</div>"
-        html_content += "</details>"
-        return mark_safe(html_content)
+        return mark_safe(render_collapsible("Used Schema (click to expand)", inner))
 
     formatted_used_mschema.short_description = "Used Schema"
 
@@ -726,7 +714,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                 if verdicts:
                     html_content += '<p style="margin: 10px 0 5px 0;"><b>SQL Candidate Verdicts:</b></p>'
                     html_content += (
-                        '<ul style="margin: 5px 0 0 20px; list-style: none;">'
+                        '<ul style="margin: 5px 0 0 20px; list-style: disc;">'
                     )
                     for j, verdict in enumerate(verdicts, 1):
                         verdict_str = str(verdict).strip()
@@ -853,7 +841,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                 if verdicts:
                     html_content += '<p style="margin: 5px 0;"><b>Verdicts:</b></p>'
                     html_content += (
-                        '<ul style="margin: 5px 0 0 20px; list-style: none;">'
+                        '<ul style="margin: 5px 0 0 20px; list-style: disc;">'
                     )
                     for j, verdict in enumerate(verdicts, 1):
                         verdict_str = str(verdict).strip()
@@ -2061,22 +2049,18 @@ class ThothLogAdmin(admin.ModelAdmin):
     enhanced_evaluation_answers_display.short_description = "Evaluation Answers"
     
     def enhanced_evaluation_selected_sql_display(self, obj):
-        """Display enhanced evaluation selected SQL with syntax highlighting styling"""
+        """Display enhanced evaluation selected SQL (theme-safe)"""
         if not obj.enhanced_evaluation_selected_sql:
             return "-"
         
-        from django.utils.safestring import mark_safe
-        
-        # Create SQL display with code-like formatting
-        html_content = '<div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin: 10px 0;">'
-        html_content += '<h4 style="margin-top: 0; color: #333;">Enhanced Evaluation Selected SQL</h4>'
-        html_content += '<pre style="background: #282c34; color: #abb2bf; padding: 12px; border-radius: 4px; '
-        html_content += 'font-family: \'Courier New\', monospace; font-size: 13px; overflow-x: auto; margin: 0;">'
-        html_content += format_html("{}", obj.enhanced_evaluation_selected_sql)
-        html_content += '</pre>'
-        html_content += '</div>'
-        
-        return mark_safe(html_content)
+        inner = (
+            '<div style="margin-top: 8px;">'
+            '<pre class="readonly thoth-pre" style="overflow: auto; white-space: pre;">' 
+            f"{format_html('{}', obj.enhanced_evaluation_selected_sql)}" 
+            "</pre>"
+            "</div>"
+        )
+        return mark_safe(render_collapsible("Enhanced Evaluation Selected SQL", inner))
     
     enhanced_evaluation_selected_sql_display.short_description = "Enhanced Selected SQL"
     
