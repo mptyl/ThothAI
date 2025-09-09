@@ -115,7 +115,6 @@ class ThothLogAdmin(admin.ModelAdmin):
         "sql_status_display",
         "evaluation_case_display",
         "evaluation_details_display",
-        "pass_rates_display",
         "pool_of_generated_sql_display",
         "selected_sql",
         "sql_generation_failure_message",
@@ -124,7 +123,6 @@ class ThothLogAdmin(admin.ModelAdmin):
         "formatted_full_schema_tokens_count",
         "formatted_schema_link_strategy",
         "enhanced_evaluation_thinking_display",
-        "enhanced_evaluation_answers_display",
         "enhanced_evaluation_selected_sql_display",
         "sql_generation_timing_display",
         "test_generation_timing_display",
@@ -259,11 +257,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                     ("evaluation_timing_inline",),  # Will show as "Evaluation Timing"
                     ("sql_selection_timing_inline",),  # Will show as "SQL Selection Timing"
                     ("belt_and_suspenders_timing_inline",),  # Will show as "Belt & Suspenders Timing"
-                    "evaluation_judgments_display",  # NEW
-                    "pass_rates_display",
                     "evaluation_details_display",
-                    "enhanced_evaluation_answers_display",  # Renamed: Evaluation Answers
-                    "selected_sql_complexity",
                     "sql_status_display",
                     "selected_sql",
                     "sql_explanation",
@@ -1546,6 +1540,15 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         html = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 10px; background-color: var(--darkened-bg, #f8f9fa);">'
         html += '<h4 style="margin-top: 0;">Evaluation Details</h4>'
+
+        # Show evaluated SQL (code block and plain text)
+        if getattr(obj, "generated_sql", None):
+            sql_text = str(obj.generated_sql)
+            html += '<div style="margin: 8px 0 14px 0;">'
+            html += '<div style="font-weight: 600; margin-bottom: 6px;">Evaluated SQL</div>'
+            html += f'<pre class="readonly thoth-pre" style="max-height: 300px; overflow: auto;">{sql_text}</pre>'
+            html += f'<div style="margin-top: 6px; font-family: var(--font-family-base, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial); white-space: pre-wrap;">{sql_text}</div>'
+            html += '</div>'
         
         try:
             # evaluation_details is already a JSONField, so it should be a Python object
@@ -1568,71 +1571,7 @@ class ThothLogAdmin(admin.ModelAdmin):
     
     evaluation_details_display.short_description = "Evaluation Details"
 
-    def pass_rates_display(self, obj):
-        """Display pass rates as formatted statistics"""
-        if not obj.pass_rates:
-            return "-"
-        
-        html = '<div style="padding: 10px; background-color: var(--darkened-bg, #f8f9fa); border-radius: 4px;">'
-        
-        try:
-            # pass_rates is a JSONField, so it should be a dict
-            rates = obj.pass_rates if isinstance(obj.pass_rates, dict) else json.loads(obj.pass_rates) if isinstance(obj.pass_rates, str) else {}
-            
-            for key, value in rates.items():
-                # Format percentage if it's a number
-                if isinstance(value, (int, float)):
-                    # Convert from decimal to percentage if value is ≤1
-                    percentage_value = value * 100 if value <= 1 else value
-                    display_value = f"{percentage_value:.1f}%"
-                    # Use white color for text
-                    color = "#ffffff"
-                else:
-                    display_value = str(value)
-                    color = "#ffffff"
-                
-                html += f'''
-                <div style="margin: 5px 0;">
-                    <strong>{key}:</strong>
-                    <span style="color: {color}; font-weight: bold; margin-left: 10px;">{display_value}</span>
-                </div>
-                '''
-        except Exception as e:
-            html += f'<pre style="color: var(--error-fg, #dc3545);">Error: {e}</pre>'
-        
-        html += '</div>'
-        return mark_safe(html)
     
-    pass_rates_display.short_description = "Pass Rates"
-
-    def selected_sql_complexity_display(self, obj):
-        """Display SQL complexity level with visual indicator"""
-        if not obj.selected_sql_complexity:
-            return "-"
-        
-        complexity = str(obj.selected_sql_complexity).lower()
-        
-        # Determine color based on complexity
-        if "low" in complexity or "simple" in complexity:
-            color = "#28a745"
-        elif "high" in complexity or "complex" in complexity:
-            color = "#dc3545"
-        else:
-            color = "#ffc107"
-        
-        html = f'''
-        <span style="
-            display: inline-block;
-            background-color: {color};
-            color: white;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-        ">{obj.selected_sql_complexity}</span>
-        '''
-        return mark_safe(html)
-    
-    selected_sql_complexity_display.short_description = "SQL Complexity"
 
     def test_generation_timing_display(self, obj):
         """Display test generation timing information"""
@@ -2885,21 +2824,7 @@ class ThothLogAdmin(admin.ModelAdmin):
         except:
             return str(obj.reduced_tests)[:200] + "..."
     reduced_tests_display.short_description = "Reduced Tests"
-    
-    def evaluation_judgments_display(self, obj):
-        """Display evaluation judgments"""
-        if not obj.evaluation_judgments:
-            return "-"
-        try:
-            if isinstance(obj.evaluation_judgments, str):
-                data = json.loads(obj.evaluation_judgments)
-            else:
-                data = obj.evaluation_judgments
-            return format_html('<pre style="font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">{}</pre>', 
-                             json.dumps(data, indent=2, ensure_ascii=False))
-        except:
-            return str(obj.evaluation_judgments)[:200] + "..."
-    evaluation_judgments_display.short_description = "Evaluation Judgments"
+
     
     def process_end_time_display(self, obj):
         """Display process end time"""

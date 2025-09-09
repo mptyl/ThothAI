@@ -10,14 +10,26 @@
   color: var(--body-fg, #333333);
 }
 
+.thoth-collapsible .thoth-body {
+  /* Force left alignment inside collapsible containers regardless of surrounding layout */
+  text-align: left;
+  direction: ltr;
+}
+
 .thoth-ul {
   margin: 6px 0 0 18px;
   padding-left: 18px;
   list-style: disc;
+  /* Ensure bullet lists are left-aligned */
+  text-align: left;
+  direction: ltr;
 }
 
 .thoth-dl {
   margin: 6px 0;
+  /* Ensure description lists are left-aligned */
+  text-align: left;
+  direction: ltr;
 }
 .thoth-dl dt {
   font-weight: bold;
@@ -35,6 +47,9 @@ pre.readonly.thoth-pre {
   padding: 8px;
   border-radius: 4px;
   overflow: auto;
+  /* Ensure preformatted blocks are left-aligned */
+  text-align: left;
+  direction: ltr;
 }
 
 /* Details/summary tweaks for better hit area */
