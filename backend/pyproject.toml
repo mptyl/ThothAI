@@ -59,7 +59,7 @@ dependencies = [
     "thoth-dbmanager[postgresql,sqlite]==0.5.8",
     # Additional SQL Server drivers for better compatibility
     "pymssql>=2.2.0",
-    "thoth-qdrant==0.1.8",  # Default vector database  
+    "thoth-qdrant[cohere]==0.1.9",  # Updated with cohere and mistral support
     # AI/ML Framework (LiteLLM - lightweight LLM library)
     "litellm>=1.75.5",
     # External Embedding Service Clients

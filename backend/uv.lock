@@ -2348,7 +2348,7 @@ dependencies = [
     { name = "tabulate" },
     { name = "tenacity" },
     { name = "thoth-dbmanager", extra = ["postgresql"] },
-    { name = "thoth-qdrant" },
+    { name = "thoth-qdrant", extra = ["cohere"] },
     { name = "toml" },
     { name = "uvicorn" },
     { name = "weasyprint" },
@@ -2439,7 +2439,7 @@ requires-dist = [
     { name = "tabulate", specifier = "==0.9.0" },
     { name = "tenacity", specifier = ">=8.0.0" },
     { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.5.8" },
-    { name = "thoth-qdrant", specifier = "==0.1.8" },
+    { name = "thoth-qdrant", extras = ["cohere"], specifier = "==0.1.9" },
     { name = "toml", specifier = "==0.10.2" },
     { name = "uvicorn", specifier = "==0.34.0" },
     { name = "weasyprint", specifier = "==62.3" },
@@ -2473,16 +2473,21 @@ postgresql = [
 
 [[package]]
 name = "thoth-qdrant"
-version = "0.1.8"
+version = "0.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "qdrant-client" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/fc/292582efbfabf51ff305e39a7aaed5f5828567eefc9a846b1b9a5667ed40/thoth_qdrant-0.1.8.tar.gz", hash = "sha256:39f315f4e327290328c585950256f636b6b943daf43be36cf203442d4b8f1f79", size = 28563, upload-time = "2025-08-22T23:48:26.618Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/ec/dd639699cf7bc9836ffec24ed8e4b4d331108adb90ec7ba3908f0f80ae26/thoth_qdrant-0.1.9.tar.gz", hash = "sha256:24723895d4061d7c2b911dde57e439ad41470ca1f9ea982c9eddda448402f485", size = 29484, upload-time = "2025-08-29T10:10:29.716Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/56/3c/333a22048523d41a52021c5e79c54a37b3373530ff9bd720ab7da53d37ea/thoth_qdrant-0.1.8-py3-none-any.whl", hash = "sha256:815d6c93e3cb05c6f2009687dfedf38a8376cbfcb78dce075049996786a08c49", size = 22901, upload-time = "2025-08-22T23:48:25.379Z" },
+    { url = "https://files.pythonhosted.org/packages/56/d5/f92d927fddab761427e18ed84dbe3d5eb1a9d88975e0372001cc8bd554d8/thoth_qdrant-0.1.9-py3-none-any.whl", hash = "sha256:49dfb632ca5b6cdec0f320cd4b7982ebacffb54617ff3fda5d0bdc2441ccf673", size = 23695, upload-time = "2025-08-29T10:10:26.644Z" },
+]
+
+[package.optional-dependencies]
+cohere = [
+    { name = "cohere" },
 ]
 
 [[package]]

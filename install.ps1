@@ -81,7 +81,7 @@ function Show-Usage {
     Write-Host ""
     Write-Color "Options:" "Yellow"
     Write-Host "  -CleanCache    Clean Docker build cache before building"
-    Write-Host "  -PruneAll      Prune all Docker resources (images, containers, volumes)"
+    Write-Host "  -PruneAll      Remove all ThothAI Docker resources (containers, images, volumes)"
     Write-Host "  -Help          Show this help message"
     Write-Host ""
 }
@@ -180,15 +180,45 @@ function Main {
     
     # Clean Docker cache if requested
     if ($PruneAll) {
-        Write-Color "Pruning all Docker resources..." "Yellow"
-        Write-Color "WARNING: This will remove all Docker images, containers, and volumes!" "Red"
+        Write-Color "Removing all ThothAI Docker resources..." "Yellow"
+        Write-Color "WARNING: This will remove all ThothAI containers, images, and volumes!" "Red"
         $confirmation = Read-Host "Are you sure? (y/N)"
         if ($confirmation -eq 'y' -or $confirmation -eq 'Y') {
-            docker system prune -a --volumes -f
-            Write-Color "Docker resources pruned" "Green"
+            # Stop and remove all ThothAI containers and volumes
+            Write-Color "Stopping ThothAI containers..." "Yellow"
+            try {
+                docker compose down -v 2>$null
+            } catch { }
+            
+            # Remove ThothAI images
+            Write-Color "Removing ThothAI images..." "Yellow"
+            try {
+                $thothImages = docker images --format "{{.Repository}}:{{.Tag}}" | Where-Object { $_ -match "^thoth-" }
+                if ($thothImages) {
+                    $thothImages | ForEach-Object { docker rmi -f $_ 2>$null }
+                }
+            } catch { }
+            
+            # Remove any dangling ThothAI volumes
+            try {
+                $thothVolumes = docker volume ls --format "{{.Name}}" | Where-Object { $_ -match "^thoth" }
+                if ($thothVolumes) {
+                    $thothVolumes | ForEach-Object { docker volume rm -f $_ 2>$null }
+                }
+            } catch { }
+            
+            # Remove ThothAI network if exists
+            try {
+                $thothNetworks = docker network ls --format "{{.Name}}" | Where-Object { $_ -match "^thoth" }
+                if ($thothNetworks) {
+                    $thothNetworks | ForEach-Object { docker network rm $_ 2>$null }
+                }
+            } catch { }
+            
+            Write-Color "All ThothAI Docker resources removed" "Green"
         }
         else {
-            Write-Color "Skipping Docker prune" "Yellow"
+            Write-Color "Skipping ThothAI cleanup" "Yellow"
         }
         Write-Host ""
     }
@@ -214,6 +244,26 @@ function Main {
     }
     catch {
         Write-Color "Error running configuration validation" "Red"
+        Write-Color $_.Exception.Message "Red"
+        exit 1
+    }
+    Write-Host ""
+
+    # Configure embedding provider dependencies
+    Write-Color "Configuring embedding provider dependencies..." "Yellow"
+    try {
+        & $PYTHON_CMD scripts/configure_embedding.py config.yml.local
+        if ($LASTEXITCODE -eq 0) {
+            Write-Color "Embedding configuration completed" "Green"
+        }
+        else {
+            Write-Color "Embedding configuration failed" "Red"
+            Write-Color "Please check the error messages above" "Red"
+            exit 1
+        }
+    }
+    catch {
+        Write-Color "Error running embedding configuration" "Red"
         Write-Color $_.Exception.Message "Red"
         exit 1
     }

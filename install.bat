@@ -48,7 +48,7 @@ if "%SHOW_HELP%"=="true" (
     echo.
     echo Options:
     echo   --clean-cache    Clean Docker build cache before building
-    echo   --prune-all      Prune all Docker resources ^(images, containers, volumes^)
+    echo   --prune-all      Remove all ThothAI Docker resources ^(containers, images, volumes^)
     echo   --help, /?       Show this help message
     echo.
     exit /b 0
@@ -156,14 +156,33 @@ echo.
 
 REM Clean Docker cache if requested
 if "%PRUNE_ALL%"=="true" (
-    echo Pruning all Docker resources...
-    echo WARNING: This will remove all Docker images, containers, and volumes!
+    echo Removing all ThothAI Docker resources...
+    echo WARNING: This will remove all ThothAI containers, images, and volumes!
     set /p confirmation="Are you sure? (y/N): "
     if /i "!confirmation!"=="y" (
-        docker system prune -a --volumes -f
-        echo Docker resources pruned
+        REM Stop and remove all ThothAI containers and volumes
+        echo Stopping ThothAI containers...
+        docker compose down -v 2>nul
+        
+        REM Remove ThothAI images
+        echo Removing ThothAI images...
+        for /f "tokens=*" %%i in ('docker images --format "{{.Repository}}:{{.Tag}}" 2^>nul ^| findstr /r "^thoth-"') do (
+            docker rmi -f "%%i" 2>nul
+        )
+        
+        REM Remove any dangling ThothAI volumes
+        for /f "tokens=*" %%i in ('docker volume ls --format "{{.Name}}" 2^>nul ^| findstr /r "^thoth"') do (
+            docker volume rm -f "%%i" 2>nul
+        )
+        
+        REM Remove ThothAI network if exists
+        for /f "tokens=*" %%i in ('docker network ls --format "{{.Name}}" 2^>nul ^| findstr /r "^thoth"') do (
+            docker network rm "%%i" 2>nul
+        )
+        
+        echo All ThothAI Docker resources removed
     ) else (
-        echo Skipping Docker prune
+        echo Skipping ThothAI cleanup
     )
     echo.
 ) else if "%CLEAN_CACHE%"=="true" (
@@ -182,6 +201,17 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo Configuration validation passed
+echo.
+
+REM Configure embedding provider dependencies
+echo Configuring embedding provider dependencies...
+%PYTHON_CMD% scripts\configure_embedding.py config.yml.local
+if %errorlevel% neq 0 (
+    echo Embedding configuration failed
+    echo Please check the error messages above
+    exit /b 1
+)
+echo Embedding configuration completed
 echo.
 
 REM Pass clean cache option to Python installer

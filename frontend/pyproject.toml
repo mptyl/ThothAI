@@ -54,7 +54,7 @@ dependencies = [
     "sqlglot>=25.0.0",
     # Thoth-specific Libraries with Database Support
     "thoth-dbmanager[postgresql,sqlite]==0.5.8",
-    "thoth-qdrant>=0.1.8",
+    "thoth-qdrant[openai,cohere,mistral]>=0.1.9",
     "qdrant-client>=1.7.0",
     # AI/ML Libraries
     "openai>=1.30.0",
