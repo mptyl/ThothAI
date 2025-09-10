@@ -213,7 +213,7 @@ class ThothLogAdmin(admin.ModelAdmin):
                 "fields": (
                     "context_retrieval_timing_inline",
                     "formatted_evidences",
-                    "gold_sql_extracted_display",  # Gold Examples in collapsible block
+                    "gold_sql_extracted_display",
                 ),
                 "description": "Evidence and gold SQL retrieval from vector database",
                 "classes": ("collapse",),
@@ -279,7 +279,6 @@ class ThothLogAdmin(admin.ModelAdmin):
             # Truncate long SQL strings within items
             inner += render_value([s if not isinstance(s, str) else (s[:800] + "…" if len(s) > 800 else s) for s in parsed])
             inner += "</div>"
-            inner += render_raw_toggle(obj.pool_of_generated_sql)
             return mark_safe(render_collapsible("Pool of Generated SQL (click to expand)", inner))
 
         # Fallback: raw text in collapsible
@@ -331,7 +330,6 @@ class ThothLogAdmin(admin.ModelAdmin):
             inner = '<div class="readonly" style="max-height: 400px; overflow: auto;">'
             inner += render_value([e if not isinstance(e, str) else (e[:200] + "…" if len(e) > 200 else e) for e in parsed])
             inner += "</div>"
-            inner += render_raw_toggle(obj.evidences)
             return mark_safe(render_collapsible("Evidences (click to expand)", inner))
 
         inner = format_html(
@@ -1540,26 +1538,64 @@ class ThothLogAdmin(admin.ModelAdmin):
         
         html = '<div style="border: 1px solid var(--hairline-color, #e0e0e0); border-radius: 4px; padding: 10px; background-color: var(--darkened-bg, #f8f9fa);">'
         html += '<h4 style="margin-top: 0;">Evaluation Details</h4>'
-
-        # Show evaluated SQL (code block and plain text)
-        if getattr(obj, "generated_sql", None):
-            sql_text = str(obj.generated_sql)
-            html += '<div style="margin: 8px 0 14px 0;">'
-            html += '<div style="font-weight: 600; margin-bottom: 6px;">Evaluated SQL</div>'
-            html += f'<pre class="readonly thoth-pre" style="max-height: 300px; overflow: auto;">{sql_text}</pre>'
-            html += f'<div style="margin-top: 6px; font-family: var(--font-family-base, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial); white-space: pre-wrap;">{sql_text}</div>'
-            html += '</div>'
         
         try:
+            # Get pool of generated SQL to show SQL values
+            pool_of_sql = []
+            if obj.pool_of_generated_sql:
+                parsed_pool = parse_value(obj.pool_of_generated_sql)
+                if isinstance(parsed_pool, list):
+                    pool_of_sql = parsed_pool
+            
+            # Get selection metrics to extract pass rates
+            selection_data = None
+            if obj.selection_metrics:
+                try:
+                    selection_data = json.loads(obj.selection_metrics)
+                except:
+                    pass
+            
             # evaluation_details is already a JSONField, so it should be a Python object
             details = obj.evaluation_details if isinstance(obj.evaluation_details, list) else json.loads(obj.evaluation_details) if isinstance(obj.evaluation_details, str) else []
             
             for i, detail in enumerate(details, 1):
                 html += f'<div style="margin: 10px 0; padding: 10px; background-color: var(--body-bg, white); border-radius: 3px;">'
-                html += f'<strong>Test {i}:</strong><br>'
+                
+                # Get SQL value for this test number
+                sql_value = ""
+                if i <= len(pool_of_sql):
+                    sql_value = str(pool_of_sql[i-1])
+                
+                # Get pass rate for this SQL
+                pass_rate_str = ""
+                if selection_data and 'sql_scores' in selection_data:
+                    for score in selection_data['sql_scores']:
+                        if score.get('sql_index') == i - 1:  # 0-indexed in data
+                            pass_rate = score.get('pass_rate', 0)
+                            # Convert to percentage if needed
+                            if pass_rate <= 1:
+                                pass_percentage = int(pass_rate * 100)
+                            else:
+                                pass_percentage = int(pass_rate)
+                            pass_rate_str = f"{pass_percentage}%"
+                            break
+                
+                # Display SQL # with value
+                if sql_value:
+                    html += f'<div style="width: 100%;"><strong>SQL #{i} - </strong>'
+                    html += f'<span style="display: inline-block; max-width: calc(100% - 100px); overflow-x: auto; white-space: nowrap; vertical-align: middle;">{sql_value}</span></div>'
+                    if pass_rate_str:
+                        html += f'<span style="margin-left: 20px;"><strong>Pass Rate:</strong> {pass_rate_str}</span><br>'
+                else:
+                    html += f'<strong>Test {i}:</strong><br>'
+                    if pass_rate_str:
+                        html += f'<span style="margin-left: 20px;"><strong>Pass Rate:</strong> {pass_rate_str}</span><br>'
+                
                 if isinstance(detail, dict):
                     for key, value in detail.items():
-                        html += f'<span style="margin-left: 20px;"><strong>{key}:</strong> {value}</span><br>'
+                        # Skip pass_rate if already shown
+                        if key.lower() != 'pass_rate':
+                            html += f'<span style="margin-left: 20px;"><strong>{key}:</strong> {value}</span><br>'
                 else:
                     html += f'<span style="margin-left: 20px;">{detail}</span><br>'
                 html += '</div>'

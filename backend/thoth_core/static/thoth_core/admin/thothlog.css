@@ -1,6 +1,38 @@
 /* ThothLog Admin minimal styles
    Uses Django admin CSS variables to support light/dark themes */
 
+/* 
+  Definitive layout fix for readonly fields. 
+  This overrides Django's default two-column layout for specific fields 
+  by targeting the .form-row wrapper and its direct children.
+*/
+.form-row.field-formatted_evidences,
+.form-row.field-pool_of_generated_sql_display {
+    display: block !important; 
+    width: 100% !important;
+}
+
+.form-row.field-formatted_evidences > div,
+.form-row.field-pool_of_generated_sql_display > div {
+    display: block !important; 
+    width: 100% !important;
+    float: none !important;
+}
+
+.form-row.field-formatted_evidences > div > label,
+.form-row.field-pool_of_generated_sql_display > div > label {
+    text-align: left !important;
+    width: 100% !important;
+    padding: 0 0 5px 0 !important;
+    float: none !important;
+}
+
+.form-row.field-formatted_evidences > div > .readonly,
+.form-row.field-pool_of_generated_sql_display > div > .readonly {
+    width: 100% !important;
+    margin-left: 0 !important;
+}
+
 .thoth-collapsible {
   border: 1px solid var(--hairline-color, #e0e0e0);
   border-radius: 4px;
@@ -10,51 +42,31 @@
   color: var(--body-fg, #333333);
 }
 
-.thoth-collapsible .thoth-body {
-  /* Force left alignment inside collapsible containers regardless of surrounding layout */
-  text-align: left;
-  direction: ltr;
-}
-
-.thoth-ul {
-  margin: 6px 0 0 18px;
-  padding-left: 18px;
-  list-style: disc;
-  /* Ensure bullet lists are left-aligned */
-  text-align: left;
-  direction: ltr;
-}
-
-.thoth-dl {
-  margin: 6px 0;
-  /* Ensure description lists are left-aligned */
-  text-align: left;
-  direction: ltr;
-}
-.thoth-dl dt {
-  font-weight: bold;
-  color: var(--body-fg, #333333);
-}
-.thoth-dl dd {
-  margin: 0 0 6px 16px;
-}
-
-.thoth-pre.readonly,
-pre.readonly.thoth-pre {
-  background: var(--darkened-bg, #f0f0f0);
-  color: var(--body-fg, #333333);
-  border: 1px solid var(--hairline-color, #e0e0e0);
-  padding: 8px;
-  border-radius: 4px;
-  overflow: auto;
-  /* Ensure preformatted blocks are left-aligned */
-  text-align: left;
-  direction: ltr;
-}
-
-/* Details/summary tweaks for better hit area */
-details.thoth-collapsible > summary {
+.thoth-collapsible summary {
   cursor: pointer;
   font-weight: bold;
   padding: 5px;
+  color: var(--link-fg, #4a90e2);
+}
+
+.thoth-collapsible summary:hover {
+  color: var(--link-hover-color, #3b73b5);
+}
+
+.thoth-collapsible .readonly {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--darkened-bg, #f8f9fa);
+  border: 1px solid var(--hairline-color, #e0e0e0);
+  border-radius: 4px;
+  max-height: 400px;
+  overflow: auto;
+}
+
+.thoth-pre {
+    white-space: pre-wrap;       /* CSS3 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    white-space: -pre-wrap;      /* Opera 4-6 */
+    white-space: -o-pre-wrap;    /* Opera 7 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
 }
