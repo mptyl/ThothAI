@@ -68,23 +68,35 @@ function Remove-DockerResources {
         [switch]$IsForce
     )
     
-    if ($IsDryRun.IsPresent) {
+    if ($IsDryRun) {
         Write-ColorOutput "[DRY RUN] The following resources would be removed:" "Yellow"
         
         Write-Host "`n[Containers]"
-        $containerNames = docker ps -a --format "{{.Names}}" 2>$null
-        $thothContainers = $containerNames | Where-Object { $_ -match "^thoth-" }
-        if ($thothContainers) { $thothContainers } else { Write-Host "  None found" -ForegroundColor Gray }
+        $containers = @(docker ps -a --format "{{.Names}}" 2>$null)
+        $thothContainers = $containers | Where-Object { $_ -like "thoth-*" -or $_ -like "thothui-*" }
+        if ($thothContainers) { 
+            $thothContainers | ForEach-Object { Write-Host "  $_" }
+        } else { 
+            Write-Host "  None found" -ForegroundColor Gray 
+        }
         
         Write-Host "`n[Volumes]"
-        $volumeNames = docker volume ls --format "{{.Name}}" 2>$null
-        $thothVolumes = $volumeNames | Where-Object { $_ -match "^thoth-" }
-        if ($thothVolumes) { $thothVolumes } else { Write-Host "  None found" -ForegroundColor Gray }
+        $volumes = @(docker volume ls --format "{{.Name}}" 2>$null)
+        $thothVolumes = $volumes | Where-Object { $_ -like "thoth*" }
+        if ($thothVolumes) { 
+            $thothVolumes | ForEach-Object { Write-Host "  $_" }
+        } else { 
+            Write-Host "  None found" -ForegroundColor Gray 
+        }
         
         Write-Host "`n[Networks]"
-        $networkNames = docker network ls --format "{{.Name}}" 2>$null
-        $thothNetworks = $networkNames | Where-Object { $_ -match "^thoth-" }
-        if ($thothNetworks) { $thothNetworks } else { Write-Host "  None found" -ForegroundColor Gray }
+        $networks = @(docker network ls --format "{{.Name}}" 2>$null)
+        $thothNetworks = $networks | Where-Object { $_ -like "thoth*" }
+        if ($thothNetworks) { 
+            $thothNetworks | ForEach-Object { Write-Host "  $_" }
+        } else { 
+            Write-Host "  None found" -ForegroundColor Gray 
+        }
         
         Write-Host "`n[Images]"
         $images = docker images --format "{{.Repository}}:{{.Tag}}" 2>$null
@@ -94,7 +106,7 @@ function Remove-DockerResources {
         return
     }
     
-    if (-not $IsForce.IsPresent) {
+    if (-not $IsForce) {
         Write-ColorOutput "WARNING: This will remove all ThothAI containers, images, volumes, and networks!" "Red"
         $reply = Read-Host "Are you sure you want to continue? (y/N)"
         if ($reply -notmatch "^[Yy]$") {
@@ -107,46 +119,90 @@ function Remove-DockerResources {
     
     # 1. Stop and remove all ThothAI containers
     Write-ColorOutput "Stopping and removing ThothAI containers..." "Yellow"
-    $containerNames = docker ps -a --format "{{.Names}}" 2>$null
-    $thothContainers = $containerNames | Where-Object { $_ -match "^thoth-" }
-    if ($thothContainers) {
+    $containers = @(docker ps -a --format "{{.Names}}" 2>$null)
+    Write-Host "  Total containers found: $($containers.Count)" -ForegroundColor DarkGray
+    $thothContainers = $containers | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    Write-Host "  Thoth containers to remove: $($thothContainers.Count)" -ForegroundColor DarkGray
+    if ($thothContainers -and $thothContainers.Count -gt 0) {
         $thothContainers | ForEach-Object { 
-            Write-Host "  Removing container: $_" -ForegroundColor Gray
-            docker rm -f $_ 2>$null | Out-Null 
+            if ($_) {
+                Write-Host "  Removing container: $_" -ForegroundColor Gray
+                $result = docker rm -f $_ 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "    Successfully removed" -ForegroundColor DarkGreen
+                } else {
+                    Write-Host "    Failed to remove: $result" -ForegroundColor DarkRed
+                }
+            }
         }
+    } else {
+        Write-Host "  No Thoth containers found" -ForegroundColor Gray
     }
     
     # 2. Remove all ThothAI volumes
     Write-ColorOutput "Removing ThothAI volumes..." "Yellow"
-    $volumeNames = docker volume ls --format "{{.Name}}" 2>$null
-    $thothVolumes = $volumeNames | Where-Object { $_ -match "^thoth-" }
-    if ($thothVolumes) {
+    $volumes = @(docker volume ls --format "{{.Name}}" 2>$null)
+    Write-Host "  Total volumes found: $($volumes.Count)" -ForegroundColor DarkGray
+    $thothVolumes = $volumes | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    Write-Host "  Thoth volumes to remove: $($thothVolumes.Count)" -ForegroundColor DarkGray
+    if ($thothVolumes -and $thothVolumes.Count -gt 0) {
         $thothVolumes | ForEach-Object { 
-            Write-Host "  Removing volume: $_" -ForegroundColor Gray
-            docker volume rm $_ 2>$null | Out-Null 
+            if ($_) {
+                Write-Host "  Removing volume: $_" -ForegroundColor Gray
+                $result = docker volume rm $_ 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "    Successfully removed" -ForegroundColor DarkGreen
+                } else {
+                    Write-Host "    Failed to remove: $result" -ForegroundColor DarkRed
+                }
+            }
         }
+    } else {
+        Write-Host "  No Thoth volumes found" -ForegroundColor Gray
     }
     
     # 3. Remove all ThothAI networks
     Write-ColorOutput "Removing ThothAI networks..." "Yellow"
-    $networkNames = docker network ls --format "{{.Name}}" 2>$null
-    $thothNetworks = $networkNames | Where-Object { $_ -match "^thoth-" }
-    if ($thothNetworks) {
+    $networks = @(docker network ls --format "{{.Name}}" 2>$null)
+    Write-Host "  Total networks found: $($networks.Count)" -ForegroundColor DarkGray
+    $thothNetworks = $networks | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    Write-Host "  Thoth networks to remove: $($thothNetworks.Count)" -ForegroundColor DarkGray
+    if ($thothNetworks -and $thothNetworks.Count -gt 0) {
         $thothNetworks | ForEach-Object { 
-            Write-Host "  Removing network: $_" -ForegroundColor Gray
-            docker network rm $_ 2>$null | Out-Null 
+            if ($_) {
+                Write-Host "  Removing network: $_" -ForegroundColor Gray
+                $result = docker network rm $_ 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "    Successfully removed" -ForegroundColor DarkGreen
+                } else {
+                    Write-Host "    Failed to remove: $result" -ForegroundColor DarkRed
+                }
+            }
         }
+    } else {
+        Write-Host "  No Thoth networks found" -ForegroundColor Gray
     }
     
     # 4. Remove all ThothAI images
     Write-ColorOutput "Removing ThothAI images..." "Yellow"
-    $images = docker images --format "{{.Repository}}:{{.Tag}}" 2>$null
-    $thothImages = $images | Where-Object { $_ -like "thoth-*" }
-    if ($thothImages) {
+    $images = @(docker images --format "{{.Repository}}:{{.Tag}}" 2>$null)
+    Write-Host "  Total images found: $($images.Count)" -ForegroundColor DarkGray
+    $thothImages = $images | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    Write-Host "  Thoth images to remove: $($thothImages.Count)" -ForegroundColor DarkGray
+    if ($thothImages -and $thothImages.Count -gt 0) {
         $thothImages | ForEach-Object { 
-            Write-Host "  Removing image: $_" -ForegroundColor Gray
-            docker rmi -f $_ 2>$null | Out-Null 
+            if ($_) {
+                Write-Host "  Removing image: $_" -ForegroundColor Gray
+                $result = docker rmi -f $_ 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "    Successfully removed" -ForegroundColor DarkGreen
+                } else {
+                    Write-Host "    Failed to remove: $result" -ForegroundColor DarkRed
+                }
+            }
         }
+    } else {
+        Write-Host "  No Thoth images found" -ForegroundColor Gray
     }
     
     # 5. Remove any dangling ThothAI images
@@ -160,6 +216,52 @@ function Remove-DockerResources {
     }
     
     Write-ColorOutput "All ThothAI Docker resources have been removed" "Green"
+}
+
+# Function to fix line endings for shell scripts and Docker files
+function Fix-LineEndings {
+    Write-ColorOutput "Fixing line endings for shell scripts and Docker files..." "Yellow"
+    
+    # Find all .sh files and Dockerfiles
+    $filesToFix = @()
+    $filesToFix += Get-ChildItem -Path . -Filter *.sh -Recurse -ErrorAction SilentlyContinue
+    $filesToFix += Get-ChildItem -Path . -Filter Dockerfile* -Recurse -ErrorAction SilentlyContinue
+    $filesToFix += Get-ChildItem -Path . -Filter *.yml -Recurse -ErrorAction SilentlyContinue
+    $filesToFix += Get-ChildItem -Path . -Filter *.yaml -Recurse -ErrorAction SilentlyContinue
+    
+    # Filter out unwanted directories
+    $filesToFix = $filesToFix | Where-Object { 
+        $_.FullName -notmatch "\\node_modules\\" -and 
+        $_.FullName -notmatch "\\venv\\" -and
+        $_.FullName -notmatch "\\.venv\\" -and
+        $_.FullName -notmatch "\\.git\\"
+    }
+    
+    $count = 0
+    foreach ($file in $filesToFix) {
+        try {
+            $relativePath = $file.FullName.Replace($PWD.Path + "\", "")
+            
+            # Read file and check if it has CRLF
+            $content = [System.IO.File]::ReadAllText($file.FullName)
+            if ($content.Contains("`r`n")) {
+                # Convert CRLF to LF
+                $unixContent = $content -replace "`r`n", "`n"
+                [System.IO.File]::WriteAllText($file.FullName, $unixContent)
+                
+                Write-Host "  Fixed: $relativePath" -ForegroundColor Gray
+                $count++
+            }
+        } catch {
+            # Silently skip files that can't be converted
+        }
+    }
+    
+    if ($count -gt 0) {
+        Write-ColorOutput "Converted $count files to Unix line endings" "Green"
+    } else {
+        Write-ColorOutput "No files needed line ending conversion" "Green"
+    }
 }
 
 # Main installation flow
@@ -187,6 +289,10 @@ function Main {
     if ($scriptPath) {
         Set-Location $scriptPath
     }
+    
+    # Fix line endings first (critical for Docker on Windows)
+    Fix-LineEndings
+    Write-Host ""
     
     # Check for config.yml.local first
     if (-not (Test-Path "config.yml.local")) {
