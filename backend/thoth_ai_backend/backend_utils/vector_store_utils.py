@@ -176,12 +176,9 @@ def get_vector_store(request):
             if vector_db.password:
                 params["password"] = vector_db.password
 
-        # Prepare embedding configuration with fallback to environment variables
-        # This provides backward compatibility for existing VectorDb records
-        embedding_provider = vector_db.embedding_provider or os.environ.get(
-            "EMBEDDING_PROVIDER"
-        )
-        embedding_model = vector_db.embedding_model or os.environ.get("EMBEDDING_MODEL")
+        # Prepare embedding configuration from environment variables
+        embedding_provider = os.environ.get("EMBEDDING_PROVIDER")
+        embedding_model = os.environ.get("EMBEDDING_MODEL")
 
         # Get API key from environment variables
         embedding_api_key = None
@@ -213,14 +210,14 @@ def get_vector_store(request):
         if not embedding_api_key:
             embedding_api_key = os.environ.get("EMBEDDING_API_KEY")
 
-        # Validate embedding configuration (now with fallback values)
+        # Validate embedding configuration
         if not all([embedding_provider, embedding_api_key, embedding_model]):
             raise ValueError(
-                f"Incomplete embedding configuration for {vector_db.name}. "
+                f"Incomplete embedding configuration. "
                 f"Provider: {embedding_provider}, "
                 f"API Key: {'set' if embedding_api_key else 'missing'}, "
                 f"Model: {embedding_model}. "
-                f"Please configure embedding settings in database or environment variables."
+                f"Please configure embedding settings in environment variables."
             )
 
         # Add embedding parameters to params for the adapter

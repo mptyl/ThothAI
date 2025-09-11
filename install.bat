@@ -92,7 +92,19 @@ setlocal
 
 if "%DRY_RUN%"=="true" (
     echo [DRY RUN] The following resources would be removed:
-    call :docker_cmd system prune --all --volumes --filter "label=com.docker.compose.project=thoth" --dry-run
+    
+    echo [Containers]
+    docker ps -a --filter "name=^thoth-|^/thoth-" --format "{{.Names}}" 2>nul
+    
+    echo [Volumes]
+    docker volume ls -q --filter "name=^thoth-" 2>nul
+    
+    echo [Networks]
+    docker network ls -q --filter "name=^thoth-" 2>nul
+    
+    echo [Images]
+    docker images --format "{{.Repository}}:{{.Tag}}" | findstr /i "^thoth-"
+    
     exit /b 0
 )
 
@@ -107,25 +119,36 @@ if "%FORCE%" neq "true" (
 
 echo Removing all ThothAI Docker resources...
 
-REM Main prune command
-call :docker_cmd system prune --all --volumes --filter "label=com.docker.compose.project=thoth" --force
-
-REM Additional cleanup for any remaining resources not caught by the filter
-echo Performing additional cleanup...
-
-REM Stop and remove any remaining containers
-for /f "tokens=*" %%i in ('docker ps -a --filter "name=thoth" --format "{{.Names}}" 2^>nul') do (
+REM 1. Stop and remove all ThothAI containers
+echo Stopping and removing ThothAI containers...
+for /f "tokens=*" %%i in ('docker ps -a -q --filter "name=^thoth-|^/thoth-" --format "{{.ID}}" 2^>nul') do (
     call :docker_cmd rm -f "%%i"
 )
 
-REM Remove any remaining volumes
-for /f "tokens=*" %%i in ('docker volume ls --filter "name=thoth" --format "{{.Name}}" 2^>nul') do (
-    call :docker_cmd volume rm -f "%%i"
+REM 2. Remove all ThothAI volumes
+echo Removing ThothAI volumes...
+for /f "tokens=*" %%i in ('docker volume ls -q --filter "name=^thoth-" 2^>nul') do (
+    call :docker_cmd volume rm "%%i"
 )
 
-REM Remove any remaining networks
-for /f "tokens=*" %%i in ('docker network ls --filter "name=thoth" --format "{{.Name}}" 2^>nul') do (
+REM 3. Remove all ThothAI networks
+echo Removing ThothAI networks...
+for /f "tokens=*" %%i in ('docker network ls -q --filter "name=^thoth-" 2^>nul') do (
     call :docker_cmd network rm "%%i"
+)
+
+REM 4. Remove all ThothAI images
+echo Removing ThothAI images...
+for /f "tokens=*" %%i in ('docker images --format "{{.Repository}}:{{.Tag}}" ^| findstr /i "^thoth-" 2^>nul') do (
+    call :docker_cmd rmi -f "%%i"
+)
+
+REM 5. Remove any dangling ThothAI images
+echo Removing dangling ThothAI images...
+for /f "tokens=*" %%i in ('docker images -f "dangling=true" --format "{{.ID}}" 2^>nul') do (
+    for /f "tokens=*" %%h in ('docker history --no-trunc %%i 2^>nul ^| findstr /i "thoth"') do (
+        call :docker_cmd rmi -f "%%i"
+    )
 )
 
 echo All ThothAI Docker resources have been removed

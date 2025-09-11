@@ -54,12 +54,21 @@ prune_resources() {
     local dry_run=$1
     local force=$2
     
-    local docker_cmd="docker"
-    local prune_cmd="system prune --all --volumes --filter label=com.docker.compose.project=thoth"
-    
     if [ "$dry_run" = true ]; then
         print_color "[DRY RUN] The following resources would be removed:" "$YELLOW"
-        $docker_cmd $prune_cmd --dry-run
+        
+        echo -e "\n[Containers]"
+        docker ps -a --filter "name=^thoth-|^/thoth-" --format "{{.Names}}" 2>/dev/null || true
+        
+        echo -e "\n[Volumes]"
+        docker volume ls -q --filter "name=^thoth-" 2>/dev/null || true
+        
+        echo -e "\n[Networks]"
+        docker network ls -q --filter "name=^thoth-" 2>/dev/null || true
+        
+        echo -e "\n[Images]"
+        docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "^thoth-" || true
+        
         return 0
     fi
     
@@ -74,19 +83,30 @@ prune_resources() {
     fi
     
     print_color "Removing all ThothAI Docker resources..." "$YELLOW"
-    $docker_cmd $prune_cmd --force
     
-    # Additional cleanup for any remaining resources not caught by the filter
-    print_color "Performing additional cleanup..." "$YELLOW"
+    # 1. Stop and remove all ThothAI containers
+    print_color "Stopping and removing ThothAI containers..." "$YELLOW"
+    docker ps -a -q --filter "name=^thoth-|^/thoth-" --format "{{.ID}}" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
     
-    # Stop and remove any remaining containers
-    $docker_cmd ps -a --filter "name=thoth" --format "{{.Names}}" | xargs -r $docker_cmd rm -f 2>/dev/null || true
+    # 2. Remove all ThothAI volumes
+    print_color "Removing ThothAI volumes..." "$YELLOW"
+    docker volume ls -q --filter "name=^thoth-" 2>/dev/null | xargs -r docker volume rm 2>/dev/null || true
     
-    # Remove any remaining volumes
-    $docker_cmd volume ls --filter "name=thoth" --format "{{.Name}}" | xargs -r $docker_cmd volume rm -f 2>/dev/null || true
+    # 3. Remove all ThothAI networks
+    print_color "Removing ThothAI networks..." "$YELLOW"
+    docker network ls -q --filter "name=^thoth-" 2>/dev/null | xargs -r docker network rm 2>/dev/null || true
     
-    # Remove any remaining networks
-    $docker_cmd network ls --filter "name=thoth" --format "{{.Name}}" | xargs -r $docker_cmd network rm 2>/dev/null || true
+    # 4. Remove all ThothAI images
+    print_color "Removing ThothAI images..." "$YELLOW"
+    docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "^thoth-" | xargs -r docker rmi -f 2>/dev/null || true
+    
+    # 5. Remove any dangling ThothAI images
+    print_color "Removing dangling ThothAI images..." "$YELLOW"
+    docker images -f "dangling=true" --format "{{.ID}}" 2>/dev/null | while read -r image_id; do
+        if docker history --no-trunc "$image_id" 2>/dev/null | grep -q "thoth"; then
+            docker rmi -f "$image_id" 2>/dev/null || true
+        fi
+    done
     
     print_color "All ThothAI Docker resources have been removed" "$GREEN"
 }
