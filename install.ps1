@@ -179,7 +179,7 @@ function Main {
     Fix-LineEndings
     
     # Clean Docker cache if requested
-    if ($PruneAll -or $pruneall) {
+    if ($PruneAll) {
         Write-Color "============================================" "Red"
         Write-Color "  WARNING: This will remove ThothAI Docker resources!" "Red"
         Write-Color "  This will affect ONLY resources with 'thoth' in their name:" "Red"
@@ -221,7 +221,7 @@ function Main {
                         Write-Color "    Removed: $_" "Green"
                     }
                     catch {
-                        Write-Color "    Failed to remove $_: $_" "Red"
+                        Write-Color "    Failed to remove $_ : $($_.Exception.Message)" "Red"
                     }
                 }
             }
