@@ -3,9 +3,15 @@
 # See the LICENSE.md file in the project root for full license information.
 
 param(
+    [Alias("clean-cache")]
     [switch]$CleanCache,
+    
+    [Alias("prune-all")]
     [switch]$PruneAll,
+    
+    [Alias("dry-run")]
     [switch]$DryRun,
+    
     [switch]$Force,
     [switch]$Help
 )
@@ -53,11 +59,11 @@ function Show-Usage {
     Write-ColorOutput "Usage: .\install.ps1 [OPTIONS]" "Blue"
     Write-ColorOutput ""
     Write-ColorOutput "Options:" "Yellow"
-    Write-ColorOutput "  -CleanCache    Clean Docker build cache before building"
-    Write-ColorOutput "  -PruneAll      Remove all ThothAI Docker resources (containers, images, volumes, networks)"
-    Write-ColorOutput "  -DryRun        Show what would be removed without actually removing anything"
-    Write-ColorOutput "  -Force         Skip confirmation prompt"
-    Write-ColorOutput "  -Help          Show this help message"
+    Write-ColorOutput "  -CleanCache, --clean-cache    Clean Docker build cache before building"
+    Write-ColorOutput "  -PruneAll, --prune-all        Remove all ThothAI Docker resources"
+    Write-ColorOutput "  -DryRun, --dry-run            Show what would be removed without removing"
+    Write-ColorOutput "  -Force, --force               Skip confirmation prompt"
+    Write-ColorOutput "  -Help, --help                 Show this help message"
     Write-Host ""
 }
 
@@ -395,13 +401,7 @@ function Main {
     
     # Clean Docker cache if requested
     if ($PruneAll) {
-        if ($DryRun) {
-            Remove-DockerResources -IsDryRun
-        } elseif ($Force) {
-            Remove-DockerResources -IsForce
-        } else {
-            Remove-DockerResources
-        }
+        Remove-DockerResources -IsDryRun:$DryRun -IsForce:$Force
         Write-Host ""
     } elseif ($CleanCache) {
         Write-ColorOutput "Cleaning Docker build cache..." "Yellow"
