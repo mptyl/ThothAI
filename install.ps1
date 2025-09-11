@@ -179,48 +179,117 @@ function Main {
     Fix-LineEndings
     
     # Clean Docker cache if requested
-    if ($PruneAll) {
-        Write-Color "Removing all ThothAI Docker resources..." "Yellow"
-        Write-Color "WARNING: This will remove all ThothAI containers, images, and volumes!" "Red"
-        $confirmation = Read-Host "Are you sure? (y/N)"
-        if ($confirmation -eq 'y' -or $confirmation -eq 'Y') {
-            # Stop and remove all ThothAI containers and volumes
-            Write-Color "Stopping ThothAI containers..." "Yellow"
-            try {
-                docker compose down -v 2>$null
-            } catch { }
-            
-            # Remove ThothAI images
-            Write-Color "Removing ThothAI images..." "Yellow"
-            try {
-                $thothImages = docker images --format "{{.Repository}}:{{.Tag}}" | Where-Object { $_ -match "^thoth-" }
-                if ($thothImages) {
-                    $thothImages | ForEach-Object { docker rmi -f $_ 2>$null }
-                }
-            } catch { }
-            
-            # Remove any dangling ThothAI volumes
-            try {
-                $thothVolumes = docker volume ls --format "{{.Name}}" | Where-Object { $_ -match "^thoth" }
-                if ($thothVolumes) {
-                    $thothVolumes | ForEach-Object { docker volume rm -f $_ 2>$null }
-                }
-            } catch { }
-            
-            # Remove ThothAI network if exists
-            try {
-                $thothNetworks = docker network ls --format "{{.Name}}" | Where-Object { $_ -match "^thoth" }
-                if ($thothNetworks) {
-                    $thothNetworks | ForEach-Object { docker network rm $_ 2>$null }
-                }
-            } catch { }
-            
-            Write-Color "All ThothAI Docker resources removed" "Green"
+    if ($PruneAll -or $pruneall) {
+        Write-Color "============================================" "Red"
+        Write-Color "  WARNING: This will remove ThothAI Docker resources!" "Red"
+        Write-Color "  This will affect ONLY resources with 'thoth' in their name:" "Red"
+        Write-Color "  - All ThothAI containers" "Red"
+        Write-Color "  - All ThothAI images" "Red"
+        Write-Color "  - All ThothAI volumes" "Red"
+        Write-Color "  - All ThothAI networks" "Red"
+        Write-Color "  - All unused ThothAI build cache" "Red"
+        Write-Color "  Other Docker resources will remain untouched" "Green"
+        Write-Color "============================================" "Red"
+        $confirmation = Read-Host "Are you sure you want to continue? (y/N)"
+        
+        if ($confirmation -ne 'y' -and $confirmation -ne 'Y') {
+            Write-Color "Operation cancelled by user." "Yellow"
+            exit 0
         }
-        else {
-            Write-Color "Skipping ThothAI cleanup" "Yellow"
+
+        try {
+            # Function to safely remove resources with error handling
+            function Remove-DockerResources {
+                param(
+                    [string]$ResourceType,
+                    [string]$ListCommand,
+                    [string]$RemoveCommand,
+                    [string]$Filter = "*thoth*"
+                )
+                Write-Color "Processing $ResourceType..." "Yellow"
+                $resources = Invoke-Expression $ListCommand | Where-Object { $_ -like $Filter }
+                
+                if (-not $resources) {
+                    Write-Color "  No matching $ResourceType found" "Green"
+                    return
+                }
+
+                Write-Color "  Found $($resources.Count) $ResourceType to remove" "Yellow"
+                $resources | ForEach-Object {
+                    try {
+                        Invoke-Expression "$RemoveCommand $_" 2>&1 | Out-Null
+                        Write-Color "    Removed: $_" "Green"
+                    }
+                    catch {
+                        Write-Color "    Failed to remove $_: $_" "Red"
+                    }
+                }
+            }
+
+            # Step 1: Stop and remove ThothAI containers
+            Write-Color "[1/4] Stopping and removing ThothAI containers..." "Yellow"
+            $containers = docker ps -a --filter "name=thoth" --format "{{.ID}}"
+            if ($containers) {
+                $containers | ForEach-Object {
+                    docker stop $_ 2>&1 | Out-Null
+                    docker rm -f $_ 2>&1 | Out-Null
+                    Write-Color "  Removed container: $_" "Green"
+                }
+            } else {
+                Write-Color "  No ThothAI containers found" "Green"
+            }
+
+            # Step 2: Remove ThothAI images
+            Write-Color "[2/4] Removing ThothAI images..." "Yellow"
+            $images = docker images --format "{{.Repository}}:{{.Tag}}" | Where-Object { $_ -like "*thoth*" }
+            if ($images) {
+                $images | ForEach-Object {
+                    docker rmi -f $_ 2>&1 | Out-Null
+                    Write-Color "  Removed image: $_" "Green"
+                }
+            } else {
+                Write-Color "  No ThothAI images found" "Green"
+            }
+
+            # Step 3: Remove ThothAI volumes
+            Write-Color "[3/4] Removing ThothAI volumes..." "Yellow"
+            $volumes = docker volume ls --format "{{.Name}}" | Where-Object { $_ -like "*thoth*" }
+            if ($volumes) {
+                $volumes | ForEach-Object {
+                    docker volume rm $_ 2>&1 | Out-Null
+                    Write-Color "  Removed volume: $_" "Green"
+                }
+            } else {
+                Write-Color "  No ThothAI volumes found" "Green"
+            }
+
+            # Step 4: Remove ThothAI networks
+            Write-Color "[4/4] Removing ThothAI networks..." "Yellow"
+            $networks = docker network ls --format "{{.Name}}" | Where-Object { $_ -like "*thoth*" }
+            if ($networks) {
+                $networks | ForEach-Object {
+                    docker network rm $_ 2>&1 | Out-Null
+                    Write-Color "  Removed network: $_" "Green"
+                }
+            } else {
+                Write-Color "  No ThothAI networks found" "Green"
+            }
+
+            # Final cleanup of any dangling ThothAI resources
+            Write-Color "Performing final cleanup..." "Yellow"
+            docker system prune -f --filter "label=com.docker.compose.project=thoth" 2>&1 | Out-Null
+            
+            Write-Host ""
+            Write-Color "✓ ThothAI Docker resources cleanup completed!" "Green"
+            Write-Color "Other Docker resources remain untouched." "Green"
         }
-        Write-Host ""
+        catch {
+            Write-Color "Error during cleanup: $_" "Red"
+            Write-Color "Some ThothAI resources might not have been removed properly." "Yellow"
+            exit 1
+        }
+        
+        exit 0
     }
     elseif ($CleanCache) {
         Write-Color "Cleaning Docker build cache..." "Yellow"
