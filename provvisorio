@@ -1,0 +1,124 @@
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of Thoth and is released under the Apache License 2.0.
+# See the LICENSE.md file in the project root for full license information.
+
+# Thoth AI Configuration Template
+# Copy this file to config.yml.local and fill in your configuration
+version: "1.0"
+
+# AI Provider Configuration
+# Configure only the providers you want to use
+# At least one provider must be enabled with a valid API key
+ai_providers:
+  # OpenAI
+  openai:
+    enabled: false
+    api_key: "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"
+  
+  # Anthropic Claude
+  anthropic:
+    enabled: false
+    api_key: "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"
+  
+  # Google Gemini
+  gemini:
+    enabled: false
+    api_key: "AIzaSyAzm5-i6eUZAR917KAVDnrA0h2jbS5O5io"
+  
+  # Mistral AI
+  mistral:
+    enabled: false
+    api_key: "9x6k4sOErV2d7UazUMD4fHlyLNv2RGKN"
+  
+  # DeepSeek (OpenAI-compatible)
+  deepseek:
+    enabled: false
+    api_key: "sk-b7063a7b24e34eb9a9882b29b5d16f6d"
+    api_base: "https://api.deepseek.com/v1"
+  
+  # OpenRouter (OpenAI-compatible)
+  openrouter:
+    enabled: true
+    api_key: "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"
+    api_base: "https://openrouter.ai/api/v1"
+  
+  # Ollama (Local - no API key required)
+  ollama:
+    enabled: false
+    api_base: "http://127.0.0.1:11434"
+  
+  # LM Studio (Local - no API key required)
+  lm_studio:
+    enabled: false
+    api_base: "http://localhost:1234"
+  
+  # Groq (Fast inference)
+  groq:
+    enabled: false
+    api_key: ""
+
+# Embedding Service Configuration (Required)
+# Configure the embedding provider for semantic search
+embedding:
+  # Active provider - uncomment ONE of the following blocks:
+  
+  # Option 1: OpenAI (Recommended)
+  # provider: "openai"
+  # api_key: "test-key-123"  # Test API key
+  # model: "text-embedding-3-small"
+  
+  # Option 2: Mistral
+  # provider: "mistral"
+  # api_key: ""  # Leave empty to use Mistral API key from above
+  # model: "mistral-embed"
+  
+  # Option 3: Cohere
+  provider: "cohere"
+  api_key: "bHxulfyD6j8aFDakaCHcIDIPoqeqbojvhs6oFn1R"  # Cohere API key required
+  model: "embed-multilingual-v3.0"
+
+# Database Support Configuration
+# Enable the database drivers you need
+databases:
+  sqlite: true       # Always required, cannot be disabled
+  postgresql: true  # Enable for PostgreSQL support
+  mysql: false       # Enable for MySQL support
+  mariadb: true     # Enable for MariaDB support
+  sqlserver: true   # Enable for SQL Server support
+
+# Admin User Configuration
+admin:
+  email: ""  # Optional - admin email address
+  username: "admin"  # Default admin username
+  password: "admin123"  # Admin password (min 8 chars) - if empty, will be requested interactively
+
+# Demo User Configuration
+demo:
+  email: ""  # Optional - admin email address
+  username: "demo"  # Default admin username
+  password: "demo1234"  # Admin password (min 8 chars) - if empty, will be requested interactively
+
+# Monitoring Configuration
+monitoring:
+  enabled: true  # Enable application monitoring
+  logfire_token: "pylf_v1_eu_H17GbqX13DqfMCNXYN8pPxRqNsNKCK1PfKw1h7Vv3GlQ"  # Logfire.io token (required if monitoring enabled)
+
+# Service Ports Configuration
+ports:
+  frontend: 3040      # Next.js frontend port
+  backend: 8000       # Django backend internal port
+  sql_generator: 8020 # SQL generation service port
+  nginx: 8040         # Main nginx proxy port (external access)
+  qdrant: 6333        # Qdrant vector database port
+
+# Docker Configuration
+docker:
+  network_name: "thoth-network"
+  compose_file: "docker-compose.yml"
+  build_cache: true  # Use Docker build cache for faster rebuilds
+
+# Development Settings
+development:
+  debug: false        # Enable debug mode (not recommended for production)
+  log_level: "INFO"   # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  hot_reload: true    # Enable hot reload for development
