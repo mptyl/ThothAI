@@ -379,7 +379,7 @@ function Main {
     catch {
         Write-Host ""
         Write-Color "Installation failed with error:" "Red"
-        Write-Color $_.Exception.Message "Red"
+        Write-Color "$_.Exception.Message" "Red"
         exit 1
     }
 }
