@@ -2,19 +2,34 @@
 # This file is part of Thoth and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-param(
-    [Alias("clean-cache")]
-    [switch]$CleanCache,
-    
-    [Alias("prune-all")]
-    [switch]$PruneAll,
-    
-    [Alias("dry-run")]
-    [switch]$DryRun,
-    
-    [switch]$Force,
-    [switch]$Help
-)
+# Parse command line arguments manually to support bash-style flags
+$CleanCache = $false
+$PruneAll = $false
+$DryRun = $false
+$Force = $false
+$Help = $false
+
+foreach ($arg in $args) {
+    switch ($arg) {
+        "--clean-cache" { $CleanCache = $true }
+        "--prune-all" { $PruneAll = $true }
+        "--dry-run" { $DryRun = $true }
+        "--force" { $Force = $true }
+        "--help" { $Help = $true }
+        "-CleanCache" { $CleanCache = $true }
+        "-PruneAll" { $PruneAll = $true }
+        "-DryRun" { $DryRun = $true }
+        "-Force" { $Force = $true }
+        "-Help" { $Help = $true }
+        default {
+            if ($arg -match "^-") {
+                Write-Host "Unknown option: $arg" -ForegroundColor Red
+                Write-Host "Use --help for usage information" -ForegroundColor Yellow
+                exit 1
+            }
+        }
+    }
+}
 
 # Set error action preference
 $ErrorActionPreference = "Stop"
