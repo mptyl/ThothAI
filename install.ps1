@@ -79,7 +79,7 @@ function Remove-DockerResources {
         
         Write-Host "`n[Containers]"
         $containers = @(docker ps -a --format "{{.Names}}" 2>$null)
-        $thothContainers = $containers | Where-Object { $_ -like "thoth-*" -or $_ -like "thothui-*" }
+        $thothContainers = $containers | Where-Object { $_ -like "thoth-*" -or $_ -like "thothui-*" -or $_ -like "thothui_*" -or $_ -like "thoth_*" }
         if ($thothContainers) { 
             $thothContainers | ForEach-Object { Write-Host "  $_" }
         } else { 
@@ -88,7 +88,7 @@ function Remove-DockerResources {
         
         Write-Host "`n[Volumes]"
         $volumes = @(docker volume ls --format "{{.Name}}" 2>$null)
-        $thothVolumes = $volumes | Where-Object { $_ -like "thoth*" }
+        $thothVolumes = $volumes | Where-Object { $_ -like "thoth-*" -or $_ -like "thoth_*" -or $_ -like "thothui*" }
         if ($thothVolumes) { 
             $thothVolumes | ForEach-Object { Write-Host "  $_" }
         } else { 
@@ -97,7 +97,7 @@ function Remove-DockerResources {
         
         Write-Host "`n[Networks]"
         $networks = @(docker network ls --format "{{.Name}}" 2>$null)
-        $thothNetworks = $networks | Where-Object { $_ -like "thoth*" }
+        $thothNetworks = $networks | Where-Object { $_ -like "thoth-*" -or $_ -like "thoth_*" }
         if ($thothNetworks) { 
             $thothNetworks | ForEach-Object { Write-Host "  $_" }
         } else { 
@@ -106,7 +106,7 @@ function Remove-DockerResources {
         
         Write-Host "`n[Images]"
         $images = docker images --format "{{.Repository}}:{{.Tag}}" 2>$null
-        $thothImages = $images | Where-Object { $_ -like "thoth-*" }
+        $thothImages = $images | Where-Object { $_ -like "thoth-*" -or $_ -like "thoth_*" -or $_ -like "thothui*" -or $_ -match "^(thothui|thoth)[-_:]" }
         if ($thothImages) { $thothImages } else { Write-Host "  None found" -ForegroundColor Gray }
         
         return
@@ -127,7 +127,7 @@ function Remove-DockerResources {
     Write-ColorOutput "Stopping and removing ThothAI containers..." "Yellow"
     $containers = @(docker ps -a --format "{{.Names}}" 2>$null)
     Write-Host "  Total containers found: $($containers.Count)" -ForegroundColor DarkGray
-    $thothContainers = $containers | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    $thothContainers = $containers | Where-Object { $_ -like "thoth-*" -or $_ -like "thothui-*" -or $_ -like "thothui_*" -or $_ -like "thoth_*" }
     Write-Host "  Thoth containers to remove: $($thothContainers.Count)" -ForegroundColor DarkGray
     if ($thothContainers -and $thothContainers.Count -gt 0) {
         $thothContainers | ForEach-Object { 
@@ -149,7 +149,7 @@ function Remove-DockerResources {
     Write-ColorOutput "Removing ThothAI volumes..." "Yellow"
     $volumes = @(docker volume ls --format "{{.Name}}" 2>$null)
     Write-Host "  Total volumes found: $($volumes.Count)" -ForegroundColor DarkGray
-    $thothVolumes = $volumes | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    $thothVolumes = $volumes | Where-Object { $_ -like "thoth-*" -or $_ -like "thoth_*" -or $_ -like "thothui*" }
     Write-Host "  Thoth volumes to remove: $($thothVolumes.Count)" -ForegroundColor DarkGray
     if ($thothVolumes -and $thothVolumes.Count -gt 0) {
         $thothVolumes | ForEach-Object { 
@@ -171,7 +171,7 @@ function Remove-DockerResources {
     Write-ColorOutput "Removing ThothAI networks..." "Yellow"
     $networks = @(docker network ls --format "{{.Name}}" 2>$null)
     Write-Host "  Total networks found: $($networks.Count)" -ForegroundColor DarkGray
-    $thothNetworks = $networks | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    $thothNetworks = $networks | Where-Object { $_ -like "thoth-*" -or $_ -like "thoth_*" }
     Write-Host "  Thoth networks to remove: $($thothNetworks.Count)" -ForegroundColor DarkGray
     if ($thothNetworks -and $thothNetworks.Count -gt 0) {
         $thothNetworks | ForEach-Object { 
@@ -193,7 +193,7 @@ function Remove-DockerResources {
     Write-ColorOutput "Removing ThothAI images..." "Yellow"
     $images = @(docker images --format "{{.Repository}}:{{.Tag}}" 2>$null)
     Write-Host "  Total images found: $($images.Count)" -ForegroundColor DarkGray
-    $thothImages = $images | Where-Object { $_ -like "thoth*" -or $_ -like "*thoth*" }
+    $thothImages = $images | Where-Object { $_ -like "thoth-*" -or $_ -like "thoth_*" -or $_ -like "thothui*" -or $_ -match "^(thothui|thoth)[-_:]" }
     Write-Host "  Thoth images to remove: $($thothImages.Count)" -ForegroundColor DarkGray
     if ($thothImages -and $thothImages.Count -gt 0) {
         $thothImages | ForEach-Object { 
