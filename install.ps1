@@ -228,7 +228,7 @@ function Main {
 
             # Step 1: Stop and remove ThothAI containers
             Write-Color "[1/4] Stopping and removing ThothAI containers..." "Yellow"
-            $containers = docker ps -a --filter "name=thoth" --format "{{.ID}}"
+            $containers = docker ps -a --filter "name=thoth" --format '{{.ID}}'
             if ($containers) {
                 $containers | ForEach-Object {
                     docker stop $_ 2>&1 | Out-Null
