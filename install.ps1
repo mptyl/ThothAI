@@ -72,7 +72,10 @@ function Remove-DockerResources {
         Write-ColorOutput "[DRY RUN] The following resources would be removed:" "Yellow"
         
         Write-Host "`n[Containers]"
-        docker ps -a --filter "name=^thoth-|^/thoth-" --format "{{.Names}}" 2>$null
+        $containers = @()
+        $containers += docker ps -a --filter "name=^thoth-" --format "{{.Names}}" 2>$null
+        $containers += docker ps -a --filter "name=^/thoth-" --format "{{.Names}}" 2>$null
+        $containers | Select-Object -Unique | Where-Object { $_ }
         
         Write-Host "`n[Volumes]"
         docker volume ls -q --filter "name=^thoth-" 2>$null
@@ -99,23 +102,26 @@ function Remove-DockerResources {
     
     # 1. Stop and remove all ThothAI containers
     Write-ColorOutput "Stopping and removing ThothAI containers..." "Yellow"
-    $containers = docker ps -a -q --filter "name=^thoth-|^/thoth-" --format "{{.ID}}" 2>$null
+    $containers = @()
+    $containers += docker ps -a -q --filter "name=^thoth-" --format "{{.ID}}" 2>$null
+    $containers += docker ps -a -q --filter "name=^/thoth-" --format "{{.ID}}" 2>$null
+    $containers = $containers | Select-Object -Unique | Where-Object { $_ }
     if ($containers) {
-        docker rm -f $containers 2>$null | Out-Null
+        $containers | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
     }
     
     # 2. Remove all ThothAI volumes
     Write-ColorOutput "Removing ThothAI volumes..." "Yellow"
     $volumes = docker volume ls -q --filter "name=^thoth-" 2>$null
     if ($volumes) {
-        docker volume rm $volumes 2>$null | Out-Null
+        $volumes | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
     }
     
     # 3. Remove all ThothAI networks
     Write-ColorOutput "Removing ThothAI networks..." "Yellow"
     $networks = docker network ls -q --filter "name=^thoth-" 2>$null
     if ($networks) {
-        docker network rm $networks 2>$null | Out-Null
+        $networks | ForEach-Object { docker network rm $_ 2>$null | Out-Null }
     }
     
     # 4. Remove all ThothAI images
