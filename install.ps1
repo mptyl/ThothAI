@@ -152,8 +152,17 @@ function Main {
     }
     
     # Change to script directory
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    Set-Location $scriptPath
+    $scriptPath = if ($PSScriptRoot) {
+        $PSScriptRoot
+    } elseif ($MyInvocation.MyCommand.Path) {
+        Split-Path -Parent $MyInvocation.MyCommand.Path
+    } else {
+        Get-Location
+    }
+    
+    if ($scriptPath) {
+        Set-Location $scriptPath
+    }
     
     # Check for config.yml.local first
     if (-not (Test-Path "config.yml.local")) {
