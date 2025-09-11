@@ -840,7 +840,7 @@ def check_embedding_config(request, workspace_id):
                 else:
                     # Try generic approach through vector store
                     try:
-                        vector_store = get_vector_store(vector_db)
+                        vector_store = get_vector_store(request)
                         # Create a temporary document to test embedding
                         from thoth_qdrant import SqlDocument
 
@@ -887,6 +887,10 @@ def check_embedding_config(request, workspace_id):
                 logger.error(f"Embedding test failed: {e}")
         else:
             embedding_test["test_error"] = "No API keys found in environment"
+
+        # Add actual environment provider and model information
+        embedding_test["actual_provider_used"] = os.environ.get("EMBEDDING_PROVIDER")
+        embedding_test["actual_model_used"] = os.environ.get("EMBEDDING_MODEL")
 
         return Response(
             {

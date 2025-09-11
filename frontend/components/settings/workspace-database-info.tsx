@@ -478,6 +478,8 @@ export function WorkspaceDatabaseInfo() {
                           {diagnosticData.embedding_test && (
                             <div className="text-sm space-y-1">
                               <p><strong>Test Text:</strong> &quot;{diagnosticData.embedding_test.test_text}&quot;</p>
+                              <p><strong>Provider Actually Used:</strong> {diagnosticData.embedding_test.actual_provider_used || 'Not set in environment'}</p>
+                              <p><strong>Model Actually Used:</strong> {diagnosticData.embedding_test.actual_model_used || 'Not set in environment'}</p>
                               {diagnosticData.embedding_test.test_successful && (
                                 <>
                                   {diagnosticData.embedding_test.embedding_dimension && (
