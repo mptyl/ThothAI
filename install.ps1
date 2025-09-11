@@ -64,32 +64,37 @@ function Show-Usage {
 # Function to prune Docker resources
 function Remove-DockerResources {
     param(
-        [bool]$IsDryRun,
-        [bool]$IsForce
+        [switch]$IsDryRun,
+        [switch]$IsForce
     )
     
-    if ($IsDryRun) {
+    if ($IsDryRun.IsPresent) {
         Write-ColorOutput "[DRY RUN] The following resources would be removed:" "Yellow"
         
         Write-Host "`n[Containers]"
-        $containers = @()
-        $containers += docker ps -a --filter "name=^thoth-" --format "{{.Names}}" 2>$null
-        $containers += docker ps -a --filter "name=^/thoth-" --format "{{.Names}}" 2>$null
-        $containers | Select-Object -Unique | Where-Object { $_ }
+        $containerNames = docker ps -a --format "{{.Names}}" 2>$null
+        $thothContainers = $containerNames | Where-Object { $_ -match "^thoth-" }
+        if ($thothContainers) { $thothContainers } else { Write-Host "  None found" -ForegroundColor Gray }
         
         Write-Host "`n[Volumes]"
-        docker volume ls -q --filter "name=^thoth-" 2>$null
+        $volumeNames = docker volume ls --format "{{.Name}}" 2>$null
+        $thothVolumes = $volumeNames | Where-Object { $_ -match "^thoth-" }
+        if ($thothVolumes) { $thothVolumes } else { Write-Host "  None found" -ForegroundColor Gray }
         
         Write-Host "`n[Networks]"
-        docker network ls -q --filter "name=^thoth-" 2>$null
+        $networkNames = docker network ls --format "{{.Name}}" 2>$null
+        $thothNetworks = $networkNames | Where-Object { $_ -match "^thoth-" }
+        if ($thothNetworks) { $thothNetworks } else { Write-Host "  None found" -ForegroundColor Gray }
         
         Write-Host "`n[Images]"
-        docker images --format "{{.Repository}}:{{.Tag}}" | Select-String -Pattern "^thoth-" -SimpleMatch
+        $images = docker images --format "{{.Repository}}:{{.Tag}}" 2>$null
+        $thothImages = $images | Where-Object { $_ -like "thoth-*" }
+        if ($thothImages) { $thothImages } else { Write-Host "  None found" -ForegroundColor Gray }
         
         return
     }
     
-    if (-not $IsForce) {
+    if (-not $IsForce.IsPresent) {
         Write-ColorOutput "WARNING: This will remove all ThothAI containers, images, volumes, and networks!" "Red"
         $reply = Read-Host "Are you sure you want to continue? (y/N)"
         if ($reply -notmatch "^[Yy]$") {
@@ -102,33 +107,46 @@ function Remove-DockerResources {
     
     # 1. Stop and remove all ThothAI containers
     Write-ColorOutput "Stopping and removing ThothAI containers..." "Yellow"
-    $containers = @()
-    $containers += docker ps -a -q --filter "name=^thoth-" --format "{{.ID}}" 2>$null
-    $containers += docker ps -a -q --filter "name=^/thoth-" --format "{{.ID}}" 2>$null
-    $containers = $containers | Select-Object -Unique | Where-Object { $_ }
-    if ($containers) {
-        $containers | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+    $containerNames = docker ps -a --format "{{.Names}}" 2>$null
+    $thothContainers = $containerNames | Where-Object { $_ -match "^thoth-" }
+    if ($thothContainers) {
+        $thothContainers | ForEach-Object { 
+            Write-Host "  Removing container: $_" -ForegroundColor Gray
+            docker rm -f $_ 2>$null | Out-Null 
+        }
     }
     
     # 2. Remove all ThothAI volumes
     Write-ColorOutput "Removing ThothAI volumes..." "Yellow"
-    $volumes = docker volume ls -q --filter "name=^thoth-" 2>$null
-    if ($volumes) {
-        $volumes | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+    $volumeNames = docker volume ls --format "{{.Name}}" 2>$null
+    $thothVolumes = $volumeNames | Where-Object { $_ -match "^thoth-" }
+    if ($thothVolumes) {
+        $thothVolumes | ForEach-Object { 
+            Write-Host "  Removing volume: $_" -ForegroundColor Gray
+            docker volume rm $_ 2>$null | Out-Null 
+        }
     }
     
     # 3. Remove all ThothAI networks
     Write-ColorOutput "Removing ThothAI networks..." "Yellow"
-    $networks = docker network ls -q --filter "name=^thoth-" 2>$null
-    if ($networks) {
-        $networks | ForEach-Object { docker network rm $_ 2>$null | Out-Null }
+    $networkNames = docker network ls --format "{{.Name}}" 2>$null
+    $thothNetworks = $networkNames | Where-Object { $_ -match "^thoth-" }
+    if ($thothNetworks) {
+        $thothNetworks | ForEach-Object { 
+            Write-Host "  Removing network: $_" -ForegroundColor Gray
+            docker network rm $_ 2>$null | Out-Null 
+        }
     }
     
     # 4. Remove all ThothAI images
     Write-ColorOutput "Removing ThothAI images..." "Yellow"
-    $images = docker images --format "{{.Repository}}:{{.Tag}}" | Select-String -Pattern "^thoth-" -SimpleMatch
-    if ($images) {
-        $images | ForEach-Object { docker rmi -f $_.Line 2>$null | Out-Null }
+    $images = docker images --format "{{.Repository}}:{{.Tag}}" 2>$null
+    $thothImages = $images | Where-Object { $_ -like "thoth-*" }
+    if ($thothImages) {
+        $thothImages | ForEach-Object { 
+            Write-Host "  Removing image: $_" -ForegroundColor Gray
+            docker rmi -f $_ 2>$null | Out-Null 
+        }
     }
     
     # 5. Remove any dangling ThothAI images
@@ -271,7 +289,13 @@ function Main {
     
     # Clean Docker cache if requested
     if ($PruneAll) {
-        Remove-DockerResources -IsDryRun $DryRun -IsForce $Force
+        if ($DryRun) {
+            Remove-DockerResources -IsDryRun
+        } elseif ($Force) {
+            Remove-DockerResources -IsForce
+        } else {
+            Remove-DockerResources
+        }
         Write-Host ""
     } elseif ($CleanCache) {
         Write-ColorOutput "Cleaning Docker build cache..." "Yellow"
