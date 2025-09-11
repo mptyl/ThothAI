@@ -134,6 +134,7 @@ export function WorkspaceDatabaseInfo() {
 
   const { name, description, level, sql_db } = fullWorkspaceData
   const vector_db = sql_db?.vector_db
+  const embedding_config = fullWorkspaceData?.embedding_config
 
   return (
     <div className="space-y-8">
@@ -280,7 +281,7 @@ export function WorkspaceDatabaseInfo() {
               <div>
                 <h4 className="font-semibold text-xl mb-4 flex items-center gap-2">
                   <span className="text-cyan-400">Embedding Configuration</span>
-                  {vector_db.embedding_configured ? (
+                  {embedding_config?.provider && embedding_config?.model && embedding_config?.has_api_key ? (
                     <Badge variant="outline" className="flex items-center gap-1 text-green-600 border-green-600/50">
                       <CheckCircle className="w-3 h-3" />
                       Configured
@@ -292,49 +293,60 @@ export function WorkspaceDatabaseInfo() {
                     </Badge>
                   )}
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Provider</p>
-                    <p className="font-medium capitalize">{vector_db.embedding_provider}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Model</p>
-                    <p className="font-medium">{vector_db.embedding_model}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">API Key Status</p>
-                    <div className="flex items-center gap-2">
-                      {vector_db.has_api_key ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-sm">Configured</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-4 h-4 text-red-500" />
-                          <span className="text-sm">Missing</span>
-                        </>
-                      )}
+                {embedding_config ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Provider</p>
+                      <p className="font-medium capitalize">{embedding_config.provider || 'Not Set'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Model</p>
+                      <p className="font-medium">{embedding_config.model || 'Not Set'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">API Key Status</p>
+                      <div className="flex items-center gap-2">
+                        {embedding_config.has_api_key ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span className="text-sm">Configured</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-4 h-4 text-red-500" />
+                            <span className="text-sm">Missing</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Base URL</p>
+                      <p className="font-medium">{embedding_config.base_url || 'Default'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Batch Size</p>
+                      <p className="font-medium">{embedding_config.batch_size}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Timeout</p>
+                      <p className="font-medium">{embedding_config.timeout}s</p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Batch Size</p>
-                    <p className="font-medium">{vector_db.embedding_batch_size}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Timeout</p>
-                    <p className="font-medium">{vector_db.embedding_timeout}s</p>
-                  </div>
-                </div>
+                ) : (
+                  <p>No embedding configuration available.</p>
+                )}
                 
-                {!vector_db.embedding_configured && (
+                {(!embedding_config?.provider || !embedding_config?.model || !embedding_config?.has_api_key) && (
                   <Alert className="mt-4" variant="destructive">
                     <AlertCircle className="w-4 h-4" />
                     <AlertDescription>
                       Embedding configuration is incomplete. 
-                      {!vector_db.has_api_key && 'API key is missing. '}
-                      Please configure the API key in the Django admin or set the appropriate environment variable 
-                      ({vector_db.embedding_provider.toUpperCase()}_API_KEY or EMBEDDING_API_KEY).
+                      Please set the required environment variables in your <code>.env.local</code> file:
+                      <ul className="list-disc pl-5 mt-2 space-y-1">
+                        {!embedding_config?.provider && <li><code>EMBEDDING_PROVIDER</code></li>}
+                        {!embedding_config?.model && <li><code>EMBEDDING_MODEL</code></li>}
+                        {!embedding_config?.has_api_key && <li><code>EMBEDDING_API_KEY</code></li>}
+                      </ul>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -496,16 +508,6 @@ export function WorkspaceDatabaseInfo() {
                             </div>
                           )}
                           
-                          {diagnosticData.vector_db && (
-                            <details className="mt-2">
-                              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-                                View Full Configuration Details
-                              </summary>
-                              <pre className="mt-2 text-xs overflow-auto bg-muted p-2 rounded">
-                                {JSON.stringify(diagnosticData, null, 2)}
-                              </pre>
-                            </details>
-                          )}
                           
                           {diagnosticData.error && (
                             <p className="text-red-600 text-sm">{diagnosticData.error}</p>

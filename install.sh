@@ -42,9 +42,53 @@ show_usage() {
     print_color "" "$NC"
     print_color "Options:" "$YELLOW"
     print_color "  --clean-cache    Clean Docker build cache before building" "$NC"
-    print_color "  --prune-all      Remove all ThothAI Docker resources (containers, images, volumes)" "$NC"
+    print_color "  --prune-all      Remove all ThothAI Docker resources (containers, images, volumes, networks)" "$NC"
+    print_color "  --dry-run        Show what would be removed without actually removing anything" "$NC"
+    print_color "  --force          Skip confirmation prompt" "$NC"
     print_color "  --help           Show this help message" "$NC"
     echo ""
+}
+
+# Function to prune Docker resources
+prune_resources() {
+    local dry_run=$1
+    local force=$2
+    
+    local docker_cmd="docker"
+    local prune_cmd="system prune --all --volumes --filter label=com.docker.compose.project=thoth"
+    
+    if [ "$dry_run" = true ]; then
+        print_color "[DRY RUN] The following resources would be removed:" "$YELLOW"
+        $docker_cmd $prune_cmd --dry-run
+        return 0
+    fi
+    
+    if [ "$force" != true ]; then
+        print_color "WARNING: This will remove all ThothAI containers, images, volumes, and networks!" "$RED"
+        read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_color "Operation cancelled" "$YELLOW"
+            return 0
+        fi
+    fi
+    
+    print_color "Removing all ThothAI Docker resources..." "$YELLOW"
+    $docker_cmd $prune_cmd --force
+    
+    # Additional cleanup for any remaining resources not caught by the filter
+    print_color "Performing additional cleanup..." "$YELLOW"
+    
+    # Stop and remove any remaining containers
+    $docker_cmd ps -a --filter "name=thoth" --format "{{.Names}}" | xargs -r $docker_cmd rm -f 2>/dev/null || true
+    
+    # Remove any remaining volumes
+    $docker_cmd volume ls --filter "name=thoth" --format "{{.Name}}" | xargs -r $docker_cmd volume rm -f 2>/dev/null || true
+    
+    # Remove any remaining networks
+    $docker_cmd network ls --filter "name=thoth" --format "{{.Name}}" | xargs -r $docker_cmd network rm 2>/dev/null || true
+    
+    print_color "All ThothAI Docker resources have been removed" "$GREEN"
 }
 
 # Main installation flow
@@ -52,6 +96,8 @@ main() {
     # Parse command line arguments
     CLEAN_CACHE=false
     PRUNE_ALL=false
+    DRY_RUN=false
+    FORCE=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -61,6 +107,14 @@ main() {
                 ;;
             --prune-all)
                 PRUNE_ALL=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --force)
+                FORCE=true
                 shift
                 ;;
             --help)
@@ -159,29 +213,7 @@ main() {
     
     # Clean Docker cache if requested
     if [ "$PRUNE_ALL" = true ]; then
-        print_color "Removing all ThothAI Docker resources..." "$YELLOW"
-        print_color "WARNING: This will remove all ThothAI containers, images, and volumes!" "$RED"
-        read -p "Are you sure? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            # Stop and remove all ThothAI containers and volumes
-            print_color "Stopping ThothAI containers..." "$YELLOW"
-            docker compose down -v 2>/dev/null || true
-            
-            # Remove ThothAI images
-            print_color "Removing ThothAI images..." "$YELLOW"
-            docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "^thoth-" | xargs -r docker rmi -f 2>/dev/null || true
-            
-            # Remove any dangling ThothAI volumes
-            docker volume ls --format "{{.Name}}" | grep -E "^thoth" | xargs -r docker volume rm -f 2>/dev/null || true
-            
-            # Remove ThothAI network if exists
-            docker network ls --format "{{.Name}}" | grep -E "^thoth" | xargs -r docker network rm 2>/dev/null || true
-            
-            print_color "All ThothAI Docker resources removed" "$GREEN"
-        else
-            print_color "Skipping ThothAI cleanup" "$YELLOW"
-        fi
+        prune_resources "$DRY_RUN" "$FORCE"
         echo ""
     elif [ "$CLEAN_CACHE" = true ]; then
         print_color "Cleaning Docker build cache..." "$YELLOW"
@@ -203,13 +235,17 @@ main() {
 
     # Configure embedding provider dependencies
     print_color "Configuring embedding provider dependencies..." "$YELLOW"
-    if $PYTHON_CMD scripts/configure_embedding.py config.yml.local; then
-        print_color "Embedding configuration completed" "$GREEN"
-    else
-        print_color "Embedding configuration failed" "$RED"
-        print_color "Please check the error messages above" "$RED"
+    if ! $PYTHON_CMD scripts/configure_embedding.py config.yml.local; then
+        print_color "" "$NC"
+        print_color "============================================" "$RED"
+        print_color "  CRITICAL: Failed to configure thoth-qdrant" "$RED"
+        print_color "  The embedding service cannot be configured." "$RED"
+        print_color "  Please check your configuration and try again." "$RED"
+        print_color "============================================" "$RED"
+        print_color "" "$NC"
         exit 1
     fi
+    print_color "Embedding configuration completed" "$GREEN"
     echo ""
 
     # Pass clean cache option to Python installer

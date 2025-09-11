@@ -76,70 +76,14 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class VectorDbSerializer(serializers.ModelSerializer):
-    # Add computed fields to indicate if embedding is properly configured
-    embedding_configured = serializers.SerializerMethodField()
-    has_api_key = serializers.SerializerMethodField()
-
     class Meta:
         model = VectorDb
         fields = [
             "name",
             "vect_type",
             "host",
-            "port",
-            "embedding_provider",
-            "embedding_model",
-            "embedding_base_url",
-            "embedding_batch_size",
-            "embedding_timeout",
-            "embedding_configured",
-            "has_api_key",
+            "port"
         ]
-
-    def get_embedding_configured(self, obj):
-        """Check if embedding is properly configured via model or environment"""
-        return (
-            self.get_has_api_key(obj)
-            and bool(obj.embedding_provider)
-            and bool(obj.embedding_model)
-        )
-
-    def get_has_api_key(self, obj):
-        """Check if API key exists in environment variables"""
-        import os
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        # Check environment variables based on provider
-        env_key_mappings = {
-            "openai": ["OPENAI_API_KEY", "OPENAI_KEY"],
-            "cohere": ["COHERE_API_KEY", "COHERE_KEY"],
-            "mistral": ["MISTRAL_API_KEY", "MISTRAL_KEY"],
-            "huggingface": ["HUGGINGFACE_API_KEY", "HF_API_KEY", "HUGGINGFACE_TOKEN"],
-            "anthropic": ["ANTHROPIC_API_KEY", "CLAUDE_API_KEY"],
-        }
-
-        provider_keys = env_key_mappings.get(obj.embedding_provider, [])
-        for env_key in provider_keys:
-            if os.environ.get(env_key):
-                logger.info(
-                    f"VectorDb {obj.name}: API key found in environment variable {env_key}"
-                )
-                return True
-
-        # Also check generic embedding API key
-        if os.environ.get("EMBEDDING_API_KEY"):
-            logger.info(f"VectorDb {obj.name}: API key found in EMBEDDING_API_KEY")
-            return True
-
-        logger.warning(
-            f"VectorDb {obj.name}: No API key found for provider {obj.embedding_provider}"
-        )
-        logger.warning(
-            f"Checked environment variables: {provider_keys + ['EMBEDDING_API_KEY']}"
-        )
-        return False
 
 
 class SqlDbSerializer(serializers.ModelSerializer):
@@ -217,13 +161,26 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     explain_sql_agent = AgentSerializer()
     ask_human_help_agent = AgentSerializer()
     setting = SettingSerializer()
-    
+    embedding_config = serializers.SerializerMethodField()
+
     # Override level field to return only the string value, not the tuple
     level = serializers.SerializerMethodField()
-    
+
     def get_level(self, obj):
         """Return only the string value of the level choice field."""
         return obj.level
+
+    def get_embedding_config(self, obj):
+        import os
+
+        return {
+            "provider": os.environ.get("EMBEDDING_PROVIDER"),
+            "model": os.environ.get("EMBEDDING_MODEL"),
+            "has_api_key": bool(os.environ.get("EMBEDDING_API_KEY")),
+            "base_url": os.environ.get("EMBEDDING_BASE_URL", ""),
+            "batch_size": os.environ.get("EMBEDDING_BATCH_SIZE", "100"),
+            "timeout": os.environ.get("EMBEDDING_TIMEOUT", "30"),
+        }
 
     class Meta:
         model = Workspace
@@ -254,6 +211,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             "belt_and_suspenders",
             "created_at",
             "updated_at",
+            "embedding_config",
         ]
 
 

@@ -731,24 +731,19 @@ def check_embedding_config(request, workspace_id):
 
         vector_db = workspace.sql_db.vector_db
 
-        # Check for API key in environment
-        env_keys_to_check = []
-        if vector_db.embedding_provider == "openai":
-            env_keys_to_check = ["OPENAI_API_KEY", "OPENAI_KEY"]
-        elif vector_db.embedding_provider == "cohere":
-            env_keys_to_check = ["COHERE_API_KEY", "COHERE_KEY"]
-        elif vector_db.embedding_provider == "mistral":
-            env_keys_to_check = ["MISTRAL_API_KEY", "MISTRAL_KEY"]
-        elif vector_db.embedding_provider == "huggingface":
-            env_keys_to_check = [
-                "HUGGINGFACE_API_KEY",
-                "HF_API_KEY",
-                "HUGGINGFACE_TOKEN",
-            ]
-        elif vector_db.embedding_provider == "anthropic":
-            env_keys_to_check = ["ANTHROPIC_API_KEY", "CLAUDE_API_KEY"]
+        # Load environment variables for embedding
+        embedding_provider = os.environ.get("EMBEDDING_PROVIDER")
+        embedding_model = os.environ.get("EMBEDDING_MODEL")
+        embedding_api_key = os.environ.get("EMBEDDING_API_KEY")
+        embedding_batch_size = os.environ.get("EMBEDDING_BATCH_SIZE", "100")
+        embedding_timeout = os.environ.get("EMBEDDING_TIMEOUT", "30")
+        embedding_base_url = os.environ.get("EMBEDDING_BASE_URL", "")
 
-        env_keys_to_check.append("EMBEDDING_API_KEY")
+        # Determine which API keys to check based on the provider
+        env_keys_to_check = ["EMBEDDING_API_KEY"]
+        if embedding_provider:
+            env_keys_to_check.append(f"{embedding_provider.upper()}_API_KEY")
+            env_keys_to_check.append(f"{embedding_provider.upper()}_KEY")
 
         found_env_keys = []
         for key in env_keys_to_check:
@@ -757,8 +752,8 @@ def check_embedding_config(request, workspace_id):
 
         # Log the diagnostic results
         logger.info(f"Embedding config check for workspace {workspace.name}:")
-        logger.info(f"  Provider: {vector_db.embedding_provider}")
-        logger.info(f"  Model: {vector_db.embedding_model}")
+        logger.info(f"  Provider: {embedding_provider}")
+        logger.info(f"  Model: {embedding_model}")
         logger.info(f"  Found env keys: {found_env_keys}")
 
         # Test embedding functionality
@@ -780,46 +775,39 @@ def check_embedding_config(request, workspace_id):
                 start_time = time.time()
                 embedding = None
 
-                # Try different embedding methods based on provider
-                if vector_db.embedding_provider == "openai":
+                # Try different embedding methods based on environment provider
+                if embedding_provider == "openai":
                     try:
                         import openai
 
-                        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get(
-                            "OPENAI_KEY"
-                        )
-                        if api_key:
-                            client = openai.OpenAI(api_key=api_key)
+                        if embedding_api_key:
+                            client = openai.OpenAI(api_key=embedding_api_key)
                             response = client.embeddings.create(
                                 input=test_text,
-                                model=vector_db.embedding_model
-                                or "text-embedding-3-small",
+                                model=embedding_model or "text-embedding-3-small",
                             )
                             embedding = response.data[0].embedding
                     except Exception as e:
                         logger.error(f"OpenAI embedding failed: {e}")
                         raise
 
-                elif vector_db.embedding_provider == "cohere":
+                elif embedding_provider == "cohere":
                     try:
                         import cohere
 
-                        api_key = os.environ.get("COHERE_API_KEY") or os.environ.get(
-                            "COHERE_KEY"
-                        )
-                        if api_key:
-                            co = cohere.Client(api_key)
+                        if embedding_api_key:
+                            co = cohere.Client(embedding_api_key)
                             response = co.embed(
                                 texts=[test_text],
-                                model=vector_db.embedding_model
-                                or "embed-multilingual-v3.0",
+                                model=embedding_model or "embed-multilingual-v3.0",
+                                input_type="search_query",
                             )
                             embedding = response.embeddings[0]
                     except Exception as e:
                         logger.error(f"Cohere embedding failed: {e}")
                         raise
 
-                elif vector_db.embedding_provider == "mistral":
+                elif embedding_provider == "mistral":
                     try:
                         from mistralai.client import MistralClient
 
@@ -829,7 +817,7 @@ def check_embedding_config(request, workspace_id):
                         if api_key:
                             client = MistralClient(api_key=api_key)
                             response = client.embeddings(
-                                model=vector_db.embedding_model or "mistral-embed",
+                                model=os.environ.get("EMBEDDING_MODEL") or "mistral-embed",
                                 input=[test_text],
                             )
                             embedding = response.data[0].embedding
@@ -888,9 +876,18 @@ def check_embedding_config(request, workspace_id):
         else:
             embedding_test["test_error"] = "No API keys found in environment"
 
-        # Add actual environment provider and model information
-        embedding_test["actual_provider_used"] = os.environ.get("EMBEDDING_PROVIDER")
-        embedding_test["actual_model_used"] = os.environ.get("EMBEDDING_MODEL")
+        # Add all environment variables (required and optional)
+        env_vars = {
+            "EMBEDDING_PROVIDER": os.environ.get("EMBEDDING_PROVIDER"),
+            "EMBEDDING_MODEL": os.environ.get("EMBEDDING_MODEL"),
+            "EMBEDDING_BATCH_SIZE": os.environ.get("EMBEDDING_BATCH_SIZE"),
+            "EMBEDDING_TIMEOUT": os.environ.get("EMBEDDING_TIMEOUT"),
+            "EMBEDDING_BASE_URL": os.environ.get("EMBEDDING_BASE_URL"),
+        }
+
+        # Update test results to use environment variables instead of database config
+        embedding_test["actual_provider_used"] = env_vars["EMBEDDING_PROVIDER"]
+        embedding_test["actual_model_used"] = env_vars["EMBEDDING_MODEL"]
 
         return Response(
             {
@@ -900,12 +897,11 @@ def check_embedding_config(request, workspace_id):
                     "type": vector_db.vect_type,
                     "host": vector_db.host,
                     "port": vector_db.port,
-                    "embedding_provider": vector_db.embedding_provider,
-                    "embedding_model": vector_db.embedding_model,
                     "environment_keys_checked": env_keys_to_check,
                     "environment_keys_found": found_env_keys,
                     "is_configured": len(found_env_keys) > 0,
                 },
+                "embedding_environment": env_vars,
                 "embedding_test": embedding_test,
             },
             status=status.HTTP_200_OK,

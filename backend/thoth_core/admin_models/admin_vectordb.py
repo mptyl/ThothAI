@@ -33,35 +33,15 @@ class VectorDbAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "vect_type",
-        "embedding_provider",
         "get_connection_info",
         "environment",
     )
-    search_fields = ("name", "vect_type", "host", "environment", "embedding_provider")
-    list_filter = ("vect_type", "embedding_provider")
+    search_fields = ("name", "vect_type", "host", "environment")
+    list_filter = ("vect_type",)
     ordering = ("name",)
     actions = (export_csv, import_csv, "duplicate_vectordb")
     fieldsets = [
         (None, {"fields": ("name", "vect_type")}),
-        (
-            "Embedding Configuration",
-            {
-                "fields": (
-                    "embedding_provider",
-                    "embedding_model",
-                    "embedding_base_url",
-                ),
-                "description": "External embedding service configuration. API keys should be provided via environment variables.",
-            },
-        ),
-        (
-            "Embedding Performance",
-            {
-                "fields": ("embedding_batch_size", "embedding_timeout"),
-                "description": "Performance tuning for embedding operations",
-                "classes": ("collapse",),
-            },
-        ),
         (
             "Connection Settings",
             {
@@ -136,14 +116,6 @@ class VectorDbAdmin(admin.ModelAdmin):
                 "name"
             ].help_text = (
                 "Collection name (Qdrant, ChromaDB, Milvus) or database name (PGVector)"
-            )
-
-        # Add embedding provider help text
-        if "embedding_provider" in form.base_fields:
-            form.base_fields[
-                "embedding_provider"
-            ].help_text = (
-                "Choose external embedding service provider (OpenAI recommended)"
             )
 
         return form

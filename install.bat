@@ -11,6 +11,8 @@ pushd "%~dp0"
 REM Parse command line arguments
 set CLEAN_CACHE=false
 set PRUNE_ALL=false
+set DRY_RUN=false
+set FORCE=false
 set SHOW_HELP=false
 
 :parse_args
@@ -22,6 +24,16 @@ if /i "%~1"=="--clean-cache" (
 )
 if /i "%~1"=="--prune-all" (
     set PRUNE_ALL=true
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="--dry-run" (
+    set DRY_RUN=true
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="--force" (
+    set FORCE=true
     shift
     goto :parse_args
 )
@@ -48,11 +60,77 @@ if "%SHOW_HELP%"=="true" (
     echo.
     echo Options:
     echo   --clean-cache    Clean Docker build cache before building
-    echo   --prune-all      Remove all ThothAI Docker resources ^(containers, images, volumes^)
+    echo   --prune-all      Remove all ThothAI Docker resources (containers, images, volumes, networks)
+    echo   --dry-run        Show what would be removed without actually removing anything
+    echo   --force          Skip confirmation prompt
     echo   --help, /?       Show this help message
     echo.
     exit /b 0
 )
+
+REM Function to execute Docker command with error handling
+:docker_cmd
+setlocal
+set "DOCKER_CMD=docker %*"
+if "%DRY_RUN%"=="true" (
+    echo [DRY RUN] Would run: %DOCKER_CMD%
+    exit /b 0
+)
+%DOCKER_CMD%
+if %ERRORLEVEL% neq 0 (
+    echo Error executing: %DOCKER_CMD%
+    if "%FORCE%" neq "true" (
+        pause
+        exit /b 1
+    )
+)
+exit /b 0
+
+REM Function to prune Docker resources
+:prune_resources
+setlocal
+
+if "%DRY_RUN%"=="true" (
+    echo [DRY RUN] The following resources would be removed:
+    call :docker_cmd system prune --all --volumes --filter "label=com.docker.compose.project=thoth" --dry-run
+    exit /b 0
+)
+
+if "%FORCE%" neq "true" (
+    echo WARNING: This will remove all ThothAI containers, images, volumes, and networks!
+    set /p "confirmation=Are you sure you want to continue? (y/N): "
+    if /i not "%confirmation%"=="y" (
+        echo Operation cancelled
+        exit /b 0
+    )
+)
+
+echo Removing all ThothAI Docker resources...
+
+REM Main prune command
+call :docker_cmd system prune --all --volumes --filter "label=com.docker.compose.project=thoth" --force
+
+REM Additional cleanup for any remaining resources not caught by the filter
+echo Performing additional cleanup...
+
+REM Stop and remove any remaining containers
+for /f "tokens=*" %%i in ('docker ps -a --filter "name=thoth" --format "{{.Names}}" 2^>nul') do (
+    call :docker_cmd rm -f "%%i"
+)
+
+REM Remove any remaining volumes
+for /f "tokens=*" %%i in ('docker volume ls --filter "name=thoth" --format "{{.Name}}" 2^>nul') do (
+    call :docker_cmd volume rm -f "%%i"
+)
+
+REM Remove any remaining networks
+for /f "tokens=*" %%i in ('docker network ls --filter "name=thoth" --format "{{.Name}}" 2^>nul') do (
+    call :docker_cmd network rm "%%i"
+)
+
+echo All ThothAI Docker resources have been removed
+endlocal
+goto :eof
 
 REM Colors are not easily supported in CMD, so we'll use plain output
 echo ============================================
@@ -156,38 +234,11 @@ echo.
 
 REM Clean Docker cache if requested
 if "%PRUNE_ALL%"=="true" (
-    echo Removing all ThothAI Docker resources...
-    echo WARNING: This will remove all ThothAI containers, images, and volumes!
-    set /p confirmation="Are you sure? (y/N): "
-    if /i "!confirmation!"=="y" (
-        REM Stop and remove all ThothAI containers and volumes
-        echo Stopping ThothAI containers...
-        docker compose down -v 2>nul
-        
-        REM Remove ThothAI images
-        echo Removing ThothAI images...
-        for /f "tokens=*" %%i in ('docker images --format "{{.Repository}}:{{.Tag}}" 2^>nul ^| findstr /r "^thoth-"') do (
-            docker rmi -f "%%i" 2>nul
-        )
-        
-        REM Remove any dangling ThothAI volumes
-        for /f "tokens=*" %%i in ('docker volume ls --format "{{.Name}}" 2^>nul ^| findstr /r "^thoth"') do (
-            docker volume rm -f "%%i" 2>nul
-        )
-        
-        REM Remove ThothAI network if exists
-        for /f "tokens=*" %%i in ('docker network ls --format "{{.Name}}" 2^>nul ^| findstr /r "^thoth"') do (
-            docker network rm "%%i" 2>nul
-        )
-        
-        echo All ThothAI Docker resources removed
-    ) else (
-        echo Skipping ThothAI cleanup
-    )
+    call :prune_resources
     echo.
 ) else if "%CLEAN_CACHE%"=="true" (
     echo Cleaning Docker build cache...
-    docker builder prune -a -f
+    call :docker_cmd builder prune -a -f
     echo Docker build cache cleaned
     echo.
 )
@@ -207,8 +258,13 @@ REM Configure embedding provider dependencies
 echo Configuring embedding provider dependencies...
 %PYTHON_CMD% scripts\configure_embedding.py config.yml.local
 if %errorlevel% neq 0 (
-    echo Embedding configuration failed
-    echo Please check the error messages above
+    echo.
+    echo ============================================
+    echo   CRITICAL: Failed to configure thoth-qdrant
+    echo   The embedding service cannot be configured.
+    echo   Please check your configuration and try again.
+    echo ============================================
+    echo.
     exit /b 1
 )
 echo Embedding configuration completed

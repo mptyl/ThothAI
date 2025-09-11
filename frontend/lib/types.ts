@@ -81,6 +81,16 @@ export interface Workspace {
   default_workspace: number[]; // Array of user IDs who have this as default
   treat_empty_result_as_error?: boolean;
   belt_and_suspenders: boolean;
+  created_at: string;
+  updated_at: string;
+  embedding_config: {
+    provider: string | null;
+    model: string | null;
+    has_api_key: boolean;
+    base_url: string;
+    batch_size: string;
+    timeout: string;
+  };
 }
 
 // Sidebar flag types

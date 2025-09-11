@@ -24,14 +24,17 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Environment variables are now loaded from root .env.local or .env.docker
-# No need to load local env files as they are managed centrally
-# load_dotenv(BASE_DIR / '.env')  # Deprecated - use root .env.local
-# load_dotenv(BASE_DIR / '_env')  # Deprecated - use root .env.docker
+# Explicitly load .env.local from the project root to ensure correct settings.
+# This overrides any variables set by the shell, making it reliable for both
+# local and Docker environments.
+dotenv_path = BASE_DIR.parent / '.env.local'
+if dotenv_path.exists():
+    load_dotenv(dotenv_path=dotenv_path, override=True)
 
 APPEND_SLASH = False
 

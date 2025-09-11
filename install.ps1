@@ -253,18 +253,27 @@ function Main {
     Write-Color "Configuring embedding provider dependencies..." "Yellow"
     try {
         & $PYTHON_CMD scripts/configure_embedding.py config.yml.local
-        if ($LASTEXITCODE -eq 0) {
-            Write-Color "Embedding configuration completed" "Green"
-        }
-        else {
-            Write-Color "Embedding configuration failed" "Red"
-            Write-Color "Please check the error messages above" "Red"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Color "============================================" "Red"
+            Write-Color "  CRITICAL: Failed to configure thoth-qdrant" "Red"
+            Write-Color "  The embedding service cannot be configured." "Red"
+            Write-Color "  Please check your configuration and try again." "Red"
+            Write-Color "============================================" "Red"
+            Write-Host ""
             exit 1
         }
+        Write-Color "Embedding configuration completed" "Green"
     }
     catch {
-        Write-Color "Error running embedding configuration" "Red"
-        Write-Color $_.Exception.Message "Red"
+        Write-Host ""
+        Write-Color "============================================" "Red"
+        Write-Color "  CRITICAL: Failed to configure thoth-qdrant" "Red"
+        Write-Color "  Error: $_" "Red"
+        Write-Color "  The embedding service cannot be configured." "Red"
+        Write-Color "  Please check your configuration and try again." "Red"
+        Write-Color "============================================" "Red"
+        Write-Host ""
         exit 1
     }
     Write-Host ""

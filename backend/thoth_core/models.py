@@ -340,41 +340,9 @@ class VectorDb(models.Model):
     password = models.CharField(max_length=255, blank=True)
     path = models.CharField(max_length=500, blank=True)
     tenant = models.CharField(max_length=255, blank=True)
-
-    # Extended plugin compatibility fields
     url = models.URLField(blank=True, help_text="Complete URL for cloud services")
     environment = models.CharField(
         max_length=255, blank=True, help_text="Optional environment identifier"
-    )
-
-    # Embedding provider configuration (REQUIRED for external embedding services)
-    embedding_provider = models.CharField(
-        max_length=50,
-        choices=EmbeddingProviderChoices.choices,
-        default=EmbeddingProviderChoices.OPENAI,
-        verbose_name="Embedding Provider",
-        help_text="External embedding service provider (REQUIRED)",
-    )
-    embedding_model = models.CharField(
-        max_length=100,
-        default="text-embedding-3-small",
-        verbose_name="Embedding Model",
-        help_text="Model name (e.g., text-embedding-3-small for OpenAI, embed-multilingual-v3.0 for Cohere)",
-    )
-    embedding_base_url = models.URLField(
-        blank=True,
-        verbose_name="Embedding Base URL",
-        help_text="Custom base URL for the embedding service (optional, for custom endpoints)",
-    )
-    embedding_batch_size = models.PositiveIntegerField(
-        default=100,
-        verbose_name="Embedding Batch Size",
-        help_text="Number of texts to process in a single batch (affects performance and rate limits)",
-    )
-    embedding_timeout = models.PositiveIntegerField(
-        default=30,
-        verbose_name="Embedding Timeout (seconds)",
-        help_text="Request timeout for embedding API calls",
     )
 
     def clean(self):
@@ -444,57 +412,6 @@ class VectorDb(models.Model):
             if existing.exists():
                 errors["name"] = (
                     f"A Milvus collection with host '{self.host}', port '{self.port}', and name '{self.name}' already exists."
-                )
-
-        # Validate embedding configuration (REQUIRED)
-        if not self.embedding_provider:
-            errors["embedding_provider"] = "Embedding provider is required"
-
-        # API keys should be provided via environment variables
-        # The actual validation happens at runtime in vector_store_utils.py
-
-        if not self.embedding_model or not self.embedding_model.strip():
-            errors["embedding_model"] = "Embedding model name is required"
-
-        # Validate embedding_batch_size
-        if self.embedding_batch_size <= 0:
-            errors["embedding_batch_size"] = (
-                "Embedding batch size must be a positive number"
-            )
-        elif self.embedding_batch_size > 2048:  # OpenAI max limit
-            errors["embedding_batch_size"] = "Embedding batch size cannot exceed 2048"
-
-        # Validate embedding_timeout
-        if self.embedding_timeout <= 0:
-            errors["embedding_timeout"] = "Embedding timeout must be a positive number"
-        elif self.embedding_timeout > 300:  # 5 minutes max
-            errors["embedding_timeout"] = "Embedding timeout cannot exceed 300 seconds"
-
-        # Provider-specific model validation
-        if self.embedding_provider and self.embedding_model:
-            valid_models = {
-                EmbeddingProviderChoices.OPENAI: [
-                    "text-embedding-3-small",
-                    "text-embedding-3-large",
-                    "text-embedding-ada-002",
-                ],
-                EmbeddingProviderChoices.COHERE: [
-                    "embed-multilingual-v3.0",
-                    "embed-english-v3.0",
-                ],
-                EmbeddingProviderChoices.MISTRAL: ["mistral-embed"],
-                EmbeddingProviderChoices.HUGGINGFACE: [
-                    # Allow any model for HuggingFace due to flexibility
-                ],
-                EmbeddingProviderChoices.ANTHROPIC: [
-                    # To be defined when Anthropic embeddings become available
-                ],
-            }
-
-            provider_models = valid_models.get(self.embedding_provider, [])
-            if provider_models and self.embedding_model not in provider_models:
-                errors["embedding_model"] = (
-                    f"Model '{self.embedding_model}' is not valid for {self.embedding_provider}. Valid models: {', '.join(provider_models)}"
                 )
 
         if errors:

@@ -2439,7 +2439,7 @@ requires-dist = [
     { name = "tabulate", specifier = "==0.9.0" },
     { name = "tenacity", specifier = ">=8.0.0" },
     { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.5.8" },
-    { name = "thoth-qdrant", extras = ["cohere"], specifier = "==0.1.9" },
+    { name = "thoth-qdrant", extras = ["cohere"], specifier = "==0.1.11" },
     { name = "toml", specifier = "==0.10.2" },
     { name = "uvicorn", specifier = "==0.34.0" },
     { name = "weasyprint", specifier = "==62.3" },
@@ -2473,16 +2473,16 @@ postgresql = [
 
 [[package]]
 name = "thoth-qdrant"
-version = "0.1.9"
+version = "0.1.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "qdrant-client" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/92/ec/dd639699cf7bc9836ffec24ed8e4b4d331108adb90ec7ba3908f0f80ae26/thoth_qdrant-0.1.9.tar.gz", hash = "sha256:24723895d4061d7c2b911dde57e439ad41470ca1f9ea982c9eddda448402f485", size = 29484, upload-time = "2025-08-29T10:10:29.716Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/4f/6f93470b0827b4e948b98bfa67de324ab3fa4c5afee6da90f59f01c7894b/thoth_qdrant-0.1.11.tar.gz", hash = "sha256:d5e252a780de2e04ec849cc32c00995c98a15d5afbf3f9adb3c3bc1acd7d9f69", size = 30773, upload-time = "2025-09-10T21:39:04.11Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/56/d5/f92d927fddab761427e18ed84dbe3d5eb1a9d88975e0372001cc8bd554d8/thoth_qdrant-0.1.9-py3-none-any.whl", hash = "sha256:49dfb632ca5b6cdec0f320cd4b7982ebacffb54617ff3fda5d0bdc2441ccf673", size = 23695, upload-time = "2025-08-29T10:10:26.644Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/6b/dc33d5e4a276e63881b3f9a6d4cc00d6df326966bcb316b64ba7b390b32e/thoth_qdrant-0.1.11-py3-none-any.whl", hash = "sha256:20265bbf74a5d1ccec5beeed2acbfd68c4c6d604737e888fc1166205b089e9f2", size = 24780, upload-time = "2025-09-10T21:39:02.544Z" },
 ]
 
 [package.optional-dependencies]

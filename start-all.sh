@@ -15,9 +15,11 @@ SQL_GEN_DIR="frontend/sql_generator"
 # Load environment variables from root .env.local
 if [ -f .env.local ]; then
     echo "Loading environment from .env.local"
-    set -a
-    . ./.env.local
-    set +a
+    while IFS= read -r line; do
+      if [[ ! "$line" =~ ^# && "$line" =~ = ]]; then
+        export "$line"
+      fi
+    done < .env.local
     # Avoid leaking a generic PORT that could clash with service-specific ports
     unset PORT || true
 else
