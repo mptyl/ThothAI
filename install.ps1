@@ -59,7 +59,7 @@ function Fix-LineEndings {
     
     $count = 0
     foreach ($file in $shFiles) {
-        $relativePath = $file.FullName.Replace("$PWD\", "")
+        $relativePath = $file.FullName.Replace("$PWD\", '')
         
         # Read file and convert CRLF to LF
         $content = [System.IO.File]::ReadAllText($file.FullName)
@@ -77,9 +77,9 @@ function Fix-LineEndings {
 
 # Function to show usage
 function Show-Usage {
-    Write-Color "Usage: .\install.ps1 [OPTIONS]" "Blue"
+    Write-Color 'Usage: .\install.ps1 [OPTIONS]' "Blue"
     Write-Host ""
-    Write-Color "Options:" "Yellow"
+    Write-Color 'Options:' "Yellow"
     Write-Host "  -CleanCache    Clean Docker build cache before building"
     Write-Host "  -PruneAll      Remove all ThothAI Docker resources (containers, images, volumes)"
     Write-Host "  -Help          Show this help message"
@@ -100,13 +100,13 @@ function Main {
     
     # Check for config.yml.local first
     if (-not (Test-Path "config.yml.local")) {
-        Write-Color "Error: Configuration file not found" "Red"
+        Write-Color 'Error: Configuration file not found' "Red"
         Write-Host ""
-        Write-Color "Please create config.yml.local with your installation parameters." "Yellow"
-        Write-Color "You can copy config.yml as a template:" "Yellow"
-        Write-Color "  Copy-Item config.yml config.yml.local" "Green"
+        Write-Color 'Please create config.yml.local with your installation parameters.' "Yellow"
+        Write-Color 'You can copy config.yml as a template:' "Yellow"
+        Write-Color '  Copy-Item config.yml config.yml.local' "Green"
         Write-Host ""
-        Write-Color "Then edit config.yml.local with your:" "Yellow"
+        Write-Color 'Then edit config.yml.local with your:' "Yellow"
         Write-Host "  - AI provider API keys"
         Write-Host "  - Embedding service configuration"
         Write-Host "  - Database preferences"
@@ -124,18 +124,18 @@ function Main {
         $PYTHON_CMD = "python"
     }
     else {
-        Write-Color "Error: Python is not installed" "Red"
-        Write-Color "Please install Python 3.9+: https://www.python.org" "Red"
+        Write-Color 'Error: Python is not installed' "Red"
+        Write-Color 'Please install Python 3.9+: https://www.python.org' "Red"
         exit 1
     }
     
     # Check prerequisites
-    Write-Color "Checking prerequisites..." "Yellow"
+    Write-Color 'Checking prerequisites...' "Yellow"
     
     # Check for Docker
     if (-not (Test-Command "docker")) {
-        Write-Color "Error: Docker is not installed" "Red"
-        Write-Color "Please install Docker Desktop: https://www.docker.com" "Red"
+        Write-Color 'Error: Docker is not installed' "Red"
+        Write-Color 'Please install Docker Desktop: https://www.docker.com' "Red"
         exit 1
     }
     
@@ -144,19 +144,19 @@ function Main {
         docker compose version | Out-Null
     }
     catch {
-        Write-Color "Error: Docker Compose is not available" "Red"
-        Write-Color "Please ensure Docker Desktop is installed with Compose support" "Red"
+        Write-Color 'Error: Docker Compose is not available' "Red"
+        Write-Color 'Please ensure Docker Desktop is installed with Compose support' "Red"
         exit 1
     }
     
     # Check Python version
     if (-not (Test-PythonVersion $PYTHON_CMD)) {
-        Write-Color "Error: Python 3.9+ is required" "Red"
+        Write-Color 'Error: Python 3.9+ is required' "Red"
         exit 1
     }
     
     # Check for required Python packages
-    Write-Color "Installing required Python packages..." "Yellow"
+    Write-Color 'Installing required Python packages...' "Yellow"
     
     try {
         # Check if we're in a virtual environment
@@ -168,11 +168,11 @@ function Main {
         }
     }
     catch {
-        Write-Color "Warning: Could not install Python packages automatically" "Yellow"
-        Write-Color "Please run: pip install pyyaml requests toml" "Yellow"
+        Write-Color 'Warning: Could not install Python packages automatically' "Yellow"
+        Write-Color 'Please run: pip install pyyaml requests toml' "Yellow"
     }
     
-    Write-Color "Prerequisites OK" "Green"
+    Write-Color 'Prerequisites OK' "Green"
     Write-Host ""
     
     # Fix line endings for shell scripts (Windows-specific)
@@ -241,7 +241,7 @@ function Main {
 
             # Step 2: Remove ThothAI images
             Write-Color "[2/4] Removing ThothAI images..." "Yellow"
-            $images = docker images --format "{{.Repository}}:{{.Tag}}" | Where-Object { $_ -like "*thoth*" }
+            $images = docker images --format '{{.Repository}}:{{.Tag}}' | Where-Object { $_ -like "*thoth*" }
             if ($images) {
                 $images | ForEach-Object {
                     docker rmi -f $_ 2>&1 | Out-Null
@@ -253,7 +253,7 @@ function Main {
 
             # Step 3: Remove ThothAI volumes
             Write-Color "[3/4] Removing ThothAI volumes..." "Yellow"
-            $volumes = docker volume ls --format "{{.Name}}" | Where-Object { $_ -like "*thoth*" }
+            $volumes = docker volume ls --format '{{.Name}}' | Where-Object { $_ -like "*thoth*" }
             if ($volumes) {
                 $volumes | ForEach-Object {
                     docker volume rm $_ 2>&1 | Out-Null
@@ -265,7 +265,7 @@ function Main {
 
             # Step 4: Remove ThothAI networks
             Write-Color "[4/4] Removing ThothAI networks..." "Yellow"
-            $networks = docker network ls --format "{{.Name}}" | Where-Object { $_ -like "*thoth*" }
+            $networks = docker network ls --format '{{.Name}}' | Where-Object { $_ -like "*thoth*" }
             if ($networks) {
                 $networks | ForEach-Object {
                     docker network rm $_ 2>&1 | Out-Null
@@ -277,7 +277,7 @@ function Main {
 
             # Final cleanup of any dangling ThothAI resources
             Write-Color "Performing final cleanup..." "Yellow"
-            docker system prune -f --filter "label=com.docker.compose.project=thoth" 2>&1 | Out-Null
+            docker system prune -f --filter 'label=com.docker.compose.project=thoth' 2>&1 | Out-Null
             
             Write-Host ""
             Write-Color "✓ ThothAI Docker resources cleanup completed!" "Green"
