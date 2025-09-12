@@ -2,34 +2,14 @@
 # This file is part of Thoth and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-# Parse command line arguments manually to support bash-style flags
-$CleanCache = $false
-$PruneAll = $false
-$DryRun = $false
-$Force = $false
-$Help = $false
-
-foreach ($arg in $args) {
-    switch ($arg) {
-        "--clean-cache" { $CleanCache = $true }
-        "--prune-all" { $PruneAll = $true }
-        "--dry-run" { $DryRun = $true }
-        "--force" { $Force = $true }
-        "--help" { $Help = $true }
-        "-CleanCache" { $CleanCache = $true }
-        "-PruneAll" { $PruneAll = $true }
-        "-DryRun" { $DryRun = $true }
-        "-Force" { $Force = $true }
-        "-Help" { $Help = $true }
-        default {
-            if ($arg -match "^-") {
-                Write-Host "Unknown option: $arg" -ForegroundColor Red
-                Write-Host "Use --help for usage information" -ForegroundColor Yellow
-                exit 1
-            }
-        }
-    }
-}
+# PowerShell-style switches only
+param(
+    [switch]$CleanCache,
+    [switch]$PruneAll,
+    [switch]$DryRun,
+    [switch]$Force,
+    [switch]$Help
+)
 
 # Set error action preference
 $ErrorActionPreference = "Stop"
@@ -74,11 +54,11 @@ function Show-Usage {
     Write-ColorOutput "Usage: .\install.ps1 [OPTIONS]" "Blue"
     Write-ColorOutput ""
     Write-ColorOutput "Options:" "Yellow"
-    Write-ColorOutput "  -CleanCache, --clean-cache    Clean Docker build cache before building"
-    Write-ColorOutput "  -PruneAll, --prune-all        Remove all ThothAI Docker resources"
-    Write-ColorOutput "  -DryRun, --dry-run            Show what would be removed without removing"
-    Write-ColorOutput "  -Force, --force               Skip confirmation prompt"
-    Write-ColorOutput "  -Help, --help                 Show this help message"
+    Write-ColorOutput "  -CleanCache    Clean Docker build cache before building"
+    Write-ColorOutput "  -PruneAll      Remove all ThothAI Docker resources"
+    Write-ColorOutput "  -DryRun        Show what would be removed without removing"
+    Write-ColorOutput "  -Force          Skip confirmation prompt"
+    Write-ColorOutput "  -Help           Show this help message"
     Write-Host ""
 }
 
