@@ -42,7 +42,7 @@ COPY pyproject.toml uv.lock ./
 # Install Python packages - uses pre-compiled wheels for ALL architectures!
 # First sync, then upgrade thoth-dbmanager to fix the mariadb import issue
 RUN uv sync --frozen && \
-    uv pip install --upgrade "thoth-dbmanager[postgresql,sqlite]>=0.5.5"
+    uv pip install --upgrade "thoth-dbmanager[postgresql,sqlite]>=0.5.10"
 
 # Copy application code
 COPY . .

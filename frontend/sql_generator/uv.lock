@@ -1767,7 +1767,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "sqlglot", specifier = ">=25.0.0" },
     { name = "sqlparse", specifier = ">=0.5.3" },
-    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = ">=0.5.5" },
+    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = ">=0.5.10" },
     { name = "thoth-qdrant", extras = ["cohere"], specifier = ">=0.1.11" },
     { name = "tzlocal", specifier = ">=5.3.1" },
     { name = "uvicorn", specifier = ">=0.35.0" },
@@ -1866,7 +1866,7 @@ wheels = [
 
 [[package]]
 name = "thoth-dbmanager"
-version = "0.5.5"
+version = "0.5.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasketch" },
@@ -1875,9 +1875,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/c2/9c09c22f7297515b28a51992741e213e02af9f8effab6583da3d52d485ae/thoth_dbmanager-0.5.5.tar.gz", hash = "sha256:ce34d4b7077035ba73b2887a27a50c5ba7d5eedeec32f37fe58ee1f8b09fc665", size = 54019, upload-time = "2025-08-23T13:08:35.99Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6b/0c/80658adf99e02af926a025dbf126bb9a3609a4de5d47c83c0ee535d39ce2/thoth_dbmanager-0.5.10.tar.gz", hash = "sha256:3871cb76a131ca7ba0c266a41c9da719154b4027ed600da97ff0c19566a962e2", size = 54160, upload-time = "2025-09-12T05:09:06.489Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d5/0b/c8cc5591622d1f71de40d07044af69723f5343167ee5a201db9ffd0cb817/thoth_dbmanager-0.5.5-py3-none-any.whl", hash = "sha256:c776dd34a2436a6798eecdb10f53234b216d2d1b0cfaa87fffb43b08f7d92201", size = 65920, upload-time = "2025-08-23T13:08:34.472Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/de/482500e5d6bdfb8bacf282430ddbe329994aec77504f0e0382b70f0ff526/thoth_dbmanager-0.5.10-py3-none-any.whl", hash = "sha256:5c95efd979ff1fc7d329be384052fb264ba73732cc5e62f0b629cef29627a196", size = 75343, upload-time = "2025-09-12T05:09:04.839Z" },
 ]
 
 [package.optional-dependencies]

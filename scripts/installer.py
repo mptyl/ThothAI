@@ -237,7 +237,7 @@ class ThothInstaller:
             },
             'project': {
                 'dependencies': [
-                    f"thoth-dbmanager[{','.join(db_extras)}]"
+                    f"thoth-dbmanager[{','.join(db_extras)}]>=0.5.10"
                 ]
             }
         }

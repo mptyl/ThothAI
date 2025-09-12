@@ -139,6 +139,9 @@ def get_db_manager(sqldb):
         raise
 
 
+ 
+
+
 def map_data_type(data_type):
     data_type = data_type.upper()
     if data_type.startswith("VARCHAR") or data_type.startswith("CHARACTER VARYING"):
@@ -174,7 +177,28 @@ def map_data_type(data_type):
 def get_column_names_and_comments(sqldb, table_name):
     try:
         db_manager = get_db_manager(sqldb)
-        columns_info = db_manager.get_columns(table_name)
+
+        # Prefer adapter documents
+        columns_info = None
+        adapter = getattr(db_manager, "adapter", None)
+        if adapter and hasattr(adapter, "get_columns_as_documents"):
+            try:
+                docs = adapter.get_columns_as_documents(table_name)
+                columns_info = [
+                    {
+                        "name": d.column_name,
+                        "data_type": d.data_type,
+                        "comment": d.comment,
+                        "is_pk": d.is_pk,
+                    }
+                    for d in docs
+                ]
+            except Exception:
+                # Fallback to manager method below
+                columns_info = None
+
+        if columns_info is None:
+            columns_info = db_manager.get_columns(table_name)
 
         result = []
         for col_data in columns_info:
@@ -315,13 +339,20 @@ create_columns.short_description = "Create columns for selected tables"
 def get_table_names_and_comments(sqldb):
     try:
         db_manager = get_db_manager(sqldb)
-        tables_info = db_manager.get_tables()
 
-        result = []
-        for table_data in tables_info:
-            table_name = table_data["name"]
-            comment = table_data.get("comment", "")
-            result.append((table_name, comment))
+        # Prefer adapter documents
+        adapter = getattr(db_manager, "adapter", None)
+        if adapter and hasattr(adapter, "get_tables_as_documents"):
+            docs = adapter.get_tables_as_documents()
+            result = [(d.table_name, getattr(d, "comment", "")) for d in docs]
+        else:
+            # Fallback to backward-compatible API (schema info not available here)
+            tables_info = db_manager.get_tables()
+            result = []
+            for table_data in tables_info:
+                table_name = table_data["name"]
+                comment = table_data.get("comment", "")
+                result.append((table_name, comment))
 
         return result
 
@@ -373,7 +404,21 @@ def create_relationships(modeladmin, request, queryset):
     for sqldb in sqldb_list:
         try:
             db_manager = get_db_manager(sqldb)
-            relationships_info = db_manager.get_foreign_keys()
+            # Prefer adapter docs to keep schema_name; fallback to manager API
+            adapter = getattr(db_manager, "adapter", None)
+            if adapter and hasattr(adapter, "get_foreign_keys_as_documents"):
+                fk_docs = adapter.get_foreign_keys_as_documents()
+                relationships_info = [
+                    {
+                        "source_table_name": d.source_table_name,
+                        "source_column_name": d.source_column_name,
+                        "target_table_name": d.target_table_name,
+                        "target_column_name": d.target_column_name,
+                    }
+                    for d in fk_docs
+                ]
+            else:
+                relationships_info = db_manager.get_foreign_keys()
 
             if not relationships_info:
                 messages.warning(
@@ -385,6 +430,17 @@ def create_relationships(modeladmin, request, queryset):
 
             relationships_created = 0
             relationships_failed = 0
+
+            # Limit to relationships whose tables exist in our catalog
+            existing_tables = set(
+                SqlTable.objects.filter(sql_db=sqldb).values_list("name", flat=True)
+            )
+            relationships_info = [
+                r
+                for r in relationships_info
+                if r.get("source_table_name") in existing_tables
+                and r.get("target_table_name") in existing_tables
+            ]
 
             for rel_data in relationships_info:
                 source_table_name = rel_data["source_table_name"]
@@ -399,12 +455,41 @@ def create_relationships(modeladmin, request, queryset):
                     target_table = SqlTable.objects.get(
                         name=target_table_name, sql_db=sqldb
                     )
-                    source_column = SqlColumn.objects.get(
-                        original_column_name=source_column_name, sql_table=source_table
-                    )
-                    target_column = SqlColumn.objects.get(
-                        original_column_name=target_column_name, sql_table=target_table
-                    )
+                    # Ensure source/target columns exist; create on-the-fly if missing
+                    try:
+                        source_column = SqlColumn.objects.get(
+                            original_column_name=source_column_name,
+                            sql_table=source_table,
+                        )
+                    except SqlColumn.DoesNotExist:
+                        try:
+                            col_info = get_column_names_and_comments(
+                                sqldb, source_table.name
+                            )
+                            create_sql_columns(source_table, col_info)
+                            source_column = SqlColumn.objects.get(
+                                original_column_name=source_column_name,
+                                sql_table=source_table,
+                            )
+                        except Exception:
+                            raise
+                    try:
+                        target_column = SqlColumn.objects.get(
+                            original_column_name=target_column_name,
+                            sql_table=target_table,
+                        )
+                    except SqlColumn.DoesNotExist:
+                        try:
+                            col_info = get_column_names_and_comments(
+                                sqldb, target_table.name
+                            )
+                            create_sql_columns(target_table, col_info)
+                            target_column = SqlColumn.objects.get(
+                                original_column_name=target_column_name,
+                                sql_table=target_table,
+                            )
+                        except Exception:
+                            raise
 
                     relationship, created = Relationship.objects.get_or_create(
                         source_table=source_table,
@@ -419,10 +504,6 @@ def create_relationships(modeladmin, request, queryset):
                     )
                 except SqlTable.DoesNotExist:
                     error_msg = f"Table not found in database '{sqldb.name}' - Source: {source_table_name} or Target: {target_table_name}"
-                    logger.error(error_msg)
-                    relationships_failed += 1
-                except SqlColumn.DoesNotExist:
-                    error_msg = f"Column not found in database '{sqldb.name}' - Source: {source_column_name} or Target: {target_column_name}"
                     logger.error(error_msg)
                     relationships_failed += 1
                 except Exception as e:
@@ -592,7 +673,31 @@ def create_db_elements(modeladmin, request, queryset):
             logger.info("\nStep 3: Creating foreign key relationships")
             try:
                 db_manager = get_db_manager(sqldb)
-                relationships_info = db_manager.get_foreign_keys()
+                adapter = getattr(db_manager, "adapter", None)
+                if adapter and hasattr(adapter, "get_foreign_keys_as_documents"):
+                    fk_docs = adapter.get_foreign_keys_as_documents()
+                    relationships_info = [
+                        {
+                            "source_table_name": d.source_table_name,
+                            "source_column_name": d.source_column_name,
+                            "target_table_name": d.target_table_name,
+                            "target_column_name": d.target_column_name,
+                        }
+                        for d in fk_docs
+                    ]
+                else:
+                    relationships_info = db_manager.get_foreign_keys()
+
+                # Limit to relationships whose tables exist in our catalog
+                existing_tables = set(
+                    SqlTable.objects.filter(sql_db=sqldb).values_list("name", flat=True)
+                )
+                relationships_info = [
+                    r
+                    for r in relationships_info
+                    if r.get("source_table_name") in existing_tables
+                    and r.get("target_table_name") in existing_tables
+                ]
 
                 relationships_created = 0
                 for rel_data in relationships_info:
@@ -608,14 +713,41 @@ def create_db_elements(modeladmin, request, queryset):
                         target_table = SqlTable.objects.get(
                             name=target_table_name, sql_db=sqldb
                         )
-                        source_column = SqlColumn.objects.get(
-                            original_column_name=source_column_name,
-                            sql_table=source_table,
-                        )
-                        target_column = SqlColumn.objects.get(
-                            original_column_name=target_column_name,
-                            sql_table=target_table,
-                        )
+                        # Ensure columns exist; create on-the-fly if missing
+                        try:
+                            source_column = SqlColumn.objects.get(
+                                original_column_name=source_column_name,
+                                sql_table=source_table,
+                            )
+                        except SqlColumn.DoesNotExist:
+                            try:
+                                col_info = get_column_names_and_comments(
+                                    sqldb, source_table.name
+                                )
+                                create_sql_columns(source_table, col_info)
+                                source_column = SqlColumn.objects.get(
+                                    original_column_name=source_column_name,
+                                    sql_table=source_table,
+                                )
+                            except Exception:
+                                raise
+                        try:
+                            target_column = SqlColumn.objects.get(
+                                original_column_name=target_column_name,
+                                sql_table=target_table,
+                            )
+                        except SqlColumn.DoesNotExist:
+                            try:
+                                col_info = get_column_names_and_comments(
+                                    sqldb, target_table.name
+                                )
+                                create_sql_columns(target_table, col_info)
+                                target_column = SqlColumn.objects.get(
+                                    original_column_name=target_column_name,
+                                    sql_table=target_table,
+                                )
+                            except Exception:
+                                raise
 
                         relationship, created = Relationship.objects.get_or_create(
                             source_table=source_table,

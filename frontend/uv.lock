@@ -2444,7 +2444,7 @@ wheels = [
 
 [[package]]
 name = "thoth-dbmanager"
-version = "0.5.8"
+version = "0.5.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasketch" },
@@ -2453,9 +2453,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8a/ca/d9a57674e1eba074825c10f68ffb748db29553c0985079f619125e9a9b82/thoth_dbmanager-0.5.8.tar.gz", hash = "sha256:530c6a5b0ee917a05516b7062763187e9ecbbd19210fddfaf970243fa57f8854", size = 54163, upload-time = "2025-08-24T21:21:51.092Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6b/0c/80658adf99e02af926a025dbf126bb9a3609a4de5d47c83c0ee535d39ce2/thoth_dbmanager-0.5.10.tar.gz", hash = "sha256:3871cb76a131ca7ba0c266a41c9da719154b4027ed600da97ff0c19566a962e2", size = 54160, upload-time = "2025-09-12T05:09:06.489Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e9/96/5abd7343e76154ab0599dc1de3a7b9e8b3e26001f585817cb4e02a08c988/thoth_dbmanager-0.5.8-py3-none-any.whl", hash = "sha256:1c540748f7cd4c033643e9421cc7f24ebacb5aec2dcaae9c4bdd27afcbab254f", size = 66022, upload-time = "2025-08-24T21:21:49.781Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/de/482500e5d6bdfb8bacf282430ddbe329994aec77504f0e0382b70f0ff526/thoth_dbmanager-0.5.10-py3-none-any.whl", hash = "sha256:5c95efd979ff1fc7d329be384052fb264ba73732cc5e62f0b629cef29627a196", size = 75343, upload-time = "2025-09-12T05:09:04.839Z" },
 ]
 
 [package.optional-dependencies]
@@ -2617,7 +2617,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "sqlglot", specifier = ">=25.0.0" },
     { name = "sqlparse", specifier = ">=0.5.0" },
-    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.5.8" },
+    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.5.10" },
     { name = "thoth-qdrant", extras = ["openai", "cohere", "mistral"], specifier = ">=0.1.11" },
     { name = "tzdata" },
     { name = "tzlocal", specifier = ">=5.3.1" },
