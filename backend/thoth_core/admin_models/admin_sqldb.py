@@ -58,7 +58,7 @@ class SqlDbAdminForm(forms.ModelForm):
             "password": "Database password for authentication",
             "db_mode": "Environment mode (dev/test/prod) - affects connection behavior (REQUIRED)",
             "vector_db": "Associated vector database for storing semantic information about this SQL database",
-            "language": "Primary language of the database content (used for AI processing)",
+            "language": "Primary language (ISO 639-1 code; select label shows English name)",
             "scope": "Description of the database purpose and content (generated or manually entered)",
             "scope_json": "JSON format of the database scope for programmatic use",
             "directives": "Free-form directives/hints for agents interacting with this DB",

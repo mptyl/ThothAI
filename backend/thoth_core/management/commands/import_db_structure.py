@@ -108,6 +108,22 @@ class Command(BaseCommand):
                             )
                             db_port = None
 
+                    # Normalize language to ISO code if csv provides names
+                    lang = (row.get("language", "") or "").strip()
+                    try:
+                        from thoth_core.models import LanguageCode
+                        valid_codes = {code for code, _ in LanguageCode.choices}
+                        name_to_code = {label.lower(): code for code, label in LanguageCode.choices}
+                        lang_lower = lang.lower()
+                        if lang_lower in valid_codes:
+                            norm_lang = lang_lower
+                        elif lang_lower in name_to_code:
+                            norm_lang = name_to_code[lang_lower]
+                        else:
+                            norm_lang = LanguageCode.EN
+                    except Exception:
+                        norm_lang = lang or "en"
+
                     sql_db = SqlDb.objects.create(
                         id=row["id"],
                         name=db_name,
@@ -119,7 +135,7 @@ class Command(BaseCommand):
                         user_name=row.get("user_name", ""),
                         password=row.get("password", ""),
                         db_mode=row.get("db_mode", ""),
-                        language=row.get("language", ""),
+                        language=norm_lang,
                     )
                 # Find the VectorDb if specified
                 vector_db = None

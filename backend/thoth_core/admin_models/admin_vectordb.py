@@ -14,6 +14,7 @@ from django import forms
 from django.contrib import admin, messages
 from thoth_core.models import VectorDb
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.widgets import PasswordInputWithToggle
 
 
 class VectorDbAdminForm(forms.ModelForm):
@@ -23,7 +24,7 @@ class VectorDbAdminForm(forms.ModelForm):
         model = VectorDb
         fields = "__all__"
         widgets = {
-            "password": forms.PasswordInput(render_value=True),
+            "password": PasswordInputWithToggle(render_value=True),
         }
 
 

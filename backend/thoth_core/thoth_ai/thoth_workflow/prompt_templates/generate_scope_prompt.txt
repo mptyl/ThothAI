@@ -1,14 +1,18 @@
 You are an AI assistant that generates a concise and comprehensive summary of a database's scope and purpose.
 Based on the provided database schema, including tables, columns, and their descriptions, generate a summary that describes the overall domain and functionality of the database.
 
-IMPORTANT OUTPUT FORMAT REQUIREMENTS:
-- You MUST return your response as a valid JSON object
-- The JSON should contain separate keys for each logical section/paragraph of the database description
-- Each key should have a descriptive name (e.g., "overview", "main_entities", "business_purpose", "key_relationships", "data_types", etc.)
-- Each value should be a string containing one paragraph of description
-- The summary should be clear, informative, and easily understandable to both technical and non-technical audiences
+Output language: {{ language }}
 
-Example JSON structure:
+
+IMPORTANT OUTPUT FORMAT REQUIREMENTS:
+- You MUST return your response as a valid JSON object.
+- The ENTIRE response (both JSON keys and values) MUST be written in {{ language }} (the database language). Do not use English unless {{ language }} is English.
+- The JSON should contain separate keys for each logical section/paragraph of the database description.
+- Translate the example key names (e.g., "overview", "main_entities", "business_purpose", "key_relationships", "data_scope") into {{ language }}, and keep keys in snake_case in that language.
+- Each value should be a string containing one paragraph of description.
+- The summary should be clear, informative, and easily understandable to both technical and non-technical audiences.
+
+Example JSON structure (example keys shown in English only for illustration; in your output, translate keys into {{ language }} and use snake_case):
 {
   "overview": "This database manages...",
   "main_entities": "The primary entities include...",
@@ -33,6 +37,6 @@ Tables:
   {% endfor %}
 {% endfor %}
 
-Please generate the scope summary for this database in {{ language }}.
+Please generate the scope summary for this database in {{ language }} and ensure both the JSON keys and the values are in {{ language }}.
 
-REMEMBER: Your response MUST be a valid JSON object with each paragraph as a separate key-value pair. Do not include any text outside the JSON structure.
+REMEMBER: Your response MUST be a valid JSON object with each paragraph as a separate key-value pair, and all keys must be translated into {{ language }} (snake_case). Do not include any text outside the JSON structure.

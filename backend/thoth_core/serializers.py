@@ -138,10 +138,12 @@ class AgentSerializer(serializers.ModelSerializer):
 
 class SettingSerializer(serializers.ModelSerializer):
     comment_model = AiModelSerializer()
+    language_display = serializers.CharField(source="get_language_display", read_only=True)
 
     class Meta:
         model = Setting
         fields = "__all__"
+        read_only_fields = getattr(getattr(Setting, "Meta", object), "read_only_fields", tuple())
 
 
 class WorkspaceSerializer(serializers.ModelSerializer):

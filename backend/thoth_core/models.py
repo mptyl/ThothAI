@@ -17,6 +17,52 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 
+class LanguageCode(models.TextChoices):
+    EN = "en", "English"
+    IT = "it", "Italian"
+    ES = "es", "Spanish"
+    PT = "pt", "Portuguese"
+    FR = "fr", "French"
+    DE = "de", "German"
+    NL = "nl", "Dutch"
+    DA = "da", "Danish"
+    SV = "sv", "Swedish"
+    NO = "no", "Norwegian"
+    IS = "is", "Icelandic"
+    GA = "ga", "Irish"
+    GD = "gd", "Scottish Gaelic"
+    CY = "cy", "Welsh"
+    PL = "pl", "Polish"
+    CS = "cs", "Czech"
+    SK = "sk", "Slovak"
+    SL = "sl", "Slovene"
+    HU = "hu", "Hungarian"
+    RO = "ro", "Romanian"
+    BG = "bg", "Bulgarian"
+    HR = "hr", "Croatian"
+    SR = "sr", "Serbian"
+    BS = "bs", "Bosnian"
+    MK = "mk", "Macedonian"
+    SQ = "sq", "Albanian"
+    UK = "uk", "Ukrainian"
+    BE = "be", "Belarusian"
+    RU = "ru", "Russian"
+    LT = "lt", "Lithuanian"
+    LV = "lv", "Latvian"
+    ET = "et", "Estonian"
+    EL = "el", "Greek"
+    TR = "tr", "Turkish"
+    FI = "fi", "Finnish"
+    MT = "mt", "Maltese"
+    LB = "lb", "Luxembourgish"
+    CA = "ca", "Catalan"
+    EU = "eu", "Basque"
+    GL = "gl", "Galician"
+    ZH = "zh", "Chinese"
+    JA = "ja", "Japanese"
+    KO = "ko", "Korean"
+
+
 class AgentChoices(models.TextChoices):
     EXTRACTKEYWORDS = "EXTRACTKEYWORDS", "Keywords Extractor"
     SQLBASIC = "SQLBASIC", "SQL Generator - Basic"
@@ -240,7 +286,13 @@ class SqlDb(models.Model):
         null=True,
         blank=True,
     )
-    language = models.CharField(max_length=50, blank=True, default="English")
+    language = models.CharField(
+        max_length=8,
+        choices=LanguageCode.choices,
+        blank=True,
+        default=LanguageCode.EN,
+        help_text="Default language for DB comments/prompts (ISO 639-1)",
+    )
     scope = models.TextField(blank=True, null=True)
     scope_json = models.TextField(blank=True, null=True)
     last_columns_update = models.DateTimeField(blank=True, null=True)
@@ -421,11 +473,62 @@ class VectorDb(models.Model):
         return f"{self.name} - {self.vect_type}"
 
 
+class LanguageCode(models.TextChoices):
+    EN = "en", "English"
+    IT = "it", "Italian"
+    ES = "es", "Spanish"
+    PT = "pt", "Portuguese"
+    FR = "fr", "French"
+    DE = "de", "German"
+    NL = "nl", "Dutch"
+    DA = "da", "Danish"
+    SV = "sv", "Swedish"
+    NO = "no", "Norwegian"
+    IS = "is", "Icelandic"
+    GA = "ga", "Irish"
+    GD = "gd", "Scottish Gaelic"
+    CY = "cy", "Welsh"
+    PL = "pl", "Polish"
+    CS = "cs", "Czech"
+    SK = "sk", "Slovak"
+    SL = "sl", "Slovene"
+    HU = "hu", "Hungarian"
+    RO = "ro", "Romanian"
+    BG = "bg", "Bulgarian"
+    HR = "hr", "Croatian"
+    SR = "sr", "Serbian"
+    BS = "bs", "Bosnian"
+    MK = "mk", "Macedonian"
+    SQ = "sq", "Albanian"
+    UK = "uk", "Ukrainian"
+    BE = "be", "Belarusian"
+    RU = "ru", "Russian"
+    LT = "lt", "Lithuanian"
+    LV = "lv", "Latvian"
+    ET = "et", "Estonian"
+    EL = "el", "Greek"
+    TR = "tr", "Turkish"
+    FI = "fi", "Finnish"
+    MT = "mt", "Maltese"
+    LB = "lb", "Luxembourgish"
+    CA = "ca", "Catalan"
+    EU = "eu", "Basque"
+    GL = "gl", "Galician"
+    ZH = "zh", "Chinese"
+    JA = "ja", "Japanese"
+    KO = "ko", "Korean"
+
+
 class Setting(models.Model):
     name = models.CharField(max_length=255)
     theme = models.CharField(max_length=50, null=True, blank=True)
 
-    language = models.CharField(max_length=50)
+    language = models.CharField(
+        max_length=8,
+        choices=LanguageCode.choices,
+        default=LanguageCode.EN,
+        help_text="Stored as ISO 639-1 (e.g., en, it)",
+    )
     example_rows_for_comment = models.PositiveIntegerField(
         default=5, help_text="Number of example rows to use for comment generation"
     )
@@ -674,8 +777,8 @@ class ThothLog(models.Model):
     started_at = models.DateTimeField()
     terminated_at = models.DateTimeField(null=True, blank=True)
     question = models.TextField()
-    db_language = models.CharField(max_length=50)  # Same as SqlDb.language
-    question_language = models.CharField(max_length=50)  # Same as SqlDb.language
+    db_language = models.CharField(max_length=8, choices=LanguageCode.choices)
+    question_language = models.CharField(max_length=8, choices=LanguageCode.choices)
     translated_question = models.TextField(blank=True)
     keywords_list = models.TextField(blank=True)
     evidences = models.TextField(blank=True)

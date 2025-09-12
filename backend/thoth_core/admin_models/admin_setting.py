@@ -17,7 +17,7 @@ from thoth_core.utilities.utils import export_csv, import_csv
 
 @admin.register(Setting)
 class SettingAdmin(admin.ModelAdmin):
-    list_display = ("name", "theme", "language")
+    list_display = ("name", "theme", "get_language_display")
     search_fields = ("name",)
     ordering = ("name",)
     actions = (export_csv, import_csv)

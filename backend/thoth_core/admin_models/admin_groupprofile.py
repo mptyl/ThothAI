@@ -17,6 +17,7 @@ from django.contrib.auth.admin import (
     UserAdmin as BaseUserAdmin,
 )
 from thoth_core.models import GroupProfile
+from thoth_core.widgets import PasswordInputWithToggle
 from thoth_core.utilities.utils import export_csv, import_csv
 
 
@@ -70,6 +71,25 @@ admin.site.unregister(User)
 
 class UserAdmin(BaseUserAdmin):
     actions = list(BaseUserAdmin.actions) + [export_csv, import_csv]
+
+    # Use revealable widgets for password fields in add/change forms
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Django's built-in UserChangeForm has a read-only password field by default.
+        # Ensure add form uses our toggle widget for password inputs where applicable.
+        if hasattr(form, 'base_fields'):
+            for fname in ("password", "new_password1", "new_password2", "password1", "password2"):
+                if fname in form.base_fields:
+                    form.base_fields[fname].widget = PasswordInputWithToggle(render_value=True)
+        return form
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        if hasattr(formset.form, 'base_fields'):
+            for fname in ("password", "new_password1", "new_password2", "password1", "password2"):
+                if fname in formset.form.base_fields:
+                    formset.form.base_fields[fname].widget = PasswordInputWithToggle(render_value=True)
+        return formset
 
 
 admin.site.register(User, UserAdmin)
