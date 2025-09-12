@@ -2,7 +2,7 @@ id,basic_model,specific_model,name,url,temperature_allowed,temperature,top_p,max
 1,1,claude-3-7-sonnet-20250219,Claude Sonnet 3.7,,True,0.80,0.90,1280,45.0,200000
 2,6,codestral-latest,Codestral,,True,0.80,0.90,1280,45.0,32768
 3,2,deepseek-chat,Deepseek-v3,,True,0.80,0.90,1280,45.0,32768
-4,3,gemini-2.5-pro,Gemini 2.5 pro,,True,0.80,0.90,1280,45.0,32768
+4,3,gemini-2.0-pro,Gemini 2.0 Pro,,True,0.80,0.90,1280,45.0,32768
 5,6,mistral-large-latest,Mistral Large,,True,0.80,0.90,1280,45.0,32768
 6,6,mistral-small-latest,Mistral Small,,True,0.80,0.90,1280,45.0,32768
 7,9,anthropic/claude-opus-4,OpenRouter - Claude Opus 4,,True,0.80,0.90,1280,45.0,32768
@@ -12,8 +12,8 @@ id,basic_model,specific_model,name,url,temperature_allowed,temperature,top_p,max
 11,9,deepseek/deepseek-chat,OpenRouter - Deepseek V3,,True,0.80,0.90,1280,45.0,32768
 12,9,mistralai/devstral-medium,OpenRouter - Devstral Medium,,True,0.80,0.90,1280,45.0,32768
 13,9,mistralai/devstral-small-2507,OpenRouter - Devstral Small,,True,0.80,0.90,1280,45.0,32768
-14,9,google/gemini-2.5-flash,OpenRouter - Gemini 2.5 Flash,,True,0.80,0.90,1280,45.0,1000000
-15,9,google/gemini-2.5-pro,OpenRouter - Gemini 2.5 Pro,,True,0.00,0.90,1280,45.0,32768
+14,9,google/gemini-2.5-flash,OpenRouter - Gemini 2.0 Flash,,True,0.80,0.90,1280,45.0,1000000
+15,9,google/gemini-2.5-pro,OpenRouter - Gemini 2.0 Pro,,True,0.00,0.90,1280,45.0,32768
 16,9,openai/gpt-5,OpenRouter - Gpt 5,,True,0.80,0.90,1280,45.0,32768
 17,9,moonshotai/kimi-k2-0905,OpenRouter - Kimi K2,,True,0.80,0.90,1280,45.0,32768
 18,9,mistralai/codestral-2501,OpenRouter - Mistral Codestral,,True,0.80,0.90,1280,45.0,32768

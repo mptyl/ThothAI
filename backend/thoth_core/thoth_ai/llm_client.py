@@ -133,11 +133,24 @@ class ThothLLMClient:
                 model = model.split("/", 1)[1]
             return f"groq/{model}"
         
-        # For OpenRouter, always use openrouter/ prefix
+        # For OpenRouter, always use openrouter/ prefix and preserve vendor namespace
         if self.provider == LLMChoices.OPENROUTER:
-            # Remove any existing prefix and add openrouter/
-            if "/" in model:
-                model = model.split("/", 1)[1]
+            # If the model does not include a vendor namespace, try to infer one
+            # Common mappings to help users who specify bare model IDs
+            if "/" not in model:
+                lower = model.lower()
+                if lower.startswith("gemini"):
+                    model = f"google/{model}"
+                elif lower.startswith("claude"):
+                    model = f"anthropic/{model}"
+                elif lower.startswith("mistral") or lower.startswith("codestral"):
+                    model = f"mistralai/{model}"
+                elif lower.startswith("deepseek"):
+                    model = f"deepseek/{model}"
+                elif lower.startswith("gpt") or lower.startswith("o3"):
+                    model = f"openai/{model}"
+                # else: leave as-is; OpenRouter will validate
+            # Preserve the vendor prefix for OpenRouter
             return f"openrouter/{model}"
 
         return f"{prefix}{model}" if prefix else model
