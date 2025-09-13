@@ -183,3 +183,54 @@ def update_workspace_log(
 
         fallback_logger = logging.getLogger("thoth_core.async_tasks")
         fallback_logger.error(f"Failed to update workspace log: {str(e)}")
+
+
+# --- SqlDb-scoped logging helpers ---
+def create_db_comment_logger(sql_db, base_logger_name: str = "async_table_comments") -> tuple[logging.Logger, MemoryLogHandler]:
+    """
+    Create a logger with a memory handler for tasks scoped to a SqlDb.
+
+    Args:
+        sql_db: The SqlDb object to associate with logs
+        base_logger_name: Base name for the logger
+
+    Returns:
+        tuple: (logger, memory_handler)
+    """
+    # Create a unique logger name to avoid conflicts
+    logger_name = f"{base_logger_name}_db_{sql_db.id}_{timezone.now().timestamp()}"
+    logger = logging.getLogger(logger_name)
+
+    # Clear any existing handlers
+    logger.handlers.clear()
+    logger.setLevel(logging.INFO)
+
+    # Create and add the memory handler
+    memory_handler = MemoryLogHandler(logging.INFO)
+    logger.addHandler(memory_handler)
+
+    # Prevent propagation to avoid duplicate logs
+    logger.propagate = False
+
+    return logger, memory_handler
+
+
+def update_sqldb_log(sql_db, memory_handler: MemoryLogHandler, field_name: str = "table_comment_log"):
+    """
+    Update the SqlDb log field with accumulated log messages.
+
+    Args:
+        sql_db: The SqlDb object to update
+        memory_handler: The memory handler containing the logs
+        field_name: Name of the field to update (default: 'table_comment_log')
+    """
+    try:
+        logs = memory_handler.get_logs()
+        setattr(sql_db, field_name, logs)
+        sql_db.save(update_fields=[field_name])
+    except Exception as e:
+        # Fallback logging in case of database issues
+        import logging
+
+        fallback_logger = logging.getLogger("thoth_core.async_tasks")
+        fallback_logger.error(f"Failed to update SqlDb log: {str(e)}")

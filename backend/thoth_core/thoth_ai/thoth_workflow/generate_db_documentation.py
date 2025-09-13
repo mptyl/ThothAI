@@ -20,7 +20,7 @@ from django.contrib import messages
 # Removed Haystack imports - using LiteLLM instead
 from thoth_core.models import SqlTable, SqlColumn, Relationship, LLMChoices
 from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
-    setup_default_comment_llm_model,
+    setup_llm_from_env,
 )
 from thoth_core.utilities.utils import (
     ensure_exports_directory,
@@ -763,30 +763,14 @@ def generate_db_documentation(modeladmin, request, queryset):
     The documentation includes database scope, Mermaid schema diagram, table descriptions, and column details.
     """
     try:
-        # Check workspace
-        if not hasattr(request, "current_workspace") or not request.current_workspace:
+        # Setup LLM from environment variables
+        try:
+            llm = setup_llm_from_env()
+        except Exception as e:
             modeladmin.message_user(
                 request,
-                "No active workspace found. Please select a workspace.",
+                f"Failed to set up LLM model from environment: {str(e)}",
                 messages.ERROR,
-            )
-            return
-
-        # Get settings and validate LLM configuration
-        setting = request.current_workspace.setting
-        if not setting or not setting.comment_model:
-            modeladmin.message_user(
-                request,
-                "AI model for comment generation not configured in settings.",
-                messages.ERROR,
-            )
-            return
-
-        # Setup LLM
-        llm = setup_default_comment_llm_model(setting)
-        if llm is None:
-            modeladmin.message_user(
-                request, "Failed to set up LLM model.", messages.ERROR
             )
             return
 
@@ -818,7 +802,7 @@ def generate_db_documentation(modeladmin, request, queryset):
 
         # Prepare messages for LLM - only for Mermaid generation
         llm_messages = []
-        if setting.comment_model.basic_model.provider != LLMChoices.GEMINI:
+        if getattr(llm, "provider", None) != LLMChoices.GEMINI:
             llm_messages.append(
                 {
                     "role": "system",

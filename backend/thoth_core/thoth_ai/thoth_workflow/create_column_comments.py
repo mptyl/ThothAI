@@ -24,7 +24,7 @@ from django.db import transaction
 from tabulate import tabulate
 
 from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
-    setup_default_comment_llm_model,
+    setup_llm_from_env,
     setup_sql_db,
     output_to_json,
     get_table_schema_safe,
@@ -113,12 +113,11 @@ class CircuitBreaker:
 llm_circuit_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=120)
 
 
-def create_fresh_llm_client(setting, logger: Optional[logging.Logger] = None):
+def create_fresh_llm_client(logger: Optional[logging.Logger] = None):
     """
     Create a fresh LLM client instance for thread-safe operation.
 
     Args:
-        setting: Workspace setting containing LLM configuration
         logger: Optional logger for detailed logging
 
     Returns:
@@ -128,7 +127,7 @@ def create_fresh_llm_client(setting, logger: Optional[logging.Logger] = None):
         logger.info("Creating fresh LLM client for thread")
 
     # Setup LLM with detailed logging
-    llm_client = setup_default_comment_llm_model(setting)
+    llm_client = setup_llm_from_env()
     if llm_client is None:
         if logger:
             logger.error("Failed to create LLM client")
@@ -140,7 +139,7 @@ def create_fresh_llm_client(setting, logger: Optional[logging.Logger] = None):
     return llm_client
 
 
-def generate_column_comments_with_llm(llm_client, setting, variables: Dict[str, Any]):
+def generate_column_comments_with_llm(llm_client, variables: Dict[str, Any]):
     """
     Generate column comments using the LLM client.
 
@@ -167,7 +166,7 @@ def generate_column_comments_with_llm(llm_client, setting, variables: Dict[str, 
 
     # Prepare messages
     messages = []
-    if setting.comment_model.basic_model.provider != LLMChoices.GEMINI:
+    if getattr(llm_client, "provider", None) != LLMChoices.GEMINI:
         messages.append(
             {
                 "role": "system",
@@ -186,26 +185,9 @@ def create_selected_column_comments(modeladmin, request, queryset):
         chunk_size = 10
         total_columns = queryset.count()
 
-        if not hasattr(request, "current_workspace") or not request.current_workspace:
-            modeladmin.message_user(
-                request,
-                "No active workspace found. Please select a workspace.",
-                level=messages.ERROR,
-            )
-            return
-
-        setting = request.current_workspace.setting
-        if not setting:
-            modeladmin.message_user(
-                request,
-                "No settings configured for the current workspace.",
-                level=messages.ERROR,
-            )
-            return
-
         table = queryset[0].sql_table
-        # Get language from table's database if set, otherwise use default from settings
-        language = table.sql_db.language if table.sql_db.language else setting.language
+        # Get language from table's database, fallback to English
+        language = table.sql_db.language or "en"
         # setup database schema
         table_db = table.sql_db
         try:
@@ -220,9 +202,7 @@ def create_selected_column_comments(modeladmin, request, queryset):
 
         # Get the table schema using the safe wrapper
         table_schema = get_table_schema_safe(db, table.name)
-        all_example_data = db.get_example_data(
-            table.name, setting.example_rows_for_comment
-        )
+        all_example_data = db.get_example_data(table.name, 5)
 
         if total_columns > chunk_size:
             modeladmin.message_user(
@@ -238,7 +218,6 @@ def create_selected_column_comments(modeladmin, request, queryset):
                 request,
                 chunk,
                 i // chunk_size + 1,
-                setting,
                 table,
                 language,
                 table_schema,
@@ -264,7 +243,6 @@ def process_column_chunk(
     request,
     chunk,
     chunk_number,
-    setting,
     table,
     language,
     table_schema,
@@ -272,7 +250,7 @@ def process_column_chunk(
 ):
     try:
         # setup llm model
-        llm = setup_default_comment_llm_model(setting)
+        llm = setup_llm_from_env()
         if llm is None:
             modeladmin.message_user(
                 request, "Default LLM model not found.", level=messages.ERROR
@@ -372,7 +350,7 @@ def process_column_chunk(
         }
 
         # Generate column comments using the LLM
-        output = generate_column_comments_with_llm(llm, setting, prompt_variables)
+        output = generate_column_comments_with_llm(llm, prompt_variables)
         try:
             table_comment_json = output_to_json(output)
             if table_comment_json is None:
@@ -554,7 +532,7 @@ def create_selected_column_comments_async(
     Returns:
         Dict with processing results including success/failure counts and detailed logs
     """
-    from thoth_core.models import SqlColumn, Workspace
+    from thoth_core.models import SqlColumn
     from django.db import transaction
     import logging
 
@@ -586,50 +564,7 @@ def create_selected_column_comments_async(
 
         logger.info(f"Found {total_columns} columns to process")
 
-        # Get workspace and settings
-        if workspace_id:
-            try:
-                workspace = Workspace.objects.get(id=workspace_id)
-                logger.info(
-                    f"Using provided workspace: {workspace.name} (ID: {workspace_id})"
-                )
-            except Workspace.DoesNotExist:
-                logger.error(f"Workspace with ID {workspace_id} not found")
-                results["errors"].append(f"Workspace with ID {workspace_id} not found")
-                return results
-        else:
-            # Fallback: try to find workspace by database
-            first_column = columns.first()
-            if (
-                not first_column
-                or not first_column.sql_table
-                or not first_column.sql_table.sql_db
-            ):
-                logger.error("Cannot determine workspace settings")
-                results["errors"].append("Cannot determine workspace settings")
-                return results
-
-            workspace = Workspace.objects.filter(
-                sql_db=first_column.sql_table.sql_db
-            ).first()
-            if not workspace:
-                logger.error(
-                    f"No workspace found for database {first_column.sql_table.sql_db.name}"
-                )
-                results["errors"].append(
-                    f"No workspace found for database {first_column.sql_table.sql_db.name}"
-                )
-                return results
-            logger.info(f"Found workspace by database: {workspace.name}")
-
-        setting = workspace.setting
-
-        if not setting:
-            logger.error("No settings configured for workspace")
-            results["errors"].append("No settings configured for workspace")
-            return results
-
-        logger.info(f"Processing columns with workspace: {workspace.name}")
+        # Workspace/settings no longer required; proceed with env-based configuration
 
         # Group columns by table for efficient processing
         columns_by_table = {}
@@ -661,9 +596,9 @@ def create_selected_column_comments_async(
 
                     # Create fresh LLM client if not exists or if previous attempt failed
                     if pipeline is None:
-                        pipeline = create_fresh_llm_client(setting, logger)
+                        pipeline = create_fresh_llm_client(logger)
                         if pipeline is None:
-                            error_msg = f"Failed to create LLM client for workspace {workspace.name}"
+                            error_msg = "Failed to create LLM client from environment"
                             logger.error(error_msg)
                             results["errors"].append(error_msg)
                             # Mark all columns in this table as failed
@@ -724,7 +659,7 @@ def create_selected_column_comments_async(
                     # Get example data
                     try:
                         all_example_data = db.get_example_data(
-                            table.name, setting.example_rows_for_comment
+                            table.name, 5
                         )
                         if all_example_data and any(
                             lst for lst in all_example_data.values() if lst
@@ -829,11 +764,7 @@ def create_selected_column_comments_async(
                                 example_data = "No example data available for the selected columns."
 
                             # Generate comments with timeout and circuit breaker
-                            language = (
-                                table.sql_db.language
-                                if table.sql_db.language
-                                else setting.language
-                            )
+                            language = table.sql_db.language or "en"
 
                             def run_llm_generation():
                                 with pipeline_timeout(
@@ -852,7 +783,6 @@ def create_selected_column_comments_async(
                                     return timeout_wrapper(
                                         generate_column_comments_with_llm,
                                         pipeline,
-                                        setting,
                                         prompt_variables,
                                     )
 

@@ -21,7 +21,7 @@ import threading
 from typing import List, Dict, Any
 from django.utils import timezone
 
-from thoth_core.models import Workspace, SqlTable
+from thoth_core.models import SqlTable, SqlDb
 from thoth_core.thoth_ai.thoth_workflow.create_table_comments import (
     create_table_comments_async,
 )
@@ -29,8 +29,8 @@ from thoth_core.thoth_ai.thoth_workflow.create_column_comments import (
     create_selected_column_comments_async,
 )
 from thoth_core.thoth_ai.thoth_workflow.log_handler import (
-    create_table_comment_logger,
-    update_workspace_log,
+    create_db_comment_logger,
+    update_sqldb_log,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,149 +54,102 @@ class AsyncTableCommentTask:
         Returns:
             Dict with task results and status
         """
-        workspace = None
-        custom_logger = None
-        memory_handler = None
-
+        # Group incoming table IDs by SqlDb
         try:
-            workspace = Workspace.objects.get(id=workspace_id)
-            workspace.table_comment_status = Workspace.PreprocessingStatus.RUNNING
-            workspace.table_comment_task_id = (
-                f"table_comments_{workspace_id}_{timezone.now().timestamp()}"
-            )
-            workspace.table_comment_start_time = timezone.now()
-            # Clear the log field at the beginning of the process
-            workspace.table_comment_log = ""
-            workspace.save()
+            tables = SqlTable.objects.filter(id__in=table_ids).select_related("sql_db")
+            by_db: Dict[int, Dict[str, Any]] = {}
+            for t in tables:
+                if not t.sql_db:
+                    continue
+                by_db.setdefault(t.sql_db.id, {"db": t.sql_db, "table_ids": []})
+                by_db[t.sql_db.id]["table_ids"].append(t.id)
 
-            # Create custom logger for this task
-            custom_logger, memory_handler = create_table_comment_logger(workspace)
+            total_processed = 0
+            total_failed = 0
 
-            custom_logger.info(
-                f"Starting async table comment generation for {len(table_ids)} tables"
-            )
-            logger.info(
-                f"Starting async table comments generation for workspace {workspace_id}, processing {len(table_ids)} tables"
-            )
+            for db_id, payload in by_db.items():
+                sql_db: SqlDb = payload["db"]
+                db_table_ids: List[int] = payload["table_ids"]
 
-            # Process tables in chunks to prevent memory issues
-            chunk_size = 10
-            processed_count = 0
-            failed_count = 0
+                # Initialize DB-scoped status and log
+                sql_db.table_comment_status = "RUNNING"
+                sql_db.table_comment_task_id = f"table_comments_db_{sql_db.id}_{timezone.now().timestamp()}"
+                sql_db.table_comment_start_time = timezone.now()
+                sql_db.table_comment_log = ""
+                sql_db.save(update_fields=[
+                    "table_comment_status",
+                    "table_comment_task_id",
+                    "table_comment_start_time",
+                    "table_comment_log",
+                ])
 
-            custom_logger.info(
-                f"Processing {len(table_ids)} tables in chunks of {chunk_size}"
-            )
-
-            for i in range(0, len(table_ids), chunk_size):
-                chunk = table_ids[i : i + chunk_size]
-                chunk_start = i + 1
-                chunk_end = min(i + chunk_size, len(table_ids))
-
+                # Logger for this DB
+                custom_logger, memory_handler = create_db_comment_logger(sql_db)
                 custom_logger.info(
-                    f"Processing chunk {chunk_start}-{chunk_end} of {len(table_ids)} tables"
+                    f"Starting async table comment generation for DB '{sql_db.name}' with {len(db_table_ids)} table(s)"
                 )
 
-                try:
-                    # Use async-compatible function with detailed logging, passing workspace_id and custom logger
-                    results = create_table_comments_async(
-                        chunk, workspace_id, custom_logger
-                    )
-                    processed_count += results["processed"]
-                    failed_count += results["failed"]
-
-                    # Log individual table processing details
-                    if "details" in results:
-                        for detail in results["details"]:
-                            if detail["status"] == "success":
-                                custom_logger.info(
-                                    f"✓ Successfully processed table: {detail['table']}"
-                                )
-                            else:
-                                custom_logger.error(
-                                    f"✗ Failed to process table: {detail['table']} - {detail['message']}"
-                                )
-
-                    # Log any errors
-                    for error in results.get("errors", []):
-                        custom_logger.error(
-                            f"Error in chunk {chunk_start}-{chunk_end}: {error}"
-                        )
-
-                    # Update progress in workspace log
-                    update_workspace_log(workspace, memory_handler)
+                # Process tables in chunks
+                chunk_size = 10
+                processed_count = 0
+                failed_count = 0
+                for i in range(0, len(db_table_ids), chunk_size):
+                    chunk = db_table_ids[i : i + chunk_size]
+                    chunk_start = i + 1
+                    chunk_end = min(i + chunk_size, len(db_table_ids))
 
                     custom_logger.info(
-                        f"Chunk {chunk_start}-{chunk_end} completed: {results['processed']} processed, {results['failed']} failed"
+                        f"Processing chunk {chunk_start}-{chunk_end} of {len(db_table_ids)} tables"
                     )
 
-                except Exception as e:
-                    custom_logger.error(
-                        f"Error processing table chunk {chunk_start}-{chunk_end}: {str(e)}"
-                    )
-                    failed_count += len(chunk)
+                    try:
+                        # Use env-based async function; ignore workspace_id
+                        results = create_table_comments_async(chunk, None, custom_logger)
+                        processed_count += results.get("processed", 0)
+                        failed_count += results.get("failed", 0)
 
-                    # Log failed tables
-                    failed_tables = SqlTable.objects.filter(id__in=chunk)
-                    for table in failed_tables:
-                        custom_logger.error(f"✗ Failed to process table: {table.name}")
+                        for error in results.get("errors", []):
+                            custom_logger.error(f"Error in chunk {chunk_start}-{chunk_end}: {error}")
 
-                    # Update workspace log with current state
-                    update_workspace_log(workspace, memory_handler)
+                        update_sqldb_log(sql_db, memory_handler, "table_comment_log")
 
-            # Add summary to logs
-            memory_handler.add_summary(processed_count, failed_count, len(table_ids))
+                        custom_logger.info(
+                            f"Chunk {chunk_start}-{chunk_end} completed: {results.get('processed',0)} processed, {results.get('failed',0)} failed"
+                        )
+                    except Exception as e:
+                        custom_logger.error(
+                            f"Error processing table chunk {chunk_start}-{chunk_end}: {str(e)}"
+                        )
+                        failed_count += len(chunk)
+                        update_sqldb_log(sql_db, memory_handler, "table_comment_log")
 
-            # Update final status
-            workspace.table_comment_end_time = timezone.now()
-            if failed_count == 0:
-                workspace.table_comment_status = Workspace.PreprocessingStatus.COMPLETED
-                custom_logger.info("All tables processed successfully!")
-            else:
-                workspace.table_comment_status = Workspace.PreprocessingStatus.FAILED
-                custom_logger.error(
-                    f"Processing completed with {failed_count} failures"
-                )
+                # Add summary and finalize per-DB
+                memory_handler.add_summary(processed_count, failed_count, len(db_table_ids))
+                sql_db.table_comment_end_time = timezone.now()
+                sql_db.table_comment_status = "COMPLETED" if failed_count == 0 else "FAILED"
+                update_sqldb_log(sql_db, memory_handler, "table_comment_log")
+                sql_db.save(update_fields=[
+                    "table_comment_status",
+                    "table_comment_end_time",
+                    "table_comment_log",
+                ])
 
-            # Final log update
-            update_workspace_log(workspace, memory_handler)
-            workspace.save()
+                total_processed += processed_count
+                total_failed += failed_count
 
             logger.info(
-                f"Table comments generation completed: {processed_count} processed, {failed_count} failed"
+                f"Table comments generation completed across DBs: {total_processed} processed, {total_failed} failed"
             )
 
             return {
                 "status": "success",
-                "processed": processed_count,
-                "failed": failed_count,
+                "processed": total_processed,
+                "failed": total_failed,
                 "total": len(table_ids),
             }
-
         except Exception as e:
-            error_msg = f"Critical error in async table comments: {str(e)}"
-            logger.error(error_msg)
-
-            if custom_logger:
-                custom_logger.error(error_msg)
-
-            if workspace:
-                workspace.table_comment_status = Workspace.PreprocessingStatus.FAILED
-                workspace.table_comment_end_time = timezone.now()
-
-                if memory_handler:
-                    update_workspace_log(workspace, memory_handler)
-                else:
-                    workspace.table_comment_log = error_msg
-
-                workspace.save()
-
-            return {
-                "status": "error",
-                "error": str(e),
-                "processed": 0,
-                "failed": len(table_ids) if "table_ids" in locals() else 0,
-            }
+            logger.error(f"Critical error in async table comments: {str(e)}")
+            return {"status": "error", "error": str(e), "processed": 0, "failed": len(table_ids) if table_ids else 0}
 
 
 class AsyncColumnCommentTask:
@@ -217,129 +170,111 @@ class AsyncColumnCommentTask:
         Returns:
             Dict with task results and status
         """
-        workspace = None
-        custom_logger = None
-        memory_handler = None
-
+        # Group incoming column IDs by SqlDb (via their tables)
         try:
-            workspace = Workspace.objects.get(id=workspace_id)
-            workspace.column_comment_status = Workspace.PreprocessingStatus.RUNNING
-            workspace.column_comment_task_id = (
-                f"column_comments_{workspace_id}_{timezone.now().timestamp()}"
+            columns = (
+                SqlTable.objects.none()  # placeholder to keep type hints happy
             )
-            workspace.column_comment_start_time = timezone.now()
-            # Clear the log field at the beginning of the process
-            workspace.column_comment_log = ""
-            workspace.save()
+            # Fetch columns with their tables and dbs
+            from thoth_core.models import SqlColumn as _SqlColumn
 
-            # Create custom logger for this task (reuse table comment logger function)
-            custom_logger, memory_handler = create_table_comment_logger(
-                workspace, "async_column_comments"
+            col_qs = _SqlColumn.objects.filter(id__in=column_ids).select_related(
+                "sql_table", "sql_table__sql_db"
             )
+            by_db: Dict[int, Dict[str, Any]] = {}
+            for c in col_qs:
+                table = c.sql_table
+                if not table or not table.sql_db:
+                    continue
+                db_id = table.sql_db.id
+                if db_id not in by_db:
+                    by_db[db_id] = {"db": table.sql_db, "column_ids": []}
+                by_db[db_id]["column_ids"].append(c.id)
 
-            custom_logger.info(
-                f"Starting async column comment generation for {len(column_ids)} columns"
-            )
-            logger.info(
-                f"Starting async column comments generation for workspace {workspace_id}, processing {len(column_ids)} columns"
-            )
+            total_processed = 0
+            total_failed = 0
 
-            # Use the enhanced async function with detailed logging
-            try:
-                results = create_selected_column_comments_async(
-                    column_ids, workspace_id, custom_logger
+            for db_id, payload in by_db.items():
+                sql_db: SqlDb = payload["db"]
+                db_column_ids: List[int] = payload["column_ids"]
+
+                # Initialize DB-scoped status and log
+                sql_db.column_comment_status = "RUNNING"
+                sql_db.column_comment_task_id = f"column_comments_db_{sql_db.id}_{timezone.now().timestamp()}"
+                sql_db.column_comment_start_time = timezone.now()
+                sql_db.column_comment_log = ""
+                sql_db.save(update_fields=[
+                    "column_comment_status",
+                    "column_comment_task_id",
+                    "column_comment_start_time",
+                    "column_comment_log",
+                ])
+
+                # Logger for this DB
+                custom_logger, memory_handler = create_db_comment_logger(
+                    sql_db, base_logger_name="async_column_comments"
                 )
-                processed_count = results["processed"]
-                failed_count = results["failed"]
+                custom_logger.info(
+                    f"Starting async column comment generation for DB '{sql_db.name}' with {len(db_column_ids)} column(s)"
+                )
 
-                # Log individual column processing details
-                if "details" in results:
-                    for detail in results["details"]:
-                        if detail["status"] == "success":
+                try:
+                    results = create_selected_column_comments_async(
+                        db_column_ids, None, custom_logger
+                    )
+                    processed_count = results.get("processed", 0)
+                    failed_count = results.get("failed", 0)
+
+                    for detail in results.get("details", []):
+                        if detail.get("status") == "success":
                             custom_logger.info(
-                                f"✓ Successfully processed column: {detail['column']}"
+                                f"✓ Successfully processed column: {detail.get('column')}"
                             )
                         else:
                             custom_logger.error(
-                                f"✗ Failed to process column: {detail['column']} - {detail['message']}"
+                                f"✗ Failed to process column: {detail.get('column')} - {detail.get('message')}"
                             )
 
-                # Log any errors
-                for error in results.get("errors", []):
-                    custom_logger.error(f"Error during processing: {error}")
+                    for error in results.get("errors", []):
+                        custom_logger.error(f"Error during processing: {error}")
 
-                # Update progress in workspace log
-                update_workspace_log(workspace, memory_handler, "column_comment_log")
+                    update_sqldb_log(sql_db, memory_handler, "column_comment_log")
 
-                custom_logger.info(
-                    f"Processing completed: {processed_count} processed, {failed_count} failed"
-                )
+                except Exception as e:
+                    custom_logger.error(
+                        f"Error during column comment generation: {str(e)}"
+                    )
+                    processed_count = 0
+                    failed_count = len(db_column_ids)
+                    update_sqldb_log(sql_db, memory_handler, "column_comment_log")
 
-            except Exception as e:
-                custom_logger.error(f"Error during column comment generation: {str(e)}")
-                processed_count = 0
-                failed_count = len(column_ids)
+                # Add summary and finalize per-DB
+                memory_handler.add_summary(processed_count, failed_count, len(db_column_ids))
+                sql_db.column_comment_end_time = timezone.now()
+                sql_db.column_comment_status = "COMPLETED" if failed_count == 0 else "FAILED"
+                update_sqldb_log(sql_db, memory_handler, "column_comment_log")
+                sql_db.save(update_fields=[
+                    "column_comment_status",
+                    "column_comment_end_time",
+                    "column_comment_log",
+                ])
 
-                # Update workspace log with current state
-                update_workspace_log(workspace, memory_handler, "column_comment_log")
-
-            # Add summary to logs
-            memory_handler.add_summary(processed_count, failed_count, len(column_ids))
-
-            # Update final status
-            workspace.column_comment_end_time = timezone.now()
-            if failed_count == 0:
-                workspace.column_comment_status = (
-                    Workspace.PreprocessingStatus.COMPLETED
-                )
-                custom_logger.info("All columns processed successfully!")
-            else:
-                workspace.column_comment_status = Workspace.PreprocessingStatus.FAILED
-                custom_logger.error(
-                    f"Processing completed with {failed_count} failures"
-                )
-
-            # Final log update
-            update_workspace_log(workspace, memory_handler, "column_comment_log")
-            workspace.save()
+                total_processed += processed_count
+                total_failed += failed_count
 
             logger.info(
-                f"Column comments generation completed: {processed_count} processed, {failed_count} failed"
+                f"Column comments generation completed across DBs: {total_processed} processed, {total_failed} failed"
             )
 
             return {
                 "status": "success",
-                "processed": processed_count,
-                "failed": failed_count,
+                "processed": total_processed,
+                "failed": total_failed,
                 "total": len(column_ids),
             }
-
         except Exception as e:
-            error_msg = f"Critical error in async column comments: {str(e)}"
-            logger.error(error_msg)
-
-            if custom_logger:
-                custom_logger.error(error_msg)
-
-            if workspace:
-                workspace.column_comment_status = Workspace.PreprocessingStatus.FAILED
-                workspace.column_comment_end_time = timezone.now()
-
-                if memory_handler:
-                    update_workspace_log(
-                        workspace, memory_handler, "column_comment_log"
-                    )
-                else:
-                    workspace.column_comment_log = error_msg
-
-                workspace.save()
-
-            return {
-                "status": "error",
-                "error": str(e),
-                "processed": 0,
-                "failed": len(column_ids) if "column_ids" in locals() else 0,
-            }
+            logger.error(f"Critical error in async column comments: {str(e)}")
+            return {"status": "error", "error": str(e), "processed": 0, "failed": len(column_ids) if column_ids else 0}
 
 
 def start_async_table_comments(

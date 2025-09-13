@@ -22,7 +22,7 @@ from django.contrib import messages
 from tabulate import tabulate
 
 from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
-    setup_default_comment_llm_model,
+    setup_llm_from_env,
     setup_sql_db,
     output_to_json,
     get_table_schema_safe,
@@ -109,12 +109,11 @@ class CircuitBreaker:
 llm_circuit_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=120)
 
 
-def create_fresh_llm_client(setting, logger: Optional[logging.Logger] = None):
+def create_fresh_llm_client(logger: Optional[logging.Logger] = None):
     """
     Create a fresh LLM client instance for thread-safe operation.
 
     Args:
-        setting: Workspace setting containing LLM configuration
         logger: Optional logger for detailed logging
 
     Returns:
@@ -124,7 +123,7 @@ def create_fresh_llm_client(setting, logger: Optional[logging.Logger] = None):
         logger.info("Creating fresh LLM client for thread")
 
     # Setup LLM with detailed logging
-    llm_client = setup_default_comment_llm_model(setting)
+    llm_client = setup_llm_from_env()
     if llm_client is None:
         if logger:
             logger.error("Failed to create LLM client")
@@ -136,9 +135,7 @@ def create_fresh_llm_client(setting, logger: Optional[logging.Logger] = None):
     return llm_client
 
 
-def generate_table_comments_with_llm(
-    llm_client, setting, prompt_variables: Dict[str, Any]
-):
+def generate_table_comments_with_llm(llm_client, prompt_variables: Dict[str, Any]):
     """
     Generate table comments using the LLM client.
 
@@ -165,7 +162,7 @@ def generate_table_comments_with_llm(
 
     # Prepare messages
     messages = []
-    if setting.comment_model.basic_model.provider != LLMChoices.GEMINI:
+    if getattr(llm_client, "provider", None) != LLMChoices.GEMINI:
         messages.append(
             {
                 "role": "system",
@@ -189,7 +186,7 @@ def create_table_comments(modeladmin, request, queryset):  # Renamed function
     descriptive comments using a Language Model (LLM).
 
     The function handles the following aspects:
-    - Checks for an active workspace and its settings.
+    - Processes tables without relying on workspace/settings.
     - Verifies if any tables have been selected.
     - Splits the processing into chunks if the number of tables is large.
     - Provides feedback to the admin user via messages regarding the
@@ -204,23 +201,6 @@ def create_table_comments(modeladmin, request, queryset):  # Renamed function
     try:
         chunk_size = 10
         total_tables = queryset.count()
-
-        if not hasattr(request, "current_workspace") or not request.current_workspace:
-            modeladmin.message_user(
-                request,
-                "No active workspace found. Please select a workspace.",
-                level=messages.ERROR,
-            )
-            return
-
-        setting = request.current_workspace.setting
-        if not setting:
-            modeladmin.message_user(
-                request,
-                "No settings configured for the current workspace.",
-                level=messages.ERROR,
-            )
-            return
 
         if total_tables == 0:
             modeladmin.message_user(
@@ -237,9 +217,7 @@ def create_table_comments(modeladmin, request, queryset):  # Renamed function
 
         for i in range(0, total_tables, chunk_size):
             chunk = queryset[i : i + chunk_size]
-            process_table_chunk(
-                modeladmin, request, chunk, i // chunk_size + 1, setting
-            )
+            process_table_chunk(modeladmin, request, chunk, i // chunk_size + 1)
 
         modeladmin.message_user(
             request,
@@ -255,28 +233,36 @@ def create_table_comments(modeladmin, request, queryset):  # Renamed function
 
 
 @transaction.atomic
-def process_table_chunk(modeladmin, request, chunk, chunk_number, setting):
+def process_table_chunk(modeladmin, request, chunk, chunk_number):
     for table in chunk:
         modeladmin.message_user(
             request, f"Processing table: {table.name}", level=messages.INFO
         )
 
         # setup llm model
-        llm = setup_default_comment_llm_model(setting)
+        try:
+            llm = setup_llm_from_env()
+        except Exception as e:
+            modeladmin.message_user(
+                request,
+                f"Failed to set up LLM model from environment: {str(e)}",
+                level=messages.ERROR,
+            )
+            continue
         if llm is None:
             modeladmin.message_user(
                 request,
-                f"Default LLM model not found for table {table.name} in workspace {request.current_workspace.name}. Skipping this table.",
+                f"Default LLM model not found for table {table.name}. Skipping this table.",
                 level=messages.ERROR,
             )
             continue
 
         # setup language
         table_db = table.sql_db
-        language = table_db.language if table_db.language else setting.language
+        language = table_db.language or "en"
 
         # define number of example rows for comment
-        example_rows_for_comment = setting.example_rows_for_comment
+        example_rows_for_comment = 5
 
         # setup database schema
         try:
@@ -391,7 +377,7 @@ def process_table_chunk(modeladmin, request, chunk, chunk_number, setting):
 
         try:
             # Generate table comments using the LLM
-            output = generate_table_comments_with_llm(llm, setting, prompt_variables)
+            output = generate_table_comments_with_llm(llm, prompt_variables)
             table_comment_json = output_to_json(output)
             if table_comment_json is None:
                 raw_output_preview = str(output)[:200]  # Show a preview of raw output
@@ -555,44 +541,7 @@ def create_table_comments_async(
 
         logger.info(f"Found {total_tables} tables to process")
 
-        # Get workspace and settings
-        if workspace_id:
-            try:
-                workspace = Workspace.objects.get(id=workspace_id)
-                logger.info(
-                    f"Using provided workspace: {workspace.name} (ID: {workspace_id})"
-                )
-            except Workspace.DoesNotExist:
-                logger.error(f"Workspace with ID {workspace_id} not found")
-                results["errors"].append(f"Workspace with ID {workspace_id} not found")
-                return results
-        else:
-            # Fallback: try to find workspace by database
-            first_table = tables.first()
-            if not first_table or not first_table.sql_db:
-                logger.error("Cannot determine workspace settings")
-                results["errors"].append("Cannot determine workspace settings")
-                return results
-
-            workspace = Workspace.objects.filter(sql_db=first_table.sql_db).first()
-            if not workspace:
-                logger.error(
-                    f"No workspace found for database {first_table.sql_db.name}"
-                )
-                results["errors"].append(
-                    f"No workspace found for database {first_table.sql_db.name}"
-                )
-                return results
-            logger.info(f"Found workspace by database: {workspace.name}")
-
-        setting = workspace.setting
-
-        if not setting:
-            logger.error("No settings configured for workspace")
-            results["errors"].append("No settings configured for workspace")
-            return results
-
-        logger.info(f"Processing tables with workspace: {workspace.name}")
+        # Workspace/settings no longer required; proceed with env-based configuration
 
         # Process each table with thread-safe pipeline and circuit breaker
         table_count = 0
@@ -613,9 +562,9 @@ def create_table_comments_async(
 
                     # Create fresh LLM client if not exists or if previous attempt failed
                     if pipeline is None:
-                        pipeline = create_fresh_llm_client(setting, logger)
+                        pipeline = create_fresh_llm_client(logger)
                         if pipeline is None:
-                            error_msg = f"Failed to create LLM client for workspace {workspace.name}"
+                            error_msg = "Failed to create LLM client from environment"
                             logger.error(error_msg)
                             results["errors"].append(error_msg)
                             results["failed"] += 1
@@ -678,7 +627,7 @@ def create_table_comments_async(
                     # Get example data with truncation and budgeted size
                     try:
                         examples_data_result = db.get_example_data(
-                            table.name, setting.example_rows_for_comment
+                            table.name, 5
                         )
 
                         MAX_CELL_CHARS = 1000
@@ -706,7 +655,7 @@ def create_table_comments_async(
                         if examples_data_result and any(
                             lst for lst in examples_data_result.values() if lst
                         ):
-                            n_rows = setting.example_rows_for_comment
+                            n_rows = 5
                             example_data_str = build_example_str(examples_data_result, n_rows)
                             while len(example_data_str) > BUDGET_CHARS and n_rows > 0:
                                 n_rows = max(1, n_rows // 2) if n_rows > 1 else 0
@@ -727,11 +676,7 @@ def create_table_comments_async(
                         example_data_str = ""
 
                     # Generate comment with timeout and circuit breaker
-                    language = (
-                        table.sql_db.language
-                        if table.sql_db.language
-                        else setting.language
-                    )
+                    language = table.sql_db.language or "en"
 
                     def run_llm_generation():
                         with (
@@ -748,7 +693,6 @@ def create_table_comments_async(
                             return timeout_wrapper(
                                 generate_table_comments_with_llm,
                                 pipeline,
-                                setting,
                                 prompt_variables,
                             )
 

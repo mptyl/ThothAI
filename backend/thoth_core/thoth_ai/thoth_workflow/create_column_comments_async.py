@@ -17,12 +17,12 @@ from django.db import transaction
 from tabulate import tabulate
 
 from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
-    setup_default_comment_llm_model,
+    setup_llm_from_env,
     setup_sql_db,
     output_to_json,
     get_table_schema_safe,
 )
-from thoth_core.models import LLMChoices, SqlColumn, SqlTable, Workspace
+from thoth_core.models import LLMChoices, SqlColumn, SqlTable
 from thoth_core.thoth_ai.prompts.columns_comment_prompt import get_columns_prompt
 
 # Configure logging
@@ -60,21 +60,10 @@ def create_column_comments_async(column_ids: list) -> str:
         total_processed = 0
         for table_id, table_columns in columns_by_table.items():
             table = SqlTable.objects.get(id=table_id)
-            workspace = Workspace.objects.filter(sql_db=table.sql_db).first()
-
-            if not workspace or not workspace.setting:
-                logger.warning(f"No workspace or settings found for table {table.name}")
-                continue
-
-            setting = workspace.setting
-            language = (
-                table.sql_db.language if table.sql_db.language else setting.language
-            )
+            language = table.sql_db.language or "en"
 
             # Process columns for this table
-            result = process_column_chunk_for_table(
-                table, table_columns, setting, language
-            )
+            result = process_column_chunk_for_table(table, table_columns, language)
             if result == "OK":
                 total_processed += len(table_columns)
             else:
@@ -90,7 +79,7 @@ def create_column_comments_async(column_ids: list) -> str:
 
 
 @transaction.atomic
-def process_column_chunk_for_table(table, columns, setting, language):
+def process_column_chunk_for_table(table, columns, language):
     """
     Process a chunk of columns for a specific table.
 
@@ -113,12 +102,10 @@ def process_column_chunk_for_table(table, columns, setting, language):
 
         # Get the table schema/structure using the safe wrapper
         table_schema = get_table_schema_safe(db, table.name)
-        all_example_data = db.get_example_data(
-            table.name, setting.example_rows_for_comment
-        )
+        all_example_data = db.get_example_data(table.name, 5)
 
         # Setup LLM model
-        llm = setup_default_comment_llm_model(setting)
+        llm = setup_llm_from_env()
         if llm is None:
             return "Default LLM model not found"
 
@@ -188,7 +175,7 @@ def process_column_chunk_for_table(table, columns, setting, language):
 
         # Prepare messages
         messages = []
-        if setting.comment_model.basic_model.provider != LLMChoices.GEMINI:
+        if getattr(llm, "provider", None) != LLMChoices.GEMINI:
             messages.append(
                 {
                     "role": "system",

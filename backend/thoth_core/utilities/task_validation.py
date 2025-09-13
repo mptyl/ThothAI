@@ -14,7 +14,7 @@ import threading
 import logging
 from django.utils import timezone
 from datetime import timedelta
-from thoth_core.models import Workspace
+from thoth_core.models import Workspace, SqlDb, TaskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -233,5 +233,146 @@ def force_reset_task_status(
     except Exception as e:
         logger.error(
             f"Failed to force reset {task_type} for workspace {workspace.id}: {e}"
+        )
+        return False
+
+
+# -----------------------------
+# SqlDb-scoped task validators
+# -----------------------------
+
+def validate_and_cleanup_running_sqldb_task(
+    sql_db: SqlDb, task_type: str = "table_comment", timeout_hours: int = 2
+) -> bool:
+    """
+    Validates if an SqlDb-scoped task marked as RUNNING is still legitimate.
+    Since SqlDb task IDs are not thread identifiers, we only perform a timeout check.
+
+    Args:
+        sql_db: SqlDb instance
+        task_type: 'table_comment' or 'column_comment'
+        timeout_hours: hours after which a running task is considered stale
+
+    Returns:
+        bool: True if task should still be considered running; False if reset
+    """
+
+    if task_type == "table_comment":
+        status_field = "table_comment_status"
+        start_time_field = "table_comment_start_time"
+        end_time_field = "table_comment_end_time"
+        log_field = "table_comment_log"
+    elif task_type == "column_comment":
+        status_field = "column_comment_status"
+        start_time_field = "column_comment_start_time"
+        end_time_field = "column_comment_end_time"
+        log_field = "column_comment_log"
+    else:
+        raise ValueError(f"Unknown task type: {task_type}")
+
+    current_status = getattr(sql_db, status_field)
+    if current_status != TaskStatus.RUNNING:
+        return False
+
+    start_time = getattr(sql_db, start_time_field)
+    if start_time:
+        cutoff_time = timezone.now() - timedelta(hours=timeout_hours)
+        if start_time < cutoff_time:
+            setattr(sql_db, status_field, TaskStatus.FAILED)
+            setattr(sql_db, end_time_field, timezone.now())
+            old_log = getattr(sql_db, log_field) or ""
+            setattr(
+                sql_db,
+                log_field,
+                (old_log + "\n" if old_log else "")
+                + f"Task auto-reset after exceeding {timeout_hours}h runtime.",
+            )
+            sql_db.save(
+                update_fields=[status_field, end_time_field, log_field]
+            )
+            return False
+
+    return True
+
+
+def check_sqldb_task_can_start(sql_db: SqlDb, task_type: str = "table_comment"):
+    """
+    Check if a new SqlDb-scoped task can start.
+
+    Args:
+        sql_db: SqlDb instance
+        task_type: 'table_comment' or 'column_comment'
+
+    Returns:
+        tuple: (can_start: bool, message: str)
+    """
+    sql_db.refresh_from_db()
+
+    if task_type == "table_comment":
+        status_field = "table_comment_status"
+    elif task_type == "column_comment":
+        status_field = "column_comment_status"
+    else:
+        return False, f"Unknown task type: {task_type}"
+
+    current_status = getattr(sql_db, status_field)
+
+    if current_status in (TaskStatus.IDLE, TaskStatus.COMPLETED, TaskStatus.FAILED):
+        return True, "Ready to start"
+
+    if current_status == TaskStatus.RUNNING:
+        is_running = validate_and_cleanup_running_sqldb_task(sql_db, task_type)
+        if not is_running:
+            sql_db.refresh_from_db()
+            return True, "Previous task was stale and has been cleaned up"
+        return False, f"A {task_type.replace('_', ' ')} task is currently running"
+
+    return False, f"Unknown status: {current_status}"
+
+
+def force_reset_sqldb_task_status(
+    sql_db: SqlDb, task_type: str = "table_comment", reason: str = "Manual reset"
+) -> bool:
+    """
+    Force reset of SqlDb-scoped task status and metadata.
+    """
+    if task_type == "table_comment":
+        status_field = "table_comment_status"
+        task_id_field = "table_comment_task_id"
+        log_field = "table_comment_log"
+        end_time_field = "table_comment_end_time"
+    elif task_type == "column_comment":
+        status_field = "column_comment_status"
+        task_id_field = "column_comment_task_id"
+        log_field = "column_comment_log"
+        end_time_field = "column_comment_end_time"
+    else:
+        logger.error(f"Unknown task type for force reset: {task_type}")
+        return False
+
+    try:
+        old_status = getattr(sql_db, status_field)
+        old_task_id = getattr(sql_db, task_id_field)
+
+        setattr(sql_db, status_field, TaskStatus.IDLE)
+        setattr(sql_db, task_id_field, None)
+        old_log = getattr(sql_db, log_field) or ""
+        setattr(
+            sql_db,
+            log_field,
+            (old_log + "\n" if old_log else "")
+            + f"Force reset: {reason} (was: {old_status})",
+        )
+        setattr(sql_db, end_time_field, timezone.now())
+
+        sql_db.save(update_fields=[status_field, task_id_field, log_field, end_time_field])
+
+        logger.warning(
+            f"Force reset {task_type} for SqlDb {sql_db.id}: {reason} (was: {old_status}, task_id: {old_task_id})"
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            f"Failed to force reset {task_type} for SqlDb {sql_db.id}: {e}"
         )
         return False

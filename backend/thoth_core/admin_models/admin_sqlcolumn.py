@@ -13,7 +13,7 @@
 from django import forms
 from django.contrib import admin, messages
 from django.db import models
-from thoth_core.models import SqlColumn, SqlTable, SqlDb, Workspace, ColumnDataTypes
+from thoth_core.models import SqlColumn, SqlTable, SqlDb, ColumnDataTypes
 from thoth_core.utilities.utils import export_csv, import_csv
 from thoth_core.thoth_ai.thoth_workflow.create_column_comments import (
     create_selected_column_comments,
@@ -21,7 +21,7 @@ from thoth_core.thoth_ai.thoth_workflow.create_column_comments import (
 from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_column_comments,
 )
-from thoth_core.utilities.task_validation import check_task_can_start
+ 
 
 
 def validate_fk_fields(columns, request=None):
@@ -300,35 +300,20 @@ class SqlColumnAdmin(admin.ModelAdmin):
             )
             return
 
-        # Check if we have a current workspace
-        if not hasattr(request, "current_workspace") or not request.current_workspace:
-            self.message_user(
-                request,
-                "No active workspace found. Please select a workspace.",
-                level=messages.ERROR,
-            )
-            return
-
-        workspace = request.current_workspace
-
-        # Verify that all selected columns belong to the workspace's database
+        # Resolve target database from first selected column (no workspace dependency)
         first_column = queryset.first()
-        if first_column.sql_table.sql_db != workspace.sql_db:
+        sql_db = first_column.sql_table.sql_db if first_column else None
+        if not sql_db:
             self.message_user(
                 request,
-                f"Selected columns do not belong to the current workspace database '{workspace.sql_db.name}'. "
-                f"Please ensure you're working with columns from the correct database.",
+                "Cannot resolve target database for selected columns.",
                 level=messages.ERROR,
             )
             return
-
-        # Check if a new task can be started (with intelligent validation)
-        can_start, message = check_task_can_start(workspace, "column_comment")
-        if not can_start:
+        if sql_db.column_comment_status == "RUNNING":
             self.message_user(
                 request,
-                f"Cannot start column comment generation: {message}. "
-                f"Current status: {workspace.column_comment_status}",
+                f"Cannot start column comment generation: a task is already running for database '{sql_db.name}'.",
                 level=messages.WARNING,
             )
             return
@@ -336,19 +321,23 @@ class SqlColumnAdmin(admin.ModelAdmin):
         # Get all column IDs
         column_ids = list(queryset.values_list("id", flat=True))
 
-        # Start async task with workspace ID
-        task_id = start_async_column_comments(workspace.id, column_ids, request.user.id)
+        # Start async task using database id (signature kept for compatibility)
+        task_id = start_async_column_comments(sql_db.id, column_ids, request.user.id)
 
-        # Update workspace status
-        workspace.column_comment_status = Workspace.PreprocessingStatus.RUNNING
-        workspace.column_comment_task_id = task_id
-        workspace.column_comment_log = f"Started processing {len(column_ids)} columns"
-        workspace.save()
+        # Update SqlDb status
+        sql_db.column_comment_status = "RUNNING"
+        sql_db.column_comment_task_id = task_id
+        sql_db.column_comment_log = f"Started processing {len(column_ids)} columns"
+        sql_db.save(update_fields=[
+            "column_comment_status",
+            "column_comment_task_id",
+            "column_comment_log",
+        ])
 
         self.message_user(
             request,
-            f"Started async column comment generation for {len(column_ids)} columns. "
-            f"Task ID: {task_id}. Check the workspace status for progress.",
+            f"Started async column comment generation for {len(column_ids)} columns on database '{sql_db.name}'. "
+            f"Task ID: {task_id}. Check the database status for progress.",
             level=messages.SUCCESS,
         )
 

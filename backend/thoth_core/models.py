@@ -63,6 +63,14 @@ class LanguageCode(models.TextChoices):
     KO = "ko", "Korean"
 
 
+# Generic task status for async operations on SqlDb
+class TaskStatus(models.TextChoices):
+    IDLE = "IDLE", "Idle"
+    RUNNING = "RUNNING", "Running"
+    COMPLETED = "COMPLETED", "Completed"
+    FAILED = "FAILED", "Failed"
+
+
 class AgentChoices(models.TextChoices):
     EXTRACTKEYWORDS = "EXTRACTKEYWORDS", "Keywords Extractor"
     SQLBASIC = "SQLBASIC", "SQL Generator - Basic"
@@ -300,6 +308,27 @@ class SqlDb(models.Model):
     directives = models.TextField(blank=True, null=True, verbose_name="Directives")
     gdpr_report = models.JSONField(blank=True, null=True)
     gdpr_scan_date = models.DateTimeField(blank=True, null=True)
+
+    # Async AI comment generation status and logs (moved from Workspace)
+    table_comment_status = models.CharField(
+        max_length=20,
+        choices=TaskStatus.choices,
+        default=TaskStatus.IDLE,
+    )
+    table_comment_task_id = models.CharField(max_length=255, blank=True, null=True)
+    table_comment_log = models.TextField(blank=True, null=True)
+    table_comment_start_time = models.DateTimeField(blank=True, null=True)
+    table_comment_end_time = models.DateTimeField(blank=True, null=True)
+
+    column_comment_status = models.CharField(
+        max_length=20,
+        choices=TaskStatus.choices,
+        default=TaskStatus.IDLE,
+    )
+    column_comment_task_id = models.CharField(max_length=255, blank=True, null=True)
+    column_comment_log = models.TextField(blank=True, null=True)
+    column_comment_start_time = models.DateTimeField(blank=True, null=True)
+    column_comment_end_time = models.DateTimeField(blank=True, null=True)
 
     def get_collection_name(self):
         if not self.schema or self.schema == "public":

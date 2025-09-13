@@ -18,7 +18,6 @@ from thoth_core.models import (
     SqlTable,
     SqlColumn,
     Relationship,
-    Workspace,
 )
 from thoth_core.utilities.utils import (
     export_csv,
@@ -39,7 +38,7 @@ from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_column_comments,
     start_async_table_comments,
 )
-from thoth_core.utilities.task_validation import check_task_can_start
+ 
 from thoth_core.widgets import PasswordInputWithToggle
 
 
@@ -79,7 +78,16 @@ class SqlDbAdminForm(forms.ModelForm):
 @admin.register(SqlDb)
 class SqlDbAdmin(admin.ModelAdmin):
     form = SqlDbAdminForm
-    list_display = ("name", "db_host", "db_type", "db_name", "schema", "vector_db_name")
+    list_display = (
+        "name",
+        "db_host",
+        "db_type",
+        "db_name",
+        "schema",
+        "vector_db_name",
+        "column_comment_status",
+        "table_comment_status",
+    )
     search_fields = ("name", "db_host", "db_type", "db_name", "schema")
     actions = (
         export_csv,
@@ -147,6 +155,26 @@ class SqlDbAdmin(admin.ModelAdmin):
                 "fields": ("last_columns_update",),
                 "classes": ("collapse",),
                 "description": "System-managed metadata",
+            },
+        ),
+        (
+            "AI Comment Task Status",
+            {
+                "fields": (
+                    # Column comment task fields
+                    "column_comment_status",
+                    "column_comment_task_id",
+                    "column_comment_start_time",
+                    "column_comment_end_time",
+                    "column_comment_log",
+                    # Table comment task fields
+                    "table_comment_status",
+                    "table_comment_task_id",
+                    "table_comment_start_time",
+                    "table_comment_end_time",
+                    "table_comment_log",
+                ),
+                "description": "Current status and history of AI comment generation tasks for this database.",
             },
         ),
     )
@@ -641,43 +669,34 @@ class SqlDbAdmin(admin.ModelAdmin):
 
         sql_db = queryset.first()
 
-        # Check if we have a current workspace
-        if not hasattr(request, "current_workspace") or not request.current_workspace:
+        # SqlDb-scoped readiness checks (no workspace dependency)
+        def _can_start_sql_db_task(db: SqlDb, kind: str):
+            if kind == "column":
+                status = db.column_comment_status
+            elif kind == "table":
+                status = db.table_comment_status
+            else:
+                return False, f"Unknown task type: {kind}"
+
+            if status in ("IDLE", "COMPLETED", "FAILED"):
+                return True, "Ready to start"
+            if status == "RUNNING":
+                return False, f"A {kind} comment task is currently running"
+            return False, f"Unknown status: {status}"
+
+        ok_cols, msg_cols = _can_start_sql_db_task(sql_db, "column")
+        if not ok_cols:
             messages.error(
-                request, "No active workspace found. Please select a workspace."
+                request,
+                f"Cannot start column comment generation: {msg_cols}. Current column comment status: {sql_db.column_comment_status}",
             )
             return
 
-        workspace = request.current_workspace
-
-        # Verify that the selected database belongs to the current workspace
-        if sql_db != workspace.sql_db:
+        ok_tbls, msg_tbls = _can_start_sql_db_task(sql_db, "table")
+        if not ok_tbls:
             messages.error(
                 request,
-                f"Selected database '{sql_db.name}' does not belong to the current workspace database '{workspace.sql_db.name}'. "
-                f"Please ensure you're working with the correct database.",
-            )
-            return
-
-        # Check if column comment generation task can be started
-        can_start_columns, column_message = check_task_can_start(
-            workspace, "column_comment"
-        )
-        if not can_start_columns:
-            messages.error(
-                request,
-                f"Cannot start column comment generation: {column_message}. Current column comment status: {workspace.column_comment_status}",
-            )
-            return
-
-        # Check if table comment generation task can be started
-        can_start_tables, table_message = check_task_can_start(
-            workspace, "table_comment"
-        )
-        if not can_start_tables:
-            messages.error(
-                request,
-                f"Cannot start table comment generation: {table_message}. Current table comment status: {workspace.table_comment_status}",
+                f"Cannot start table comment generation: {msg_tbls}. Current table comment status: {sql_db.table_comment_status}",
             )
             return
 
@@ -714,37 +733,32 @@ class SqlDbAdmin(admin.ModelAdmin):
                 try:
                     # Step 1: Generate column comments
                     column_task_id = start_async_column_comments(
-                        workspace.id, column_ids, request.user.id
+                        sql_db.id, column_ids, request.user.id
                     )
 
                     # Wait for column comments to complete before starting table comments
-                    workspace.refresh_from_db()
-                    while (
-                        workspace.column_comment_status
-                        == workspace.PreprocessingStatus.RUNNING
-                    ):
+                    while True:
+                        sql_db.refresh_from_db()
+                        if sql_db.column_comment_status != "RUNNING":
+                            break
                         time.sleep(5)  # Check every 5 seconds
-                        workspace.refresh_from_db()
 
                     # Step 2: If columns completed successfully, start table comments
-                    if (
-                        workspace.column_comment_status
-                        == workspace.PreprocessingStatus.COMPLETED
-                    ):
+                    if sql_db.column_comment_status == "COMPLETED":
                         table_task_id = start_async_table_comments(
-                            workspace.id, table_ids, request.user.id
+                            sql_db.id, table_ids, request.user.id
                         )
                     else:
                         # Log that table comments were skipped due to column comment failure
-                        workspace.table_comment_log = "Table comment generation skipped due to column comment failure"
-                        workspace.save()
+                        sql_db.table_comment_log = "Table comment generation skipped due to column comment failure"
+                        sql_db.save(update_fields=["table_comment_log"])
 
                 except Exception as e:
-                    workspace.refresh_from_db()
-                    workspace.table_comment_log = (
+                    sql_db.refresh_from_db()
+                    sql_db.table_comment_log = (
                         f"Sequential comment generation error: {str(e)}"
                     )
-                    workspace.save()
+                    sql_db.save(update_fields=["table_comment_log"])
 
             # Start the sequential process in a background thread
             thread = Thread(target=sequential_comment_generation)
@@ -752,23 +766,30 @@ class SqlDbAdmin(admin.ModelAdmin):
             thread.start()
 
             # Initialize column comment status
-            workspace.column_comment_status = Workspace.PreprocessingStatus.RUNNING
-            workspace.column_comment_task_id = (
-                f"sequential_comments_{workspace.id}_{int(time.time())}"
+            sql_db.column_comment_status = "RUNNING"
+            sql_db.column_comment_task_id = (
+                f"sequential_comments_db_{sql_db.id}_{int(time.time())}"
             )
-            workspace.column_comment_log = f"Starting sequential comment generation: {len(column_ids)} columns, then {len(table_ids)} tables"
+            sql_db.column_comment_log = f"Starting sequential comment generation: {len(column_ids)} columns, then {len(table_ids)} tables"
 
             # Initialize table comment status as pending
-            workspace.table_comment_status = Workspace.PreprocessingStatus.IDLE
-            workspace.table_comment_task_id = None
-            workspace.table_comment_log = f"Waiting for column comments to complete before processing {len(table_ids)} tables"
-            workspace.save()
+            sql_db.table_comment_status = "IDLE"
+            sql_db.table_comment_task_id = None
+            sql_db.table_comment_log = f"Waiting for column comments to complete before processing {len(table_ids)} tables"
+            sql_db.save(update_fields=[
+                "column_comment_status",
+                "column_comment_task_id",
+                "column_comment_log",
+                "table_comment_status",
+                "table_comment_task_id",
+                "table_comment_log",
+            ])
 
             messages.success(
                 request,
-                f"Started sequential comment generation for database '{sql_db.name}' in workspace '{workspace.name}'. "
+                f"Started sequential comment generation for database '{sql_db.name}'. "
                 f"Processing {len(column_ids)} columns first, then {len(table_ids)} tables. "
-                f"Monitor progress in the workspace status fields.",
+                f"Monitor progress in the database status fields.",
             )
 
         except Exception as e:
