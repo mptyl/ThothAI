@@ -38,7 +38,7 @@ else
   exit 1
 fi
 
-echo "Validating backend AI provider/model..."
+echo "Validating backend AI provider/model from .env.local..."
 $PYTHON_BIN scripts/validate_backend_ai.py --from-env || {
   echo -e "\033[0;31mBackend AI validation failed. Check BACKEND_AI_PROVIDER, BACKEND_AI_MODEL and API keys in .env.local.\033[0m"
   exit 1

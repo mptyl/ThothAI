@@ -26,7 +26,7 @@ git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 
 # 2. Copy and configure environment file
-cp config.yml.template config.yml.local
+cp config.yml config.yml.local
 # Edit config.yml.local with your API keys and configuration
 
 # 3. Run the installer
@@ -50,8 +50,8 @@ docker compose up -d
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 2. Copy and configure environment
-cp .env.template .env.local
-# Edit .env.local with your configuration
+cp .env.local.template .env.local
+# Edit .env.local with your configuration (LLM keys, EMBEDDING_*, BACKEND_AI_PROVIDER/BACKEND_AI_MODEL)
 
 # 3. Configure test database path
 export DB_ROOT_PATH=/absolute/path/to/your/dev_databases  # Directory containing BIRD test databases
@@ -246,18 +246,21 @@ Il processo:
 #### Sviluppo Locale (start-all.sh)
 
 ```
-.env.local → export variabili → Processi ereditano ambiente
-           ↓                            ↓
-    (filtro PORT=)              Django, SQL Gen, Frontend
+.env.local → validazione env → export variabili → Processi ereditano ambiente
+           ↓                   ↓                      ↓
+   BACKEND_AI_* check     (filtro PORT=)     Django, SQL Gen, Frontend
 ```
 
 Il processo:
 1. `start-all.sh` carica `.env.local` (escluso PORT generico)
-2. Esporta variabili nell'ambiente shell
-3. Ogni servizio eredita le variabili:
+2. Valida `BACKEND_AI_PROVIDER`/`BACKEND_AI_MODEL` e le API key da `.env.local` con `scripts/validate_backend_ai.py --from-env`
+3. Esporta variabili nell'ambiente shell
+4. Ogni servizio eredita le variabili:
    - Django: usa direttamente le variabili
    - SQL Generator: riceve PORT specifico (8180)
    - Frontend: riceve PORT specifico (3200)
+
+Importante: in locale `config.yml.local` non aggiorna automaticamente `.env.local` e non è usato per l’avvio. Per cambiare provider/modello backend in locale, modifica direttamente `.env.local`.
 
 ### Gestione Python con uv
 

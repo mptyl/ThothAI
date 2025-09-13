@@ -21,7 +21,7 @@ The `install.sh` script (Linux/macOS) and `install.ps1` (Windows) automatically 
 
 ## 2) Initial configuration (`config.yml.local`)
 
-Before running the installer you must manually create `config.yml.local` from the template. You can copy `config.yml` (or `config.yml.template` if present) to `config.yml.local` and then fill it in. The `install.sh` script requires that `config.yml.local` exists; otherwise it stops execution. Configuration validation is performed via `scripts/validate_config.py`, which checks:
+Before running the installer you must manually create `config.yml.local` from the template. You can copy `config.yml` to `config.yml.local` and then fill it in. The `install.sh` script requires that `config.yml.local` exists; otherwise it stops execution. Configuration validation is performed via `scripts/validate_config.py`, which checks:
 
 - AI providers in `ai_providers`. At least one provider must be enabled and have an API key.
 - Embedding settings (`embedding.provider`, `embedding.model`, and matching API key or fallback to the provider). There must be at least one enabled embedding provider.
@@ -31,6 +31,8 @@ Before running the installer you must manually create `config.yml.local` from th
 - `ports` section with non-duplicated ports in the 1024–65535 range.
 
 Reference file: `scripts/validate_config.py`.
+
+Note for local development: the local startup script (`start-all.sh`) does not read `config.yml.local`; it loads and validates `.env.local`. To change the backend AI provider/model in local mode, edit `.env.local` (keys `BACKEND_AI_PROVIDER` and `BACKEND_AI_MODEL`).
 
 —
 
