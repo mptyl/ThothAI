@@ -317,18 +317,46 @@ def process_table_chunk(modeladmin, request, chunk, chunk_number, setting):
         try:
             examples_data_result = db.get_example_data(
                 table.name, example_rows_for_comment
-            )  # type: Dict[str, List[Any]]
+            )
+
+            # Helper: truncate long cell values to prevent huge prompts
+            MAX_CELL_CHARS = 1000
+
+            def truncate_cell(val):
+                if val is None:
+                    return val
+                try:
+                    s = str(val)
+                except Exception:
+                    s = repr(val)
+                if len(s) > MAX_CELL_CHARS:
+                    return s[:MAX_CELL_CHARS] + "... [TRUNCATED - Large content detected]"
+                return s
+
+            # Build a tabulated string within a char budget by progressively reducing rows
+            BUDGET_CHARS = 200_000
+
+            def build_example_str(data_dict, rows):
+                if not data_dict or rows <= 0:
+                    return ""
+                # Slice to requested rows and truncate cells
+                sliced = {k: (v[:rows] if isinstance(v, list) else v) for k, v in data_dict.items()}
+                truncated = {k: [truncate_cell(x) for x in (v or [])] for k, v in sliced.items()}
+                return tabulate(truncated, headers="keys", tablefmt="pipe", showindex=False)
 
             # Check if dict has keys and any list has content
             if examples_data_result and any(
                 lst for lst in examples_data_result.values() if lst
             ):
-                example_data_str = tabulate(
-                    examples_data_result,
-                    headers="keys",
-                    tablefmt="pipe",
-                    showindex=False,
-                )
+                n_rows = example_rows_for_comment
+                example_data_str = build_example_str(examples_data_result, n_rows)
+                # Progressively reduce rows if above budget
+                while len(example_data_str) > BUDGET_CHARS and n_rows > 0:
+                    n_rows = max(1, n_rows // 2) if n_rows > 1 else 0
+                    example_data_str = build_example_str(examples_data_result, n_rows)
+                # If still above budget (e.g., very wide single row), drop entirely
+                if len(example_data_str) > BUDGET_CHARS:
+                    example_data_str = ""
             else:  # Handles None, empty dict, or dict with all empty lists
                 example_data_str = ""  # Default to empty string for LLM
                 if examples_data_result is None:
@@ -647,20 +675,44 @@ def create_table_comments_async(
                         else ""
                     )
 
-                    # Get example data
+                    # Get example data with truncation and budgeted size
                     try:
                         examples_data_result = db.get_example_data(
                             table.name, setting.example_rows_for_comment
                         )
+
+                        MAX_CELL_CHARS = 1000
+
+                        def truncate_cell(val):
+                            if val is None:
+                                return val
+                            try:
+                                s = str(val)
+                            except Exception:
+                                s = repr(val)
+                            if len(s) > MAX_CELL_CHARS:
+                                return s[:MAX_CELL_CHARS] + "... [TRUNCATED - Large content detected]"
+                            return s
+
+                        BUDGET_CHARS = 200_000
+
+                        def build_example_str(data_dict, rows):
+                            if not data_dict or rows <= 0:
+                                return ""
+                            sliced = {k: (v[:rows] if isinstance(v, list) else v) for k, v in data_dict.items()}
+                            truncated = {k: [truncate_cell(x) for x in (v or [])] for k, v in sliced.items()}
+                            return tabulate(truncated, headers="keys", tablefmt="pipe", showindex=False)
+
                         if examples_data_result and any(
                             lst for lst in examples_data_result.values() if lst
                         ):
-                            example_data_str = tabulate(
-                                examples_data_result,
-                                headers="keys",
-                                tablefmt="pipe",
-                                showindex=False,
-                            )
+                            n_rows = setting.example_rows_for_comment
+                            example_data_str = build_example_str(examples_data_result, n_rows)
+                            while len(example_data_str) > BUDGET_CHARS and n_rows > 0:
+                                n_rows = max(1, n_rows // 2) if n_rows > 1 else 0
+                                example_data_str = build_example_str(examples_data_result, n_rows)
+                            if len(example_data_str) > BUDGET_CHARS:
+                                example_data_str = ""
                         else:
                             example_data_str = ""
                     except Exception as e:
