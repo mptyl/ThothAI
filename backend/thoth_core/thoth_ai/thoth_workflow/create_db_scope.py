@@ -18,7 +18,7 @@ from django.contrib import messages
 # Removed Haystack imports - using LiteLLM instead
 from thoth_core.models import SqlTable, SqlColumn, LLMChoices
 from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
-    setup_default_comment_llm_model,
+    setup_llm_from_env,
 )
 
 
@@ -39,7 +39,7 @@ def _clean_content(generated_content):
     return cleaned_content
 
 
-def _generate_scope_with_llm(llm_client, setting, prompt_variables):
+def _generate_scope_with_llm(llm_client, prompt_variables):
     """Generate scope using the LLM client."""
     template_path = os.path.join(
         settings.BASE_DIR,
@@ -67,7 +67,7 @@ def _generate_scope_with_llm(llm_client, setting, prompt_variables):
 
     # Prepare messages
     messages = []
-    if setting.comment_model.basic_model.provider != LLMChoices.GEMINI:
+    if getattr(llm_client, "provider", None) != LLMChoices.GEMINI:
         messages.append(
             {
                 "role": "system",
@@ -86,27 +86,13 @@ def generate_scope(modeladmin, request, queryset):
     Generates a scope description for each selected SqlDb instance using an AI model.
     """
     try:
-        if not hasattr(request, "current_workspace") or not request.current_workspace:
+        try:
+            llm = setup_llm_from_env()
+        except Exception as e:
             modeladmin.message_user(
                 request,
-                "No active workspace found. Please select a workspace.",
-                level=messages.ERROR,
-            )
-            return
-
-        setting = request.current_workspace.setting
-        if not setting or not setting.comment_model:
-            modeladmin.message_user(
-                request,
-                "AI model for comment generation not configured in settings.",
+                f"Failed to set up LLM model from environment: {str(e)}",
                 messages.ERROR,
-            )
-            return
-
-        llm = setup_default_comment_llm_model(setting)
-        if llm is None:
-            modeladmin.message_user(
-                request, "Failed to set up LLM model.", messages.ERROR
             )
             return
 
@@ -132,14 +118,14 @@ def generate_scope(modeladmin, request, queryset):
                 )
 
             try:
-                language = db.language if db.language else setting.language
+                language = db.language or "en"
                 prompt_variables = {
                     "db_name": db.name,
                     "tables": tables_data,
                     "language": language,
                 }
 
-                output = _generate_scope_with_llm(llm, setting, prompt_variables)
+                output = _generate_scope_with_llm(llm, prompt_variables)
 
                 if output and hasattr(output, "content"):
                     generated_content = output.content

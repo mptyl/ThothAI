@@ -15,6 +15,7 @@ import os
 import re
 
 from thoth_core.thoth_ai.llm_client import ThothLLMClient, create_llm_client
+from thoth_core.models import LLMChoices
 
 # Import the database manager factory
 from thoth_dbmanager import ThothDbFactory
@@ -165,6 +166,70 @@ def setup_default_comment_llm_model(setting) -> ThothLLMClient:
         ValueError: If the provider is not supported.
     """
     ai_model = setting.comment_model
+    return create_llm_client(ai_model)
+
+
+def setup_llm_from_env() -> ThothLLMClient:
+    """
+    Initialize and return an LLM client using only environment variables.
+
+    Uses BACKEND_AI_PROVIDER and BACKEND_AI_MODEL to select the provider/model.
+    Optionally reads provider-specific API base variables for custom endpoints.
+
+    Returns:
+        ThothLLMClient: configured client based on env
+
+    Raises:
+        ValueError: if required env vars are missing or invalid
+    """
+    provider_str = os.environ.get("BACKEND_AI_PROVIDER", "").strip().lower()
+    model_id = os.environ.get("BACKEND_AI_MODEL", "").strip()
+
+    if not provider_str or not model_id:
+        raise ValueError(
+            "BACKEND_AI_PROVIDER and BACKEND_AI_MODEL must be configured in environment"
+        )
+
+    provider_map = {
+        "openai": LLMChoices.OPENAI,
+        "anthropic": LLMChoices.CLAUDE,
+        "gemini": LLMChoices.GEMINI,
+        "mistral": LLMChoices.MISTRAL,
+        "deepseek": LLMChoices.DEEPSEEK,
+        "openrouter": LLMChoices.OPENROUTER,
+        "ollama": LLMChoices.OLLAMA,
+        "lm_studio": LLMChoices.LMSTUDIO,
+        "groq": LLMChoices.GROQ,
+    }
+
+    if provider_str not in provider_map:
+        raise ValueError(f"Unsupported BACKEND_AI_PROVIDER: {provider_str}")
+
+    provider_enum = provider_map[provider_str]
+
+    # Minimal ai_model stub compatible with ThothLLMClient
+    class _BasicModel:
+        def __init__(self, provider):
+            self.provider = provider
+
+    class _AiModel:
+        def __init__(self, provider, specific_model, temperature=0.7, url=None):
+            self.basic_model = _BasicModel(provider)
+            self.specific_model = specific_model
+            self.temperature = temperature
+            self.url = url
+
+    # Optional provider-specific API bases
+    api_base_by_provider = {
+        LLMChoices.OPENROUTER: os.environ.get("OPENROUTER_API_BASE"),
+        LLMChoices.DEEPSEEK: os.environ.get("DEEPSEEK_API_BASE"),
+        LLMChoices.OLLAMA: os.environ.get("OLLAMA_API_BASE"),
+        LLMChoices.LMSTUDIO: os.environ.get("LM_STUDIO_API_BASE"),
+        # Others use defaults; can be extended if needed
+    }
+
+    url = api_base_by_provider.get(provider_enum)
+    ai_model = _AiModel(provider_enum, model_id, temperature=0.7, url=url)
     return create_llm_client(ai_model)
 
 
