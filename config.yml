@@ -77,6 +77,12 @@ embedding:
   # api_key: ""  # Cohere API key required
   # model: "embed-multilingual-v3.0"
 
+# Default Backend AI Model (Required)
+# Select which provider/model the Django backend will use for LLM tasks
+backend_ai_model:
+  ai_provider: "openrouter"   # One of: openai, anthropic, gemini, mistral, deepseek, openrouter, ollama, lm_studio, groq
+  ai_model: "openai/gpt-4o-mini"  # Model identifier for the chosen provider
+
 # Database Support Configuration
 # Enable the database drivers you need
 databases:

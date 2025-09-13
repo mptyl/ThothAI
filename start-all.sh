@@ -28,6 +28,22 @@ else
     exit 1
 fi
 
+# Validate backend AI provider/model from environment
+if command -v python3 &> /dev/null; then
+  PYTHON_BIN=python3
+elif command -v python &> /dev/null; then
+  PYTHON_BIN=python
+else
+  echo "Error: Python is required to validate BACKEND_AI settings"
+  exit 1
+fi
+
+echo "Validating backend AI provider/model..."
+$PYTHON_BIN scripts/validate_backend_ai.py --from-env || {
+  echo -e "\033[0;31mBackend AI validation failed. Check BACKEND_AI_PROVIDER, BACKEND_AI_MODEL and API keys in .env.local.\033[0m"
+  exit 1
+}
+
 # Port configuration from environment
 FRONTEND_PORT=${FRONTEND_PORT:-3200}
 SQL_GENERATOR_PORT=${SQL_GENERATOR_PORT:-8180}

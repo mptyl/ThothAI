@@ -46,6 +46,7 @@ class ConfigValidator:
         self.check_version()
         self.check_ai_providers()
         self.check_embedding()
+        self.check_backend_ai_model()
         self.check_databases()
         self.check_admin()
         self.check_monitoring()
@@ -86,6 +87,118 @@ class ConfigValidator:
         
         if not active_providers:
             self.errors.append("At least one AI provider must be enabled with a valid API key")
+
+    def check_backend_ai_model(self):
+        """Validate backend_ai_model presence and viability with provider"""
+        backend_ai = self.config.get('backend_ai_model')
+        providers = self.config.get('ai_providers', {})
+
+        if not backend_ai:
+            self.errors.append("backend_ai_model section is missing")
+            return
+
+        ai_provider = (backend_ai.get('ai_provider') or '').strip()
+        ai_model = (backend_ai.get('ai_model') or '').strip()
+
+        if not ai_provider:
+            self.errors.append("backend_ai_model.ai_provider is not specified")
+            return
+        if not ai_model:
+            self.errors.append("backend_ai_model.ai_model is not specified")
+            return
+
+        if ai_provider not in providers:
+            self.errors.append(f"backend_ai_model.ai_provider '{ai_provider}' is not defined under ai_providers")
+            return
+
+        provider_cfg = providers.get(ai_provider, {})
+        if not provider_cfg.get('enabled'):
+            self.errors.append(f"backend_ai_model.ai_provider '{ai_provider}' is not enabled")
+            return
+
+        # API key requirements by provider
+        providers_no_key = ['ollama', 'lm_studio']
+        if ai_provider not in providers_no_key:
+            if not provider_cfg.get('api_key'):
+                self.errors.append(f"backend_ai_model.ai_provider '{ai_provider}' requires an API key")
+                return
+
+        # Live validation of the model against provider
+        print(f"Validating backend_ai_model: provider={ai_provider}, model={ai_model} ...", end=" ")
+        ok = self._validate_backend_model_with_provider(ai_provider, ai_model, provider_cfg)
+        if ok:
+            print("OK")
+        else:
+            print("FAILED")
+            self.errors.append(
+                f"backend_ai_model validation failed for provider '{ai_provider}' with model '{ai_model}'"
+            )
+
+    def _validate_backend_model_with_provider(self, provider: str, model: str, cfg: Dict) -> bool:
+        """Attempt a minimal chat/completion call to verify provider+model works."""
+        try:
+            timeout = 6
+            if provider == 'openai':
+                headers = {"Authorization": f"Bearer {cfg.get('api_key')}", "Content-Type": "application/json"}
+                r = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers=headers,
+                    json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                    timeout=timeout,
+                )
+                return r.status_code in [200, 400, 422]
+            if provider == 'anthropic':
+                headers = {"x-api-key": cfg.get('api_key'), "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
+                r = requests.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers=headers,
+                    json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                    timeout=timeout,
+                )
+                return r.status_code in [200, 400, 422]
+            if provider == 'gemini':
+                key = cfg.get('api_key')
+                url = f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={key}"
+                r = requests.post(url, json={"contents": [{"parts": [{"text": "ping"}]}]}, timeout=timeout)
+                return r.status_code in [200, 400]
+            if provider == 'mistral':
+                headers = {"Authorization": f"Bearer {cfg.get('api_key')}", "Content-Type": "application/json"}
+                r = requests.post(
+                    "https://api.mistral.ai/v1/chat/completions",
+                    headers=headers,
+                    json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                    timeout=timeout,
+                )
+                return r.status_code in [200, 400]
+            if provider in ['deepseek', 'openrouter', 'groq', 'lm_studio']:
+                # OpenAI-compatible chat/completions
+                api_base = cfg.get('api_base') or (
+                    'https://api.deepseek.com/v1' if provider == 'deepseek' else
+                    'https://openrouter.ai/api/v1' if provider == 'openrouter' else
+                    'https://api.groq.com/openai/v1' if provider == 'groq' else
+                    'http://localhost:1234/v1'
+                )
+                headers = {"Content-Type": "application/json"}
+                if provider != 'lm_studio':
+                    headers["Authorization"] = f"Bearer {cfg.get('api_key')}"
+                r = requests.post(
+                    f"{api_base}/chat/completions",
+                    headers=headers,
+                    json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                    timeout=timeout,
+                )
+                return r.status_code in [200, 400]
+            if provider == 'ollama':
+                api_base = cfg.get('api_base') or 'http://127.0.0.1:11434'
+                r = requests.post(
+                    f"{api_base}/api/chat",
+                    json={"model": model, "messages": [{"role": "user", "content": "ping"}]},
+                    timeout=timeout,
+                )
+                return r.status_code in [200, 404, 400]  # 404 if model not pulled
+        except Exception:
+            return False
+        return False
     
     def check_embedding(self):
         """Check embedding configuration"""

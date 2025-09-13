@@ -382,7 +382,13 @@ class ThothInstaller:
         monitoring = self.config.get('monitoring', {})
         if monitoring.get('enabled', True):
             env_lines.append(f"LOGFIRE_TOKEN={monitoring.get('logfire_token', '')}")
-        
+
+        # Backend AI model selection
+        backend_ai = self.config.get('backend_ai_model', {})
+        if backend_ai:
+            env_lines.append(f"BACKEND_AI_PROVIDER={backend_ai.get('ai_provider','')}")
+            env_lines.append(f"BACKEND_AI_MODEL={backend_ai.get('ai_model','')}")
+
         # Admin
         admin = self.config.get('admin', {})
         if admin.get('email'):

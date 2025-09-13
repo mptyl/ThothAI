@@ -50,6 +50,35 @@ DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 # Logging configuration from environment
 BACKEND_LOG_LEVEL = os.environ.get("BACKEND_LOGGING_LEVEL", "INFO").upper()
 
+# Backend AI model selection (for LLM defaults)
+BACKEND_AI_PROVIDER = os.environ.get("BACKEND_AI_PROVIDER", "").lower()
+BACKEND_AI_MODEL = os.environ.get("BACKEND_AI_MODEL", "")
+
+# Derive a LiteLLM-compatible model id for convenience in parts of the app
+def _derive_litellm_model(provider: str, model: str) -> str:
+    mapping = {
+        'openai': '',
+        'anthropic': 'claude/',
+        'gemini': 'gemini/',
+        'mistral': 'mistral/',
+        'ollama': 'ollama/',
+        'openrouter': 'openrouter/',
+        'groq': 'groq/',
+        # OpenAI-compatible providers keep raw model id by default
+        'deepseek': '',
+        'lm_studio': '',
+    }
+    prefix = mapping.get(provider, '')
+    # For openrouter, preserve vendor prefix if present; otherwise accept as-is
+    if provider == 'openrouter':
+        return f"openrouter/{model}"
+    if provider == 'groq':
+        # If model already includes a vendor prefix (e.g., meta-llama/..), keep it
+        return f"groq/{model.split('/',1)[1]}" if '/' in model and not model.startswith('groq/') else f"groq/{model}"
+    return f"{prefix}{model}" if prefix else model
+
+DEFAULT_LITELLM_MODEL = _derive_litellm_model(BACKEND_AI_PROVIDER, BACKEND_AI_MODEL) if BACKEND_AI_PROVIDER and BACKEND_AI_MODEL else None
+
 ALLOWED_HOSTS = [
     "thoth-be",
     "thoth-be-proxy",
