@@ -11,7 +11,7 @@
 # limitations under the License.
 
 from django.contrib import admin
-from thoth_core.models import Setting, AiModel
+from thoth_core.models import Setting
 from thoth_core.utilities.utils import export_csv, import_csv
 
 
@@ -31,18 +31,10 @@ class SettingAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "AI Model Configuration",
+            "AI Prompt Configuration",
             {
-                "fields": ("comment_model", "system_prompt"),
-                "description": "Configure AI models and prompts for different tasks.",
-            },
-        ),
-        (
-            "Comment Generation Settings",
-            {
-                "fields": ("example_rows_for_comment",),
-                "classes": ("collapse",),
-                "description": "Settings for AI comment generation.",
+                "fields": ("system_prompt",),
+                "description": "Configure global system prompt for backend tasks.",
             },
         ),
         (
@@ -76,7 +68,4 @@ class SettingAdmin(admin.ModelAdmin):
         ),
     )
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "comment_model":
-            kwargs["queryset"] = AiModel.objects.all().order_by("name")
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    # No foreign keys remaining that need special handling

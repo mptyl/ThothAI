@@ -38,6 +38,10 @@ from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_column_comments,
     start_async_table_comments,
 )
+from thoth_core.thoth_ai.thoth_workflow.generate_db_erd import generate_db_erd
+from thoth_core.utilities.task_validation import (
+    check_sqldb_task_can_start,
+)
  
 from thoth_core.widgets import PasswordInputWithToggle
 
@@ -72,6 +76,13 @@ class SqlDbAdminForm(forms.ModelForm):
             "scope_json": forms.Textarea(attrs={"rows": 8, "cols": 160}),
             "directives": forms.Textarea(attrs={"rows": 8, "cols": 160}),
             "erd": forms.Textarea(attrs={"rows": 12, "cols": 160}),
+            # Ensure logs use full available width in the admin form
+            "table_comment_log": forms.Textarea(
+                attrs={"rows": 8, "style": "width: 100%; max-width: 100%;"}
+            ),
+            "column_comment_log": forms.Textarea(
+                attrs={"rows": 8, "style": "width: 100%; max-width: 100%;"}
+            ),
         }
 
 
@@ -102,6 +113,7 @@ class SqlDbAdmin(admin.ModelAdmin):
         "test_connection",
         "generate_all_comments",
         generate_scope,
+        generate_db_erd,
         generate_db_documentation,
         "scan_gdpr_compliance",
     )
@@ -158,23 +170,31 @@ class SqlDbAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "AI Comment Task Status",
+            "AI Comment Task Status – Tables",
             {
                 "fields": (
-                    # Column comment task fields
-                    "column_comment_status",
-                    "column_comment_task_id",
-                    "column_comment_start_time",
-                    "column_comment_end_time",
-                    "column_comment_log",
-                    # Table comment task fields
                     "table_comment_status",
                     "table_comment_task_id",
                     "table_comment_start_time",
                     "table_comment_end_time",
                     "table_comment_log",
                 ),
-                "description": "Current status and history of AI comment generation tasks for this database.",
+                "classes": ("collapse",),
+                "description": "Status and logs for table comment generation tasks.",
+            },
+        ),
+        (
+            "AI Comment Task Status – Columns",
+            {
+                "fields": (
+                    "column_comment_status",
+                    "column_comment_task_id",
+                    "column_comment_start_time",
+                    "column_comment_end_time",
+                    "column_comment_log",
+                ),
+                "classes": ("collapse",),
+                "description": "Status and logs for column comment generation tasks.",
             },
         ),
     )
@@ -669,22 +689,8 @@ class SqlDbAdmin(admin.ModelAdmin):
 
         sql_db = queryset.first()
 
-        # SqlDb-scoped readiness checks (no workspace dependency)
-        def _can_start_sql_db_task(db: SqlDb, kind: str):
-            if kind == "column":
-                status = db.column_comment_status
-            elif kind == "table":
-                status = db.table_comment_status
-            else:
-                return False, f"Unknown task type: {kind}"
-
-            if status in ("IDLE", "COMPLETED", "FAILED"):
-                return True, "Ready to start"
-            if status == "RUNNING":
-                return False, f"A {kind} comment task is currently running"
-            return False, f"Unknown status: {status}"
-
-        ok_cols, msg_cols = _can_start_sql_db_task(sql_db, "column")
+        # SqlDb-scoped readiness checks using shared validator
+        ok_cols, msg_cols = check_sqldb_task_can_start(sql_db, "column_comment")
         if not ok_cols:
             messages.error(
                 request,
@@ -692,7 +698,7 @@ class SqlDbAdmin(admin.ModelAdmin):
             )
             return
 
-        ok_tbls, msg_tbls = _can_start_sql_db_task(sql_db, "table")
+        ok_tbls, msg_tbls = check_sqldb_task_can_start(sql_db, "table_comment")
         if not ok_tbls:
             messages.error(
                 request,
@@ -765,24 +771,28 @@ class SqlDbAdmin(admin.ModelAdmin):
             thread.daemon = True
             thread.start()
 
-            # Initialize column comment status
+            # Initialize column comment status (reset end time)
             sql_db.column_comment_status = "RUNNING"
             sql_db.column_comment_task_id = (
                 f"sequential_comments_db_{sql_db.id}_{int(time.time())}"
             )
             sql_db.column_comment_log = f"Starting sequential comment generation: {len(column_ids)} columns, then {len(table_ids)} tables"
+            sql_db.column_comment_end_time = None
 
-            # Initialize table comment status as pending
+            # Initialize table comment status as pending (reset end time)
             sql_db.table_comment_status = "IDLE"
             sql_db.table_comment_task_id = None
             sql_db.table_comment_log = f"Waiting for column comments to complete before processing {len(table_ids)} tables"
+            sql_db.table_comment_end_time = None
             sql_db.save(update_fields=[
                 "column_comment_status",
                 "column_comment_task_id",
                 "column_comment_log",
+                "column_comment_end_time",
                 "table_comment_status",
                 "table_comment_task_id",
                 "table_comment_log",
+                "table_comment_end_time",
             ])
 
             messages.success(

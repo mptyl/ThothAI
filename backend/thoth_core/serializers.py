@@ -137,7 +137,6 @@ class AgentSerializer(serializers.ModelSerializer):
 
 
 class SettingSerializer(serializers.ModelSerializer):
-    comment_model = AiModelSerializer()
     language_display = serializers.CharField(source="get_language_display", read_only=True)
 
     class Meta:

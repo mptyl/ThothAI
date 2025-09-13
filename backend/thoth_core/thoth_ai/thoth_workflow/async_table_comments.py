@@ -75,11 +75,14 @@ class AsyncTableCommentTask:
                 sql_db.table_comment_status = "RUNNING"
                 sql_db.table_comment_task_id = f"table_comments_db_{sql_db.id}_{timezone.now().timestamp()}"
                 sql_db.table_comment_start_time = timezone.now()
+                # Reset end time at task start
+                sql_db.table_comment_end_time = None
                 sql_db.table_comment_log = ""
                 sql_db.save(update_fields=[
                     "table_comment_status",
                     "table_comment_task_id",
                     "table_comment_start_time",
+                    "table_comment_end_time",
                     "table_comment_log",
                 ])
 
@@ -202,11 +205,14 @@ class AsyncColumnCommentTask:
                 sql_db.column_comment_status = "RUNNING"
                 sql_db.column_comment_task_id = f"column_comments_db_{sql_db.id}_{timezone.now().timestamp()}"
                 sql_db.column_comment_start_time = timezone.now()
+                # Reset end time at task start
+                sql_db.column_comment_end_time = None
                 sql_db.column_comment_log = ""
                 sql_db.save(update_fields=[
                     "column_comment_status",
                     "column_comment_task_id",
                     "column_comment_start_time",
+                    "column_comment_end_time",
                     "column_comment_log",
                 ])
 

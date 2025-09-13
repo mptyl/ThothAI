@@ -148,26 +148,6 @@ def output_to_json(output):
         return None
 
 
-def setup_default_comment_llm_model(setting) -> ThothLLMClient:
-    """
-    Set up and return the default language model for comment generation based on the provided settings.
-
-    This function initializes a language model client for generating comments using LiteLLM,
-    supporting multiple providers including OpenAI, Anthropic, Google, Mistral, Ollama, and others.
-
-    Args:
-        setting: An object containing configuration settings for the AI model.
-                 Expected to have a 'comment_model' attribute with details about the model.
-
-    Returns:
-        ThothLLMClient: A configured LLM client instance for the specified provider.
-
-    Raises:
-        ValueError: If the provider is not supported.
-    """
-    ai_model = setting.comment_model
-    return create_llm_client(ai_model)
-
 
 def setup_llm_from_env() -> ThothLLMClient:
     """

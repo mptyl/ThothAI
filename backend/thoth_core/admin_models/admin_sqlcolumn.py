@@ -324,13 +324,15 @@ class SqlColumnAdmin(admin.ModelAdmin):
         # Start async task using database id (signature kept for compatibility)
         task_id = start_async_column_comments(sql_db.id, column_ids, request.user.id)
 
-        # Update SqlDb status
+        # Update SqlDb status (reset end time at start)
         sql_db.column_comment_status = "RUNNING"
         sql_db.column_comment_task_id = task_id
+        sql_db.column_comment_end_time = None
         sql_db.column_comment_log = f"Started processing {len(column_ids)} columns"
         sql_db.save(update_fields=[
             "column_comment_status",
             "column_comment_task_id",
+            "column_comment_end_time",
             "column_comment_log",
         ])
 

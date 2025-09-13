@@ -558,16 +558,7 @@ class Setting(models.Model):
         default=LanguageCode.EN,
         help_text="Stored as ISO 639-1 (e.g., en, it)",
     )
-    example_rows_for_comment = models.PositiveIntegerField(
-        default=5, help_text="Number of example rows to use for comment generation"
-    )
     system_prompt = models.TextField(null=True, blank=True)
-    comment_model = models.ForeignKey(
-        AiModel,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="setting_comment_models",
-    )
 
     signature_size = models.IntegerField(
         default=30, help_text="Size of the signature - LSH"

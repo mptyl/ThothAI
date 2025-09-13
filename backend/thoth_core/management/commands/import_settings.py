@@ -11,7 +11,7 @@
 # limitations under the License.
 
 from django.core.management.base import BaseCommand
-from thoth_core.models import Setting, AiModel
+from thoth_core.models import Setting
 import csv
 import os
 from django.conf import settings
@@ -123,37 +123,11 @@ class Command(BaseCommand):
 
     def get_defaults_from_row(self, row):
         """Extract default values from CSV row"""
-        # Get related AiModel if specified
-        comment_model = None
-        if row.get("comment_model"):
-            try:
-                comment_model = AiModel.objects.get(id=row["comment_model"])
-            except (AiModel.DoesNotExist, ValueError):
-                try:
-                    # Try to get by name instead
-                    comment_model = AiModel.objects.get(name=row["comment_model"])
-                except AiModel.DoesNotExist:
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"AiModel '{row['comment_model']}' not found for Setting '{row['name']}'"
-                        )
-                    )
-
         defaults = {
             "theme": row.get("theme", ""),
             "language": row.get("language", "English"),
-            "comment_model": comment_model,
             "system_prompt": row.get("system_prompt", ""),
         }
-
-        # Handle numeric fields
-        if "example_rows_for_comment" in row and row["example_rows_for_comment"]:
-            try:
-                defaults["example_rows_for_comment"] = int(
-                    row["example_rows_for_comment"]
-                )
-            except (ValueError, TypeError):
-                defaults["example_rows_for_comment"] = 5  # Default value
 
         if "signature_size" in row and row["signature_size"]:
             try:
