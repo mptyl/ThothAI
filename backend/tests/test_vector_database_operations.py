@@ -73,7 +73,7 @@ class VectorDatabaseTestSuite(TestCase):
 
         # Create setting
         self.setting = Setting.objects.create(
-            name="Test Setting", language="English", comment_model=self.ai_model
+            name="Test Setting"
         )
 
         # Test vector databases for different backends

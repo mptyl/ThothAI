@@ -79,10 +79,10 @@ class TestAIBackendViews(TestCase):
         )
         self.workspace.users.add(self.user)
 
-        # Create test setting
-        self.setting = Setting.objects.create(
-            workspace=self.workspace, language="en", is_active=True
-        )
+        # Create test setting and attach to workspace
+        self.setting = Setting.objects.create(name="Default Test Setting")
+        self.workspace.setting = self.setting
+        self.workspace.save()
 
         # Create test table and columns
         self.table = SqlTable.objects.create(name="test_table", sql_db=self.sql_db)

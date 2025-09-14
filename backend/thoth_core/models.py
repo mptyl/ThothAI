@@ -550,15 +550,6 @@ class LanguageCode(models.TextChoices):
 
 class Setting(models.Model):
     name = models.CharField(max_length=255)
-    theme = models.CharField(max_length=50, null=True, blank=True)
-
-    language = models.CharField(
-        max_length=8,
-        choices=LanguageCode.choices,
-        default=LanguageCode.EN,
-        help_text="Stored as ISO 639-1 (e.g., en, it)",
-    )
-    system_prompt = models.TextField(null=True, blank=True)
 
     signature_size = models.IntegerField(
         default=30, help_text="Size of the signature - LSH"

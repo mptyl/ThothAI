@@ -123,11 +123,7 @@ class Command(BaseCommand):
 
     def get_defaults_from_row(self, row):
         """Extract default values from CSV row"""
-        defaults = {
-            "theme": row.get("theme", ""),
-            "language": row.get("language", "English"),
-            "system_prompt": row.get("system_prompt", ""),
-        }
+        defaults = {}
 
         if "signature_size" in row and row["signature_size"]:
             try:
@@ -155,6 +151,59 @@ class Command(BaseCommand):
             defaults["use_value_description"] = self.parse_boolean(
                 row["use_value_description"]
             )
+
+        # Query-time LSH parameters
+        if "lsh_top_n" in row and row["lsh_top_n"]:
+            try:
+                defaults["lsh_top_n"] = int(row["lsh_top_n"])
+            except (ValueError, TypeError):
+                pass
+        if "edit_distance_threshold" in row and row["edit_distance_threshold"]:
+            try:
+                defaults["edit_distance_threshold"] = float(
+                    row["edit_distance_threshold"]
+                )
+            except (ValueError, TypeError):
+                pass
+        if (
+            "embedding_similarity_threshold" in row
+            and row["embedding_similarity_threshold"]
+        ):
+            try:
+                defaults["embedding_similarity_threshold"] = float(
+                    row["embedding_similarity_threshold"]
+                )
+            except (ValueError, TypeError):
+                pass
+        if "max_examples_per_column" in row and row["max_examples_per_column"]:
+            try:
+                defaults["max_examples_per_column"] = int(
+                    row["max_examples_per_column"]
+                )
+            except (ValueError, TypeError):
+                pass
+
+        # Schema linking thresholds
+        if (
+            "max_columns_before_schema_linking" in row
+            and row["max_columns_before_schema_linking"]
+        ):
+            try:
+                defaults["max_columns_before_schema_linking"] = int(
+                    row["max_columns_before_schema_linking"]
+                )
+            except (ValueError, TypeError):
+                pass
+        if (
+            "max_context_usage_before_linking" in row
+            and row["max_context_usage_before_linking"]
+        ):
+            try:
+                defaults["max_context_usage_before_linking"] = int(
+                    row["max_context_usage_before_linking"]
+                )
+            except (ValueError, TypeError):
+                pass
 
         # Add datetime fields if present
         if "created_at" in row and row["created_at"]:

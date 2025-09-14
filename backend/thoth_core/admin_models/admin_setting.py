@@ -17,7 +17,7 @@ from thoth_core.utilities.utils import export_csv, import_csv
 
 @admin.register(Setting)
 class SettingAdmin(admin.ModelAdmin):
-    list_display = ("name", "theme", "get_language_display")
+    list_display = ("name",)
     search_fields = ("name",)
     ordering = ("name",)
     actions = (export_csv, import_csv)
@@ -26,15 +26,8 @@ class SettingAdmin(admin.ModelAdmin):
         (
             "Basic Information",
             {
-                "fields": ("name", "theme", "language"),
+                "fields": ("name",),
                 "description": "Basic settings for the workspace.",
-            },
-        ),
-        (
-            "AI Prompt Configuration",
-            {
-                "fields": ("system_prompt",),
-                "description": "Configure global system prompt for backend tasks.",
             },
         ),
         (

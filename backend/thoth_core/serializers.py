@@ -137,8 +137,6 @@ class AgentSerializer(serializers.ModelSerializer):
 
 
 class SettingSerializer(serializers.ModelSerializer):
-    language_display = serializers.CharField(source="get_language_display", read_only=True)
-
     class Meta:
         model = Setting
         fields = "__all__"
