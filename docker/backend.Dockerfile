@@ -54,8 +54,10 @@ COPY data/ /app/data_temp/
 # Copy setup CSV files for initial data loading
 COPY setup_csv/ /setup_csv/
 
-# Ensure scripts are executable
-RUN chmod +x /app/scripts/*.sh || true
+# Ensure scripts are executable and normalized to LF (robust on Windows checkouts)
+RUN if [ -d /app/scripts ]; then \
+      find /app/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + -exec chmod +x {} +; \
+    fi || true
 
 # Create necessary directories including secrets
 # Note: /app/data will be mounted from host, don't create it here
