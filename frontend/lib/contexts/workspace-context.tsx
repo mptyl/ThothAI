@@ -47,8 +47,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       // Only do post-login initialization once per login session
       if (!isPostLoginInitialized) {
         // Fetch full workspace data for default workspace selection and SQL generation level
-        const fullWorkspacesResponse: WorkspaceApiResponse = await apiClient.getWorkspaces();
-        const fullWorkspaces: Workspace[] = Object.values(fullWorkspacesResponse);
+        const fullWorkspaces: Workspace[] = await apiClient.getWorkspaces();
 
         // Get default workspace using the same logic as Streamlit
         const defaultWorkspace = getDefaultWorkspace(user, fullWorkspaces);
@@ -65,15 +64,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Also fetch workspace user list for the selector
-        const response = await apiClient.getWorkspacesUserList();
-        const workspaceArray = Object.values(response);
+        const workspaceArray = await apiClient.getWorkspacesUserList();
         setWorkspaces(workspaceArray);
 
         setIsPostLoginInitialized(true);
       } else {
         // Regular workspace loading (not post-login initialization)
-        const response = await apiClient.getWorkspacesUserList();
-        const workspaceArray = Object.values(response);
+        const workspaceArray = await apiClient.getWorkspacesUserList();
         setWorkspaces(workspaceArray);
 
         // Restore workspace selection from local storage if not in post-login mode
@@ -114,8 +111,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       // Also fetch the full workspace data for this workspace
       try {
-        const fullWorkspacesResponse: WorkspaceApiResponse = await apiClient.getWorkspaces();
-        const fullWorkspace = Object.values(fullWorkspacesResponse).find(w => w.id === workspaceId);
+        const fullWorkspaces: Workspace[] = await apiClient.getWorkspaces();
+        const fullWorkspace = fullWorkspaces.find(w => w.id === workspaceId);
         if (fullWorkspace) {
           setFullWorkspaceData(fullWorkspace);
         }

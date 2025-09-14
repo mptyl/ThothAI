@@ -229,8 +229,12 @@ class EscalationManager:
             next_level: Next functionality level to escalate to
             escalation_context: Context information for escalation
         """
-        # Update functionality level
-        state.functionality_level = next_level.display_name
+        # Update functionality level on the mutable request context
+        # SystemState.functionality_level is a read-only bridge to request.functionality_level
+        # to maintain immutability; write directly to the request context instead.
+        if hasattr(state, 'request') and hasattr(state.request, 'functionality_level'):
+            # Use enum name (BASIC/ADVANCED/EXPERT) to satisfy RequestContext validator
+            state.request.functionality_level = next_level.name
         
         # Set escalation flags based on the level we're escalating to
         if hasattr(state, 'execution'):

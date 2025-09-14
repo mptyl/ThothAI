@@ -23,7 +23,10 @@ class EnvironmentValidator:
     
     # Required environment variables (must be present)
     REQUIRED_VARS = [
-        'DJANGO_API_KEY',  # Required for Django API communication
+        'DJANGO_API_KEY',           # Required for Django API communication
+        'EMBEDDING_PROVIDER',       # Embedding configuration is now env-only
+        'EMBEDDING_MODEL',
+        'EMBEDDING_API_KEY',
     ]
     
     # Optional but recommended variables

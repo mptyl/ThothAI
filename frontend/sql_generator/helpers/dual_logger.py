@@ -35,8 +35,26 @@ from .logging_config import app_logger as logger
 
 
 def _call_if_available(func: Callable[..., None] | None, message: str) -> None:
-    if func is not None:
-        func(message)  # type: ignore[misc]
+    """
+    Safely call a Logfire function using a literal template to avoid
+    interpreting braces inside message payloads (e.g., JSON with { ... }).
+
+    Falls back to passing a plain string if the Logfire function doesn't
+    accept template + kwargs in this environment.
+    """
+    if func is None:
+        return
+    try:
+        # Pass a literal template, not the message itself, so any braces
+        # inside the message are treated as content rather than fields.
+        func("{msg}", msg=message)  # type: ignore[misc]
+    except Exception:
+        # Fallback: best-effort raw message to avoid crashing logging
+        try:
+            func(str(message))  # type: ignore[misc]
+        except Exception:
+            # Give up silently; app logger has already handled it
+            pass
 
 
 def log_debug(message: str) -> None:
@@ -78,7 +96,7 @@ def log_exception(message: str) -> None:
     # Prefer logfire.exception if available; otherwise fall back to error
     lf_exc = getattr(logfire, "exception", None)
     if lf_exc is not None:
-        lf_exc(message)
+        _call_if_available(lf_exc, message)
     else:
         _call_if_available(getattr(logfire, "error", None), message)
 

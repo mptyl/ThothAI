@@ -531,13 +531,13 @@ async def _evaluate_and_select_phase(
         
         # Check if we can and should escalate
         if next_level and state.escalation_attempts < 2:  # Max 2 escalations (BASIC->ADVANCED->EXPERT)
-            if next_level.value == "ADVANCED":
+            if next_level.name == "ADVANCED":
                 yield f"THOTHLOG:Escalation to Advanced Agent\n"
-            elif next_level.value == "EXPERT":
+            elif next_level.name == "EXPERT":
                 yield f"THOTHLOG:Escalation to Expert Agent\n"
             else:
-                yield f"THOTHLOG:Escalating to {next_level.display_name} agent\n"  # fallback generico
-            logger.info(f"Escalating SQL generation from {current_level.value} to {next_level.value}")
+                yield f"THOTHLOG:Escalating to {next_level.display_name} agent\n"  # generic fallback
+            logger.info(f"Escalating SQL generation from {current_level.name} to {next_level.name}")
             
             # Create escalation context
             escalation_context = EscalationContext(
@@ -556,8 +556,8 @@ async def _evaluate_and_select_phase(
             # Update escalation flags using EscalationManager
             EscalationManager.update_state_for_escalation(state, next_level, escalation_context)
             
-            # Update request with new functionality level
-            request.functionality_level = next_level.display_name
+            # Update request with new functionality level (uppercase expected by validator)
+            request.functionality_level = next_level.name
             
             # Clear previous generation results to start fresh
             state.generated_sqls = []

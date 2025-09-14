@@ -269,13 +269,16 @@ def build_vector_db_params(vector_db_config: Dict[str, Any], vect_type: str) -> 
 # =============================================================================
 
 def _extract_required_fields(vector_db: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract and validate required fields from vector DB config."""
+    """Extract and validate required fields from vector DB config.
+
+    Note: embedding settings are no longer required on the VectorDB model
+    (they are provided via environment or workspace overrides). We only
+    enforce vector backend connectivity fields here.
+    """
     required = {
         'host': 'Vector DB host',
         'port': 'Vector DB port',
-        'vect_type': 'Vector DB type',
-        'embedding_provider': 'Embedding provider',
-        'embedding_model': 'Embedding model'
+        'vect_type': 'Vector DB type'
     }
     
     config = {}
@@ -308,21 +311,46 @@ def _add_optional_fields(config: Dict[str, Any], vector_db: Dict[str, Any]) -> N
 
 
 def _configure_embedding(config: Dict[str, Any], vector_db: Dict[str, Any]) -> None:
-    """Configure embedding settings."""
-    config['embedding_batch_size'] = vector_db.get('embedding_batch_size') or 100
-    config['embedding_timeout'] = vector_db.get('embedding_timeout') or 30
-    
-    # Handle API key - only env var we keep for security
-    api_key = vector_db.get('embedding_api_key') or os.getenv('EMBEDDING_API_KEY')
+    """Configure embedding settings strictly from environment variables.
+
+    The workspace VectorDB no longer stores embedding fields; we treat
+    environment variables as the single source of truth. Missing envs
+    cause a blocking error.
+    """
+    # Defaults for operational params
+    # Read optional overrides from environment only (not from workspace)
+    batch_size_env = os.getenv('EMBEDDING_BATCH_SIZE')
+    timeout_env = os.getenv('EMBEDDING_TIMEOUT')
+    config['embedding_batch_size'] = int(batch_size_env) if batch_size_env else 100
+    config['embedding_timeout'] = int(timeout_env) if timeout_env else 30
+
+    # Provider and model MUST come from environment
+    provider = (os.getenv('EMBEDDING_PROVIDER') or '').lower()
+    model = os.getenv('EMBEDDING_MODEL') or ''
+
+    missing = []
+    if not provider:
+        missing.append('EMBEDDING_PROVIDER')
+    if not model:
+        missing.append('EMBEDDING_MODEL')
+    if missing:
+        raise ValueError(
+            "Missing required embedding environment variables: " + ", ".join(missing)
+        )
+
+    config['embedding_provider'] = provider
+    config['embedding_model'] = model
+
+    # API key MUST come from environment
+    api_key = os.getenv('EMBEDDING_API_KEY') or ''
     if not api_key:
         raise ValueError(
-            "Embedding API key not found. Set EMBEDDING_API_KEY env var "
-            "or configure in workspace."
+            "Missing required embedding environment variables: EMBEDDING_API_KEY"
         )
     config['embedding_api_key'] = api_key
-    
-    # Optional base URL
-    base_url = vector_db.get('embedding_base_url')
+
+    # Optional base URL from environment only
+    base_url = os.getenv('EMBEDDING_BASE_URL')
     if base_url:
         config['embedding_base_url'] = base_url
 

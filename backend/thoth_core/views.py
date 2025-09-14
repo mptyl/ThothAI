@@ -168,7 +168,7 @@ def get_current_user(request):
 
 
 @api_view(["GET"])
-@authentication_classes([ApiKeyAuthentication, TokenAuthentication])
+@authentication_classes([TokenAuthentication, SessionAuthentication, ApiKeyAuthentication])
 @permission_classes([IsAuthenticatedOrHasApiKey])
 def get_user_workspaces(request):
     # Check if authentication was done via API key
@@ -189,7 +189,7 @@ def get_user_workspaces(request):
                 "test_gen_agent_2__ai_model__basic_model",
                 "explain_sql_agent__ai_model__basic_model",
                 "ask_human_help_agent__ai_model__basic_model",
-                "setting__comment_model__basic_model",
+                # setting no longer references comment_model
             )
             .prefetch_related("users", "default_workspace")
             .all()
@@ -216,7 +216,7 @@ def get_user_workspaces(request):
                 "test_gen_agent_2__ai_model__basic_model",
                 "explain_sql_agent__ai_model__basic_model",
                 "ask_human_help_agent__ai_model__basic_model",
-                "setting__comment_model__basic_model",
+                # setting no longer references comment_model
             )
             .prefetch_related("users", "default_workspace")
         )
@@ -235,7 +235,7 @@ def get_user_workspaces(request):
 
 
 @api_view(["GET"])
-@authentication_classes([ApiKeyAuthentication, TokenAuthentication])
+@authentication_classes([TokenAuthentication, SessionAuthentication, ApiKeyAuthentication])
 @permission_classes([IsAuthenticatedOrHasApiKey])
 def get_user_workspaces_list(request):
     """
@@ -290,7 +290,7 @@ def get_workspace_by_name(request, workspace_name):
         # API key authentication - search all workspaces
         logger.info(f"Getting workspace '{workspace_name}' for API key authentication")
         workspaces = (
-            Workspace.objects.filter(name=workspace_name)
+                Workspace.objects.filter(name=workspace_name)
             .select_related(
                 "sql_db__vector_db",
                 "default_model__basic_model",
@@ -302,8 +302,8 @@ def get_workspace_by_name(request, workspace_name):
                 "test_gen_agent_1__ai_model__basic_model",
                 "test_gen_agent_2__ai_model__basic_model",
                 "explain_sql_agent__ai_model__basic_model",
-                "ask_human_help_agent__ai_model__basic_model",
-                "setting__comment_model__basic_model",
+                    "ask_human_help_agent__ai_model__basic_model",
+                    # setting no longer references comment_model
             )
             .prefetch_related("users", "default_workspace")
         )
@@ -318,7 +318,7 @@ def get_workspace_by_name(request, workspace_name):
             f"Getting workspace '{workspace_name}' for authenticated user {user.username}"
         )
         workspaces = (
-            Workspace.objects.filter(users=user, name=workspace_name)
+                Workspace.objects.filter(users=user, name=workspace_name)
             .select_related(
                 "sql_db__vector_db",
                 "default_model__basic_model",
@@ -330,8 +330,8 @@ def get_workspace_by_name(request, workspace_name):
                 "test_gen_agent_1__ai_model__basic_model",
                 "test_gen_agent_2__ai_model__basic_model",
                 "explain_sql_agent__ai_model__basic_model",
-                "ask_human_help_agent__ai_model__basic_model",
-                "setting__comment_model__basic_model",
+                    "ask_human_help_agent__ai_model__basic_model",
+                    # setting no longer references comment_model
             )
             .prefetch_related("users", "default_workspace")
         )
@@ -403,7 +403,7 @@ def get_workspace_by_id(request, workspace_id):
                     "test_gen_agent_2__ai_model__basic_model",
                     "explain_sql_agent__ai_model__basic_model",
                     "ask_human_help_agent__ai_model__basic_model",
-                    "setting__comment_model__basic_model",
+                    # setting no longer references comment_model
                 )
                 .prefetch_related("users", "default_workspace")
                 .get(pk=workspace_id)
@@ -439,7 +439,7 @@ def get_workspace_by_id(request, workspace_id):
                     "test_gen_agent_2__ai_model__basic_model",
                     "explain_sql_agent__ai_model__basic_model",
                     "ask_human_help_agent__ai_model__basic_model",
-                    "setting__comment_model__basic_model",
+                    # setting no longer references comment_model
                 )
                 .prefetch_related("users", "default_workspace")
                 .get(pk=workspace_id)

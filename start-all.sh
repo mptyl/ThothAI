@@ -184,11 +184,14 @@ else
     if docker ps -a --format "table {{.Names}}" | grep -q "^qdrant-thoth$"; then
         echo -e "${YELLOW}Starting existing qdrant-thoth container...${NC}"
         docker start qdrant-thoth
+        # Ensure it auto-starts with Docker daemon
+        docker update --restart unless-stopped qdrant-thoth >/dev/null 2>&1 || true
         QDRANT_CONTAINER="qdrant-thoth"
     else
         echo -e "${YELLOW}Creating and starting new qdrant-thoth container...${NC}"
         docker run -d \
             --name qdrant-thoth \
+            --restart unless-stopped \
             -p 6334:6333 \
             -v $(pwd)/qdrant_storage:/qdrant/storage:z \
             qdrant/qdrant

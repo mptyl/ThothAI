@@ -105,9 +105,7 @@ export interface SidebarFlags {
 export type SqlGenerationStrategy = 'Basic' | 'Advanced' | 'Expert';
 
 // Workspace API Response (full workspace data)
-export interface WorkspaceApiResponse {
-  [key: string]: Workspace;
-}
+export type WorkspaceApiResponse = Workspace[];
 
 // Simplified workspace for user list (only id and name)
 export interface WorkspaceUserItem {
@@ -116,6 +114,4 @@ export interface WorkspaceUserItem {
 }
 
 // User workspace list API response
-export interface WorkspaceUserListResponse {
-  [key: string]: WorkspaceUserItem;
-}
+export type WorkspaceUserListResponse = WorkspaceUserItem[];
