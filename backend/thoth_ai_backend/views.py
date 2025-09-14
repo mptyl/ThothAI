@@ -456,8 +456,8 @@ class PreprocessView(LoginRequiredMixin, TemplateView):
                 )
 
                 # Add collection name if available
-                if hasattr(vector_store, "collection"):
-                    context["collection_name"] = vector_store.collection
+                if workspace and workspace.sql_db and workspace.sql_db.vector_db and workspace.sql_db.vector_db.name:
+                    context["collection_name"] = workspace.sql_db.vector_db.name
                 else:
                     context["collection_name"] = "Unknown"
 
