@@ -16,6 +16,7 @@ WORKDIR /app
 # Install runtime dependencies and uv
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     curl \
+    bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
@@ -34,6 +35,11 @@ COPY frontend/sql_generator/ .
 # Install Python packages using uv with system Python
 # This creates a fresh .venv with all dependencies
 RUN uv sync --frozen --no-cache
+
+# Normalize line endings and ensure scripts are executable (robust on Windows checkouts)
+RUN if [ -d /app/scripts ]; then \
+      find /app/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + -exec chmod +x {} +; \
+    fi || true
 
 # Copy data directory into image (for reference/backup)
 COPY data/ /app/data_static
