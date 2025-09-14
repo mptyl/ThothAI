@@ -2,20 +2,20 @@
 # This file is part of ThothAI and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-# Piano di Migrazione: Gestione Centralizzata degli Embedding
+# Migration Plan: Centralized Embedding Management
 
-## Obiettivo
+## Objective
 
-Ripristinare la gestione lato libreria degli embedding in `thoth-vdbmanager` per risolvere i problemi di Docker e garantire consistenza architetturale tra `thoth_be` e `thoth_ui`.
+Restore library-side embedding management in `thoth-vdbmanager` to resolve Docker issues and ensure architectural consistency across `thoth_be` and `thoth_ui`.
 
-## Architettura Target
+## Target Architecture
 
-### Principi di Design
+### Design Principles
 
-1. **Centralizzazione**: Gli embedding sono gestiti interamente dalla libreria `thoth-vdbmanager`
-2. **Docker Compatibility**: Funzionamento robusto in ambienti containerizzati
-3. **Performance**: Caching intelligente e lazy loading dei modelli
-4. **Backward Compatibility**: Transizione trasparente per i progetti esistenti
+1. **Centralization**: Embeddings are managed entirely by the `thoth-vdbmanager` library
+2. **Docker Compatibility**: Robust operation in containerized environments
+3. **Performance**: Intelligent caching and lazy model loading
+4. **Backward Compatibility**: Transparent transition for existing projects
 
 ### Schema Architetturale
 
@@ -44,11 +44,11 @@ Ripristinare la gestione lato libreria degli embedding in `thoth-vdbmanager` per
 └─────────────────────────────────────────┘
 ```
 
-## Fase 1: Progettazione e Implementazione della Libreria
+## Phase 1: Library Design and Implementation
 
-### 1.1 Analisi della Situazione Attuale
+### 1.1 Current State Analysis
 
-#### Task: Audit delle Versioni
+#### Task: Version Audit
 ```bash
 # Comparazione delle versioni
 pip show thoth-vdbmanager==0.2.24
@@ -61,19 +61,19 @@ git diff v0.2.24..v0.4.0 --name-only
 ```
 
 #### Deliverables
-- [ ] **Documento di comparazione** delle API tra versioni
-- [ ] **Lista delle breaking changes** identificate
-- [ ] **Mappa delle dipendenze** attuali nei progetti
+- [ ] **API comparison document** across versions
+- [ ] **List of identified breaking changes**
+- [ ] **Dependency map** currently used by projects
 
-### 1.2 Design del Nuovo Embedding Manager
+### 1.2 New Embedding Manager Design
 
 #### Core Components
 
 ##### EmbeddingManager Class
 ```python
-# Pseudocode dell'architettura target
+# Target architecture pseudocode
 class EmbeddingManager:
-    """Gestore centralizzato per tutti gli embedding operations."""
+    """Central manager for all embedding operations."""
     
     def __init__(self, config: EmbeddingConfig):
         self.model_cache = ModelCache()
@@ -81,52 +81,52 @@ class EmbeddingManager:
         self.error_handler = RetryHandler()
     
     def encode(self, texts: List[str], model: str = "default") -> np.ndarray:
-        """Main encoding interface - nasconde la complessità del modello."""
+        """Main encoding interface - hides model complexity."""
         
     def get_model(self, model_name: str) -> SentenceTransformer:
-        """Lazy loading con caching intelligente."""
+        """Lazy loading with intelligent caching."""
         
     def preload_models(self, models: List[str]) -> None:
-        """Pre-caricamento per ambienti Docker."""
+        """Preload for Docker environments."""
 ```
 
 ##### Environment Detection
 ```python
 class EnvironmentDetector:
-    """Rileva l'ambiente di esecuzione e adatta il comportamento."""
+    """Detects execution environment and adapts behavior."""
     
     def is_docker(self) -> bool:
-        """Rileva se siamo in un container Docker."""
+        """Detects if running in a Docker container."""
         
     def get_cache_strategy(self) -> CacheStrategy:
-        """Strategia di cache basata sull'ambiente."""
+        """Cache strategy based on environment."""
         
     def get_download_strategy(self) -> DownloadStrategy:
-        """Strategia di download modelli basata sull'ambiente."""
+        """Model download strategy based on environment."""
 ```
 
 #### Task di Implementazione
-- [ ] **Progettare le interfacce** pubbliche del nuovo EmbeddingManager
-- [ ] **Implementare il model caching** con strategie per Docker/locale
-- [ ] **Creare il sistema di retry** robusto per download failures
-- [ ] **Implementare environment detection** automatica
+- [ ] **Design public interfaces** for the new EmbeddingManager
+- [ ] **Implement model caching** with Docker/local strategies
+- [ ] **Create a robust retry system** for download failures
+- [ ] **Implement automatic environment detection**
 
 ### 1.3 Docker Optimization Strategy
 
-#### Problemi da Risolvere
-1. **Download runtime**: Evitare download di modelli a runtime in Docker
-2. **Network isolation**: Gestire problemi di connettività in container
-3. **Memory management**: Ottimizzare uso memoria per modelli grandi
+#### Problems to Solve
+1. **Runtime downloads**: Avoid downloading models at runtime in Docker
+2. **Network isolation**: Handle connectivity issues in containers
+3. **Memory management**: Optimize memory usage for large models
 
-#### Soluzioni Proposte
+#### Proposed Solutions
 
 ##### Pre-download Strategy
 ```python
 class DockerModelManager:
-    """Gestore specifico per ambienti Docker."""
+    """Manager specific to Docker environments."""
     
     def preload_common_models(self) -> None:
-        """Pre-carica i modelli più comuni durante la build."""
+        """Preload the most common models during build."""
         common_models = [
             "sentence-transformers/all-MiniLM-L6-v2",
             "paraphrase-multilingual-MiniLM-L12-v2"
@@ -135,27 +135,27 @@ class DockerModelManager:
             self._download_and_cache(model)
     
     def get_model_with_fallback(self, model_name: str) -> SentenceTransformer:
-        """Strategia di fallback per modelli non disponibili."""
+        """Fallback strategy for unavailable models."""
 ```
 
 ##### Dockerfile Integration
 ```dockerfile
-# Esempio di integrazione nel Dockerfile della libreria
+# Example of library Dockerfile integration
 RUN pip install thoth-vdbmanager[qdrant]==2.0.0
 RUN python -c "from thoth_vdbmanager import EmbeddingManager; EmbeddingManager.preload_common_models()"
 ```
 
 #### Task di Implementazione
-- [ ] **Creare DockerModelManager** per gestione container-specific
-- [ ] **Implementare pre-download** dei modelli comuni
-- [ ] **Creare fallback strategies** per modelli non disponibili
-- [ ] **Ottimizzare memory footprint** dei modelli caricati
+- [ ] **Create DockerModelManager** for container-specific handling
+- [ ] **Implement pre-download** for common models
+- [ ] **Create fallback strategies** for unavailable models
+- [ ] **Optimize memory footprint** of loaded models
 
-## Fase 2: Migrazione dei Progetti
+## Phase 2: Project Migration
 
-### 2.1 Migrazione thoth_be
+### 2.1 thoth_be Migration
 
-#### Situazione Attuale
+#### Current Situation
 ```python
 # Attuale in thoth_be (problematico)
 from sentence_transformers import SentenceTransformer
@@ -163,7 +163,7 @@ embedding_function = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2"
 embeddings = embedding_function.encode(texts)
 ```
 
-#### Migrazione Target
+#### Target Migration
 ```python
 # Target con nuova libreria
 from thoth_vdbmanager import EmbeddingManager
@@ -171,15 +171,15 @@ embedding_manager = EmbeddingManager.get_instance()
 embeddings = embedding_manager.encode(texts, model="multilingual-mini")
 ```
 
-#### Task di Migrazione
-- [ ] **Identificare tutti i punti** di utilizzo SentenceTransformer in thoth_be
-- [ ] **Creare wrapper compatibility** per transizione graduale
-- [ ] **Aggiornare i requirements** e dependency management
-- [ ] **Testare tutti i workflow** esistenti
+#### Migration Tasks
+- [ ] **Identify all usages** of SentenceTransformer in thoth_be
+- [ ] **Create a compatibility wrapper** for gradual transition
+- [ ] **Update requirements** and dependency management
+- [ ] **Test all existing workflows**
 
-### 2.2 Migrazione thoth_ui/sql_generator
+### 2.2 thoth_ui/sql_generator Migration
 
-#### Situazione Attuale
+#### Current Situation
 ```python
 # Attuale in sql_generator (problematico)
 from helpers.setups import build_embedding_function
@@ -187,7 +187,7 @@ embedding_function = build_embedding_function()
 embeddings = embedding_function.encode(to_embed_strings)
 ```
 
-#### Migrazione Target
+#### Target Migration
 ```python
 # Target con nuova libreria
 from thoth_vdbmanager import EmbeddingManager
@@ -195,67 +195,67 @@ embedding_manager = EmbeddingManager.get_instance()
 embeddings = embedding_manager.encode(to_embed_strings)
 ```
 
-#### Task di Migrazione
-- [ ] **Rimuovere SafeSentenceTransformer** custom class
-- [ ] **Aggiornare helpers/setups.py** per utilizzare la nuova API
-- [ ] **Modificare main_schema_extraction_from_lsh.py** per la nuova gestione
-- [ ] **Aggiornare pyproject.toml** con la nuova versione libreria
-- [ ] **Testare il fix** del problema Docker hung up
+#### Migration Tasks
+- [ ] **Remove SafeSentenceTransformer** custom class
+- [ ] **Update helpers/setups.py** to use the new API
+- [ ] **Modify main_schema_extraction_from_lsh.py** for the new handling
+- [ ] **Update pyproject.toml** with the new library version
+- [ ] **Test the fix** for the Docker hang
 
-### 2.3 Strategia di Backward Compatibility
+### 2.3 Backward Compatibility Strategy
 
 #### Compatibility Layer
 ```python
-# Temporary compatibility per transizione graduale
+# Temporary compatibility for a gradual transition
 class LegacyEmbeddingAdapter:
-    """Adapter per mantenere compatibility con API esistenti."""
+    """Adapter to maintain compatibility with existing APIs."""
     
     def __init__(self, model_name: str):
         self.embedding_manager = EmbeddingManager.get_instance()
         self.model_name = model_name
     
     def encode(self, texts, **kwargs):
-        """Mantiene l'interfaccia esistente."""
+        """Preserves the existing interface."""
         return self.embedding_manager.encode(texts, model=self.model_name, **kwargs)
 ```
 
-## Fase 3: Testing e Validazione
+## Phase 3: Testing and Validation
 
 ### 3.1 Test Strategy
 
 #### Unit Tests
 ```python
-# Test per il nuovo EmbeddingManager
+# Tests for the new EmbeddingManager
 class TestEmbeddingManager:
     def test_model_caching(self):
-        """Verifica che i modelli vengano cached correttamente."""
+        """Verify models are cached correctly."""
         
     def test_docker_environment_detection(self):
-        """Verifica rilevamento ambiente Docker."""
+        """Verify Docker environment detection."""
         
     def test_fallback_strategies(self):
-        """Verifica strategie di fallback per errori."""
+        """Verify fallback strategies for errors."""
 ```
 
 #### Integration Tests
 ```python
-# Test di integrazione con progetti
+# Integration tests with projects
 class TestThothAIBeIntegration:
     def test_embedding_workflow_complete(self):
-        """Test complete workflow thoth_be con nuovi embedding."""
+        """Test the complete thoth_be workflow with new embeddings."""
         
 class TestThothAIUiIntegration:
     def test_sql_generator_no_hang(self):
-        """Verifica che sql_generator non si blocchi più."""
+        """Verify sql_generator no longer hangs."""
 ```
 
 #### Docker Tests
 ```bash
-# Script per test Docker automated
+# Script for automated Docker tests
 #!/bin/bash
 docker-compose build sql-generator
 docker-compose up -d sql-generator
-# Test API call che prima causava hung up
+# Test API call that previously caused a hang
 curl -X POST http://localhost:8005/generate-sql \
   -H "Content-Type: application/json" \
   -d '{"question": "test question", "workspace_id": 4}'
@@ -264,106 +264,106 @@ curl -X POST http://localhost:8005/generate-sql \
 ### 3.2 Performance Validation
 
 #### Benchmark Setup
-- [ ] **Baseline measurements** con versione attuale funzionante
-- [ ] **Performance tests** per encoding operations
-- [ ] **Memory usage profiling** per modelli caricati
-- [ ] **Startup time comparison** tra vecchia e nuova architettura
+- [ ] **Baseline measurements** with current working version
+- [ ] **Performance tests** for encoding operations
+- [ ] **Memory usage profiling** for loaded models
+- [ ] **Startup time comparison** between old and new architectures
 
-## Fase 4: Deployment e Rollout
+## Phase 4: Deployment and Rollout
 
 ### 4.1 Staged Rollout Strategy
 
 #### Stage 1: Library Release
-1. **Rilasciare thoth-vdbmanager v2.0** con nuovo EmbeddingManager
-2. **Backward compatibility** garantita tramite adapter layer
-3. **Extensive testing** su ambienti di staging
+1. **Release thoth-vdbmanager v2.0** with the new EmbeddingManager
+2. **Backward compatibility** guaranteed via adapter layer
+3. **Extensive testing** in staging environments
 
 #### Stage 2: thoth_be Migration
-1. **Deploy thoth_be** con nuova libreria in staging
-2. **Validazione completa** di tutti i workflow
-3. **Rollout production** con rollback plan
+1. **Deploy thoth_be** with the new library to staging
+2. **Full validation** of all workflows
+3. **Production rollout** with rollback plan
 
 #### Stage 3: thoth_ui Migration  
-1. **Deploy sql_generator** con fix Docker
-2. **Validazione** che il hung up sia risolto
-3. **Monitor production** per stabilità
+1. **Deploy sql_generator** with Docker fix
+2. **Validate** the hang is resolved
+3. **Monitor production** for stability
 
 ### 4.2 Rollback Plan
 
-#### Preparazione
-- [ ] **Backup delle versioni** attuali funzionanti
-- [ ] **Scripts di rollback** automatizzati
-- [ ] **Monitoring alerts** per rilevare problemi rapidamente
+#### Preparation
+- [ ] **Backup current working versions**
+- [ ] **Automated rollback scripts**
+- [ ] **Monitoring alerts** to detect issues quickly
 
 #### Trigger Conditions
 - Performance degradation >20%
-- Failure rate >5% su endpoint critici  
-- Docker hung up ancora presente
+- Failure rate >5% on critical endpoints  
+- Docker hang still present
 - Memory usage increase >50%
 
-## Timeline e Milestones
+## Timeline and Milestones
 
-### Milestone 1: Library Foundation (Settimane 1-2)
-- [ ] Analisi completata delle versioni attuali
-- [ ] Design approvato del nuovo EmbeddingManager
-- [ ] Implementazione core del model caching
-- [ ] Environment detection funzionante
+### Milestone 1: Library Foundation (Weeks 1-2)
+- [ ] Completed analysis of current versions
+- [ ] Approved design of the new EmbeddingManager
+- [ ] Core model caching implemented
+- [ ] Environment detection working
 
-### Milestone 2: Docker Optimization (Settimane 2-3)
-- [ ] DockerModelManager implementato
-- [ ] Pre-download strategy testata
-- [ ] Memory optimization completata
-- [ ] Fallback strategies validate
+### Milestone 2: Docker Optimization (Weeks 2-3)
+- [ ] DockerModelManager implemented
+- [ ] Pre-download strategy tested
+- [ ] Memory optimization completed
+- [ ] Fallback strategies validated
 
-### Milestone 3: Project Migration (Settimane 3-4)
-- [ ] thoth_be migrazione completata
-- [ ] thoth_ui/sql_generator migrazione completata
-- [ ] Backward compatibility layer validata
-- [ ] Integration tests passing al 100%
+### Milestone 3: Project Migration (Weeks 3-4)
+- [ ] thoth_be migration completed
+- [ ] thoth_ui/sql_generator migration completed
+- [ ] Backward compatibility layer validated
+- [ ] Integration tests passing at 100%
 
-### Milestone 4: Production Ready (Settimane 4-5)
-- [ ] Performance validation superata
-- [ ] Docker tests completamente verdi
+### Milestone 4: Production Ready (Weeks 4-5)
+- [ ] Performance validation passed
+- [ ] Docker tests fully green
 - [ ] Staging deployment successful
-- [ ] Monitoring e alerting configurati
+- [ ] Monitoring and alerting configured
 
-### Milestone 5: Production Rollout (Settimana 6)
-- [ ] Production deployment completato
-- [ ] Hung up issue risolto definitivamente
-- [ ] Performance baseline mantenuto
-- [ ] Documentazione aggiornata
+### Milestone 5: Production Rollout (Week 6)
+- [ ] Production deployment completed
+- [ ] Hang issue resolved definitively
+- [ ] Performance baseline maintained
+- [ ] Documentation updated
 
 ## Success Metrics
 
 ### Technical KPIs
-- **Docker hung up**: 0 occorrenze dopo deployment
-- **Performance impact**: <±5% rispetto al baseline
-- **Memory usage**: <+20% per il nuovo caching
-- **Test coverage**: >90% per nuovo codice
+- **Docker hang**: 0 occurrences after deployment
+- **Performance impact**: <±5% vs baseline
+- **Memory usage**: <+20% for the new caching
+- **Test coverage**: >90% for new code
 
 ### Operational KPIs  
-- **Deployment time**: <30 minuti per rollout completo
-- **Rollback time**: <5 minuti se necessario
-- **Zero downtime**: Durante migrazione
-- **Developer satisfaction**: Feedback positivo su nuova API
+- **Deployment time**: <30 minutes for full rollout
+- **Rollback time**: <5 minutes if needed
+- **Zero downtime**: During migration
+- **Developer satisfaction**: Positive feedback on new API
 
 ## Risk Management
 
 ### High Risk: Breaking Changes
 - **Mitigation**: Extensive backward compatibility testing
-- **Contingency**: Gradual migration con feature flags
+- **Contingency**: Gradual migration with feature flags
 
 ### Medium Risk: Performance Degradation
-- **Mitigation**: Continuous benchmarking durante sviluppo
-- **Contingency**: Performance tuning dedicato
+- **Mitigation**: Continuous benchmarking during development
+- **Contingency**: Dedicated performance tuning
 
 ### Low Risk: Docker Complexity
 - **Mitigation**: Docker-specific testing environment
-- **Contingency**: Fallback a deployment non-containerizzato
+- **Contingency**: Fallback to non-containerized deployment
 
 ---
 
-**Piano redatto da**: Claude Code Analysis  
-**Data**: 2025-08-10  
-**Versione**: 1.0  
-**Stato**: READY FOR REVIEW
+**Plan prepared by**: Claude Code Analysis  
+**Date**: 2025-08-10  
+**Version**: 1.0  
+**Status**: READY FOR REVIEW

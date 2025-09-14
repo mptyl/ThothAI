@@ -16,7 +16,7 @@ from django.conf import settings
 from django.contrib import messages
 
 # Removed Haystack imports - using LiteLLM instead
-from thoth_core.models import SqlTable, SqlColumn, LLMChoices
+from thoth_core.models import SqlTable, SqlColumn, LLMChoices, LanguageCode
 from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
     setup_llm_from_env,
 )
@@ -81,6 +81,14 @@ def _generate_scope_with_llm(llm_client, prompt_variables):
     return response
 
 
+def get_language_description(language_code):
+    """Convert language code to full description."""
+    for code, description in LanguageCode.choices:
+        if code == language_code:
+            return description
+    return "English"  # fallback
+
+
 def generate_scope(modeladmin, request, queryset):
     """
     Generates a scope description for each selected SqlDb instance using an AI model.
@@ -118,11 +126,12 @@ def generate_scope(modeladmin, request, queryset):
                 )
 
             try:
-                language = db.language or "en"
+                language_code = db.language or "en"
+                language_description = get_language_description(language_code)
                 prompt_variables = {
                     "db_name": db.name,
                     "tables": tables_data,
-                    "language": language,
+                    "language": language_description,
                 }
 
                 output = _generate_scope_with_llm(llm, prompt_variables)

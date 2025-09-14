@@ -1297,8 +1297,9 @@ class SystemState(BaseModel):
         logging.getLogger(__name__).setLevel(log_level)
 
         # Get scope and language from workspace
+        from helpers.language_utils import resolve_language_name
         scope = self.workspace.get("sql_db", {}).get("scope", "")
-        language = self.workspace.get("sql_db", {}).get("language", "English")
+        language = resolve_language_name(self.workspace.get("sql_db", {}).get("language", "English"))
 
         # Log scope and language used by LLM (only if log level allows)
         if log_level <= logging.INFO:

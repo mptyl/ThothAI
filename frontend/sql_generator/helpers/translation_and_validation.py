@@ -11,6 +11,7 @@
 # limitations under the License.
 
 import logging
+from helpers.language_utils import resolve_language_name
 
 from .template_preparation import (
     translate_question_template,
@@ -30,7 +31,7 @@ async def run_question_translation(agents_and_tools, state, workspace) -> None:
     """
     # Get scope and language from workspace
     scope = workspace.get("sql_db", {}).get("scope", "")
-    target_language = workspace.get("sql_db", {}).get("language", "English")
+    target_language = resolve_language_name(workspace.get("sql_db", {}).get("language", "English"))
 
     # Prepare the translation template
     translation_template = translate_question_template(
@@ -71,7 +72,7 @@ async def run_question_validation(agents_and_tools, state, workspace) -> tuple[s
     """
     # Get scope and language from workspace
     scope = workspace.get("sql_db", {}).get("scope", "")
-    language = workspace.get("sql_db", {}).get("language", "English")
+    language = resolve_language_name(workspace.get("sql_db", {}).get("language", "English"))
 
     # Log scope and language used by LLM
     logger.info(f"LLM using scope: '{scope}' and language: '{language}'")
@@ -128,5 +129,4 @@ async def run_question_validation(agents_and_tools, state, workspace) -> tuple[s
 
     # Question is valid, continue with workflow
     return "THOTHLOG:Question validation passed, proceeding with keyword extraction", True
-
 

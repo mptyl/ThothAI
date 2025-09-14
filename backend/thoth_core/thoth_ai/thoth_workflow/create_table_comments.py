@@ -28,6 +28,7 @@ from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
     get_table_schema_safe,
 )
 from thoth_core.thoth_ai.prompts.table_comment_prompt import get_table_prompt
+from thoth_core.thoth_ai.thoth_workflow.create_db_scope import get_language_description
 from thoth_core.models import LLMChoices  # Added LLMChoices
 from django.db import transaction  # Added transaction
 
@@ -259,7 +260,8 @@ def process_table_chunk(modeladmin, request, chunk, chunk_number):
 
         # setup language
         table_db = table.sql_db
-        language = table_db.language or "en"
+        language_code = table_db.language or "en"
+        language = get_language_description(language_code)
 
         # define number of example rows for comment
         example_rows_for_comment = 5
@@ -676,7 +678,8 @@ def create_table_comments_async(
                         example_data_str = ""
 
                     # Generate comment with timeout and circuit breaker
-                    language = table.sql_db.language or "en"
+                    language_code = table.sql_db.language or "en"
+                    language = get_language_description(language_code)
 
                     def run_llm_generation():
                         with (

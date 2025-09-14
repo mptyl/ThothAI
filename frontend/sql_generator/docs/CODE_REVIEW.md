@@ -1,9 +1,9 @@
 # Code Review Checklist - SQL Generator
 
-## 📋 Documentazione Tecnica Completa del Flusso di Generazione SQL
+## 📋 Complete Technical Documentation of the SQL Generation Flow
 
-### 🎯 Panoramica del Sistema
-Il sistema SQL Generator è un servizio FastAPI che converte domande in linguaggio naturale in query SQL utilizzando un'architettura multi-agente basata su PydanticAI.
+### 🎯 System Overview
+The SQL Generator is a FastAPI service that converts natural-language questions into SQL queries using a multi-agent architecture based on PydanticAI.
 
 ---
 
@@ -11,60 +11,60 @@ Il sistema SQL Generator è un servizio FastAPI che converte domande in linguagg
 
 ### 1.1 Main Entry Point
 - [ ] **File**: `main.py`
-- [ ] **Endpoint principale**: `POST /generate-sql`
-- [ ] **Porta default**: 8001 (configurabile)
-- [ ] **CORS configurato**: localhost:3000, localhost:3001
+- [ ] **Primary endpoint**: `POST /generate-sql`
+- [ ] **Default port**: 8001 (configurable)
+- [ ] **CORS configured**: localhost:3000, localhost:3001
 
 ### 1.2 Request Model
 - [ ] **GenerateSQLRequest**:
-  - `question`: str - La domanda dell'utente
-  - `workspace_id`: int - ID del workspace
-  - `sql_generator`: str - Strategia (Basic, Advanced, Expert)
-  - `flags`: Dict[str, bool] - Flag della sidebar:
-    - [ ] `show_sql`: Mostra SQL generato
-    - [ ] `explain_sql`: Genera spiegazione SQL
+  - `question`: str - User question
+  - `workspace_id`: int - Workspace ID
+  - `sql_generator`: str - Strategy (Basic, Advanced, Expert)
+  - `flags`: Dict[str, bool] - Sidebar flags:
+    - [ ] `show_sql`: Show generated SQL
+    - [ ] `explain_sql`: Generate SQL explanation
 
 ### 1.3 Response Flow
-- [ ] **StreamingResponse** con `media_type="text/plain"`
-- [ ] **Marcatori speciali**:
-  - `THOTHLOG:` - Log operazioni
-  - `SQL_READY:` - SQL pronto per esecuzione
-  - `SQL_EXPLANATION:` - Spiegazione generata
+- [ ] **StreamingResponse** with `media_type="text/plain"`
+- [ ] **Special markers**:
+  - `THOTHLOG:` - Operation logs
+  - `SQL_READY:` - SQL ready for execution
+  - `SQL_EXPLANATION:` - Generated explanation
 
 ---
 
 ## 2️⃣ FASI DEL PROCESSO DI GENERAZIONE
 
-### 📌 FASE 0: Setup e Inizializzazione
+### 📌 PHASE 0: Setup and Initialization
 
 #### Checklist Setup
 - [ ] **Funzione**: `_setup_dbmanager_and_agents()`
   - **File**: `helpers/main_helpers/main_methods.py`
-- [ ] **Inizializzazione DBManager**:
-  - [ ] Recupero workspace config da Django API
-  - [ ] Estrazione configurazione SQL database
-  - [ ] Creazione connessione database
-- [ ] **Inizializzazione VDBManager** (Vector Database):
-  - [ ] Configurazione Qdrant
-  - [ ] Connessione a porta 6334
-  - [ ] Verifica collection disponibili
-- [ ] **Creazione Agent Manager**:
-  - [ ] Istanziazione `ThothAgentManager`
-  - [ ] Inizializzazione pool agenti
+- [ ] **DBManager initialization**:
+  - [ ] Fetch workspace config from Django API
+  - [ ] Extract SQL database configuration
+  - [ ] Create database connection
+- [ ] **VDBManager initialization** (Vector Database):
+  - [ ] Configure Qdrant
+  - [ ] Connect to port 6334
+  - [ ] Verify available collections
+- [ ] **Agent Manager creation**:
+  - [ ] Instantiate `ThothAgentManager`
+  - [ ] Initialize agent pools
 
 #### SystemState Initialization
 - [ ] **File**: `model/system_state.py`
-- [ ] **Campi principali**:
-  - [ ] `question`: Domanda originale
-  - [ ] `username`: Username dall'header
-  - [ ] `started_at`: Timestamp inizio
-  - [ ] `workspace_name`: Nome workspace
-  - [ ] `dbmanager`: Gestore database
-  - [ ] `vdbmanager`: Gestore vector DB
+- [ ] **Main fields**:
+  - [ ] `question`: Original question
+  - [ ] `username`: Username from header
+  - [ ] `started_at`: Start timestamp
+  - [ ] `workspace_name`: Workspace name
+  - [ ] `dbmanager`: Database manager
+  - [ ] `vdbmanager`: Vector DB manager
 
 ---
 
-### 📌 FASE 1: Validazione e Traduzione Domanda
+### 📌 PHASE 1: Question Validation and Translation
 
 #### 1.1 Question Validation
 - [ ] **Agent**: `question_validator_agent`
@@ -73,25 +73,25 @@ Il sistema SQL Generator è un servizio FastAPI che converte domande in linguagg
   - **System Template**: `templates/system_templates/system_template_check_question.txt`
 - [ ] **Funzione**: `state.run_question_validation_with_translation()`
   - **File**: `model/system_state.py`
-- [ ] **Controlli eseguiti**:
-  - [ ] Rilevamento lingua
-  - [ ] Validità domanda SQL
-  - [ ] Richiesta traduzione se necessario
+- [ ] **Checks performed**:
+  - [ ] Language detection
+  - [ ] SQL question validity
+  - [ ] Request translation if needed
 
-#### 1.2 Question Translation (se necessario)
+#### 1.2 Question Translation (if needed)
 - [ ] **Agent**: `question_translator_agent`
   - **Template**: `templates/template_translate_question.txt`
   - **System Template**: `templates/system_templates/system_template_translate_question.txt`
 - [ ] **Funzione**: `translate_question_template()`
   - **File**: `helpers/template_preparation.py`
-- [ ] **Aggiornamento stato**:
-  - [ ] `state.original_question`: Domanda originale
-  - [ ] `state.original_language`: Lingua originale
-  - [ ] `state.question`: Domanda tradotta
+- [ ] **State updates**:
+  - [ ] `state.original_question`: Original question
+  - [ ] `state.original_language`: Original language
+  - [ ] `state.question`: Translated question
 
 ---
 
-### 📌 FASE 2: Estrazione Keywords
+### 📌 PHASE 2: Keyword Extraction
 
 #### Keyword Extraction
 - [ ] **Agent**: `keyword_extraction_agent`
@@ -99,55 +99,55 @@ Il sistema SQL Generator è un servizio FastAPI che converte domande in linguagg
   - **System Template**: `templates/system_templates/system_template_extract_keywords_from_question.txt`
 - [ ] **Funzione**: `extract_keywords()`
   - **File**: `helpers/main_helpers/main_keyword_extraction.py`
-- [ ] **Tools utilizzati**:
-  - [ ] `RetrieveEntityTool`: Recupera entità dal database
-  - [ ] `vectordb_context_retrieval helpers`: Recupera contesto dal vector DB
-- [ ] **Output**: `state.keywords` - Lista di parole chiave
+- [ ] **Tools used**:
+  - [ ] `RetrieveEntityTool`: Retrieves entities from the database
+  - [ ] `vectordb_context_retrieval helpers`: Retrieves context from the vector DB
+- [ ] **Output**: `state.keywords` - List of keywords
 
 ---
 
-### 📌 FASE 3: Recupero Evidenze e SQL Shots
+### 📌 PHASE 3: Evidence and SQL Shots Retrieval
 
 #### 3.1 Evidence Retrieval
 - [ ] **Funzione**: `state.get_evidence_from_vector_db()`
 - [ ] **Vector DB Query**:
   - [ ] Collection: evidence collection
-  - [ ] Similarity search con keywords
-  - [ ] Limite: top 5 risultati
-- [ ] **Output**: `state.evidence` - Lista evidenze
+  - [ ] Similarity search with keywords
+  - [ ] Limit: top 5 results
+- [ ] **Output**: `state.evidence` - Evidence list
 
 #### 3.2 SQL Shots Retrieval
 - [ ] **Funzione**: `state.get_sql_from_vector_db()`
 - [ ] **Vector DB Query**:
   - [ ] Collection: SQL examples
-  - [ ] Similarity search con question
-  - [ ] Limite: top 5 esempi
-- [ ] **Output**: `state.sql_shots` - Esempi SQL simili
+  - [ ] Similarity search with question
+  - [ ] Limit: top 5 examples
+- [ ] **Output**: `state.sql_shots` - Similar SQL examples
 
 ---
 
-### 📌 FASE 4: Schema Extraction e Filtering
+### 📌 PHASE 4: Schema Extraction and Filtering
 
 #### 4.1 LSH Schema Extraction
 - [ ] **Funzione**: `state.extract_schema_via_lsh()`
   - **File**: `helpers/main_helpers/main_schema_extraction_from_lsh.py`
-- [ ] **Processo**:
-  - [ ] Ricerca colonne simili con LSH
-  - [ ] Estrazione valori esempio
-  - [ ] Arricchimento schema con esempi
+- [ ] **Process**:
+  - [ ] Search similar columns with LSH
+  - [ ] Extract example values
+  - [ ] Enrich schema with examples
 - [ ] **Output**:
-  - [ ] `state.similar_columns`: Colonne rilevanti
-  - [ ] `state.schema_with_examples`: Schema con esempi
+  - [ ] `state.similar_columns`: Relevant columns
+  - [ ] `state.schema_with_examples`: Schema with examples
 
 #### 4.2 Schema Link Strategy Decision
 - [ ] **Funzione**: `decide_schema_link_strategy()`
   - **File**: `helpers/main_helpers/main_schema_link_strategy.py`
-- [ ] **Strategie**:
-  - [ ] `WITHOUT_SCHEMA_LINK`: Schema completo
-  - [ ] `WITH_SCHEMA_LINK`: Schema filtrato (da implementare)
+- [ ] **Strategies**:
+  - [ ] `WITHOUT_SCHEMA_LINK`: Full schema
+  - [ ] `WITH_SCHEMA_LINK`: Filtered schema (to implement)
 
 #### 4.3 Schema Preparation
-- [ ] **Se WITHOUT_SCHEMA_LINK**:
+- [ ] **If WITHOUT_SCHEMA_LINK**:
   - [ ] `state.create_enriched_schema()`
   - [ ] `state.full_mschema = to_mschema(state.enriched_schema)`
 - [ ] **Tools**:
@@ -155,15 +155,15 @@ Il sistema SQL Generator è un servizio FastAPI che converte domande in linguagg
 
 ---
 
-### 📌 FASE 5: Generazione SQL con Escalation
+### 📌 PHASE 5: SQL Generation with Escalation
 
 #### 5.1 SQL Generation Strategy
 - [ ] **Funzione**: `ai_assisted_sql_generation()`
   - **File**: `helpers/main_helpers/main_ai_assisted_sql_generation.py`
-- [ ] **Strategie disponibili**:
-  - [ ] `Basic`: Usa `sql_basic_agent`
-  - [ ] `Advanced`: Usa `sql_advanced_agent`
-  - [ ] `Expert`: Usa `sql_expert_agent`
+- [ ] **Available strategies**:
+  - [ ] `Basic`: Uses `sql_basic_agent`
+  - [ ] `Advanced`: Uses `sql_advanced_agent`
+  - [ ] `Expert`: Uses `sql_expert_agent`
 
 #### 5.2 Agent SQL Pools
 - [ ] **Basic Agent**:
@@ -172,35 +172,35 @@ Il sistema SQL Generator è un servizio FastAPI che converte domande in linguagg
     - `templates/template_generate_sql_step_by_step.txt`
     - `templates/template_generate_sql_divide_and_conquer.txt`
   - **System**: `templates/system_templates/system_template_generate_sql.txt`
-- [ ] **Advanced Agent**: Stessi template con model diverso
-- [ ] **Expert Agent**: Stessi template con model più potente
+- [ ] **Advanced Agent**: Same templates with different model
+- [ ] **Expert Agent**: Same templates with a stronger model
 
-#### 5.3 SQL Escalation (RIMOSSO - Non più utilizzato)
-- ~~Funzione precedente: `sql_escalation_with_pool()`~~ 
-- ~~File precedente: `helpers/main_helpers/main_sql_escalation.py`~~
-- **Nota**: Workflow di escalation rimosso, ora si usa solo `generate_sql_units()` con metodi multipli
+#### 5.3 SQL Escalation (REMOVED - No longer used)
+- ~~Previous function: `sql_escalation_with_pool()`~~ 
+- ~~Previous file: `helpers/main_helpers/main_sql_escalation.py`~~
+- **Note**: Escalation workflow removed; now only `generate_sql_units()` with multiple methods is used
 
 #### 5.4 Test Generation & Validation
 - [ ] **Agent**: `test_gen_agent_1` e `test_gen_agent_2`
   - **Template**: `templates/template_generate_unit_tests.txt`
-- [ ] **Validatori**:
-  - [ ] `SqlValidators`: Validazione sintassi SQL
-  - [ ] `TestValidators`: Validazione test generati
+- [ ] **Validators**:
+  - [ ] `SqlValidators`: SQL syntax validation
+  - [ ] `TestValidators`: Generated tests validation
 
 ---
 
-### 📌 FASE 6: Output Condizionale
+### 📌 PHASE 6: Conditional Output
 
-#### 6.1 SQL Display (Condizionale)
-- [ ] **Controllo flag**: `request.flags.get("show_sql", False)`
-- [ ] **Se True**:
-  - [ ] Formattazione SQL con `sqlparse.format()`
-  - [ ] Yield SQL formattato
-- [ ] **Se False**: Non mostrare SQL
+#### 6.1 SQL Display (Conditional)
+- [ ] **Flag check**: `request.flags.get("show_sql", False)`
+- [ ] **If True**:
+  - [ ] SQL formatting with `sqlparse.format()`
+  - [ ] Yield formatted SQL
+- [ ] **If False**: Do not display SQL
 
 #### 6.2 SQL Ready Marker
-- [ ] **Sempre inviato** per segnalare frontend
-- [ ] **Formato JSON**:
+- [ ] **Always sent** to signal the frontend
+- [ ] **JSON format**:
   ```json
   {
     "type": "sql_ready",
@@ -214,23 +214,23 @@ Il sistema SQL Generator è un servizio FastAPI che converte domande in linguagg
 
 ---
 
-### 📌 FASE 7: Generazione Spiegazione (Condizionale)
+### 📌 PHASE 7: Explanation Generation (Conditional)
 
 #### Explanation Generation
-- [ ] **Controllo flag**: `request.flags.get("explain_sql", False)`
-- [ ] **Se True**:
+- [ ] **Flag check**: `request.flags.get("explain_sql", False)`
+- [ ] **If True**:
   - [ ] **Agent**: `sql_explainer_agent`
     - **Template**: `templates/template_explain_generated_sql.txt`
     - **System**: `templates/system_templates/system_template_explain_generated_sql.txt`
   - [ ] **Funzione**: `agent_manager.explain_generated_sql()`
-  - [ ] **Input per spiegazione**:
+  - [ ] **Explanation input**:
     - [ ] Question
     - [ ] Generated SQL
     - [ ] Database schema
     - [ ] Hints/Evidence
     - [ ] Chain of thought
-    - [ ] Language (da validator)
-  - [ ] **Output formato JSON**:
+    - [ ] Language (from validator)
+  - [ ] **JSON output**:
     ```json
     {
       "type": "sql_explanation",
@@ -238,53 +238,53 @@ Il sistema SQL Generator è un servizio FastAPI che converte domande in linguagg
       "language": "Italian/English"
     }
     ```
-- [ ] **Se False**: Skip generazione spiegazione
+- [ ] **If False**: Skip explanation generation
 
 ---
 
-### 📌 FASE 8: Logging e Completamento
+### 📌 PHASE 8: Logging and Completion
 
 #### 8.1 Thoth Log
 - [ ] **Funzione**: `send_thoth_log()`
   - **File**: `helpers/thoth_log_api.py`
-- [ ] **Dati loggati**:
-  - [ ] State completo
-  - [ ] Workspace ID e nome
+- [ ] **Logged data**:
+  - [ ] Full state
+  - [ ] Workspace ID and name
   - [ ] Username
-  - [ ] Timestamp inizio/fine
-  - [ ] SQL generato
-  - [ ] Agent utilizzato
+  - [ ] Start/end timestamp
+  - [ ] Generated SQL
+  - [ ] Agent used
 
 #### 8.2 Final Messages
-- [ ] **Se successo**: Agent name e conferma
-- [ ] **Se fallimento**: Messaggio errore dettagliato
+- [ ] **If success**: Agent name and confirmation
+- [ ] **If failure**: Detailed error message
 
 ---
 
-## 3️⃣ ALTRI ENDPOINT
+## 3️⃣ OTHER ENDPOINTS
 
 ### `/explain-sql` Endpoint
-- [ ] **Scopo**: Generazione spiegazione standalone
+- [ ] **Purpose**: Standalone explanation generation
 - [ ] **Input**: SqlExplanationRequest
 - [ ] **Output**: SqlExplanationResponse
 - [ ] **Usa cache sessione**
 
 ### `/execute-query` Endpoint
-- [ ] **Scopo**: Esecuzione paginata query
+- [ ] **Purpose**: Paginated query execution
 - [ ] **Service**: `PaginatedQueryService`
 - [ ] **Output**: PaginationResponse per AGGrid
 
 ### `/health` Endpoint
-- [ ] **Health check** del servizio
+- [ ] **Service** health check
 
 ---
 
-## 4️⃣ TEMPLATE E FORMATTING
+## 4️⃣ TEMPLATES AND FORMATTING
 
 ### Template Files Structure
 ```
 templates/
-├── system_templates/          # System prompts per agenti
+├── system_templates/          # System prompts for agents
 │   ├── system_template_check_question.txt
 │   ├── system_template_explain_generated_sql.txt
 │   ├── system_template_extract_keywords_from_question.txt
@@ -292,28 +292,28 @@ templates/
 │   ├── system_template_test_generator.txt
 │   └── system_template_translate_question.txt
 ├── template_*.txt             # User prompts
-└── few_shots.txt             # Esempi fallback
+└── few_shots.txt             # Fallback examples
 ```
 
 ### Template Formatting Functions
-- [ ] **`format_example_shots()`**: Formatta esempi SQL
-- [ ] **`load_fallback_shots()`**: Carica few_shots.txt
-- [ ] **`clean_template_for_llm()`**: Pulisce template per LLM
-- [ ] **`check_question_template()`**: Prepara template validazione
-- [ ] **`translate_question_template()`**: Prepara template traduzione
-- [ ] **`extract_keywords_template()`**: Prepara template keywords
-- [ ] **`generate_sql_template()`**: Prepara template SQL
-- [ ] **`explain_sql_template()`**: Prepara template spiegazione
+- [ ] **`format_example_shots()`**: Format SQL examples
+- [ ] **`load_fallback_shots()`**: Load few_shots.txt
+- [ ] **`clean_template_for_llm()`**: Clean template for LLM
+- [ ] **`check_question_template()`**: Prepare validation template
+- [ ] **`translate_question_template()`**: Prepare translation template
+- [ ] **`extract_keywords_template()`**: Prepare keywords template
+- [ ] **`generate_sql_template()`**: Prepare SQL template
+- [ ] **`explain_sql_template()`**: Prepare explanation template
 
 ---
 
-## 5️⃣ CONFIGURAZIONE E DIPENDENZE
+## 5️⃣ CONFIGURATION AND DEPENDENCIES
 
 ### Environment Variables
-- [ ] **DJANGO_API_KEY**: Chiave API Django backend
-- [ ] **DJANGO_SERVER**: URL server Django (da .env.local)
-- [ ] **QDRANT_HOST**: Host Qdrant (default: localhost)
-- [ ] **QDRANT_PORT**: Porta Qdrant (default: 6334)
+- [ ] **DJANGO_API_KEY**: Django backend API key
+- [ ] **DJANGO_SERVER**: Django server URL (from .env.local)
+- [ ] **QDRANT_HOST**: Qdrant host (default: localhost)
+- [ ] **QDRANT_PORT**: Qdrant port (default: 6334)
 
 ### External Services
 - [ ] **Django Backend**: Porta 8200
@@ -322,28 +322,28 @@ templates/
 
 ### Python Dependencies
 - [ ] **FastAPI**: Framework web
-- [ ] **PydanticAI**: Framework agenti AI
-- [ ] **thoth-dbmanager**: Gestione database
-- [ ] **thoth-vdbmanager**: Gestione vector DB
-- [ ] **sqlparse**: Formattazione SQL
-- [ ] **httpx**: Client HTTP async
+- [ ] **PydanticAI**: AI agent framework
+- [ ] **thoth-dbmanager**: Database management
+- [ ] **thoth-vdbmanager**: Vector DB management
+- [ ] **sqlparse**: SQL formatting
+- [ ] **httpx**: Async HTTP client
 
 ---
 
-## 6️⃣ PUNTI DI VERIFICA CRITICI
+## 6️⃣ CRITICAL CHECKPOINTS
 
-### 🔴 Controlli Critici Flag
+### 🔴 Critical Flag Checks
 1. [ ] **Show SQL Flag**:
    - Linea 301-308 in `main.py`
-   - Verifica: `request.flags.get("show_sql", False)`
-   - Output: SQL formattato solo se True
+   - Check: `request.flags.get("show_sql", False)`
+   - Output: Formatted SQL only if True
 
 2. [ ] **Explain SQL Flag**:
    - Linea 333-334 in `main.py`
-   - Verifica: `request.flags.get("explain_sql", False)`
-   - Output: Spiegazione solo se True
+   - Check: `request.flags.get("explain_sql", False)`
+   - Output: Explanation only if True
 
-### 🔴 Validazioni Necessarie
+### 🔴 Required Validations
 1. [ ] **DBManager Status**: Deve essere "ready"
 2. [ ] **VDBManager Status**: Deve essere "ready"
 3. [ ] **Agent Manager**: Deve essere inizializzato
@@ -360,7 +360,7 @@ templates/
 
 ## 7️⃣ TESTING CHECKLIST
 
-### Test Manuali Base
+### Basic Manual Test
 ```bash
 # Test locale senza Docker
 curl -X POST "http://localhost:8001/generate-sql" \
@@ -376,87 +376,87 @@ curl -X POST "http://localhost:8001/generate-sql" \
   }'
 ```
 
-### Scenari di Test
-1. [ ] **Con show_sql=true, explain_sql=true**: Deve mostrare SQL e spiegazione
-2. [ ] **Con show_sql=false, explain_sql=true**: Solo spiegazione, no SQL
-3. [ ] **Con show_sql=true, explain_sql=false**: Solo SQL, no spiegazione
-4. [ ] **Con show_sql=false, explain_sql=false**: Né SQL né spiegazione
-5. [ ] **Domanda in italiano**: Deve tradurre e processare
-6. [ ] **Domanda invalida**: Deve restituire errore
+### Test Scenarios
+1. [ ] **show_sql=true, explain_sql=true**: Show both SQL and explanation
+2. [ ] **show_sql=false, explain_sql=true**: Explanation only, no SQL
+3. [ ] **show_sql=true, explain_sql=false**: SQL only, no explanation
+4. [ ] **show_sql=false, explain_sql=false**: Neither SQL nor explanation
+5. [ ] **Question in Italian**: Must translate and process
+6. [ ] **Invalid question**: Must return an error
 
-### Servizi da Verificare
-- [ ] **Qdrant attivo** su porta 6334
-- [ ] **Django backend attivo** su porta 8200
-- [ ] **SQL Generator attivo** su porta 8001
+### Services to Verify
+- [ ] **Qdrant active** on port 6334
+- [ ] **Django backend active** on port 8200
+- [ ] **SQL Generator active** on port 8001
 
 ---
 
-## 8️⃣ MONITORING E LOGGING
+## 8️⃣ MONITORING AND LOGGING
 
 ### Log Files
 - [ ] **Location**: `sql_generator/logs/temp/`
 - [ ] **Files**:
-  - `thoth_app.log`: Log principale
-  - `agents.*.log`: Log per agente
-  - `agents.validators.*.log`: Log validatori
+  - `thoth_app.log`: Main log
+  - `agents.*.log`: Per-agent logs
+  - `agents.validators.*.log`: Validator logs
 
 ### Log Levels
 - [ ] **INFO**: Operazioni normali
-- [ ] **WARNING**: Situazioni anomale
-- [ ] **ERROR**: Errori recuperabili
-- [ ] **CRITICAL**: Errori fatali
+- [ ] **WARNING**: Anomalous situations
+- [ ] **ERROR**: Recoverable errors
+- [ ] **CRITICAL**: Fatal errors
 
-### Metriche da Monitorare
-- [ ] **Response time** per generazione SQL
-- [ ] **Success rate** per agente
+### Metrics to Monitor
+- [ ] **Response time** for SQL generation
+- [ ] **Success rate** per agent
 - [ ] **Escalation frequency**
 - [ ] **Translation rate**
 - [ ] **Cache hit rate**
 
 ---
 
-## 9️⃣ OTTIMIZZAZIONI E PERFORMANCE
+## 9️⃣ OPTIMIZATIONS AND PERFORMANCE
 
 ### Cache Strategy
-- [ ] **Session cache** per workspace setup
-- [ ] **Vector DB cache** per query simili
-- [ ] **Template cache** per prompt ripetuti
+- [ ] **Session cache** for workspace setup
+- [ ] **Vector DB cache** for similar queries
+- [ ] **Template cache** for repeated prompts
 
 ### Performance Targets
-- [ ] **SQL generation**: < 5 secondi
-- [ ] **Explanation generation**: < 3 secondi
-- [ ] **Keyword extraction**: < 1 secondo
-- [ ] **Translation**: < 2 secondi
+- [ ] **SQL generation**: < 5 seconds
+- [ ] **Explanation generation**: < 3 seconds
+- [ ] **Keyword extraction**: < 1 second
+- [ ] **Translation**: < 2 seconds
 
-### Bottlenecks Comuni
-- [ ] **Vector DB queries**: Ottimizzare similarity search
-- [ ] **LLM calls**: Minimizzare round-trip
-- [ ] **Database schema**: Cache schema pesanti
-- [ ] **Template rendering**: Pre-compilare template
-
----
-
-## 📝 NOTE FINALI
-
-### Priorità di Verifica
-1. **🔴 Alta**: Flag condizionali, error handling
-2. **🟡 Media**: Template formatting, agent flow
-3. **🟢 Bassa**: Logging, monitoring
-
-### Rischi Identificati
-- Token limit su template molto grandi
-- Timeout su query complesse
-- Memory leak su cache non pulita
-- Race condition su richieste parallele
-
-### Miglioramenti Suggeriti
-- Implementare retry mechanism robusto
-- Aggiungere circuit breaker per servizi esterni
-- Migliorare cache invalidation
-- Aggiungere health check dettagliati
+### Common Bottlenecks
+- [ ] **Vector DB queries**: Optimize similarity search
+- [ ] **LLM calls**: Minimize round trips
+- [ ] **Database schema**: Cache heavy schemas
+- [ ] **Template rendering**: Precompile templates
 
 ---
 
-**Ultimo aggiornamento**: Gennaio 2025
-**Versione**: 1.0.0
-**Autore**: Sistema di Documentazione Automatica
+## 📝 FINAL NOTES
+
+### Verification Priorities
+1. **🔴 High**: Conditional flags, error handling
+2. **🟡 Medium**: Template formatting, agent flow
+3. **🟢 Low**: Logging, monitoring
+
+### Identified Risks
+- Token limit on very large templates
+- Timeout on complex queries
+- Memory leaks from uncleared caches
+- Race conditions on parallel requests
+
+### Suggested Improvements
+- Implement a robust retry mechanism
+- Add circuit breaker for external services
+- Improve cache invalidation
+- Add detailed health checks
+
+---
+
+**Last update**: January 2025
+**Version**: 1.0.0
+**Author**: Automatic Documentation System

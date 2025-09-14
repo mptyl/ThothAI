@@ -489,6 +489,7 @@ class ThothAgentManager(BaseAgentManager):
             # Prepare the prompt with all context
             from helpers.template_preparation import TemplateLoader
             
+            from helpers.language_utils import resolve_language_name
             prompt = TemplateLoader.format(
                 'user_sql_explain',
                 GENERATED_SQL=generated_sql,
@@ -496,7 +497,7 @@ class ThothAgentManager(BaseAgentManager):
                 DATABASE_SCHEMA=database_schema,
                 HINTS=hints,
                 COT=chain_of_thought,
-                LANGUAGE=language.upper()
+                LANGUAGE=resolve_language_name(language)
             )
             
             # Run the explainer agent - no state needed for explanation

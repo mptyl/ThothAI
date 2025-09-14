@@ -823,8 +823,6 @@ def generate_db_documentation(modeladmin, request, queryset):
         # Prepare prompt - template is already formatted text, not needed for LiteLLM
 
         # Collect database information
-        # Get database scope (let LLM handle formatting)
-        db_scope = db.scope or "No scope defined for this database."
 
         # Generate schema string from Django models
         schema_string = generate_schema_string_from_models(db.id)
@@ -941,12 +939,8 @@ def generate_db_documentation(modeladmin, request, queryset):
             # Create filenames
             base_filename = f"{db.name}_documentation"
             html_filename = f"{base_filename}.html"
-            erd_filename = f"{base_filename}_erd.png"
-            svg_filename = f"{base_filename}_erd.svg"
 
             html_filepath = os.path.join(db_dir, html_filename)
-            erd_filepath = os.path.join(db_dir, erd_filename)
-            svg_filepath = os.path.join(db_dir, svg_filename)
 
             try:
                 # Generate complete HTML documentation (no ERD visualization)

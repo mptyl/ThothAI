@@ -23,6 +23,7 @@ from tzlocal import get_localzone
 from pydantic import BaseModel
 
 from .system_state import SystemState
+from helpers.language_utils import resolve_language_name
 from .contexts import (
     RequestContext,
     DatabaseContext,
@@ -93,7 +94,7 @@ class StateFactory:
             workspace_id=workspace_id,
             workspace_name=workspace_name,
             functionality_level=functionality_level,
-            language=sql_db_data.get("language", "English"),
+            language=resolve_language_name(sql_db_data.get("language", "English")),
             scope=sql_db_data.get("scope", ""),
             started_at=kwargs.get("started_at", datetime.now(get_localzone()))
         )

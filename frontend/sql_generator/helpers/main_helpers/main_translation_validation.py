@@ -30,6 +30,7 @@ from ..template_preparation import (
 )
 from ..dual_logger import log_info, log_error
 from model.state_factory import StateFactory
+from helpers.language_utils import resolve_language_name
 
 
 @dataclass
@@ -197,6 +198,13 @@ async def run_question_validation_with_translation(agents_and_tools, state, work
     # Prepare the enhanced validation template with language detection
     from ..template_preparation import validate_question_with_language_template
     validation_template = validate_question_with_language_template()
+
+    # Ensure state has normalized language for dependency injection
+    try:
+        state.language = resolve_language_name(workspace.get("sql_db", {}).get("language", "English"))
+    except Exception:
+        # Fallback without failing the flow
+        state.language = getattr(state, 'language', 'English')
 
     # Run the enhanced validator agent with translator access
     log_info("Running enhanced question validation with language detection...")

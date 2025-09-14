@@ -2,9 +2,9 @@
 # This file is part of ThothAI and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-# 📋 Scelte Architetturali Docker per ThothAI UI
+# 📋 Docker Architecture Choices for ThothAI UI
 
-## 🎯 **Decisioni Chiave e Motivazioni** (Ereditate da thoth_be)
+## 🎯 **Key Decisions and Rationale** (Inherited from thoth_be)
 
 ### 1. **Dockerfile Universale (Multi-Architettura)**
 
@@ -12,48 +12,48 @@
 ```dockerfile
 FROM node:20
 ```
-**Scelte:**
-- Base image `node:20` completa invece di Alpine
-- Nessuna compilazione nativa richiesta
-- Supporto nativo per tutte le architetture
+**Choices:**
+- Full `node:20` base image instead of Alpine
+- No native compilation required
+- Native support for all architectures
 
-**Motivazioni:**
-- ✅ Compatibilità universale: x86_64, ARM64, ARM
-- ✅ Eliminazione problemi node-gyp su Apple Silicon
-- ✅ Build time consistente su tutte le piattaforme
-- ✅ Nessuna dipendenza da compilatori nativi
+**Rationale:**
+- ✅ Universal compatibility: x86_64, ARM64, ARM
+- ✅ Eliminate node-gyp issues on Apple Silicon
+- ✅ Consistent build times across platforms
+- ✅ No dependency on native toolchains
 
 #### Python (sql-generator)
 ```dockerfile
 FROM python:3.13
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 ```
-**Scelte:**
-- Base image `python:3.13` completa
-- UV package manager per velocità
-- Wheel pre-compilati per tutte le architetture
+**Choices:**
+- Full `python:3.13` base image
+- UV package manager for speed
+- Prebuilt wheels for all architectures
 
-**Motivazioni:**
-- ⚡ Installazione 10-100x più veloce
-- 🔒 Lock file per riproducibilità
-- 📦 Nessuna compilazione C/C++
+**Rationale:**
+- ⚡ 10-100x faster installs
+- 🔒 Lock files for reproducibility
+- 📦 No C/C++ compilation
 
 ### 2. **Build System Unificato (build.sh)**
 ```bash
 ./build.sh            # Build standard (Alpine multi-stage)
 ./build.sh --universal # Build universale (tutte le architetture)
 ```
-**Scelte:**
-- Script unificato con modalità dual
-- DOCKER_BUILDKIT=1 per cache ottimizzata
-- Auto-creazione risorse Docker
-- Progress tracking visibile
+**Choices:**
+- Unified script with dual modes
+- DOCKER_BUILDKIT=1 for optimized cache
+- Auto-create Docker resources
+- Visible progress tracking
 
-**Motivazioni:**
-- 🚀 Flessibilità deployment
-- 📊 Monitoraggio build
-- ⚠️ Error handling robusto
-- ✨ User experience migliorata
+**Rationale:**
+- 🚀 Deployment flexibility
+- 📊 Build monitoring
+- ⚠️ Robust error handling
+- ✨ Improved user experience
 
 ### 3. **Architettura Multi-Container**
 ```yaml
@@ -61,16 +61,16 @@ services:
   thoth-ui:       # Next.js frontend
   sql-generator:  # FastAPI Python service
 ```
-**Scelte:**
-- Separazione servizi per responsabilità
-- Network condiviso `thothnet` con backend
-- Volume condiviso `thoth-shared-data`
+**Choices:**
+- Service separation by responsibility
+- Shared `thothnet` network with backend
+- Shared `thoth-shared-data` volume
 
-**Motivazioni:**
-- 🔧 Scalabilità indipendente
-- 🛡️ Isolamento servizi
-- 🔄 Deploy indipendenti
-- 🌐 Comunicazione con backend
+**Rationale:**
+- 🔧 Independent scalability
+- 🛡️ Service isolation
+- 🔄 Independent deploys
+- 🌐 Backend communication
 
 ### 4. **Environment Configuration**
 ```yaml
@@ -80,16 +80,16 @@ environment:
   - DOCKER_ENV=development
   - HOST_IP=host.docker.internal
 ```
-**Scelte:**
-- File `.env.docker` esterno
-- Flag DOCKER_ENV per runtime detection (development/production)
-- Host access per sviluppo
+**Choices:**
+- External `.env.docker` file
+- DOCKER_ENV flag for runtime detection (development/production)
+- Host access for development
 
-**Motivazioni:**
-- 🔑 Sicurezza API keys
-- 🔧 Configurazione flessibile
-- 🏗️ Ambiente-aware behavior
-- 🔌 Connettività backend
+**Rationale:**
+- 🔑 API key security
+- 🔧 Flexible configuration
+- 🏗️ Environment-aware behavior
+- 🔌 Backend connectivity
 
 ### 5. **Volume Strategy**
 ```yaml
@@ -99,16 +99,16 @@ volumes:
   - ./logs:/app/logs                # Application logs
   - thoth-shared-data:/app/shared   # Shared with backend
 ```
-**Scelte:**
-- Mix bind mounts e named volumes
-- Cache Next.js per performance
-- Volume esterno per dati condivisi
+**Choices:**
+- Mix of bind mounts and named volumes
+- Next.js cache for performance
+- External volume for shared data
 
-**Motivazioni:**
-- 💾 Persistenza selettiva
+**Rationale:**
+- 💾 Selective persistence
 - 🚀 Build cache optimization
-- 📁 Log access diretto
-- 🔄 Data sharing con backend
+- 📁 Direct log access
+- 🔄 Data sharing with backend
 
 ### 6. **Network Architecture**
 ```yaml
@@ -118,16 +118,16 @@ networks:
 extra_hosts:
   - "host.docker.internal:host-gateway"
 ```
-**Scelte:**
-- Network esterno pre-esistente
-- Stesso network del backend
-- Host access per debugging
+**Choices:**
+- Pre-existing external network
+- Same network as the backend
+- Host access for debugging
 
-**Motivazioni:**
-- 🔐 Comunicazione sicura backend
-- 🔧 Debug facilitato
-- 🌐 Service discovery semplificato
-- 📡 Latenza minimizzata
+**Rationale:**
+- 🔐 Secure backend communication
+- 🔧 Easier debugging
+- 🌐 Simplified service discovery
+- 📡 Minimized latency
 
 ### 7. **Optimization Choices**
 
@@ -137,15 +137,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm ci --only=production
 RUN npm cache clean --force
 ```
-**Scelte:**
-- Telemetry disabilitata
+**Choices:**
+- Telemetry disabled
 - Production dependencies only
 - Cache cleanup post-install
 
-**Motivazioni:**
-- 📦 Immagine più leggera
-- 🔒 Privacy migliorata
-- 🚀 Startup più veloce
+**Rationale:**
+- 📦 Smaller image
+- 🔒 Improved privacy
+- 🚀 Faster startup
 
 #### Python Optimizations
 ```dockerfile
@@ -153,15 +153,15 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 RUN uv sync --frozen
 ```
-**Scelte:**
-- No buffering per logs real-time
+**Choices:**
+- No buffering for real-time logs
 - No bytecode generation
 - Frozen dependencies
 
-**Motivazioni:**
+**Rationale:**
 - 📊 Log streaming
-- 💾 Spazio risparmiato
-- 🔒 Build deterministiche
+- 💾 Saved disk space
+- 🔒 Deterministic builds
 
 ### 8. **Security Considerations**
 ```dockerfile
@@ -172,52 +172,52 @@ USER nextjs
 # Python
 # Run as root but in isolated container
 ```
-**Scelte:**
-- Non-root user per Node.js
-- Container isolation per Python
-- Read-only mounts dove possibile
+**Choices:**
+- Non-root user for Node.js
+- Container isolation for Python
+- Read-only mounts where possible
 
-**Motivazioni:**
-- 🛡️ Principio least privilege
-- 🔐 Attack surface ridotto
-- 📝 Best practices security
+**Rationale:**
+- 🛡️ Least privilege principle
+- 🔐 Reduced attack surface
+- 📝 Security best practices
 
-## 🎭 **Trade-offs Accettati**
+## 🎭 **Accepted Trade-offs**
 
-### 1. **Immagine Base Completa vs Alpine**
-- ✅ Pro: Compatibilità universale, zero compilation issues
-- ❌ Con: Immagini più grandi (Node: 1GB, Python: 900MB)
-- **Decisione**: Priorità a compatibilità e affidabilità
+### 1. **Full Base Image vs Alpine**
+- ✅ Pros: Universal compatibility, zero compilation issues
+- ❌ Cons: Larger images (Node: 1GB, Python: 900MB)
+- **Decision**: Prioritize compatibility and reliability
 
 ### 2. **UV vs Pip (Python)**
-- ✅ Pro: Velocità estrema, lock files
-- ❌ Con: Tool meno standard
-- **Decisione**: Performance vale adoption
+- ✅ Pros: Extreme speed, lock files
+- ❌ Cons: Less standard tool
+- **Decision**: Performance justifies adoption
 
 ### 3. **Dual Build System**
-- ✅ Pro: Flessibilità, backward compatibility
-- ❌ Con: Manutenzione doppia configurazione
-- **Decisione**: Transizione graduale a universal
+- ✅ Pros: Flexibility, backward compatibility
+- ❌ Cons: Double configuration maintenance
+- **Decision**: Gradual transition to universal
 
-## 🚀 **Risultati Ottenuti**
+## 🚀 **Results Achieved**
 
 ### Performance
-- **Build Time**: 3-5 minuti (universale)
-- **Startup Time**: <10 secondi
-- **Cache Hit Rate**: >80% con BuildKit
+- **Build Time**: 3-5 minutes (universal)
+- **Startup Time**: <10 seconds
+- **Cache Hit Rate**: >80% with BuildKit
 
-### Compatibilità
-- **Architetture**: x86_64, ARM64, ARMv7
+### Compatibility
+- **Architectures**: x86_64, ARM64, ARMv7
 - **Platforms**: Linux, macOS, Windows (WSL2)
 - **Zero compilation failures**
 
 ### Developer Experience
 - **Single command**: `./build.sh --universal`
-- **Auto-setup**: Network e volumi
-- **Clear feedback**: Progress e timing
-- **Consistent behavior**: Tutte le piattaforme
+- **Auto-setup**: Network and volumes
+- **Clear feedback**: Progress and timing
+- **Consistent behavior**: All platforms
 
-## 📚 **Differenze da thoth_be**
+## 📚 **Differences from thoth_be**
 
 | Aspetto | thoth_be | thoth_ui |
 |---------|----------|----------|
@@ -227,11 +227,11 @@ USER nextjs
 | Volumes | static-data, exports | ui-cache, public |
 | Build modes | Universal only | Standard + Universal |
 
-## 🔄 **Migrazione Consigliata**
+## 🔄 **Recommended Migration**
 
-1. **Test con build standard**: `./build.sh`
-2. **Validazione funzionalità**: Verificare UI e API
-3. **Switch a universal**: `./build.sh --universal`
-4. **Production deployment**: Usare universal per consistency
+1. **Test with standard build**: `./build.sh`
+2. **Functionality validation**: Verify UI and API
+3. **Switch to universal**: `./build.sh --universal`
+4. **Production deployment**: Use universal for consistency
 
-Questa architettura garantisce la stessa affidabilità e compatibilità universale ottenuta con successo in thoth_be, adattata alle specifiche esigenze di un frontend Next.js e servizio FastAPI.
+This architecture guarantees the same reliability and universal compatibility achieved successfully in thoth_be, adapted to the specific needs of a Next.js frontend and a FastAPI service.

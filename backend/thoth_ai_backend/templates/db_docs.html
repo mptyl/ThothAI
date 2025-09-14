@@ -231,7 +231,7 @@
                         <h3>{{ no_documentation_available }}</h3>
                         <p class="text-muted mt-3">
                             {% if db_name %}
-                                {{ no_documentation_message|format:db_name }}
+                                {{ no_documentation_message }}
                             {% else %}
                                 {{ no_database_selected }}
                             {% endif %}
@@ -242,7 +242,7 @@
                             <p class="text-muted">{{ generate_instructions_title }}</p>
                             <ol class="text-start" style="max-width: 500px; margin: 20px auto;">
                                 {% for instruction in generate_instructions %}
-                                <li>{{ instruction|format:db_name }}</li>
+                                <li>{{ instruction }}</li>
                                 {% endfor %}
                             </ol>
                             <a href="{% url 'admin:thoth_core_sqldb_changelist' %}" class="btn btn-primary">
@@ -360,7 +360,7 @@
             if (count === 0) {
                 searchCount.textContent = searchTerm ? '{{ search_results_none }}' : '0 results';
             } else {
-                searchCount.textContent = `{{ search_results_current|format:currentResultIndex + 1, count }}`;
+                searchCount.textContent = `{{ search_results_current }}`.replace('{current}', currentResultIndex + 1).replace('{total}', count);`
             }
         }
         

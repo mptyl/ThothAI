@@ -29,6 +29,7 @@ from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
     output_to_json,
     get_table_schema_safe,
 )
+from thoth_core.thoth_ai.thoth_workflow.create_db_scope import get_language_description
 from thoth_core.models import LLMChoices
 from thoth_core.thoth_ai.prompts.columns_comment_prompt import get_columns_prompt
 
@@ -187,7 +188,8 @@ def create_selected_column_comments(modeladmin, request, queryset):
 
         table = queryset[0].sql_table
         # Get language from table's database, fallback to English
-        language = table.sql_db.language or "en"
+        language_code = table.sql_db.language or "en"
+        language = get_language_description(language_code)
         # setup database schema
         table_db = table.sql_db
         try:
@@ -764,7 +766,8 @@ def create_selected_column_comments_async(
                                 example_data = "No example data available for the selected columns."
 
                             # Generate comments with timeout and circuit breaker
-                            language = table.sql_db.language or "en"
+                            language_code = table.sql_db.language or "en"
+                            language = get_language_description(language_code)
 
                             def run_llm_generation():
                                 with pipeline_timeout(

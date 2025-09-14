@@ -33,6 +33,7 @@ from helpers.main_helpers.main_methods import (
 )
 from helpers.db_info import get_db_schema
 from helpers.dual_logger import log_error
+from helpers.language_utils import resolve_language_name
 
 # Valid UI flags that should be preserved and saved
 VALID_UI_FLAGS = {
@@ -148,7 +149,7 @@ async def _initialize_request_state(
     # Update request context with workspace name, scope and language from setup
     workspace_config = setup_result.get("workspace_config", {})
     scope = workspace_config.get("sql_db", {}).get("scope", "")
-    language = workspace_config.get("sql_db", {}).get("language", "English")
+    language = resolve_language_name(workspace_config.get("sql_db", {}).get("language", "English"))
     updated_request = request_context.model_copy(update={
         "workspace_name": setup_result.get("workspace_name", "Unknown"),
         "scope": scope,

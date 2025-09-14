@@ -37,6 +37,6 @@ Tables:
   {% endfor %}
 {% endfor %}
 
-Please generate the scope summary for this database in {{ language }} and ensure both the JSON keys and the values are in {{ language }}.
+Please generate the scope summary for this database in language{{ language }} and ensure both the JSON keys and the values are in language {{ language }}.
 
 REMEMBER: Your response MUST be a valid JSON object with each paragraph as a separate key-value pair, and all keys must be translated into {{ language }} (snake_case). Do not include any text outside the JSON structure.

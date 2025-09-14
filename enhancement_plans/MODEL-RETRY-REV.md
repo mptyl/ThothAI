@@ -1,9 +1,9 @@
 # MODEL-RETRY-REV.md
 
-## Piano di Implementazione: Ottimizzazione ModelRetry per PydanticAI SQL Generator
+## Implementation Plan: ModelRetry Optimization for PydanticAI SQL Generator
 
-### Obiettivo
-Creare una funzione di formattazione ottimizzata per i messaggi ModelRetry che massimizzi la capacità dell'agente PydanticAI di apprendere dai propri errori durante la generazione SQL.
+### Objective
+Create an optimized formatting function for ModelRetry messages that maximizes the PydanticAI agent’s ability to learn from its own mistakes during SQL generation.
 
 ---
 
@@ -664,7 +664,7 @@ def create_sql_validator(self):
             ctx.deps.error_history.append("Not a SELECT statement")
             raise ModelRetry(error_msg)
         
-        # Salva sempre il SQL generato per debugging
+        # Always save the generated SQL for debugging
         ctx.deps.last_SQL = sql
         logger.debug(f"SQL saved to state.last_SQL: {sql}")
         
@@ -715,7 +715,7 @@ def create_sql_validator(self):
                     except Exception as explain_error:
                         logger.debug(f"EXPLAIN failed: {explain_error}")
                         
-                        # Determina la categoria di errore dal messaggio
+                        # Determine error category from the message
                         error_str = str(explain_error).lower()
                         if "column" in error_str or "table" in error_str:
                             category = ErrorCategory.SCHEMA_ERROR
@@ -802,25 +802,25 @@ def create_sql_validator(self):
                     raise
                 except Exception as e:
                     logger.error(f"Error checking for empty results: {e}")
-                    # Non fallire su questo controllo, solo loggare
+                    # Do not fail on this check, just log
             elif ctx.deps.treat_empty_result_as_error and not self.dbmanager:
                 logger.warning("treat_empty_result_as_error=True but dbmanager not available")
             else:
                 logger.debug(f"Step 4: treat_empty_result_as_error=False: Skipping empty result check")
             
-            # Aggiorna il SQL nello state (nel caso sia stato modificato durante la validazione)
+            # Update SQL in state (in case it changed during validation)
             ctx.deps.last_SQL = sql
             ctx.deps.last_generation_success = True
             logger.debug(f"SQL validation completed successfully")
             
         except ModelRetry:
-            # Re-raise ModelRetry per propagarle all'agente
+            # Re-raise ModelRetry to propagate to the agent
             raise
         except Exception as e:
             logger.error(f"Exception during SQL validation: {str(e)}")
             logger.error(f"Exception type: {type(e).__name__}")
             
-            # Crea un messaggio di errore comprensivo per l'eccezione
+            # Create a comprehensive error message for the exception
             error_context = ErrorContext(
                 sql=ctx.deps.last_SQL or sql or "SQL statement not available",
                 db_type=ctx.deps.db_type,
@@ -848,7 +848,7 @@ def create_sql_validator(self):
     return validate_sql_creation
 ```
 
-### Metodi da rimuovere (sostituiti dal nuovo formatter):
+### Methods to remove (replaced by the new formatter):
 
 - `_format_test_results`
 - `_create_detailed_error_message`
@@ -856,42 +856,42 @@ def create_sql_validator(self):
 
 ---
 
-## 4. Punti di Chiamata del Formatter
+## 4. Formatter Call Points
 
-Il `ModelRetryFormatter` viene chiamato in questi punti all'interno del validator:
+The `ModelRetryFormatter` is invoked at these points within the validator:
 
-1. **InvalidRequest handling** - Quando l'agente ritorna una richiesta invalida
-2. **Non-SELECT query** - Quando il SQL generato non è una SELECT
-3. **Database sanitization failure** - Quando la sanitizzazione per il database specifico fallisce
-4. **EXPLAIN test failure** - Quando il test di eseguibilità fallisce
-5. **Empty result detection** - Quando la query ritorna zero risultati
-6. **Generic exceptions** - Per qualsiasi altra eccezione durante la validazione
+1. **InvalidRequest handling** - When the agent returns an invalid request
+2. **Non-SELECT query** - When the generated SQL is not a SELECT
+3. **Database sanitization failure** - When database-specific sanitization fails
+4. **EXPLAIN test failure** - When the executability test fails
+5. **Empty result detection** - When the query returns zero results
+6. **Generic exceptions** - For any other exception during validation
 
 ---
 
-## 5. Vantaggi dell'Implementazione
+## 5. Implementation Benefits
 
-### Apprendimento Progressivo
-- **Retry 0**: Suggerimenti generali
-- **Retry 1**: Indicazioni specifiche basate sull'errore
-- **Retry 2+**: Correzioni esplicite con esempi
+### Progressive Learning
+- **Retry 0**: General suggestions
+- **Retry 1**: Error-specific guidance
+- **Retry 2+**: Explicit corrections with examples
 
 ### Database-Specific
-- Quote styles personalizzati per ogni database
-- Funzioni appropriate per ogni sistema
-- Sintassi LIMIT corretta
+- Customized quote styles for each database
+- Appropriate functions per system
+- Correct LIMIT syntax
 
-### Contesto Preservato
-- Storia completa degli errori
-- Domanda originale sempre disponibile
-- Lista tabelle per riferimento
+### Preserved Context
+- Full error history
+- Original question always available
+- Table list for reference
 
-### Categorizzazione Intelligente
-- 5 categorie di errore ben definite
-- Rilevamento automatico del tipo di errore
-- Guidance mirata per ogni categoria
+### Intelligent Categorization
+- 5 well-defined error categories
+- Automatic detection of error type
+- Targeted guidance per category
 
-### Esempi Concreti
-- Pattern SQL corretti per ogni database
-- Esempi di sintassi specifica
-- Confronto prima/dopo per chiarezza
+### Concrete Examples
+- Correct SQL patterns per database
+- Specific syntax examples
+- Before/after comparison for clarity

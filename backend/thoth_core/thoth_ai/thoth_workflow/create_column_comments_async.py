@@ -22,6 +22,7 @@ from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
     output_to_json,
     get_table_schema_safe,
 )
+from thoth_core.thoth_ai.thoth_workflow.create_db_scope import get_language_description
 from thoth_core.models import LLMChoices, SqlColumn, SqlTable
 from thoth_core.thoth_ai.prompts.columns_comment_prompt import get_columns_prompt
 
@@ -60,7 +61,8 @@ def create_column_comments_async(column_ids: list) -> str:
         total_processed = 0
         for table_id, table_columns in columns_by_table.items():
             table = SqlTable.objects.get(id=table_id)
-            language = table.sql_db.language or "en"
+            language_code = table.sql_db.language or "en"
+            language = get_language_description(language_code)
 
             # Process columns for this table
             result = process_column_chunk_for_table(table, table_columns, language)

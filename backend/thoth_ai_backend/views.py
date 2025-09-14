@@ -63,6 +63,7 @@ from .backend_utils.session_utils import get_current_workspace
 import os
 import logging
 import re
+from io import BytesIO
 # Vector store handled by thoth-qdrant library
 
 from thoth_core.models import Workspace
@@ -102,6 +103,24 @@ class DbDocsView(LoginRequiredMixin, TemplateView):
             # Get translations for the database language
             translations = get_translations_for_language(language)
 
+            # Format strings that need variable substitution
+            no_documentation_message = translations.get('no_documentation_message',
+                "Documentation has not been generated yet for database '{db_name}'.").format(db_name=db_name)
+
+            # Format search results template for JavaScript
+            search_results_current_template = translations.get('search_results_current', '{current} of {total}')
+
+            # Format instructions with database name
+            generate_instructions = [
+                instruction.format(db_name=db_name)
+                for instruction in translations.get('generate_instructions', [
+                    "Go to the Django Admin panel",
+                    "Navigate to SQL Databases",
+                    "Select your database ({db_name})",
+                    "Choose \"Generate database documentation (AI assisted)\" from the actions dropdown"
+                ])
+            ]
+
             # Add translation context to template
             context.update({
                 'language': language,
@@ -110,19 +129,14 @@ class DbDocsView(LoginRequiredMixin, TemplateView):
                 'search_placeholder': translations.get('search_placeholder', 'Search in documentation...'),
                 'search_clear_title': translations.get('search_clear_title', 'Clear search'),
                 'search_results_none': translations.get('search_results_none', 'No results'),
-                'search_results_current': translations.get('search_results_current', '{current} of {total}'),
+                'search_results_current': search_results_current_template,
                 'search_help': translations.get('search_help', 'Press <kbd>Enter</kbd> for next, <kbd>Shift+Enter</kbd> for previous, <kbd>Esc</kbd> to clear'),
                 'export_pdf': translations.get('export_pdf', '📄 Export PDF'),
                 'no_documentation_available': translations.get('no_documentation_available', 'No Documentation Available'),
-                'no_documentation_message': translations.get('no_documentation_message', "Documentation has not been generated yet for database '{db_name}'."),
+                'no_documentation_message': no_documentation_message,
                 'no_database_selected': translations.get('no_database_selected', 'Please select a workspace with a database to view documentation.'),
                 'generate_instructions_title': translations.get('generate_instructions_title', 'To generate documentation:'),
-                'generate_instructions': translations.get('generate_instructions', [
-                    "Go to the Django Admin panel",
-                    "Navigate to SQL Databases",
-                    "Select your database ({db_name})",
-                    "Choose \"Generate database documentation (AI assisted)\" from the actions dropdown"
-                ]),
+                'generate_instructions': generate_instructions,
                 'go_to_database_admin': translations.get('go_to_database_admin', '📊 Go to Database Admin'),
                 'go_to_home': translations.get('go_to_home', '📁 Go to Home'),
             })
