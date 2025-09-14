@@ -68,7 +68,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy entrypoint script
 COPY entrypoint-frontend.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Create necessary directories
 RUN mkdir -p /app/logs /vol/secrets && \

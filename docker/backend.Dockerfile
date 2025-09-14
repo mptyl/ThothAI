@@ -74,7 +74,7 @@ RUN chmod 0644 /etc/cron.d/thoth-cron \
 
 # Copy entrypoint script
 COPY backend/entrypoint-backend.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
@@ -87,6 +87,6 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 # Start script
 COPY backend/scripts/start.sh /start.sh
-RUN chmod +x /start.sh
+RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 
 CMD ["/start.sh"]

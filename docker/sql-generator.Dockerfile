@@ -49,7 +49,7 @@ COPY data/dev_databases /app/data/dev_databases
 
 # Copy entrypoint script
 COPY frontend/sql_generator/entrypoint-sql-generator.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 8020
 
