@@ -76,6 +76,7 @@ import threading
 from django.http import JsonResponse
 from .mermaid_utils import get_erd_display_image, generate_erd_pdf
 from thoth_core.thoth_ai.thoth_workflow.gdpr_scanner import generate_gdpr_html
+from thoth_core.utils.documentation_translations import get_translations_for_language
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +94,38 @@ class DbDocsView(LoginRequiredMixin, TemplateView):
                 context["doc_content"] = None
                 return context
 
-            # Get database name
+            # Get database name and language
             db_name = workspace.sql_db.name
+            language = workspace.sql_db.language or "en"
             context["db_name"] = db_name
+
+            # Get translations for the database language
+            translations = get_translations_for_language(language)
+
+            # Add translation context to template
+            context.update({
+                'language': language,
+                'page_title': translations.get('page_title', 'Database Documentation'),
+                'sub_title': translations.get('page_subtitle', 'Documentation'),
+                'search_placeholder': translations.get('search_placeholder', 'Search in documentation...'),
+                'search_clear_title': translations.get('search_clear_title', 'Clear search'),
+                'search_results_none': translations.get('search_results_none', 'No results'),
+                'search_results_current': translations.get('search_results_current', '{current} of {total}'),
+                'search_help': translations.get('search_help', 'Press <kbd>Enter</kbd> for next, <kbd>Shift+Enter</kbd> for previous, <kbd>Esc</kbd> to clear'),
+                'export_pdf': translations.get('export_pdf', '📄 Export PDF'),
+                'no_documentation_available': translations.get('no_documentation_available', 'No Documentation Available'),
+                'no_documentation_message': translations.get('no_documentation_message', "Documentation has not been generated yet for database '{db_name}'."),
+                'no_database_selected': translations.get('no_database_selected', 'Please select a workspace with a database to view documentation.'),
+                'generate_instructions_title': translations.get('generate_instructions_title', 'To generate documentation:'),
+                'generate_instructions': translations.get('generate_instructions', [
+                    "Go to the Django Admin panel",
+                    "Navigate to SQL Databases",
+                    "Select your database ({db_name})",
+                    "Choose \"Generate database documentation (AI assisted)\" from the actions dropdown"
+                ]),
+                'go_to_database_admin': translations.get('go_to_database_admin', '📊 Go to Database Admin'),
+                'go_to_home': translations.get('go_to_home', '📁 Go to Home'),
+            })
 
             # Construct path to documentation HTML file
             from thoth_core.utilities.utils import get_exports_directory

@@ -224,41 +224,37 @@ class ThothInstaller:
         if databases.get('sqlserver'):
             db_extras.append('sqlserver')
         
-        # Generate backend pyproject.toml.local
-        backend_local = {
-            'tool': {
-                'uv': {
-                    'sources': {
-                        'thoth-dbmanager': {
-                            'index': 'pypi'
-                        }
-                    }
-                }
-            },
-            'project': {
-                'dependencies': [
-                    f"thoth-dbmanager[{','.join(db_extras)}]>=0.5.10"
-                ]
-            }
-        }
-        
+        # Generate or update backend pyproject.toml.local without clobbering existing overrides
         backend_path = self.base_dir / 'backend' / 'pyproject.toml.local'
         backend_path.parent.mkdir(exist_ok=True)
+        if backend_path.exists():
+            backend_local = toml.load(backend_path)
+        else:
+            backend_local = {'tool': {'uv': {'sources': {}}}, 'project': {'dependencies': []}}
+
+        # Ensure thoth-dbmanager dependency with correct extras is present (dedupe any existing)
+        deps = backend_local.setdefault('project', {}).setdefault('dependencies', [])
+        deps = [d for d in deps if not (isinstance(d, str) and d.startswith('thoth-dbmanager'))]
+        deps.append(f"thoth-dbmanager[{','.join(db_extras)}]>=0.5.10")
+        backend_local['project']['dependencies'] = deps
+
         with open(backend_path, 'w') as f:
             toml.dump(backend_local, f)
-        print(f"Generated {backend_path}")
+        print(f"Generated/updated {backend_path}")
         
-        # SQL generator doesn't need database-specific dependencies
-        # but we create an empty .local for consistency
-        sql_gen_local = {
-            'tool': {'uv': {'sources': {}}},
-            'project': {'dependencies': []}
-        }
+        # SQL generator: create local file only if missing; don't overwrite existing overrides
         sql_gen_path = self.base_dir / 'frontend' / 'sql_generator' / 'pyproject.toml.local'
         sql_gen_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(sql_gen_path, 'w') as f:
-            toml.dump(sql_gen_local, f)
-        print(f"Generated {sql_gen_path}")
+        if not sql_gen_path.exists():
+            sql_gen_local = {
+                'tool': {'uv': {'sources': {}}},
+                'project': {'dependencies': []}
+            }
+            with open(sql_gen_path, 'w') as f:
+                toml.dump(sql_gen_local, f)
+            print(f"Generated {sql_gen_path}")
+        else:
+            print(f"Preserved existing {sql_gen_path}")
         
         return True
     
@@ -290,8 +286,8 @@ class ThothInstaller:
                     base_deps = base_config.get('project', {}).get('dependencies', [])
                     local_deps = local_config['project']['dependencies']
                     
-                    # Remove any existing thoth-dbmanager dependency
-                    base_deps = [d for d in base_deps if not d.startswith('thoth-dbmanager')]
+                    # Remove any existing thoth-dbmanager or thoth-qdrant dependencies
+                    base_deps = [d for d in base_deps if not (isinstance(d, str) and (d.startswith('thoth-dbmanager') or d.startswith('thoth-qdrant')))]
                     
                     # Add new dependencies from local
                     base_deps.extend(local_deps)

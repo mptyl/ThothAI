@@ -14,6 +14,7 @@ import re
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional, List
+import toml
 
 
 class EmbeddingConfigurator:
@@ -29,10 +30,18 @@ class EmbeddingConfigurator:
             'cohere': 'cohere'
         }
         
-        # pyproject.toml files to update
-        self.pyproject_files = [
-            self.root_dir / "backend" / "pyproject.toml",
-            self.root_dir / "frontend" / "sql_generator" / "pyproject.toml"
+        # Projects to update (base and local paths)
+        self.projects = [
+            {
+                'name': 'backend',
+                'base': self.root_dir / "backend" / "pyproject.toml",
+                'local': self.root_dir / "backend" / "pyproject.toml.local",
+            },
+            {
+                'name': 'frontend/sql_generator',
+                'base': self.root_dir / "frontend" / "sql_generator" / "pyproject.toml",
+                'local': self.root_dir / "frontend" / "sql_generator" / "pyproject.toml.local",
+            }
         ]
     
     def load_config(self) -> bool:
@@ -67,50 +76,51 @@ class EmbeddingConfigurator:
         
         return provider
     
-    def update_pyproject_toml(self, file_path: Path, embedding_extra: str) -> bool:
-        """Update pyproject.toml with the correct thoth-qdrant extra"""
-        if not file_path.exists():
-            print(f"Warning: {file_path} not found, skipping")
-            return True
-        
+    def _extract_qdrant_dep(self, base_path: Path) -> Optional[Dict[str, str]]:
+        """Extract thoth-qdrant dep (name, op, version) from base pyproject"""
+        if not base_path.exists():
+            return None
+        data = toml.load(base_path)
+        deps = data.get('project', {}).get('dependencies', [])
+        for d in deps:
+            if isinstance(d, str) and d.startswith('thoth-qdrant'):
+                m = re.match(r'^(thoth-qdrant)(?:\[[^\]]+\])?(==|>=)([0-9.]+)$', d)
+                if m:
+                    return {'name': m.group(1), 'op': m.group(2), 'ver': m.group(3)}
+        return None
+
+    def update_pyproject_local(self, base_path: Path, local_path: Path, embedding_extra: str) -> bool:
+        """Ensure pyproject.toml.local declares thoth-qdrant with the right extra.
+        Avoids editing tracked pyproject.toml.
+        """
         try:
-            with open(file_path, 'r') as f:
-                content = f.read()
-            
-            # Pattern to match thoth-qdrant dependency with any extras
-            pattern = r'(thoth-qdrant)\[([^\]]+)\](==|>=)([0-9.]+)'
-            
-            # Find current thoth-qdrant dependency
-            match = re.search(pattern, content)
-            if not match:
-                print(f"Warning: thoth-qdrant dependency not found in {file_path}")
+            q = self._extract_qdrant_dep(base_path)
+            if not q:
+                print(f"Warning: thoth-qdrant not found in {base_path}, skipping")
                 return True
-            
-            current_line = match.group(0)
-            package_name = match.group(1)
-            operator = match.group(3)
-            version = match.group(4)
-            
-            # Replace with new extra
-            new_line = f"{package_name}[{embedding_extra}]{operator}{version}"
-            
-            if current_line == new_line:
-                print(f"  {file_path.relative_to(self.root_dir)}: Already configured for {embedding_extra}")
-                return True
-            
-            # Replace in content - use the full match which includes quotes and commas
-            full_match = match.group(0)
-            new_content = content.replace(full_match, new_line)
-            
-            # Write back to file
-            with open(file_path, 'w') as f:
-                f.write(new_content)
-            
-            print(f"  {file_path.relative_to(self.root_dir)}: Updated thoth-qdrant[{embedding_extra}]")
+
+            desired = f"thoth-qdrant[{embedding_extra}]{q['op']}{q['ver']}"
+
+            # Load or init local config
+            if local_path.exists():
+                local_cfg = toml.load(local_path)
+            else:
+                local_cfg = {'tool': {'uv': {'sources': {}}}, 'project': {'dependencies': []}}
+
+            deps = local_cfg.setdefault('project', {}).setdefault('dependencies', [])
+            # Remove any previous thoth-qdrant override
+            deps = [d for d in deps if not (isinstance(d, str) and d.startswith('thoth-qdrant'))]
+            deps.append(desired)
+            local_cfg['project']['dependencies'] = deps
+
+            with open(local_path, 'w') as f:
+                toml.dump(local_cfg, f)
+
+            print(f"  {local_path.relative_to(self.root_dir)}: set {desired}")
             return True
-            
+
         except Exception as e:
-            print(f"Error updating {file_path}: {e}")
+            print(f"Error updating {local_path}: {e}")
             return False
     
     def run_uv_sync(self, project_dir: Path) -> bool:
@@ -159,32 +169,18 @@ class EmbeddingConfigurator:
         embedding_extra = self.provider_extra_map[provider]
         print(f"Configuring for embedding provider: {provider} (extra: {embedding_extra})")
         
-        # Update pyproject.toml files
+        # Update pyproject.toml.local files instead of tracked base files
         success = True
-        for pyproject_file in self.pyproject_files:
-            if not self.update_pyproject_toml(pyproject_file, embedding_extra):
+        for proj in self.projects:
+            if not self.update_pyproject_local(proj['base'], proj['local'], embedding_extra):
                 success = False
         
         if not success:
             print("Some pyproject.toml files failed to update")
             return False
         
-        # Run uv sync for each project
-        project_dirs = [
-            self.root_dir / "backend",
-            self.root_dir / "frontend" / "sql_generator"
-        ]
-        
-        print("\nSynchronizing dependencies...")
-        for project_dir in project_dirs:
-            if not project_dir.exists():
-                print(f"Warning: {project_dir} not found, skipping uv sync")
-                continue
-            
-            if not self.run_uv_sync(project_dir):
-                print(f"Warning: Failed to sync dependencies in {project_dir}")
-                # Don't fail completely, as Docker build might still work
-        
+        # Do not run uv sync here to avoid touching lockfiles in working tree.
+        # Docker builds use backend/pyproject.toml.merged which is generated by installer.
         print(f"\n✓ Embedding configuration completed for provider: {provider}")
         return True
 

@@ -219,51 +219,8 @@ function Remove-DockerResources {
     Write-ColorOutput "All ThothAI Docker resources have been removed" "Green"
 }
 
-# Function to fix line endings for shell scripts and Docker files
-function Fix-LineEndings {
-    Write-ColorOutput "Fixing line endings for shell scripts and Docker files..." "Yellow"
-    
-    # Find all .sh files and Dockerfiles
-    $filesToFix = @()
-    $filesToFix += Get-ChildItem -Path . -Filter *.sh -Recurse -ErrorAction SilentlyContinue
-    $filesToFix += Get-ChildItem -Path . -Filter Dockerfile* -Recurse -ErrorAction SilentlyContinue
-    $filesToFix += Get-ChildItem -Path . -Filter *.yml -Recurse -ErrorAction SilentlyContinue
-    $filesToFix += Get-ChildItem -Path . -Filter *.yaml -Recurse -ErrorAction SilentlyContinue
-    
-    # Filter out unwanted directories
-    $filesToFix = $filesToFix | Where-Object { 
-        $_.FullName -notmatch "\\node_modules\\" -and 
-        $_.FullName -notmatch "\\venv\\" -and
-        $_.FullName -notmatch "\\.venv\\" -and
-        $_.FullName -notmatch "\\.git\\"
-    }
-    
-    $count = 0
-    foreach ($file in $filesToFix) {
-        try {
-            $relativePath = $file.FullName.Replace($PWD.Path + "\", "")
-            
-            # Read file and check if it has CRLF
-            $content = [System.IO.File]::ReadAllText($file.FullName)
-            if ($content.Contains("`r`n")) {
-                # Convert CRLF to LF
-                $unixContent = $content -replace "`r`n", "`n"
-                [System.IO.File]::WriteAllText($file.FullName, $unixContent)
-                
-                Write-Host "  Fixed: $relativePath" -ForegroundColor Gray
-                $count++
-            }
-        } catch {
-            # Silently skip files that can't be converted
-        }
-    }
-    
-    if ($count -gt 0) {
-        Write-ColorOutput "Converted $count files to Unix line endings" "Green"
-    } else {
-        Write-ColorOutput "No files needed line ending conversion" "Green"
-    }
-}
+# Note: Line endings are managed via repository .gitattributes.
+# No runtime conversion is performed by the installer.
 
 # Main installation flow
 function Main {
@@ -291,8 +248,7 @@ function Main {
         Set-Location $scriptPath
     }
     
-    # Fix line endings first (critical for Docker on Windows)
-    Fix-LineEndings
+    # Line endings: handled by .gitattributes at repo root
     Write-Host ""
     
     # Check for config.yml.local first

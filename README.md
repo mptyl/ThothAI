@@ -30,8 +30,8 @@ cp config.yml config.yml.local
 # Edit config.yml.local with your API keys and configuration
 
 # 3. Run the installer
-./install.sh   # Linux/macOS
-# Windows PowerShell: .\install.ps1
+./install.sh                 # Linux/macOS
+# Windows (CMD or PowerShell): .\install.bat  (or .\install.ps1)
 
 # 4. Start all services (if not already started by installer)
 docker compose up -d
@@ -73,6 +73,18 @@ export DB_ROOT_PATH=/absolute/path/to/your/dev_databases  # Directory containing
 - At least one LLM API key (OpenAI, Gemini, or Anthropic)
 - 4GB RAM minimum
 - 5GB disk space
+
+## 🪟 Windows Line Endings (CRLF vs LF)
+
+This repository enforces line endings via a root `.gitattributes` so fresh clones on Windows do not suffer from `^M` issues when building Docker images.
+
+- Policy: all code, shell scripts, Dockerfiles, and YAML use LF; PowerShell scripts (`*.ps1`) use CRLF for native Windows usage; binary assets are marked `-text`.
+- Fresh clones: no action required. Git writes the correct EOL for each file; the installer no longer rewrites line endings.
+- Existing clones that predate this change: after pulling the commit that introduces `.gitattributes`, perform a one-time cleanup:
+  - No local edits: `git reset --hard`
+  - With local edits: `git stash`, `git pull`, then `git stash pop`
+
+If your editor forces CRLF on LF-managed files, configure it to respect `.gitattributes` (or set per-project settings to keep LF for `*.sh`, `Dockerfile*`, `*.yml`, etc.).
 
 ## 🏗️ Project Structure
 
@@ -199,83 +211,83 @@ DB_ROOT_PATH=/absolute/path/to/dev_databases
 LOGFIRE_TOKEN=your-logfire-token
 ```
 
-## 🔐 Gestione Configurazione Ambiente
+## 🔐 Environment Configuration Management
 
-### Struttura File di Configurazione
+### Configuration File Structure
 
-ThothAI utilizza un sistema di configurazione multi-livello per gestire diversi ambienti di deployment:
+ThothAI uses a multi-level configuration system to manage different deployment environments:
 
-#### File di Configurazione
+#### Configuration Files
 
-1. **`config.yml.local`** - Configurazione master per installazione Docker
-   - Contiene tutte le configurazioni (API keys, porte, database, monitoring)
-   - Usato da `install.sh` per generare `.env.docker`
-   - NON committato nel repository (gitignore)
+1. **`config.yml.local`** – Master configuration for Docker installation
+   - Contains all settings (API keys, ports, databases, monitoring)
+   - Used by `install.sh` to generate `.env.docker`
+   - NOT committed to the repository (gitignored)
 
-2. **`.env.docker`** - Generato automaticamente per Docker
-   - Creato da `installer.py` basandosi su `config.yml.local`
-   - Contiene variabili d'ambiente per Docker Compose
-   - Rigenerato ad ogni esecuzione di `install.sh`
+2. **`.env.docker`** – Automatically generated for Docker
+   - Created by `installer.py` based on `config.yml.local`
+   - Contains environment variables for Docker Compose
+   - Regenerated on each run of `install.sh`
 
-3. **`.env.local`** - Configurazione per sviluppo locale
-   - Usato da `start-all.sh` per sviluppo locale
-   - Contiene le stesse configurazioni ma con porte locali
-   - Variabili esportate nell'ambiente per tutti i servizi
+3. **`.env.local`** – Configuration for local development
+   - Used by `start-all.sh` for local development
+   - Contains the same settings but with local ports
+   - Variables exported into the environment for all services
 
-4. **`.env.template`** - Template di esempio
-   - File di riferimento con tutte le variabili necessarie
-   - Da copiare e personalizzare per creare `.env.local`
+4. **`.env.template`** – Sample template
+   - Reference file with all required variables
+   - Copy and customize to create `.env.local`
 
-### Flussi di Configurazione
+### Configuration Flows
 
-#### Deploy Docker (install.sh)
+#### Docker Deploy (install.sh)
 
 ```
 config.yml.local → installer.py → .env.docker → docker-compose.yml
                 ↓                      ↓
-         pyproject.toml.local    Variabili ambiente container
+         pyproject.toml.local      Container environment variables
 ```
 
-Il processo:
-1. `install.sh` verifica prerequisiti e valida `config.yml.local`
-2. `installer.py` legge `config.yml.local` e genera:
-   - `.env.docker` con tutte le variabili d'ambiente
-   - `pyproject.toml.local` per dipendenze database
-3. Docker Compose usa `.env.docker` per configurare i container
+The process:
+1. `install.sh` checks prerequisites and validates `config.yml.local`
+2. `installer.py` reads `config.yml.local` and generates:
+   - `.env.docker` with all environment variables
+   - `pyproject.toml.local` for database extras
+3. Docker Compose uses `.env.docker` to configure containers
 
-#### Sviluppo Locale (start-all.sh)
+#### Local Development (start-all.sh)
 
 ```
-.env.local → validazione env → export variabili → Processi ereditano ambiente
+.env.local → env validation → export variables → Processes inherit environment
            ↓                   ↓                      ↓
-   BACKEND_AI_* check     (filtro PORT=)     Django, SQL Gen, Frontend
+   BACKEND_AI_* check       (filter out PORT=)     Django, SQL Gen, Frontend
 ```
 
-Il processo:
-1. `start-all.sh` carica `.env.local` (escluso PORT generico)
-2. Valida `BACKEND_AI_PROVIDER`/`BACKEND_AI_MODEL` e le API key da `.env.local` con `scripts/validate_backend_ai.py --from-env`
-3. Esporta variabili nell'ambiente shell
-4. Ogni servizio eredita le variabili:
-   - Django: usa direttamente le variabili
-   - SQL Generator: riceve PORT specifico (8180)
-   - Frontend: riceve PORT specifico (3200)
+The process:
+1. `start-all.sh` loads `.env.local` (excluding the generic PORT)
+2. Validates `BACKEND_AI_PROVIDER`/`BACKEND_AI_MODEL` and API keys from `.env.local` with `scripts/validate_backend_ai.py --from-env`
+3. Exports variables into the shell environment
+4. Each service inherits the variables:
+   - Django: uses the variables directly
+   - SQL Generator: receives a specific PORT (8180)
+   - Frontend: receives a specific PORT (3200)
 
-Importante: in locale `config.yml.local` non aggiorna automaticamente `.env.local` e non è usato per l’avvio. Per cambiare provider/modello backend in locale, modifica direttamente `.env.local`.
+Important: locally, `config.yml.local` does not automatically update `.env.local` and is not used for startup. To change the backend provider/model in local dev, edit `.env.local` directly.
 
-### Gestione Python con uv
+### Python Management with uv
 
-Il progetto usa `uv` per gestire Python in modo consistente:
+The project uses `uv` to manage Python consistently:
 
-- **Python versione**: 3.13.5 (gestito da uv, non sistema)
-- **File `.python-version`**: in ogni directory per specificare versione
-- **Virtual environments**: creati con `uv venv` usando Python gestito
+- **Python version**: 3.13.5 (managed by uv, not system Python)
+- **`.python-version` files**: in each directory to pin the version
+- **Virtual environments**: created with `uv venv` using uv-managed Python
 
 ### Best Practices
 
-1. **Non committare mai** file con credenziali (`.env*`, `config.yml.local`)
-2. **Usare config.yml.local** per Docker, `.env.local` per sviluppo locale
-3. **Non modificare** `.env.docker` manualmente (rigenerato automaticamente)
-4. **Backup delle configurazioni** prima di aggiornamenti maggiori
+1. **Never commit** files containing credentials (`.env*`, `config.yml.local`)
+2. **Use `config.yml.local`** for Docker, `.env.local` for local development
+3. **Do not modify** `.env.docker` manually (it is regenerated automatically)
+4. **Back up configurations** before major upgrades
 
 ## 📝 Notes
 

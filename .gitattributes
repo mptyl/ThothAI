@@ -1,0 +1,42 @@
+# Global EOL policy: keep repository text files as LF
+* text=auto eol=lf
+
+# Docker and shell scripts must be LF
+Dockerfile* text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Common source files as LF
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# Windows scripts as CRLF (for native Windows usage)
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets (never treated as text)
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.ico -text
+*.svg -text
+*.woff -text
+*.woff2 -text
+*.ttf -text
+*.eot -text
+*.pdf -text
+*.zip -text
+*.gz -text
+*.tar -text
+*.tar.gz -text

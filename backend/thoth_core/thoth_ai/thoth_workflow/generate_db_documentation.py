@@ -27,6 +27,7 @@ from thoth_core.utilities.utils import (
     get_docker_friendly_error_message,
 )
 from thoth_core.utilities.shared_paths import get_export_path
+from thoth_core.utils.documentation_translations import get_translation
 
 # No external imports needed - using local function
 
@@ -58,7 +59,7 @@ def generate_scope_html(scope_json_str):
         return f"<p>{scope_json_str}</p>"
 
 
-def generate_relationships_html(db_id):
+def generate_relationships_html(db_id, language="en"):
     """Generate HTML for database relationships"""
     html_parts = []
 
@@ -74,17 +75,17 @@ def generate_relationships_html(db_id):
     )
 
     if relationships.exists():
-        html_parts.append("<h3>Foreign Key Relationships</h3>")
+        html_parts.append(f"<h3>{get_translation(language, 'foreign_key_relationships')}</h3>")
 
         # Create relationships table
         html_parts.append('<table class="data-table">')
         html_parts.append("<thead>")
         html_parts.append("<tr>")
-        html_parts.append("<th>Source Table</th>")
-        html_parts.append("<th>Source Column</th>")
+        html_parts.append(f"<th>{get_translation(language, 'source_table')}</th>")
+        html_parts.append(f"<th>{get_translation(language, 'source_column')}</th>")
         html_parts.append("<th>→</th>")
-        html_parts.append("<th>Target Table</th>")
-        html_parts.append("<th>Target Column</th>")
+        html_parts.append(f"<th>{get_translation(language, 'target_table')}</th>")
+        html_parts.append(f"<th>{get_translation(language, 'target_column')}</th>")
         html_parts.append("</tr>")
         html_parts.append("</thead>")
         html_parts.append("<tbody>")
@@ -102,13 +103,13 @@ def generate_relationships_html(db_id):
         html_parts.append("</table>")
     else:
         html_parts.append(
-            "<p>No foreign key relationships defined in this database.</p>"
+            f"<p>{get_translation(language, 'no_foreign_key_relationships')}</p>"
         )
 
     return "\n".join(html_parts)
 
 
-def generate_tables_html(db_id):
+def generate_tables_html(db_id, language="en"):
     """Generate HTML for tables and columns documentation"""
     html_parts = []
     tables = SqlTable.objects.filter(sql_db__id=db_id).order_by("name")
@@ -127,11 +128,11 @@ def generate_tables_html(db_id):
         html_parts.append('<table class="data-table">')
         html_parts.append("<thead>")
         html_parts.append("<tr>")
-        html_parts.append("<th>Column Name</th>")
-        html_parts.append("<th>Data Type</th>")
-        html_parts.append("<th>Description</th>")
-        html_parts.append("<th>Value Description</th>")
-        html_parts.append("<th>FK</th>")
+        html_parts.append(f"<th>{get_translation(language, 'column_name')}</th>")
+        html_parts.append(f"<th>{get_translation(language, 'data_type')}</th>")
+        html_parts.append(f"<th>{get_translation(language, 'description')}</th>")
+        html_parts.append(f"<th>{get_translation(language, 'value_description')}</th>")
+        html_parts.append(f"<th>{get_translation(language, 'fk')}</th>")
         html_parts.append("</tr>")
         html_parts.append("</thead>")
         html_parts.append("<tbody>")
@@ -469,25 +470,31 @@ def parse_markdown_table(table_lines):
     return "\n".join(html_parts)
 
 
-def generate_complete_html(db_name, scope_html, tables_html, relationships_html):
+def generate_complete_html(db_name, scope_html, tables_html, relationships_html, language="en"):
     """Generate complete HTML documentation page with search and content blocks."""
+
+    # Get translated titles
+    page_title = get_translation(language, 'page_title', db_name=db_name)
+    database_scope = get_translation(language, 'database_scope')
+    tables_and_columns = get_translation(language, 'tables_and_columns')
+    generated_by = get_translation(language, 'generated_by', timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     # Build the complete content
     content_html = f"""
         <!-- Documentation Block -->
         <div class="documentation-section" id="documentation-content">
-            <h1>{db_name} Database Documentation</h1>
-            
-            <h2>Database Scope</h2>
+            <h1>{page_title}</h1>
+
+            <h2>{database_scope}</h2>
             <div class="scope-section">
                 {scope_html}
             </div>
-            
-            <h2>Tables and Columns</h2>
+
+            <h2>{tables_and_columns}</h2>
             <div class="tables-section">
                 {tables_html}
             </div>
-            
+
             <div class="relationships-section">
                 {relationships_html}
             </div>
@@ -496,11 +503,11 @@ def generate_complete_html(db_name, scope_html, tables_html, relationships_html)
 
     # Create full HTML document
     html_template = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{language}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{db_name} Database Documentation</title>
+    <title>{page_title}</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -749,7 +756,7 @@ def generate_complete_html(db_name, scope_html, tables_html, relationships_html)
         {content_html}
     </div>
     <div class="metadata">
-        Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} by Thoth AI
+        {generated_by}
     </div>
 </body>
 </html>"""
@@ -786,6 +793,9 @@ def generate_db_documentation(modeladmin, request, queryset):
         if not db:
             modeladmin.message_user(request, "No database selected.", messages.ERROR)
             return
+
+        # Get language from database or default to English
+        language = db.language or "en"
 
         # Load prompt template
         template_path = os.path.join(
@@ -904,8 +914,8 @@ def generate_db_documentation(modeladmin, request, queryset):
 
             # Generate HTML components using Python functions
             scope_html = generate_scope_html(db.scope_json)
-            tables_html = generate_tables_html(db.id)
-            relationships_html = generate_relationships_html(db.id)
+            tables_html = generate_tables_html(db.id, language)
+            relationships_html = generate_relationships_html(db.id, language)
 
             # Save to file
             io_dir, error_message = ensure_exports_directory()
@@ -945,6 +955,7 @@ def generate_db_documentation(modeladmin, request, queryset):
                     scope_html=scope_html,
                     tables_html=tables_html,
                     relationships_html=relationships_html,
+                    language=language
                 )
 
                 with open(html_filepath, "w", encoding="utf-8") as f:

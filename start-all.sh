@@ -133,7 +133,7 @@ else
         else
             echo -e "${YELLOW}Creating virtual environment for Django backend...${NC}"
             if command -v uv &> /dev/null; then
-                uv sync
+                uv sync --frozen
                 (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_PORT) &
                 DJANGO_PID=$!
             else
@@ -234,10 +234,10 @@ cd "$SQL_GEN_DIR"
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
     echo -e "${YELLOW}Creating virtual environment for SQL Generator...${NC}"
-    (unset VIRTUAL_ENV && uv sync)
+    (unset VIRTUAL_ENV && uv sync --frozen)
 else
     echo -e "${YELLOW}Updating SQL Generator dependencies...${NC}"
-    (unset VIRTUAL_ENV && uv sync)
+    (unset VIRTUAL_ENV && uv sync --frozen)
 fi
 
 # Start SQL Generator

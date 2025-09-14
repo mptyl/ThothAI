@@ -20,7 +20,7 @@ wsl --set-default-version 2
 
 ### Step 1: Clone the Repository
 
-Use Windows PowerShell to clone the repository (so you can run `install.ps1`).
+Use Windows PowerShell to clone the repository (so you can run `install.ps1` or `install.bat`).
 ```powershell
 cd C:\Projects  # or your preferred directory
 git clone https://github.com/mptyl/ThothAI.git
@@ -43,7 +43,7 @@ cd ThothAI
 ### Step 3: Run the Interactive Installer
 
 ```powershell
-.\install.ps1
+./install.bat   # or: .\install.ps1
 ```
 
 The installer will:
@@ -55,16 +55,18 @@ The installer will:
 Notes:
 - You can re-run `install.ps1` at any time, including after a `git pull`, to rebuild/restart services. This is the recommended update flow on Windows.
 
-### Step 4: Optional preparation utilities
+### Step 4: Line Endings and Optional Utilities
 
-These utilities can help if you are running Docker commands manually (without `install.ps1`) or if you encounter line-ending issues:
+This repository enforces line endings via `.gitattributes` and `.editorconfig`:
 
-- PowerShell: `./scripts/prepare-docker-env.ps1`
-  - Creates `.env.docker` if missing, prepares folders, and calls the build preparation script.
-- WSL bash: `./scripts/prepare-docker-build.sh`
-  - Converts CRLF to LF and makes scripts executable.
+- Code, Dockerfiles, YAML, and shell scripts use LF automatically on checkout.
+- PowerShell and Batch scripts use CRLF automatically on checkout.
+- Fresh clones require no action for line endings.
 
-If you use `install.ps1` for install and updates, you do not need to run these manually.
+Optional utilities (only if building manually without the installer):
+
+- PowerShell: `./scripts/prepare-docker-env.ps1` — create `.env.docker` and prepare folders.
+- WSL bash: `./scripts/prepare-docker-build.sh` — legacy helper to normalize EOL; usually unnecessary now.
 
 ### Step 5: Start the Services
 
@@ -80,13 +82,15 @@ docker compose up -d --build
 
 ### Issue 1: "No such file or directory" errors
 
-**Cause**: Windows line endings (CRLF) in shell scripts
+**Cause**: Shell scripts checked out with CRLF in older clones or by external tools.
 
 **Solution**:
-```bash
-# In WSL
-./scripts/prepare-docker-build.sh
-```
+- Prefer a fresh clone after the `.gitattributes` introduction.
+- Or, in an existing clone, reset files to index (no local edits):
+  ```powershell
+  git reset --hard
+  ```
+- If you have local edits to keep: `git stash`, `git pull`, `git stash pop`.
 
 ### Issue 2: Missing files during Docker build
 
@@ -100,7 +104,7 @@ git pull
 
 ### Issue 3: Services stuck during startup
 
-**Cause**: Shell scripts hanging due to line ending issues
+**Cause**: Shell scripts hanging due to line ending issues in older clones
 
 **Solution**:
 1. Check container logs:
@@ -108,11 +112,7 @@ git pull
    .\scripts\check-docker-logs.ps1
    ```
 
-2. Fix and rebuild:
-   ```bash
-   # In WSL
-   ./scripts/prepare-docker-build.sh
-   ```
+2. Fix and rebuild (after ensuring proper line endings with `.gitattributes`):
    ```powershell
    docker compose down
    docker compose build --no-cache
@@ -253,9 +253,9 @@ If you encounter issues:
 
 | Task | Command |
 |------|---------|
-| First installation / Update | `./install.ps1` |
+| First installation / Update | `./install.bat` or `./install.ps1` |
 | Optional prep (manual only) | `./scripts/prepare-docker-env.ps1` |
-| Fix line endings (WSL) | `./scripts/prepare-docker-build.sh` |
+| Line endings | Managed by `.gitattributes` (no manual fix) |
 | Start services | `docker compose up -d` |
 | Stop services | `docker compose down` |
 | View logs | `./scripts/check-docker-logs.ps1` |
