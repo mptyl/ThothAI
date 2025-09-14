@@ -265,8 +265,9 @@ class EscalationManager:
             state.generated_sqls = []
         if hasattr(state, 'sql_results'):
             state.sql_results = []
+        # Ensure list type to satisfy Pydantic validation on GenerationResults
         if hasattr(state, 'evaluation_results'):
-            state.evaluation_results = None
+            state.evaluation_results = []
         
         logger.info(f"Escalated from {escalation_context.current_level.display_name} to {next_level.display_name}")
     

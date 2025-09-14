@@ -394,6 +394,9 @@ class SystemState(BaseModel):
     
     @evaluation_results.setter
     def evaluation_results(self, value: List[Tuple[str, List[str]]]):
+        # Normalize to empty list when None or falsy to avoid Pydantic list validation errors
+        if value is None:
+            value = []
         self.generation.evaluation_results = value
         
     @property
