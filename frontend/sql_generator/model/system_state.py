@@ -75,7 +75,8 @@ class SystemState(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         validate_assignment=True,  # Allow safe in-place updates during pipeline
-        frozen=False                # Ensure SystemState itself is mutable
+        frozen=False,              # Ensure SystemState itself is mutable
+        extra='allow'              # Allow transient/ad-hoc fields for tooling/logs
     )
     
     # Context objects - the new architecture
@@ -91,7 +92,7 @@ class SystemState(BaseModel):
     schema_processor: SchemaProcessor = Field(default_factory=SchemaProcessor, description="Schema processing operations handler", exclude=True)
     
     # Translation and processing fields
-    original_question: str = Field(default="", description="Copy of the original question from request")
+    # Note: original_question is managed by RequestContext; access via property below
     translated_question: Optional[str] = Field(default=None, description="Translated question if translation occurred")
     submitted_question: str = Field(default="", description="The question to be processed (original or translated)")
 

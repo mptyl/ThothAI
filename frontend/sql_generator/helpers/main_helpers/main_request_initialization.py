@@ -103,6 +103,7 @@ async def _initialize_request_state(
     functionality_level = request.functionality_level.upper() if request.functionality_level else "BASIC"
     request_context = RequestContext(
         question=request.question,  # Original question from UI
+        original_question=request.question,  # Preserve a copy for state/logs
         username=http_request.headers.get("X-Username", "anonymous"),
         workspace_id=request.workspace_id,
         workspace_name="Unknown",  # Will be updated after setup
@@ -122,7 +123,6 @@ async def _initialize_request_state(
         schemas=SchemaDerivations(),  # Empty initially
         generation=GenerationResults(),  # Empty initially
         execution=ExecutionState(),  # Empty initially
-        original_question=request.question,  # Copy of original
         submitted_question=request.question  # Initially same as original
     )
     
@@ -187,7 +187,6 @@ async def _initialize_request_state(
         generation=GenerationResults(),  # Empty initially
         execution=ExecutionState(),  # Empty initially
         services=services_context,
-        original_question=request.question,  # Keep original
         submitted_question=request.question  # Initially same as original
     )
     
