@@ -166,19 +166,16 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
 
-# Pytest configuration
+# Pytest configuration (SQL Generator only)
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "Thoth.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 addopts = [
     "--strict-markers",
     "--tb=short",
     "--disable-warnings",
     "-p", "no:warnings",
-    "--reuse-db",
-    "--nomigrations",
 ]
-testpaths = ["tests"]
+testpaths = ["sql_generator/tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
