@@ -95,6 +95,12 @@ class ExecutionState(BaseModel):
         default=False,
         description="Flag indicating if escalation to EXPERT level occurred"
     )
+
+    # Escalation history records
+    escalation_history: list[dict] = Field(
+        default_factory=list,
+        description="Chronological records of each escalation attempt"
+    )
     
     # Timing fields for performance tracking
     sql_generation_start_time: Optional[datetime] = Field(

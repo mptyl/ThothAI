@@ -245,10 +245,7 @@ class EscalationManager:
                 state.execution.expert_escalation = True
                 logger.info("Setting expert_escalation flag to True")
         
-        # Add escalation history
-        if not hasattr(state, 'escalation_history'):
-            state.escalation_history = []
-        
+        # Add escalation history under execution context to respect Pydantic fields
         escalation_record = {
             'from_level': escalation_context.current_level.display_name,
             'to_level': next_level.display_name,
@@ -256,7 +253,9 @@ class EscalationManager:
             'failed_sqls_count': len(escalation_context.failed_sqls),
             'failure_analysis': escalation_context.failure_analysis
         }
-        state.escalation_history.append(escalation_record)
+        if hasattr(state, 'execution') and hasattr(state.execution, 'escalation_history'):
+            state.execution.escalation_history.append(escalation_record)
+        
         
         # Add escalation context to state for next level's use
         state.escalation_context = escalation_context.to_context_string()

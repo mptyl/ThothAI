@@ -72,7 +72,11 @@ class SystemState(BaseModel):
     - execution: Runtime state and error tracking
     - services: External services and managers
     """
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_assignment=True,  # Allow safe in-place updates during pipeline
+        frozen=False                # Ensure SystemState itself is mutable
+    )
     
     # Context objects - the new architecture
     request: RequestContext = Field(..., description="Immutable request data and user context")
@@ -134,7 +138,9 @@ class SystemState(BaseModel):
         
     @username.setter
     def username(self, value: str):
-        raise AttributeError("Property 'username' is immutable and cannot be modified")
+        # Allow updating username if explicitly needed by the process
+        # (e.g., system impersonation during dev/tests). Otherwise unused.
+        self.request.username = value.strip() if value is not None else ""
         
     @property
     def started_at(self) -> datetime:
@@ -146,7 +152,8 @@ class SystemState(BaseModel):
         
     @workspace_name.setter
     def workspace_name(self, value: str):
-        raise AttributeError("Property 'workspace_name' is immutable and cannot be modified")
+        # Forward updates to request context to keep single source of truth
+        self.request.workspace_name = value.strip() if value is not None else ""
         
     @property
     def functionality_level(self) -> str:
@@ -154,7 +161,10 @@ class SystemState(BaseModel):
         
     @functionality_level.setter
     def functionality_level(self, value: str):
-        raise AttributeError("Property 'functionality_level' is immutable and cannot be modified")
+        # Accept writes via SystemState by updating request context (used by escalation)
+        if value is None:
+            return
+        self.request.functionality_level = value.upper()
         
     @property
     def language(self) -> str:
@@ -167,10 +177,18 @@ class SystemState(BaseModel):
     @property
     def original_question(self) -> Optional[str]:
         return self.request.original_question
+    
+    @original_question.setter
+    def original_question(self, value: Optional[str]):
+        self.request.original_question = value
         
     @property
     def original_language(self) -> Optional[str]:
         return self.request.original_language
+    
+    @original_language.setter
+    def original_language(self, value: Optional[str]):
+        self.request.original_language = value
     
     # Database context properties
     @property
