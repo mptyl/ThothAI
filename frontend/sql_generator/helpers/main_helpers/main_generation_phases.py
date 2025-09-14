@@ -20,6 +20,7 @@ This module contains the SQL generation and evaluation phases of the pipeline:
 """
 
 import json
+import os
 import logging
 from typing import TYPE_CHECKING
 from datetime import datetime
@@ -263,6 +264,36 @@ async def _evaluate_and_select_phase(
     Yields:
         Progress messages to client and final result tuple
     """
+    # Optional dev bypass: skip test generation/evaluation entirely
+    try:
+        bypass_eval = os.getenv('SQLGEN_BYPASS_EVALUATION', 'false').lower() == 'true'
+    except Exception:
+        bypass_eval = False
+
+    if bypass_eval:
+        # Ensure we have at least one generated SQL to select
+        if hasattr(state, 'generated_sqls') and state.generated_sqls:
+            selected_sql = state.generated_sqls[0]
+            # Mark selection in state for downstream phases/logging
+            state.last_SQL = selected_sql
+            selection_metrics = {
+                "total_sqls": len(state.generated_sqls),
+                "evaluation_threshold": 0,
+                "sql_scores": [],
+                "finalists": [],
+                "selection_reason": "Evaluation bypassed by SQLGEN_BYPASS_EVALUATION=true",
+                "selected_sql_index": 0,
+                "final_status": "SILVER"
+            }
+            # Finalize execution status and emit logs
+            _finalize_execution_state_status(state, True, selected_sql, selection_metrics, 0)
+            yield "THOTHLOG:Evaluation bypassed by configuration; selecting first SQL candidate\n"
+            yield ("RESULT", True, selected_sql)
+            return
+        else:
+            # No SQLs available to bypass-select; fall through to normal error path
+            yield "THOTHLOG:Evaluation bypass requested but no SQL candidates available\n"
+
     # Check for client disconnection before test generation
     if await http_request.is_disconnected():
         logger.info("Client disconnected before test generation")
@@ -554,7 +585,22 @@ async def _evaluate_and_select_phase(
             state.escalation_context = escalation_context.to_context_string()
             
             # Update escalation flags using EscalationManager
-            EscalationManager.update_state_for_escalation(state, next_level, escalation_context)
+            try:
+                EscalationManager.update_state_for_escalation(state, next_level, escalation_context)
+            except Exception as e:
+                # Guard against state mutation errors during streaming
+                log_error(f"Escalation state update failed: {type(e).__name__}: {str(e)}")
+                error_msg = {
+                    "type": "critical_error",
+                    "component": "escalation",
+                    "message": "Escalation failed due to state update error",
+                    "details": str(e),
+                    "impact": "Cannot continue with higher-level agents",
+                    "action": "Please check SystemState mutability and escalation manager"
+                }
+                yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
+                yield f"ERROR: Escalation failed - {str(e)}\n"
+                return
             
             # Update request with new functionality level (uppercase expected by validator)
             request.functionality_level = next_level.name
