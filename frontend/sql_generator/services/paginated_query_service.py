@@ -200,7 +200,7 @@ class PaginatedQueryService:
                 elif 'count' in left.lower() and any(word in right.lower() for word in ['enrollment', 'total', 'population']):
                     base_alias = f"{left}_rate"
                 else:
-                    base_alias = f"{left}_per_{right}"
+                    base_alias = f"{left}_div_{right}"
         
         # Caso moltiplicazione
         elif has_unquoted_operator(expr, '*') and not has_unquoted_parens(expr):
@@ -627,9 +627,10 @@ class PaginatedQueryService:
                     order_by_parts.append(f"{col_id_safe} {sort_direction} {nulls_clause}")
             
             if order_by_parts:
-                if ' LIMIT ' in sql.upper():
-                    parts = re.split(r'(\s+LIMIT\s+)', sql, flags=re.IGNORECASE)
-                    sql = parts[0] + f" ORDER BY {', '.join(order_by_parts)}" + ''.join(parts[1:])
+                if 'ORDER BY' in sql.upper():
+                    sql = re.sub(r'(\s+ORDER\s+BY)', f" ORDER BY {', '.join(order_by_parts)}\\1", sql, flags=re.IGNORECASE)
+                elif 'LIMIT' in sql.upper():
+                    sql = re.sub(r'(\s+LIMIT)', f" ORDER BY {', '.join(order_by_parts)}\\1", sql, flags=re.IGNORECASE)
                 else:
                     sql = sql.strip()
                     if sql.endswith(';'):
@@ -943,17 +944,32 @@ class PaginatedQueryService:
                         row_dict = {}
                         if hasattr(row, '_asdict'):
                             row_dict = dict(row._asdict())
-                        elif hasattr(row, 'keys'):
-                            row_dict = dict(row)
+                            if columns and not all(k in row_dict for k in columns):
+                                row_dict = {col: row_dict.get(col) for col in columns}
+                        elif hasattr(getattr(row, '_mapping', row), 'keys'):
+                            mapping = getattr(row, '_mapping', row)
+                            row_dict = {}
+                            for i, col in enumerate(columns or []):
+                                try:
+                                    row_dict[col] = mapping[col]
+                                except Exception:
+                                    try:
+                                        row_dict[col] = row[i]
+                                    except Exception:
+                                        row_dict[col] = None
                         else:
-                            for i, value in enumerate(row):
-                                col_name = columns[i] if i < len(columns) else f"column_{i+1}"
-                                if value is None:
-                                    row_dict[col_name] = None
-                                elif isinstance(value, (int, float, bool)):
-                                    row_dict[col_name] = value
-                                else:
-                                    row_dict[col_name] = str(value)
+                            if isinstance(row, (str, bytes)) or not hasattr(row, '__iter__'):
+                                col_name = columns[0] if columns else 'column_1'
+                                row_dict[col_name] = row
+                            else:
+                                for i, value in enumerate(row):
+                                    col_name = columns[i] if i < len(columns) else f"column_{i+1}"
+                                    if value is None:
+                                        row_dict[col_name] = None
+                                    elif isinstance(value, (int, float, bool)):
+                                        row_dict[col_name] = value
+                                    else:
+                                        row_dict[col_name] = str(value)
                         if idx < 3:  # Log first 3 converted rows
                             logger.debug(f"Converted row {idx} to dict: {row_dict}")
                         all_results.append(row_dict)
@@ -1050,8 +1066,8 @@ class PaginatedQueryService:
                 fetch=request.page_size
             )
             
-            # Extract columns from original SQL (not the modified one)
-            columns = self._extract_columns_from_sql(request.sql)
+            # Extract columns from the executed SQL (after pagination and any alias injection)
+            columns = self._extract_columns_from_sql(paginated_sql)
             
             # If SELECT * was used, we need to get actual column names from the result
             if columns == ['*'] and execution_result and len(execution_result) > 0:
@@ -1074,18 +1090,34 @@ class PaginatedQueryService:
                     # Handle different row types
                     if hasattr(row, '_asdict'):  # NamedTuple or SQLAlchemy Row
                         row_dict = dict(row._asdict())
-                    elif hasattr(row, 'keys'):  # Dict-like object
-                        row_dict = dict(row)
-                    else:  # Tuple or list
-                        for i, value in enumerate(row):
-                            col_name = columns[i] if i < len(columns) else f"column_{i+1}"
-                            # Convert value to JSON-serializable format
-                            if value is None:
-                                row_dict[col_name] = None
-                            elif isinstance(value, (int, float, bool)):
-                                row_dict[col_name] = value
-                            else:
-                                row_dict[col_name] = str(value)
+                        # Normalize to expected columns if necessary
+                        if columns and not all(k in row_dict for k in columns):
+                            row_dict = {col: row_dict.get(col) for col in columns}
+                    elif hasattr(getattr(row, '_mapping', row), 'keys'):  # RowMapping or dict-like
+                        mapping = getattr(row, '_mapping', row)
+                        row_dict = {}
+                        for idx, col in enumerate(columns or []):
+                            try:
+                                row_dict[col] = mapping[col]
+                            except Exception:
+                                try:
+                                    row_dict[col] = row[idx]
+                                except Exception:
+                                    row_dict[col] = None
+                    else:  # Tuple/list/scalar
+                        if isinstance(row, (str, bytes)) or not hasattr(row, '__iter__'):
+                            # Scalar single-column
+                            col_name = columns[0] if columns else 'column_1'
+                            row_dict[col_name] = row
+                        else:
+                            for i, value in enumerate(row):
+                                col_name = columns[i] if i < len(columns) else f"column_{i+1}"
+                                if value is None:
+                                    row_dict[col_name] = None
+                                elif isinstance(value, (int, float, bool)):
+                                    row_dict[col_name] = value
+                                else:
+                                    row_dict[col_name] = str(value)
                     formatted_results.append(row_dict)
             
             # Cache the results
