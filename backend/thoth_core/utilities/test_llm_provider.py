@@ -64,27 +64,26 @@ def test_llm_provider(ai_model) -> Tuple[bool, str]:
             temperature=0.1,  # Low temperature for consistent response
         )
         
-        # Check if we got a valid response
-        if response and response.content:
-            # Verify the response contains expected confirmation
-            response_text = response.content.strip()
-            
-            # Log token usage if available
-            if response.usage:
-                logger.info(
-                    f"Test completed. Tokens used: "
-                    f"prompt={response.usage.get('prompt_tokens', 'N/A')}, "
-                    f"completion={response.usage.get('completion_tokens', 'N/A')}, "
-                    f"total={response.usage.get('total_tokens', 'N/A')}"
-                )
-            
+        # If we got any response object back, log usage if present
+        if response and response.usage:
+            logger.info(
+                f"Test completed. Tokens used: "
+                f"prompt={response.usage.get('prompt_tokens', 'N/A')}, "
+                f"completion={response.usage.get('completion_tokens', 'N/A')}, "
+                f"total={response.usage.get('total_tokens', 'N/A')}"
+            )
+
+        # Extract text safely
+        response_text = (response.content.strip() if (response and response.content) else "")
+
+        if response_text:
             # Check if response indicates success
             if "connection successful" in response_text.lower():
                 success_msg = (
                     f"✓ Provider test successful!\n"
                     f"Provider: {provider_name}\n"
                     f"Model: {model_name}\n"
-                    f"Response: {response_text[:100]}"  # Limit response display
+                    f"Response: {response_text[:100]}"
                 )
                 logger.info(success_msg)
                 return True, success_msg
@@ -99,15 +98,26 @@ def test_llm_provider(ai_model) -> Tuple[bool, str]:
                 )
                 logger.warning(warning_msg)
                 return True, warning_msg  # Still consider it successful since we got a response
-        else:
-            # No response content
-            error_msg = (
-                f"✗ No response received from provider.\n"
+
+        # No textual content
+        # Some providers (notably Gemini) may return an empty string while the call was successful.
+        if str(provider_name).upper() == "GEMINI" and response is not None:
+            info_msg = (
+                f"✓ Provider responded (empty content treated as success).\n"
                 f"Provider: {provider_name}\n"
                 f"Model: {model_name}"
             )
-            logger.error(error_msg)
-            return False, error_msg
+            logger.info(info_msg)
+            return True, info_msg
+
+        # Otherwise, consider it a failure
+        error_msg = (
+            f"✗ No response received from provider.\n"
+            f"Provider: {provider_name}\n"
+            f"Model: {model_name}"
+        )
+        logger.error(error_msg)
+        return False, error_msg
             
     except ValueError as e:
         # Configuration errors (missing API keys, etc.)

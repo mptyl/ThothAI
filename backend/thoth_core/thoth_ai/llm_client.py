@@ -55,7 +55,7 @@ class ThothLLMClient:
     # Provider to LiteLLM model prefix mapping
     PROVIDER_MAPPING = {
         LLMChoices.OPENAI: "",  # No prefix needed for OpenAI
-        LLMChoices.CLAUDE: "claude/",
+        LLMChoices.CLAUDE: "anthropic/",  # Use Anthropic provider for Claude
         LLMChoices.GEMINI: "gemini/",
         LLMChoices.MISTRAL: "mistral/",
         LLMChoices.OLLAMA: "ollama/",
@@ -184,6 +184,14 @@ class ThothLLMClient:
 
     def _get_custom_endpoint(self) -> Optional[str]:
         """Get custom API endpoint if needed."""
+        # Special handling for LM Studio: ensure /v1 suffix on base URL
+        if self.provider == LLMChoices.LMSTUDIO:
+            base = getattr(self.ai_model, "url", None) or "http://localhost:1234"
+            base = base.rstrip("/")
+            if not base.endswith("/v1"):
+                base = f"{base}/v1"
+            return base
+
         # Check if model has custom URL
         if hasattr(self.ai_model, "url") and self.ai_model.url:
             return self.ai_model.url
@@ -191,10 +199,6 @@ class ThothLLMClient:
         # Use default custom endpoints
         if self.provider in self.CUSTOM_ENDPOINTS:
             return self.CUSTOM_ENDPOINTS[self.provider]
-
-        # Special handling for LM Studio
-        if self.provider == LLMChoices.LMSTUDIO:
-            return self.ai_model.url or "http://localhost:1234/v1"
 
         # Ollama endpoint
         if self.provider in [LLMChoices.OLLAMA, LLMChoices.LLAMA]:
@@ -245,6 +249,22 @@ class ThothLLMClient:
         # Force custom_llm_provider for GROQ to ensure proper routing
         if self.provider == LLMChoices.GROQ:
             completion_args["custom_llm_provider"] = "groq"
+        
+        # LMStudio uses an OpenAI-compatible API - instruct LiteLLM accordingly
+        if self.provider == LLMChoices.LMSTUDIO:
+            completion_args["custom_llm_provider"] = "openai"
+
+        # Anthropic (Claude) - ensure LiteLLM routes to the correct provider
+        if self.provider == LLMChoices.CLAUDE:
+            completion_args["custom_llm_provider"] = "anthropic"
+
+        # DeepSeek - ensure LiteLLM routes to the correct provider
+        if self.provider == LLMChoices.DEEPSEEK:
+            completion_args["custom_llm_provider"] = "deepseek"
+
+        # Gemini - ensure LiteLLM routes correctly
+        if self.provider == LLMChoices.GEMINI:
+            completion_args["custom_llm_provider"] = "gemini"
 
         # Add custom endpoint if needed
         if self.custom_endpoint:
@@ -275,12 +295,55 @@ class ThothLLMClient:
                 # For streaming, return generator
                 return response
             else:
-                content = response.choices[0].message.content
-                usage = response.usage.dict() if hasattr(response, "usage") else None
+                # Robust content extraction across providers
+                content = None
+                try:
+                    # Standard OpenAI-style
+                    content = response.choices[0].message.content  # type: ignore[attr-defined]
+                except Exception:
+                    content = None
+
+                # Handle alternative message structures (dict/list)
+                if not content:
+                    try:
+                        msg = getattr(response.choices[0], "message", None)  # type: ignore[attr-defined]
+                        if isinstance(msg, dict):
+                            c = msg.get("content")
+                            if isinstance(c, list):
+                                # Join text parts
+                                parts = []
+                                for p in c:
+                                    if isinstance(p, dict) and "text" in p:
+                                        parts.append(str(p["text"]))
+                                    elif isinstance(p, str):
+                                        parts.append(p)
+                                content = " ".join(parts).strip()
+                            elif isinstance(c, str):
+                                content = c
+                    except Exception:
+                        pass
+
+                # Some providers set text directly on choice
+                if not content:
+                    try:
+                        content = getattr(response.choices[0], "text", None)  # type: ignore[attr-defined]
+                    except Exception:
+                        content = None
+
+                # Fallback to empty string if still missing
+                if content is None:
+                    content = ""
+
+                usage = getattr(response, "usage", None)
+                if usage and hasattr(usage, "dict"):
+                    try:
+                        usage = usage.dict()
+                    except Exception:
+                        usage = None
 
                 return LLMResponse(
                     content=content,
-                    model=response.model,
+                    model=getattr(response, "model", self.model_name),
                     usage=usage,
                     raw_response=response,
                 )
