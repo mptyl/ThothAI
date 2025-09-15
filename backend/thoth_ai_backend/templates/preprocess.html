@@ -145,13 +145,19 @@
                                 <td>{{ vector_store.host }}</td>
                             </tr>
                             {% endif %}
+                            {% if workspace.sql_db.vector_db.port %}
+                            <tr>
+                                <th>Port</th>
+                                <td>{{ workspace.sql_db.vector_db.port }}</td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
-                    <div class="mt-auto">
+                    <div class="mt-auto" style="margin-top: 25px!important;">
                         {% url 'thoth_ai_backend:upload_evidences' workspace.id as upload_evidence_url %}
                         {% include 'partials/operation_status_button.html' with container_id='evidence-container' hx_url=upload_evidence_url hx_indicator_id='evidence-spinner' button_text='Load Evidences' last_run=workspace.last_evidence_load last_run_text='Last upload on' never_run_text='Never uploaded' spinner_text='Uploading evidences...' icon_class='mdi mdi-lightbulb-on-outline' button_class='btn-primary' %}
                     </div>
-                    <div class="mt-2">
+                    <div class="mt-1">
                         {% url 'thoth_ai_backend:upload_questions' workspace.id as upload_questions_url %}
                         {% include 'partials/operation_status_button.html' with container_id='questions-container' hx_url=upload_questions_url hx_indicator_id='questions-spinner' button_text='Load Gold SQLs' last_run=workspace.last_sql_loaded last_run_text='Last upload on' never_run_text='Never uploaded' spinner_text='Uploading Gold SQLs...' icon_class='mdi mdi-database-search' button_class='btn-primary' %}
                     </div>

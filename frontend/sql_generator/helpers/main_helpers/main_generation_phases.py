@@ -229,19 +229,117 @@ async def _generate_sql_candidates_phase(
             "schema_strategy": state.schema_link_strategy if hasattr(state, 'schema_link_strategy') else None
         }
         # Format message to avoid Logfire interpreting JSON braces as placeholders
-        log_error(f"Critical: No SQL statements generated - workspace_id={request.workspace_id}, question='{state.question[:100] if state.question else 'N/A'}...', functionality_level={request.functionality_level}, schema_strategy={state.schema_link_strategy if hasattr(state, 'schema_link_strategy') else 'None'}")
+        log_error(
+            f"Critical: No SQL statements generated - workspace_id={request.workspace_id}, "
+            f"question='{state.question[:100] if state.question else 'N/A'}...', "
+            f"functionality_level={request.functionality_level}, "
+            f"schema_strategy={state.schema_link_strategy if hasattr(state, 'schema_link_strategy') else 'None'}"
+        )
         
-        error_msg = {
-            "type": "critical_error",
-            "component": "sql_generation",
-            "message": "No valid SQL statements were generated",
-            "details": "All SQL generation attempts failed or produced invalid results",
-            "impact": "Cannot proceed without at least one valid SQL statement",
-            "action": "Please check: 1) Question clarity, 2) Database schema availability, 3) Agent configuration"
-        }
-        yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
-        yield "ERROR: No SQL statements could be generated for your question\n"
-        return
+        # If we previously detected a database error, do not escalate
+        if getattr(state.execution, 'sql_status', '') == 'DATABASE_ERROR':
+            error_msg = {
+                "type": "critical_error",
+                "component": "sql_generation",
+                "message": "No valid SQL statements were generated",
+                "details": "All SQL generation attempts failed or produced invalid results",
+                "impact": "Cannot proceed without at least one valid SQL statement",
+                "action": "Please check: 1) Question clarity, 2) Database schema availability, 3) Agent configuration"
+            }
+            yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
+            yield "ERROR: No SQL statements could be generated for your question\n"
+            return
+
+        # Try escalation to next functionality level (BASIC -> ADVANCED -> EXPERT)
+        from helpers.main_helpers.escalation_manager import EscalationManager, EscalationContext, EscalationReason
+        from model.generator_type import GeneratorType
+
+        current_level = GeneratorType.from_string(request.functionality_level)
+        next_level = EscalationManager.get_next_level(current_level)
+
+        # Initialize escalation attempts if not present
+        if not hasattr(state, 'escalation_attempts'):
+            state.escalation_attempts = 0
+
+        if next_level and state.escalation_attempts < 2:  # Max 2 escalations (BASIC->ADVANCED->EXPERT)
+            # Emit escalation log
+            if next_level.name == "ADVANCED":
+                yield f"THOTHLOG:Escalation to Advanced Agent\n"
+            elif next_level.name == "EXPERT":
+                yield f"THOTHLOG:Escalation to Expert Agent\n"
+            else:
+                yield f"THOTHLOG:Escalating to {next_level.display_name} agent\n"
+
+            logger.info(f"Escalating SQL generation (no SQL) from {current_level.name} to {next_level.name}")
+
+            # Build escalation context
+            escalation_context = EscalationContext(
+                reason=EscalationReason.NO_SQL_GENERATED,
+                current_level=current_level,
+                question=state.question,
+                failed_sqls=getattr(state, 'generated_sqls', []) if hasattr(state, 'generated_sqls') else [],
+                evaluation_results={"cause": "no_sql_generated"},
+                failure_analysis="No SQL candidates were generated at this level"
+            )
+
+            # Update state for escalation
+            state.escalation_attempts += 1
+            state.escalation_context = escalation_context.to_context_string()
+
+            try:
+                EscalationManager.update_state_for_escalation(state, next_level, escalation_context)
+            except Exception as e:
+                # Guard against state mutation errors during streaming
+                log_error(f"Escalation state update failed: {type(e).__name__}: {str(e)}")
+                error_msg = {
+                    "type": "critical_error",
+                    "component": "escalation",
+                    "message": "Escalation failed due to state update error",
+                    "details": str(e),
+                    "impact": "Cannot continue with higher-level agents",
+                    "action": "Please check SystemState mutability and escalation manager"
+                }
+                yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
+                yield f"ERROR: Escalation failed - {str(e)}\n"
+                return
+
+            # Update request level (uppercase expected by validator)
+            request.functionality_level = next_level.name
+
+            # Clear previous generation results
+            state.generated_sqls = []
+            if hasattr(state, 'generated_tests'):
+                state.generated_tests = []
+            if hasattr(state, 'evaluation_results'):
+                state.evaluation_results = []
+
+            yield f"THOTHLOG:Starting new SQL generation attempt with {next_level.display_name} agents\n"
+
+            # Recursively call generation phase at the higher level
+            async for result in _generate_sql_candidates_phase(state, request, http_request):
+                if isinstance(result, str):
+                    yield result
+            return
+        else:
+            # Cannot escalate further or attempts exhausted
+            if not next_level:
+                logger.info("Already at maximum functionality level (EXPERT), cannot escalate further")
+                yield f"THOTHLOG:Maximum functionality level reached - cannot escalate beyond {current_level.display_name}\n"
+            else:
+                logger.info(f"Maximum escalation attempts ({state.escalation_attempts}) reached")
+                yield f"THOTHLOG:Maximum escalation attempts reached - stopping after {state.escalation_attempts} escalations\n"
+
+            error_msg = {
+                "type": "critical_error",
+                "component": "sql_generation",
+                "message": "No valid SQL statements were generated",
+                "details": "All SQL generation attempts failed or produced invalid results",
+                "impact": "Cannot proceed without at least one valid SQL statement",
+                "action": "Please check: 1) Question clarity, 2) Database schema availability, 3) Agent configuration"
+            }
+            yield f"CRITICAL_ERROR:{json.dumps(error_msg, ensure_ascii=True)}\n"
+            yield "ERROR: No SQL statements could be generated for your question\n"
+            return
     
     yield f"THOTHLOG:Cleaned SQL results - {len(sql_results)} unique valid SQL statements\n"
     state.generated_sqls = sql_results
