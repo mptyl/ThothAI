@@ -21,6 +21,8 @@ import hashlib
 from pydantic import BaseModel, Field
 from helpers.dual_logger import log_error
 
+VERBOSE_DEBUG = False  # Set to True only when deep troubleshooting verbose logs are needed
+
 logger = logging.getLogger(__name__)
 
 
@@ -353,22 +355,26 @@ class PaginatedQueryService:
         """
         import re
         
-        logger.debug(f"Adding aliases to SQL: {sql[:200]}...")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Adding aliases to SQL: {sql[:200]}...")
         
         # Estrai SELECT...FROM
         select_pattern = r'SELECT\s+(.*?)\s+FROM'
         match = re.search(select_pattern, sql, re.IGNORECASE | re.DOTALL)
         
         if not match:
-            logger.debug("No SELECT clause found, returning original SQL")
+            if VERBOSE_DEBUG:
+                logger.debug("No SELECT clause found, returning original SQL")
             return sql, self._extract_columns_from_sql(sql)
         
         select_clause = match.group(1)
-        logger.debug(f"Original SELECT clause: {select_clause[:200]}...")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Original SELECT clause: {select_clause[:200]}...")
         
         # Parse delle singole espressioni
         expressions = self._parse_select_expressions(select_clause)
-        logger.debug(f"Parsed {len(expressions)} expressions")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Parsed {len(expressions)} expressions")
         
         # Contatore per alias duplicati
         alias_counter = {}
@@ -383,7 +389,8 @@ class PaginatedQueryService:
                 modified_expr = f"{expr} AS {alias}"
                 modified_expressions.append(modified_expr)
                 column_names.append(alias)
-                logger.debug(f"Added alias: {expr[:50]}... AS {alias}")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Added alias: {expr[:50]}... AS {alias}")
             else:
                 # Mantieni com'è e estrai il nome della colonna
                 modified_expressions.append(expr)
@@ -399,8 +406,9 @@ class PaginatedQueryService:
         new_select = ", ".join(modified_expressions)
         modified_sql = sql.replace(select_clause, new_select, 1)
         
-        logger.debug(f"Modified SQL: {modified_sql[:300]}...")
-        logger.debug(f"Column names: {column_names}")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Modified SQL: {modified_sql[:300]}...")
+            logger.debug(f"Column names: {column_names}")
         
         return modified_sql, column_names
     
@@ -418,7 +426,8 @@ class PaginatedQueryService:
         
         if match:
             columns_str = match.group(1)
-            logger.debug(f"Extracting columns from SELECT clause: {columns_str[:100]}...")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Extracting columns from SELECT clause: {columns_str[:100]}...")
             
             # Parse columns respecting quotes and parentheses
             current_col = ""
@@ -449,7 +458,8 @@ class PaginatedQueryService:
                     # Found a column separator at the top level
                     if current_col.strip():
                         col_name = self._process_column_definition(current_col.strip())
-                        logger.debug(f"Extracted column: {col_name}")
+                        if VERBOSE_DEBUG:
+                            logger.debug(f"Extracted column: {col_name}")
                         columns.append(col_name)
                     current_col = ""
                 else:
@@ -460,16 +470,19 @@ class PaginatedQueryService:
             # Don't forget the last column
             if current_col.strip():
                 col_name = self._process_column_definition(current_col.strip())
-                logger.debug(f"Extracted column: {col_name}")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Extracted column: {col_name}")
                 columns.append(col_name)
         
-        logger.debug(f"Final extracted columns: {columns}")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Final extracted columns: {columns}")
         return columns if columns else ['column_1']
     
     def _process_column_definition(self, col_def: str) -> str:
         """Process a single column definition to extract the column name or alias"""
         col_def = col_def.strip()
-        logger.debug(f"Processing column definition: {col_def}")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Processing column definition: {col_def}")
         
         # Check for alias with AS
         if ' AS ' in col_def.upper():
@@ -478,7 +491,8 @@ class PaginatedQueryService:
             alias = col_def[as_index + 4:].strip()
             # Remove quotes from alias if present
             result = alias.strip('"').strip("'")
-            logger.debug(f"Found alias: {result}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Found alias: {result}")
             return result
         
         # Check for implicit alias (expression followed by identifier without AS)
@@ -493,7 +507,8 @@ class PaginatedQueryService:
             if matches:
                 # Return the last quoted string (the field name)
                 result = matches[-1]
-                logger.debug(f"Extracted quoted field name: {result}")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Extracted quoted field name: {result}")
                 return result
         
         # For expressions with table prefixes (T1.field)
@@ -502,18 +517,21 @@ class PaginatedQueryService:
             parts = col_def.split('.')
             # Return the last part (column name), removing quotes
             result = parts[-1].strip().strip('"').strip("'")
-            logger.debug(f"Extracted column from table.column: {result}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Extracted column from table.column: {result}")
             return result
         
         # For functions or complex expressions without alias
         if any(func in col_def.upper() for func in ['COUNT(', 'SUM(', 'AVG(', 'MAX(', 'MIN(', 'CAST(']):
             # This is a function without an alias - use a generic name
-            logger.debug(f"Function without alias detected, using 'result'")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Function without alias detected, using 'result'")
             return 'result'
         
         # For arithmetic expressions without alias
         if any(op in col_def for op in ['/', '*', '+', '-']):
-            logger.debug(f"Processing arithmetic expression: {col_def}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Processing arithmetic expression: {col_def}")
             # Try to extract a meaningful name from the expression
             if '/' in col_def:
                 parts = col_def.split('/')
@@ -527,14 +545,17 @@ class PaginatedQueryService:
                         left = left_matches[-1].replace(' ', '_').replace('(', '').replace(')', '')
                         right = right_matches[-1].replace(' ', '_').replace('(', '').replace(')', '')
                         column_name = f"{left}_div_{right}"
-                        logger.debug(f"Generated column name for division: {column_name}")
+                        if VERBOSE_DEBUG:
+                            logger.debug(f"Generated column name for division: {column_name}")
                         return column_name
-            logger.debug(f"Using 'calculated_value' for arithmetic expression")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Using 'calculated_value' for arithmetic expression")
             return 'calculated_value'
         
         # Default: return as-is, removing quotes
         result = col_def.strip('"').strip("'")
-        logger.debug(f"Using default column name: {result}")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Using default column name: {result}")
         return result
     
     def _apply_sorting(self, sql: str, sort_model: Optional[List[Dict[str, Any]]]) -> str:
@@ -757,7 +778,8 @@ class PaginatedQueryService:
         if cache_key in self._count_cache:
             entry = self._count_cache[cache_key]
             if not entry.is_expired():
-                logger.debug(f"Using cached count for query: {entry.result} rows")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Using cached count for query: {entry.result} rows")
                 return entry.result
         
         if original_limit is not None and original_limit <= 1000:
@@ -838,27 +860,32 @@ class PaginatedQueryService:
             PaginationResponse with paginated results
         """
         try:
-            logger.debug(f"execute_paginated_query called with: workspace_id={request.workspace_id}, "
-                         f"sql={request.sql[:100]}..., page={request.page}, page_size={request.page_size}")
-            logger.debug(f"Sort model: {request.sort_model}")
-            logger.debug(f"Filter model: {request.filter_model}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"execute_paginated_query called with: workspace_id={request.workspace_id}, "
+                             f"sql={request.sql[:100]}..., page={request.page}, page_size={request.page_size}")
+                logger.debug(f"Sort model: {request.sort_model}")
+                logger.debug(f"Filter model: {request.filter_model}")
             
             # Add semantic aliases to calculated fields FIRST
             modified_sql, actual_columns = self._add_aliases_to_calculated_fields(request.sql)
             
             original_limit = self._extract_limit_from_sql(modified_sql)
-            logger.debug(f"Detected original LIMIT: {original_limit}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Detected original LIMIT: {original_limit}")
             
             # Apply filters first
             filtered_sql = self._apply_filters(modified_sql, request.filter_model)
-            logger.debug(f"SQL after filters: {filtered_sql}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"SQL after filters: {filtered_sql}")
             
             # Apply sorting
             sorted_sql = self._apply_sorting(filtered_sql, request.sort_model)
-            logger.debug(f"SQL after sorting: {sorted_sql}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"SQL after sorting: {sorted_sql}")
             
             if original_limit is not None and original_limit <= 1000:
-                logger.debug(f"Using in-memory pagination for LIMIT {original_limit}")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Using in-memory pagination for LIMIT {original_limit}")
                 response = self._execute_with_memory_pagination(
                     sorted_sql, request, original_limit
                 )
@@ -866,7 +893,8 @@ class PaginatedQueryService:
                 response.columns = actual_columns
                 return response
             else:
-                logger.debug(f"Using SQL-based pagination")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Using SQL-based pagination")
                 response = self._execute_with_sql_pagination(
                     sorted_sql, request, original_limit
                 )
@@ -893,8 +921,9 @@ class PaginatedQueryService:
         Execute query with in-memory pagination for queries with LIMIT <= 1000
         """
         try:
-            logger.debug(f"Executing query with in-memory pagination (LIMIT {original_limit})")
-            logger.debug(f"SQL to execute: {sql}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Executing query with in-memory pagination (LIMIT {original_limit})")
+                logger.debug(f"SQL to execute: {sql}")
             
             # Check cache
             cache_key = self._get_cache_key(
@@ -906,7 +935,8 @@ class PaginatedQueryService:
             if cache_key in self._query_cache:
                 entry = self._query_cache[cache_key]
                 if not entry.is_expired():
-                    logger.debug(f"Using cached results for in-memory pagination")
+                    if VERBOSE_DEBUG:
+                        logger.debug(f"Using cached results for in-memory pagination")
                     all_results = entry.result['data']
                     columns = entry.result['columns']
                 else:
@@ -918,28 +948,32 @@ class PaginatedQueryService:
             
             if all_results is None:
                 # Execute query to get all results
-                logger.debug(f"Executing SQL query against database")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Executing SQL query against database")
                 execution_result = self.dbmanager.execute_sql(
                     sql=sql,
                     params={},
                     fetch="all"
                 )
                 
-                logger.debug(f"Database returned {len(execution_result) if execution_result else 0} rows")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Database returned {len(execution_result) if execution_result else 0} rows")
                 if execution_result and len(execution_result) > 0:
-                    logger.debug(f"First row type: {type(execution_result[0])}")
-                    logger.debug(f"First row content: {execution_result[0]}")
+                    if VERBOSE_DEBUG:
+                        logger.debug(f"First row type: {type(execution_result[0])}")
+                        logger.debug(f"First row content: {execution_result[0]}")
                 
                 # Extract columns
                 columns = self._extract_columns_from_sql(sql)
-                logger.debug(f"Extracted columns: {columns}")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Extracted columns: {columns}")
                 
                 # Convert to list of dictionaries
                 all_results = []
                 if execution_result and isinstance(execution_result, list):
                     
                     for idx, row in enumerate(execution_result):
-                        if idx < 3:  # Log first 3 rows for debugging
+                        if VERBOSE_DEBUG and idx < 3:  # Log first 3 rows for debugging
                             logger.debug(f"Processing row {idx}: {row}")
                         row_dict = {}
                         if hasattr(row, '_asdict'):
@@ -970,7 +1004,7 @@ class PaginatedQueryService:
                                         row_dict[col_name] = value
                                     else:
                                         row_dict[col_name] = str(value)
-                        if idx < 3:  # Log first 3 converted rows
+                        if VERBOSE_DEBUG and idx < 3:  # Log first 3 converted rows
                             logger.debug(f"Converted row {idx} to dict: {row_dict}")
                         all_results.append(row_dict)
                 
@@ -988,11 +1022,12 @@ class PaginatedQueryService:
             # Slice the results
             paginated_results = all_results[start_idx:end_idx]
             
-            logger.debug(f"Pagination: total_rows={total_rows}, start_idx={start_idx}, end_idx={end_idx}")
-            logger.debug(f"Returning {len(paginated_results)} rows for page {request.page}")
-            if paginated_results:
-                logger.debug(f"First paginated row: {paginated_results[0]}")
-            logger.debug(f"Columns being returned: {columns}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Pagination: total_rows={total_rows}, start_idx={start_idx}, end_idx={end_idx}")
+                logger.debug(f"Returning {len(paginated_results)} rows for page {request.page}")
+                if paginated_results:
+                    logger.debug(f"First paginated row: {paginated_results[0]}")
+                logger.debug(f"Columns being returned: {columns}")
             
             return PaginationResponse(
                 data=paginated_results,
@@ -1046,7 +1081,8 @@ class PaginatedQueryService:
             if cache_key in self._query_cache:
                 entry = self._query_cache[cache_key]
                 if not entry.is_expired():
-                    logger.debug(f"Using cached results for page {request.page}")
+                    if VERBOSE_DEBUG:
+                        logger.debug(f"Using cached results for page {request.page}")
                     cached_data = entry.result
                     return PaginationResponse(
                         data=cached_data['data'],
@@ -1059,7 +1095,8 @@ class PaginatedQueryService:
                     )
             
             # Execute paginated query
-            logger.debug(f"Executing paginated query for page {request.page}, size {request.page_size}")
+            if VERBOSE_DEBUG:
+                logger.debug(f"Executing paginated query for page {request.page}, size {request.page_size}")
             execution_result = self.dbmanager.execute_sql(
                 sql=paginated_sql,
                 params={},
@@ -1080,7 +1117,8 @@ class PaginatedQueryService:
                 else:
                     # Fall back to generic column names based on row length
                     columns = [f"column_{i+1}" for i in range(len(first_row))]
-                logger.debug(f"Detected columns from SELECT *: {columns}")
+                if VERBOSE_DEBUG:
+                    logger.debug(f"Detected columns from SELECT *: {columns}")
             
             # Convert result to list of dictionaries
             formatted_results = []
@@ -1176,7 +1214,8 @@ class PaginatedQueryService:
             self._query_cache.clear()
             self._count_cache.clear()
             
-        logger.debug(f"Cache cleared for workspace: {workspace_id or 'all'}")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Cache cleared for workspace: {workspace_id or 'all'}")
     
     def cleanup_expired_cache(self):
         """Remove expired entries from cache"""
@@ -1196,4 +1235,5 @@ class PaginatedQueryService:
         for key in expired_keys:
             del self._count_cache[key]
             
-        logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
+        if VERBOSE_DEBUG:
+            logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
