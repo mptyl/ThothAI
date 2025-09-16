@@ -44,7 +44,8 @@ from helpers.main_helpers.main_preprocessing_phases import (
 )
 from helpers.main_helpers.main_generation_phases import (
     _generate_sql_candidates_phase,
-    _evaluate_and_select_phase
+    _evaluate_and_select_phase,
+    _precompute_tests_phase
 )
 from helpers.main_helpers.main_response_preparation import (
     _prepare_final_response_phase
@@ -243,10 +244,11 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
             ("Phase 1: Question Validation", _validate_question_phase(state, request, http_request)),
             ("Phase 2: Keyword Extraction", _extract_keywords_phase(state, request, http_request)),
             ("Phase 3: Context Retrieval", _retrieve_context_phase(state, request, http_request)),
-            ("Phase 4: SQL Generation", _generate_sql_candidates_phase(state, request, http_request)),
+            ("Phase 4: Precompute Tests", _precompute_tests_phase(state, request, http_request)),
+            ("Phase 5: SQL Generation", _generate_sql_candidates_phase(state, request, http_request)),
         ]
         
-        # Execute phases 1-4 with standard error handling
+        # Execute phases 1-5 with standard error handling
         has_critical_error = False
         critical_error_message = None
         
@@ -271,7 +273,7 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
                 else:
                     yield message
         
-        # Phase 5: Evaluation and Selection (skip if critical error)
+        # Phase 6: Evaluation and Selection (skip if critical error)
         success = False
         selected_sql = None
         
@@ -291,10 +293,10 @@ async def generate_sql(request: GenerateSQLRequest, http_request: Request):
         else:
             # If we had a critical error, ensure success is False
             success = False
-            logger.info(f"Skipping Phase 5 due to critical error: {critical_error_message}")
+            logger.info(f"Skipping Phase 6 due to critical error: {critical_error_message}")
             yield f"THOTHLOG:Skipping evaluation phase due to critical error: {critical_error_message}\n"
         
-        # Phase 6: Final Response Preparation - ALWAYS CALLED for logging
+        # Phase 7: Final Response Preparation - ALWAYS CALLED for logging
         async for message in _prepare_final_response_phase(state, request, http_request, success, selected_sql):
             yield message
 
@@ -546,4 +548,3 @@ if __name__ == "__main__":
     # Priority: command line arg > PORT env > default 8180
     port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.getenv('PORT', '8180'))
     uvicorn.run(app, host="0.0.0.0", port=port)
-    

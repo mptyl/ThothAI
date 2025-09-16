@@ -184,13 +184,30 @@ class StateFactory:
         """
         
         if agent_type == "sql_generation":
+            # Extract evidence-critical tests from state if available (stateless approach)
+            evidence_critical_tests = []
+            try:
+                tests_source = []
+                # Prefer semantically filtered tests if present
+                if hasattr(state, 'filtered_tests') and isinstance(state.filtered_tests, list) and state.filtered_tests:
+                    tests_source = state.filtered_tests
+                # Otherwise, flatten generated_tests answers
+                elif hasattr(state, 'generated_tests') and state.generated_tests:
+                    for _, answers in state.generated_tests:
+                        if isinstance(answers, list):
+                            tests_source.extend(answers)
+                # Filter only evidence-critical marked tests
+                evidence_critical_tests = [t for t in tests_source if isinstance(t, str) and "[EVIDENCE-CRITICAL]" in t]
+            except Exception:
+                evidence_critical_tests = []
             return SqlGenerationDeps(
                 db_type=state.database.db_type,
                 db_schema_str=state.schemas.used_mschema or state.schemas.reduced_mschema,
                 treat_empty_result_as_error=state.database.treat_empty_result_as_error,
                 last_SQL=state.execution.last_SQL,
                 last_execution_error=state.execution.last_execution_error,
-                last_generation_success=state.execution.last_generation_success
+                last_generation_success=state.execution.last_generation_success,
+                evidence_critical_tests=evidence_critical_tests
             )
             
         elif agent_type == "evaluator":

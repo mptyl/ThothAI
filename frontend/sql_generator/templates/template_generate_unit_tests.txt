@@ -26,7 +26,12 @@ The SQL generator being tested must strictly follow these directives:
 - The SQL generator must be free to choose any valid approach to accomplish the task
 - Only test correctness, not implementation preferences
 - Ensure the SQL generator follows the directives provided above
-+Exception for Evidence compliance:
-+- If the Evidence defines explicit identities/equivalences or formulas (e.g., Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`), you MUST include tests that verify those identities are actually applied in filters/aggregations when relevant to the question. This is not an implementation preference but a semantic correctness requirement.
++Evidence policy and mandatory tags:
++- If the Evidence section is empty or contains no applicable facts, do NOT invent or infer evidence. In this case, do NOT generate any [EVIDENCE-CRITICAL] tests.
++- If the Evidence defines explicit identities, equivalences, filters, or conditions that are relevant to the question, you MUST generate at least one test for each such rule and PREFIX those tests with [EVIDENCE-CRITICAL]. These tests verify that the SQL enforces those evidence-derived requirements (e.g., required WHERE filters, GROUP BY logic, or derived value identities).
++- Examples: "[EVIDENCE-CRITICAL] The query MUST filter NSLP Provision Status = 'Multiple Provision Types'"; "[EVIDENCE-CRITICAL] The query MUST apply Magnet = 1"; "[EVIDENCE-CRITICAL] The query MUST implement the K-8 grade span equivalence as defined in Evidence".
+ 
+-Exception for Evidence compliance:
+- If the Evidence defines explicit identities/equivalences or formulas (e.g., Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`), include tests that verify those identities are actually applied in filters/aggregations when relevant to the question. Tag them as [EVIDENCE-CRITICAL]. This is not an implementation preference but a semantic correctness requirement.
 
 Generate from 7 to 14 comprehensive unit tests based on the question and schema above, ensuring Evidence compliance is validated when applicable. Provide your reasoning in the thinking field and the list of test statements in the answers field.

@@ -71,7 +71,7 @@ class ThothAgentManager(BaseAgentManager):
         self._create_sql_explainer_agent()
         
         # Only initialize validators we need
-        self.sql_validators = SqlValidators(None, self.dbmanager)  # Enable SQL validators with dbmanager
+        self.sql_validators = SqlValidators(self.evaluator_agent, self.dbmanager)  # Enable SQL validators with evaluator for gating
         
         self._populate_agent_pools()
         self._configure_tools_and_validators()  # Enable tools and validators

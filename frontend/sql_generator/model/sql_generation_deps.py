@@ -15,7 +15,8 @@ Lightweight dependency classes for SQL generation agents.
 These classes are designed to be fully pickleable for parallel execution.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List
 
 
 class SqlGenerationDeps(BaseModel):
@@ -35,6 +36,9 @@ class SqlGenerationDeps(BaseModel):
     last_SQL: str = ""
     last_execution_error: str = ""
     last_generation_success: bool = False
+    
+    # Stateless gating input: evidence-critical tests for this request
+    evidence_critical_tests: List[str] = Field(default_factory=list)
     
     class Config:
         """Pydantic configuration"""

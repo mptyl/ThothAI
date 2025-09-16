@@ -15,8 +15,10 @@ Validators for SQL generation agents.
 """
 
 import re
+import asyncio
 from typing import List, Optional
 from pydantic_ai import RunContext, ModelRetry
+from pydantic_ai.settings import ModelSettings
 
 from ..core.agent_result_models import SqlResponse, InvalidRequest
 from model.sql_generation_deps import SqlGenerationDeps
@@ -24,6 +26,8 @@ from model.sql_generation_deps import SqlGenerationDeps
 # from model.sql_meta_info import SQLMetaInfo
 from helpers.logging_config import get_logger
 from helpers.dual_logger import log_info
+from helpers.template_preparation import TemplateLoader
+from model.evaluator_deps import EvaluatorDeps
 
 logger = get_logger(__name__)
 
@@ -66,9 +70,10 @@ class SqlValidators:
     Validators for SQL generation agents.
     """
     
-    def __init__(self, test_exec_agent=None, dbmanager=None):
-        # test_exec_agent parameter kept for backward compatibility but no longer used
+    def __init__(self, evaluator_agent=None, dbmanager=None):
+        # evaluator_agent is used for evidence-critical gating
         self.dbmanager = dbmanager
+        self.evaluator_agent = evaluator_agent
     
     def create_sql_validator(self):
         """
@@ -148,19 +153,75 @@ class SqlValidators:
                 
                 logger.debug("SQL validation passed successfully")
                 
-                # Step 4: Check for empty results if configured and dbmanager is available
+                # Step 4: Evidence-critical gating (stateless via ctx.deps)
+                try:
+                    evidence_tests = getattr(ctx.deps, 'evidence_critical_tests', None)
+                    if evidence_tests and isinstance(evidence_tests, list) and len(evidence_tests) > 0:
+                        if not self.evaluator_agent:
+                            logger.warning("Evidence-critical tests present but evaluator_agent is not available - skipping gating")
+                        else:
+                            # Build evaluation template for only the evidence-critical tests
+                            unit_tests_str = "\n".join([f"{i}. {t}" for i, t in enumerate(evidence_tests, 1)])
+                            template = TemplateLoader.format(
+                                'template_evaluate_single.txt',
+                                safe=True,
+                                SQL_QUERY=sql,
+                                UNIT_TESTS=unit_tests_str
+                            )
+                            # Run evaluator with a strict timeout and low temperature
+                            try:
+                                result = await asyncio.wait_for(
+                                    self.evaluator_agent.run(
+                                        template,
+                                        model_settings=ModelSettings(temperature=0.2),
+                                        deps=EvaluatorDeps()
+                                    ),
+                                    timeout=7
+                                )
+                            except asyncio.TimeoutError:
+                                ctx.deps.last_execution_error = "Evidence-critical gating timed out"
+                                raise ModelRetry("Evidence-critical checks timed out - regenerate SQL and try again")
+                            # Extract answers
+                            answers = []
+                            if result and hasattr(result, 'output'):
+                                answers = getattr(result.output, 'answers', []) or []
+                            # Ensure we have exactly one answer per test
+                            if len(answers) != len(evidence_tests):
+                                # Pad with KO for incomplete evaluation
+                                while len(answers) < len(evidence_tests):
+                                    answers.append(f"Test #{len(answers)+1}: KO - incomplete evaluation")
+                                answers = answers[:len(evidence_tests)]
+                            # Determine failures
+                            def _is_ok(line: str) -> bool:
+                                if not isinstance(line, str):
+                                    return False
+                                if ": " in line:
+                                    return line.split(": ", 1)[1].strip().upper() == "OK"
+                                return False
+                            failing = [(idx+1, ans) for idx, ans in enumerate(answers) if not _is_ok(ans)]
+                            passed = len(answers) - len(failing)
+                            # Emit THOTHLOG via dual logger for observability
+                            log_info(f"THOTHLOG:Evidence-critical gating evaluated {len(answers)} tests: {passed} OK, {len(failing)} KO")
+                            if failing:
+                                # Summarize failing evidence-critical checks
+                                reasons = "; ".join([f"Test {num}: {ans}" for num, ans in failing[:3]])
+                                ctx.deps.last_execution_error = f"Evidence-critical checks failed: {reasons}"
+                                raise ModelRetry(
+                                    "One or more evidence-critical requirements were not satisfied. Please regenerate a SQL that strictly applies all evidence-derived rules and filters."
+                                )
+                except ModelRetry:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error during evidence-critical gating: {e}")
+                    # Be conservative: do not block on gating internal errors; proceed to next checks
+                    pass
+                
+                # Step 5: Check for empty results if configured and dbmanager is available
                 if ctx.deps.treat_empty_result_as_error and self.dbmanager:
                     logger.debug(f"Step 4: treat_empty_result_as_error=True, checking for empty results")
                     try:
                         # Execute the actual SQL to check for empty results
                         result = self.dbmanager.execute_sql(sql=sql, params={})
-                        if not result or len(result) == 0:
-                            logger.warning("SQL returned empty result set")
-                            # Trigger empty result error
-                            empty_result_error = True
-                        else:
-                            logger.debug(f"SQL returned {len(result)} rows - not empty")
-                            empty_result_error = False
                     except Exception as e:
                         logger.error(f"Error checking for empty results: {e}")
                         # Don't fail on this check, just log it
@@ -190,7 +251,7 @@ class SqlValidators:
                 elif ctx.deps.treat_empty_result_as_error and not self.dbmanager:
                     logger.warning("treat_empty_result_as_error=True but dbmanager not available - cannot check")
                 else:
-                    logger.debug(f"Step 4: treat_empty_result_as_error=False: Skipping empty result check")
+                    logger.debug(f"Step 5: treat_empty_result_as_error=False: Skipping empty result check")
                 
                 # Update the SQL in state again (in case it was modified during validation)
                 ctx.deps.last_SQL = sql

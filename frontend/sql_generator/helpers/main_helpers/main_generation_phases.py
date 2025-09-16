@@ -137,6 +137,69 @@ def _finalize_execution_state_status(state, success: bool, selected_sql: str, se
             state.execution.evaluation_case = "A-SILVER"
 
 
+async def _precompute_tests_phase(
+    state: SystemState,
+    request: "GenerateSQLRequest",
+    http_request: Request
+):
+    """
+    Precompute validation tests BEFORE SQL generation.
+    - Generates tests based on question, schema, and evidence (no SQL candidates yet)
+    - Deduplicates tests and stores them in state (filtered_tests)
+    - Enables stateless evidence-critical gating during SQL generation
+    """
+    # Early disconnect check
+    if await http_request.is_disconnected():
+        logger.info("Client disconnected before precompute tests phase")
+        yield "CANCELLED:Operation cancelled by user\n"
+        return
+
+    # Inform the client
+    yield f"THOTHLOG:Precomputing {state.number_of_tests_to_generate} validation tests from Evidence and Schema\n"
+
+    try:
+        # Lazy import to avoid cycles
+        from helpers.main_helpers.main_test_generation import generate_test_units
+
+        test_result_list = await generate_test_units(state, state.agents_and_tools, request.functionality_level)
+
+        if not test_result_list:
+            yield "THOTHLOG:No tests were generated in precompute phase\n"
+            return
+
+        # Save full results
+        state.generated_tests = test_result_list
+        state.generated_tests_json = json.dumps(state.generated_tests, ensure_ascii=True)
+
+        # Deduplicate across all answers while preserving order
+        seen = set()
+        unique_tests = []
+        for _, answers in test_result_list:
+            if not answers:
+                continue
+            for a in answers:
+                if a and a != "GENERATION FAILED" and a not in seen:
+                    seen.add(a)
+                    unique_tests.append(a)
+
+        # Store filtered tests for downstream use
+        if hasattr(state, 'filtered_tests'):
+            state.filtered_tests = unique_tests
+        if hasattr(state, 'filtered_tests_json'):
+            try:
+                state.filtered_tests_json = json.dumps(unique_tests, ensure_ascii=True)
+            except Exception:
+                pass
+
+        # Count evidence-critical tests
+        ev_crit_count = sum(1 for t in unique_tests if isinstance(t, str) and "[EVIDENCE-CRITICAL]" in t)
+        yield f"THOTHLOG:Precompute tests ready: {len(unique_tests)} tests ({ev_crit_count} evidence-critical)\n"
+
+    except Exception as e:
+        log_error(f"Error in precompute tests phase: {type(e).__name__}: {str(e)}")
+        yield f"THOTHLOG:Warning: Precompute tests failed: {str(e)}\n"
+
+
 async def _generate_sql_candidates_phase(
     state: SystemState,
     request: "GenerateSQLRequest",
@@ -158,6 +221,24 @@ async def _generate_sql_candidates_phase(
         logger.info("Client disconnected before SQL generation")
         yield "CANCELLED:Operation cancelled by user\n"
         return
+    
+    # Inform about evidence-critical gating status before generation
+    try:
+        ev_crit_count = 0
+        if hasattr(state, 'filtered_tests') and state.filtered_tests:
+            ev_crit_count = sum(1 for t in state.filtered_tests if isinstance(t, str) and "[EVIDENCE-CRITICAL]" in t)
+        elif hasattr(state, 'generated_tests') and state.generated_tests:
+            for _, answers in state.generated_tests:
+                if not answers:
+                    continue
+                ev_crit_count += sum(1 for t in answers if isinstance(t, str) and "[EVIDENCE-CRITICAL]" in t)
+        if ev_crit_count > 0:
+            yield f"THOTHLOG:Evidence-critical gating enabled with {ev_crit_count} mandatory tests\n"
+        else:
+            yield f"THOTHLOG:No evidence-critical gating (no evidence-derived rules detected)\n"
+    except Exception:
+        # Non-fatal
+        pass
     
     # Generate sqls in parallel
     yield f"THOTHLOG:Generating {state.number_of_sql_to_generate} SQL in parallel\n"  
@@ -269,7 +350,6 @@ async def _generate_sql_candidates_phase(
                 yield f"THOTHLOG:Escalation to Expert Agent\n"
             else:
                 yield f"THOTHLOG:Escalating to {next_level.display_name} agent\n"
-
             logger.info(f"Escalating SQL generation (no SQL) from {current_level.name} to {next_level.name}")
 
             # Build escalation context
@@ -463,7 +543,19 @@ async def _evaluate_and_select_phase(
         yield "CANCELLED:Operation cancelled by user\n"
         return
     
-    yield f"THOTHLOG:Evaluating SQL candidates with {unique_test_count} unique tests (deduplicated from {len(state.generated_tests)} test sets)\n"
+    # Count evidence-critical tests for observability
+    try:
+        ev_crit_count = 0
+        if hasattr(state, 'filtered_tests') and state.filtered_tests:
+            ev_crit_count = sum(1 for t in state.filtered_tests if isinstance(t, str) and "[EVIDENCE-CRITICAL]" in t)
+        else:
+            for _, answers in state.generated_tests:
+                if not answers:
+                    continue
+                ev_crit_count += sum(1 for t in answers if isinstance(t, str) and "[EVIDENCE-CRITICAL]" in t)
+        yield f"THOTHLOG:Evaluating SQL candidates with {unique_test_count} unique tests (deduplicated from {len(state.generated_tests)} test sets; {ev_crit_count} evidence-critical)\n"
+    except Exception:
+        yield f"THOTHLOG:Evaluating SQL candidates with {unique_test_count} unique tests (deduplicated from {len(state.generated_tests)} test sets)\n"
     
     # Get evaluation threshold from workspace
     evaluation_threshold = state.workspace.get('evaluation_threshold', 90)
