@@ -60,6 +60,7 @@ export const PaginatedDataTable: React.FC<PaginatedDataTableProps> = ({
     const cols = columns.map(col => ({
       field: col,
       headerName: col,
+      valueGetter: (params: any) => (params && params.data ? params.data[col] : undefined),
       filter: 'agTextColumnFilter', // Enable text filter
       sortable: true, // Enable sorting
       resizable: true,
@@ -106,18 +107,32 @@ export const PaginatedDataTable: React.FC<PaginatedDataTableProps> = ({
         if (onError) onError(response.error);
         setRowData([]);
       } else {
-        // Update columns if this is the first load
-        if (columns.length === 0 && response.columns.length > 0) {
-          setColumns(response.columns);
+        // Resolve columns and normalize data for single-column/scalar results
+        const rawData = response.data || [];
+        let incomingColumns = (response.columns && response.columns.length > 0) ? response.columns : [];
+        let normalizedData = rawData;
+        // Normalize if backend returns primitives or single-item arrays
+        if (rawData.length > 0 && (typeof rawData[0] !== 'object' || Array.isArray(rawData[0]))) {
+          const colName = incomingColumns[0] || 'column_1';
+          normalizedData = rawData.map((row: any) => Array.isArray(row) ? { [colName]: row[0] } : { [colName]: row });
+        }
+        // If columns are missing, derive from normalized data
+        if (incomingColumns.length === 0 && normalizedData.length > 0) {
+          incomingColumns = Object.keys(normalizedData[0]);
         }
         
-        // Update total rows - use data length if total_rows is 0 or undefined
-        const actualTotalRows = response.total_rows || (response.data?.length || 0);
+        // Update columns if this is the first load
+        if (columns.length === 0 && incomingColumns.length > 0) {
+          setColumns(incomingColumns);
+        }
+        
+        // Update total rows - use normalized data length if total_rows is 0 or undefined
+        const actualTotalRows = response.total_rows || (normalizedData.length || 0);
         setTotalRows(actualTotalRows);
         if (onDataLoaded) onDataLoaded(actualTotalRows);
         
         // Update row data
-        setRowData(response.data || []);
+        setRowData(normalizedData);
         setIsInitialized(true);
         
       }
@@ -465,6 +480,7 @@ export const PaginatedDataTable: React.FC<PaginatedDataTableProps> = ({
           onFilterChanged={onFilterChanged}
           animateRows={true}
           suppressCellFocus={true}
+          suppressFieldDotNotation={true}
           pagination={false} // We'll handle pagination manually
           loading={isLoading}
           rowHeight={32} // Make rows less tall

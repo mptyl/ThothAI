@@ -26,5 +26,7 @@ The SQL generator being tested must strictly follow these directives:
 - The SQL generator must be free to choose any valid approach to accomplish the task
 - Only test correctness, not implementation preferences
 - Ensure the SQL generator follows the directives provided above
++Exception for Evidence compliance:
++- If the Evidence defines explicit identities/equivalences or formulas (e.g., Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`), you MUST include tests that verify those identities are actually applied in filters/aggregations when relevant to the question. This is not an implementation preference but a semantic correctness requirement.
 
-Generate from 7 to 14 comprehensive unit tests based on the question and schema above. Provide your reasoning in the thinking field and the list of test statements in the answers field.
+Generate from 7 to 14 comprehensive unit tests based on the question and schema above, ensuring Evidence compliance is validated when applicable. Provide your reasoning in the thinking field and the list of test statements in the answers field.

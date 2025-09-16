@@ -21,24 +21,36 @@ interface DataTableProps {
 export const DataTable: React.FC<DataTableProps> = ({ data, isLoading, error }) => {
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
 
-  const columnDefs = useMemo<ColDef[]>(() => {
-    if (!data || data.length === 0) return [];
+  // Normalize data to array of objects
+  const normalizedData = useMemo(() => {
+    if (!data || data.length === 0) return [] as any[];
+    const first = data[0];
+    if (typeof first === 'object' && !Array.isArray(first)) return data;
+    const colName = 'column_1';
+    return data.map((row: any) => Array.isArray(row) ? { [colName]: row[0] } : { [colName]: row });
+  }, [data]);
 
-    const firstRow = data[0];
-    const numColumns = Object.keys(firstRow).length;
-    
-    return Object.keys(firstRow).map(key => ({
-      field: key,
-      headerName: key,
+  const columns = useMemo<string[]>(() => {
+    if (!normalizedData || normalizedData.length === 0) return [];
+    return Object.keys(normalizedData[0]);
+  }, [normalizedData]);
+
+  const columnDefs = useMemo<ColDef[]>(() => {
+    if (columns.length === 0) return [];
+
+    const numColumns = columns.length;
+    return columns.map(col => ({
+      field: col,
+      headerName: col,
+      valueGetter: (params: any) => (params && params.data ? params.data[col] : undefined),
       filter: true,
       sortable: true,
       resizable: true,
       minWidth: 150,
-      // Use auto width instead of flex to allow horizontal scrolling
       width: numColumns > 6 ? 200 : 250,
       floatingFilter: true,
     }));
-  }, [data]);
+  }, [columns]);
 
   const defaultColDef = useMemo<ColDef>(() => ({
     sortable: true,
@@ -161,7 +173,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data, isLoading, error }) 
         >
         <AgGridReact
           theme="legacy"
-          rowData={data}
+          rowData={normalizedData}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           pagination={true}
@@ -170,6 +182,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data, isLoading, error }) 
           onGridReady={onGridReady}
           animateRows={true}
           suppressCellFocus={true}
+          suppressFieldDotNotation={true}
           suppressHorizontalScroll={false}
           alwaysShowHorizontalScroll={true}
           overlayLoadingTemplate={

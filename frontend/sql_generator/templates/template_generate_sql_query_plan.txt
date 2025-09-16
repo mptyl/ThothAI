@@ -504,6 +504,10 @@ Apply the query plan methodology to generate the SQL query.
 ---
 **Evidence**
 {EVIDENCE}
++CRITICAL: If Evidence defines identities, formulas, or mappings, you MUST incorporate them in the plan and final SQL. For example, if Evidence states:
++- Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`
++and the question asks "over 700 total enrollment", then apply the filter:
++- (`Enrollment (K-12)` + `Enrollment (Ages 5-17)`) > 700
 
 ---
 **Gold Examples**

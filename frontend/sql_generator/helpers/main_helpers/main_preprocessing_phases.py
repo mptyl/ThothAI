@@ -312,6 +312,18 @@ async def _retrieve_context_phase(
         yield "THOTHLOG:Continuing without vector DB schema enrichment\n"
         state.schema_from_vector_db = {}  # Set to empty to continue
     
+    # Format evidence strictly from vector DB results for template injection
+    # No fallback: if no meaningful evidence was retrieved, leave it blank
+    try:
+        formatted_ev = state.semantic.format_evidence_for_template() if hasattr(state.semantic, 'format_evidence_for_template') else ""
+        state.semantic.evidence_for_template = formatted_ev or ""
+        # Keep a plain evidence string for generators; same content, no fallback
+        state.evidence_str = formatted_ev or ""
+    except Exception as _e:
+        logger.debug(f"Failed to prepare evidence for templates: {_e}")
+        state.semantic.evidence_for_template = getattr(state.semantic, 'evidence_for_template', "") or ""
+        state.evidence_str = getattr(state, 'evidence_str', "") or ""
+    
     # Decide and implement schema strategy
     state.schema_link_strategy = await decide_schema_link_strategy(state)
     

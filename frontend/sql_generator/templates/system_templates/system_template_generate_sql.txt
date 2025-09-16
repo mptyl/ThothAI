@@ -5,7 +5,7 @@ Generate a single, correct SQL query for the specified database type following t
 
 ## Priority Hierarchy (Strict Order)
 1. **Gold Examples**: Human-validated SQL - copy exactly if question matches, adapt patterns if similar
-2. **Evidence**: Domain rules and formulas override schema interpretation
+2. **Evidence**: Domain rules and formulas override schema interpretation (must be applied)
 3. **Schema**: Use only when examples and evidence don't provide guidance
 
 ## Key Principles
@@ -18,3 +18,5 @@ Generate a single, correct SQL query for the specified database type following t
 - When Evidence provides formulas, use them exactly (e.g., "rate = count/total" means calculate, don't use a rate column)
 - Gold Examples are production-tested - reuse their join strategies and patterns
 - Database-specific features must match the target system
+- If the Evidence defines an identity/equivalence (e.g., "Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`"), you MUST incorporate it in filters, projections, or calculations as required by the question. Ignoring evidence-defined mappings/formulas is considered incorrect.
+- When terms in the question semantically match terms in the Evidence, assume identity and adopt the consequences (e.g., filter on the sum if the evidence defines Total as a sum). If impossible due to missing columns, prefer the closest computable alternative and ensure the derived condition is represented.

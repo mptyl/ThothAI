@@ -1,4 +1,3 @@
-
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -890,8 +889,16 @@ class PaginatedQueryService:
                 response = self._execute_with_memory_pagination(
                     sorted_sql, request, original_limit
                 )
-                # Use the actual columns from alias generation
-                response.columns = actual_columns
+                # Align columns with row keys to ensure frontend consistency
+                try:
+                    if response.data and len(response.data) > 0 and isinstance(response.data[0], dict):
+                        response.columns = list(response.data[0].keys())
+                    elif not response.columns and actual_columns:
+                        response.columns = actual_columns
+                except Exception:
+                    # Fallback to alias-derived columns in case of unexpected shapes
+                    if actual_columns:
+                        response.columns = actual_columns
                 return response
             else:
                 if VERBOSE_DEBUG:
@@ -899,8 +906,16 @@ class PaginatedQueryService:
                 response = self._execute_with_sql_pagination(
                     sorted_sql, request, original_limit
                 )
-                # Use the actual columns from alias generation
-                response.columns = actual_columns
+                # Align columns with row keys to ensure frontend consistency
+                try:
+                    if response.data and len(response.data) > 0 and isinstance(response.data[0], dict):
+                        response.columns = list(response.data[0].keys())
+                    elif not response.columns and actual_columns:
+                        response.columns = actual_columns
+                except Exception:
+                    # Fallback to alias-derived columns in case of unexpected shapes
+                    if actual_columns:
+                        response.columns = actual_columns
                 return response
                 
         except Exception as e:

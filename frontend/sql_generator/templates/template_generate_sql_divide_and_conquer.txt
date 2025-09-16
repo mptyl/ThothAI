@@ -656,7 +656,9 @@ Apply the divide-and-conquer methodology to generate the SQL query.
 
 ---
 **Evidence**
-{EVIDENCE}
++CRITICAL: If the Evidence defines mappings or formulas, you MUST incorporate them into sub-questions and the final SQL. Example:
++- If “Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`” and the question asks for total enrollment over 700, then ensure the WHERE/HAVING includes (`Enrollment (K-12)` + `Enrollment (Ages 5-17)`) > 700.
+ {EVIDENCE}
 
 ---
 **Gold Examples**

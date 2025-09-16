@@ -23,6 +23,7 @@ Generate a SQL query by breaking down the question into logical steps.
 ### Step 5: Build the WHERE Clause
 - Add filters based on the question
 - Use evidence to disambiguate terms
+- If the Evidence defines identities or formulas (e.g., Total = A + B), incorporate them directly into filters and calculations.
 
 ### Step 6: Build the SELECT Clause
 - Add columns to select or aggregate
@@ -570,6 +571,8 @@ Apply the step-by-step methodology to generate the SQL query.
 
 ---
 **Evidence**
+CRITICAL: Apply evidence-defined identities/formulas/mappings. Example: if Evidence states “Total enrollment = `Enrollment (K-12)` + `Enrollment (Ages 5-17)`” and the question requires “over 700 total enrollment”, then filter with:
+(`Enrollment (K-12)` + `Enrollment (Ages 5-17)`) > 700
 {EVIDENCE}
 
 ---

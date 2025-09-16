@@ -10,7 +10,7 @@
   {
     "question_id": 1,
     "db_id": "california_schools",
-    "question": "/clear",
+    "question": "Please list the lowest three eligible free rates for students aged 5-17 in continuation schools.",
     "evidence": "Eligible free rates for students aged 5-17 = `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)`",
     "SQL": "SELECT `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)` FROM frpm WHERE `Educational Option Type` = 'Continuation School' AND `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)` IS NOT NULL ORDER BY `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)` ASC LIMIT 3",
     "difficulty": "moderate"
@@ -90,7 +90,7 @@
   {
     "question_id": 11,
     "db_id": "california_schools",
-    "question": "Please list the names and location of the schools with a total enrollment of over 700.",
+    "question": "Please list the codes of the schools with a total enrollment of over 500.",
     "evidence": "Total enrollment can be represented by `Enrollment (K-12)` + `Enrollment (Ages 5-17)`",
     "SQL": "SELECT T2.CDSCode FROM schools AS T1 INNER JOIN frpm AS T2 ON T1.CDSCode = T2.CDSCode WHERE T2.`Enrollment (K-12)` + T2.`Enrollment (Ages 5-17)` > 500",
     "difficulty": "simple"
@@ -98,7 +98,7 @@
   {
     "question_id": 12,
     "db_id": "california_schools",
-  "question": "Among the schools with an SAT excellence rate of over 0.3, what is the highest eligible free rate for students aged 5-17?",
+    "question": "Among the schools with an SAT excellence rate of over 0.3, what is the highest eligible free rate for students aged 5-17?",
     "evidence": "Excellence rate = NumGE1500 / NumTstTakr; Eligible free rates for students aged 5-17 = `Free Meal Count (Ages 5-17)` / `Enrollment (Ages 5-17)`",
     "SQL": "SELECT MAX(CAST(T1.`Free Meal Count (Ages 5-17)` AS REAL) / T1.`Enrollment (Ages 5-17)`) FROM frpm AS T1 INNER JOIN satscores AS T2 ON T1.CDSCode = T2.cds WHERE CAST(T2.NumGE1500 AS REAL) / T2.NumTstTakr > 0.3",
     "difficulty": "moderate"
@@ -114,7 +114,7 @@
   {
     "question_id": 14,
     "db_id": "california_schools",
-    "question": "List the top five schools, by descending order, from the highest to the lowest, the most number of Enrollment (Ages 5-17). Please give their NCES school identification number, their name and their location.",
+    "question": "List the top five schools, by descending order, from the highest to the lowest, the most number of Enrollment (Ages 5-17). Please give their NCES school identification number.",
     "evidence": "",
     "SQL": "SELECT T1.NCESSchool FROM schools AS T1 INNER JOIN frpm AS T2 ON T1.CDSCode = T2.CDSCode ORDER BY T2.`Enrollment (Ages 5-17)` DESC LIMIT 5",
     "difficulty": "simple"

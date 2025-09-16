@@ -249,7 +249,7 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         sql_deps = StateFactory.create_agent_deps(state, "sql_generation")
         
         # Prepare the prompt data
-        evidence_str = getattr(state, 'evidence_str', '')
+        evidence_str = getattr(state, 'evidence_str', '') or getattr(state, 'evidence_for_template', '')
         # Use sql_documents from state which contains actual SqlDocument objects
         sql_documents = getattr(state, 'sql_documents', [])
         # No fallback shots needed anymore - only use SQL documents from vector DB
