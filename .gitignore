@@ -113,7 +113,9 @@ postgres_data/
 
 # Service-specific logs (not shared)
 backend/logs/
+!backend/logs/.gitkeep
 frontend/logs/
+!frontend/logs/.gitkeep
 frontend/sql_generator/logs/
 
 # === Configuration Files ===
@@ -138,6 +140,10 @@ playwright-report/
 playwright/.cache/
 cypress/videos/
 cypress/screenshots/
+
+# Backend test reports
+backend/tests/reports/
+!backend/tests/reports/.gitkeep
 
 # === Build Artifacts ===
 *.pyc
