@@ -124,21 +124,10 @@ exclude = ["tests*", "test_*", "*.tests", "*.tests.*", "data*", "logs*", "export
 [tool.setuptools.package-data]
 "*" = ["*.md", "*.txt", "*.yml", "*.yaml", "*.html", "*.css", "*.js"]
 
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "Thoth.settings"
-python_files = ["tests.py", "test_*.py", "*_tests.py"]
-testpaths = ["tests"]
-addopts = "-v --tb=short --strict-markers"
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-]
-
 [tool.black]
 line-length = 88
 target-version = ['py39']
-include = '\.pyi?$'
+include = '\\.pyi?$'
 extend-exclude = '''
 /(
   # directories

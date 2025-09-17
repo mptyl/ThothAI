@@ -20,18 +20,18 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-from django.conf import settings
-from django.test import override_settings
-
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
 # Configure Django settings for tests
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings")
 
-# Test database configuration
+# Setup Django before importing test modules
+import django
+django.setup()
+
+import pytest
+from django.conf import settings
+from django.test import override_settings, TestCase
+
+# Test database configuration - override for tests if needed
 TEST_DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -39,20 +39,6 @@ TEST_DATABASES = {
         "TEST": {"NAME": ":memory:"},
     }
 }
-
-# Test settings overrides
-TEST_SETTINGS = {
-    "DATABASES": TEST_DATABASES,
-    "SECRET_KEY": "test-secret-key-for-testing-only",
-    "DEBUG": True,
-    "ALLOWED_HOSTS": ["*"],
-    "QDRANT_URL": "http://localhost:6334",
-    "CELERY_TASK_ALWAYS_EAGER": True,  # Execute tasks synchronously in tests
-    "CELERY_TASK_EAGER_PROPAGATES": True,
-    "USE_TZ": True,
-    "TIME_ZONE": "UTC",
-}
-
 
 @pytest.fixture(scope="session")
 def django_db_setup():
@@ -122,7 +108,7 @@ def mock_llm_client():
 def test_user(django_user_model):
     """Create a test user"""
     user = django_user_model.objects.create_user(
-        username="testuser", password="testpass123", email="test@example.com"
+        username="testuser_conf", password="testpass123", email="test-conf@example.com"
     )
     return user
 
@@ -203,11 +189,7 @@ def test_table(test_workspace):
     return table
 
 
-@pytest.fixture(autouse=True)
-def override_test_settings():
-    """Automatically override settings for all tests"""
-    with override_settings(**TEST_SETTINGS):
-        yield
+# Settings override is handled by Django's test framework
 
 
 @pytest.fixture
@@ -246,14 +228,8 @@ def capture_test_reports():
 
 # Pytest configuration
 def pytest_configure(config):
-    """Configure pytest"""
-    import django
-    from django.conf import settings
-
-    if not settings.configured:
-        settings.configure(**TEST_SETTINGS)
-
-    django.setup()
+    """Configure pytest - Django is already configured by settings module"""
+    pass
 
 
 def pytest_collection_modifyitems(config, items):

@@ -43,7 +43,7 @@ class RelationalDatabaseTestSuite(TestCase):
         """Set up test data."""
         # Create test user
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
+            username="testuser_relational", email="test-relational@example.com", password="testpass123"
         )
 
         # Test databases for different backends

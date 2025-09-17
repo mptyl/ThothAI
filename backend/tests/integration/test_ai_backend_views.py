@@ -49,7 +49,7 @@ class TestAIBackendViews(TestCase):
 
         # Create test user
         self.user = User.objects.create_user(
-            username="testuser", password="testpass123", email="test@example.com"
+            username="testuser_ai_backend", password="testpass123", email="test-ai@example.com"
         )
         self.user.is_staff = True
         self.user.save()

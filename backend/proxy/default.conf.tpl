@@ -11,7 +11,7 @@ server {
     
     # Export files
     location /exports {
-        alias /vol/exports/;
+        alias /vol/data_exchange/;
         autoindex on;
     }
     
@@ -64,7 +64,7 @@ server {
     
     # Export files
     location /exports {
-        alias /vol/exports/;
+        alias /vol/data_exchange/;
         autoindex on;
     }
     

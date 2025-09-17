@@ -48,7 +48,7 @@ class VectorDatabaseTestSuite(TestCase):
 
         # Create test user
         self.user = User.objects.create_user(
-            username="testuser", email="test@example.com", password="testpass123"
+            username="testuser_vector", email="test-vector@example.com", password="testpass123"
         )
 
         # Create basic AI model
