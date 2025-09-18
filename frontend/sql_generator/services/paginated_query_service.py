@@ -484,6 +484,11 @@ class PaginatedQueryService:
         if VERBOSE_DEBUG:
             logger.debug(f"Processing column definition: {col_def}")
         
+        # Normalize leading DISTINCT keyword (e.g., "DISTINCT Zip" -> "Zip")
+        # This ensures cleaner column headers and more reliable key matching
+        if col_def.upper().startswith('DISTINCT '):
+            col_def = col_def[8:].strip()
+        
         # Check for alias with AS
         if ' AS ' in col_def.upper():
             # Find the last occurrence of AS (case-insensitive)
@@ -986,7 +991,7 @@ class PaginatedQueryService:
                 
                 # Convert to list of dictionaries
                 all_results = []
-                if execution_result and isinstance(execution_result, list):
+                if execution_result and isinstance(execution_result, (list, tuple)):
                     
                     for idx, row in enumerate(execution_result):
                         if VERBOSE_DEBUG and idx < 3:  # Log first 3 rows for debugging
@@ -1138,7 +1143,7 @@ class PaginatedQueryService:
             
             # Convert result to list of dictionaries
             formatted_results = []
-            if execution_result and isinstance(execution_result, list):
+            if execution_result and isinstance(execution_result, (list, tuple)):
                 for row in execution_result:
                     row_dict = {}
                     # Handle different row types
