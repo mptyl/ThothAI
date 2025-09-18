@@ -29,6 +29,8 @@ class SqlGenerationDeps(BaseModel):
     
     # Read-only database information (simple strings/bool)
     db_type: str
+    # The original or translated question (string only, safe for deps)
+    question: str = ""
     db_schema_str: str = ""  # Database schema as string for error messages
     treat_empty_result_as_error: bool = False
     

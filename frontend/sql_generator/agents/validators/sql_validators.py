@@ -15,6 +15,7 @@ Validators for SQL generation agents.
 """
 
 import re
+import os
 import asyncio
 from typing import List, Optional
 from pydantic_ai import RunContext, ModelRetry
@@ -28,6 +29,7 @@ from helpers.logging_config import get_logger
 from helpers.dual_logger import log_info
 from helpers.template_preparation import TemplateLoader
 from model.evaluator_deps import EvaluatorDeps
+from .relevance_guard import classify_tests, load_config_from_env
 
 logger = get_logger(__name__)
 
@@ -153,62 +155,91 @@ class SqlValidators:
                 
                 logger.debug("SQL validation passed successfully")
                 
-                # Step 4: Evidence-critical gating (stateless via ctx.deps)
+                # Step 4: Evidence-critical gating with RelevanceGuard (pure Python)
                 try:
                     evidence_tests = getattr(ctx.deps, 'evidence_critical_tests', None)
                     if evidence_tests and isinstance(evidence_tests, list) and len(evidence_tests) > 0:
                         if not self.evaluator_agent:
                             logger.warning("Evidence-critical tests present but evaluator_agent is not available - skipping gating")
                         else:
-                            # Build evaluation template for only the evidence-critical tests
-                            unit_tests_str = "\n".join([f"{i}. {t}" for i, t in enumerate(evidence_tests, 1)])
-                            template = TemplateLoader.format(
-                                'template_evaluate_single.txt',
-                                safe=True,
-                                SQL_QUERY=sql,
-                                UNIT_TESTS=unit_tests_str
-                            )
-                            # Run evaluator with a strict timeout and low temperature
+                            # Run RelevanceGuard to classify tests
                             try:
-                                result = await asyncio.wait_for(
-                                    self.evaluator_agent.run(
-                                        template,
-                                        model_settings=ModelSettings(temperature=0.2),
-                                        deps=EvaluatorDeps()
-                                    ),
-                                    timeout=7
+                                cfg = load_config_from_env()
+                            except Exception:
+                                cfg = None
+                            # Prefer ctx.deps.question if present, else empty
+                            deps_question = getattr(ctx.deps, 'question', '') or ''
+                            classification = classify_tests(
+                                question=deps_question,
+                                sql=sql,
+                                tests=evidence_tests,
+                                cfg=cfg
+                            )
+                            strict_tests = classification.get('strict', [])
+                            weak_tests = classification.get('weak', [])
+                            irrelevant_tests = classification.get('irrelevant', [])
+                            # Log counts and a THOTHLOG line for streaming visibility
+                            log_info(
+                                f"THOTHLOG:RelevanceGuard pre-selection → STRICT={len(strict_tests)}, WEAK={len(weak_tests)}, IRRELEVANT={len(irrelevant_tests)}"
+                            )
+                            # Evaluate ONLY strict tests (blocking); declass others to non-blocking
+                            if strict_tests:
+                                unit_tests_str = "\n".join([f"{i}. {t}" for i, t in enumerate(strict_tests, 1)])
+                                template = TemplateLoader.format(
+                                    'template_evaluate_single.txt',
+                                    safe=True,
+                                    SQL_QUERY=sql,
+                                    UNIT_TESTS=unit_tests_str
                                 )
-                            except asyncio.TimeoutError:
-                                ctx.deps.last_execution_error = "Evidence-critical gating timed out"
-                                raise ModelRetry("Evidence-critical checks timed out - regenerate SQL and try again")
-                            # Extract answers
-                            answers = []
-                            if result and hasattr(result, 'output'):
-                                answers = getattr(result.output, 'answers', []) or []
-                            # Ensure we have exactly one answer per test
-                            if len(answers) != len(evidence_tests):
-                                # Pad with KO for incomplete evaluation
-                                while len(answers) < len(evidence_tests):
-                                    answers.append(f"Test #{len(answers)+1}: KO - incomplete evaluation")
-                                answers = answers[:len(evidence_tests)]
-                            # Determine failures
-                            def _is_ok(line: str) -> bool:
-                                if not isinstance(line, str):
+                                # Run evaluator with a strict timeout and low temperature
+                                try:
+                                    result = await asyncio.wait_for(
+                                        self.evaluator_agent.run(
+                                            template,
+                                            model_settings=ModelSettings(temperature=0.2),
+                                            deps=EvaluatorDeps()
+                                        ),
+                                        timeout=7
+                                    )
+                                except asyncio.TimeoutError:
+                                    ctx.deps.last_execution_error = "Evidence-critical gating timed out"
+                                    raise ModelRetry("Evidence-critical checks timed out - regenerate SQL and try again")
+                                # Extract answers
+                                answers = []
+                                if result and hasattr(result, 'output'):
+                                    answers = getattr(result.output, 'answers', []) or []
+                                # Ensure we have exactly one answer per test
+                                if len(answers) != len(strict_tests):
+                                    # Pad with KO for incomplete evaluation
+                                    while len(answers) < len(strict_tests):
+                                        answers.append(f"Test #{len(answers)+1}: KO - incomplete evaluation")
+                                    answers = answers[:len(strict_tests)]
+                                # Determine failures
+                                def _is_ok(line: str) -> bool:
+                                    if not isinstance(line, str):
+                                        return False
+                                    if ": " in line:
+                                        return line.split(": ", 1)[1].strip().upper() == "OK"
                                     return False
-                                if ": " in line:
-                                    return line.split(": ", 1)[1].strip().upper() == "OK"
-                                return False
-                            failing = [(idx+1, ans) for idx, ans in enumerate(answers) if not _is_ok(ans)]
-                            passed = len(answers) - len(failing)
-                            # Emit THOTHLOG via dual logger for observability
-                            log_info(f"THOTHLOG:Evidence-critical gating evaluated {len(answers)} tests: {passed} OK, {len(failing)} KO")
-                            if failing:
-                                # Summarize failing evidence-critical checks
-                                reasons = "; ".join([f"Test {num}: {ans}" for num, ans in failing[:3]])
-                                ctx.deps.last_execution_error = f"Evidence-critical checks failed: {reasons}"
-                                raise ModelRetry(
-                                    "One or more evidence-critical requirements were not satisfied. Please regenerate a SQL that strictly applies all evidence-derived rules and filters."
+                                failing = [(idx+1, ans) for idx, ans in enumerate(answers) if not _is_ok(ans)]
+                                passed = len(answers) - len(failing)
+                                # Emit THOTHLOG via dual logger for observability
+                                log_info(
+                                    f"THOTHLOG:STRICT gating evaluated {len(answers)} strict tests: {passed} OK, {len(failing)} KO"
                                 )
+                                # Apply STRICT_FAILS_REQUIRED policy (default 1, recommended 2)
+                                try:
+                                    fails_required = int(os.getenv('STRICT_FAILS_REQUIRED', '1'))
+                                except Exception:
+                                    fails_required = 1
+                                if len(failing) >= max(1, fails_required):
+                                    reasons = "; ".join([f"Test {num}: {ans}" for num, ans in failing[:3]])
+                                    ctx.deps.last_execution_error = f"Evidence-critical checks failed: {reasons}"
+                                    raise ModelRetry(
+                                        "One or more STRICT evidence-derived requirements were not satisfied. Please regenerate a SQL that strictly applies these rules and filters."
+                                    )
+                            else:
+                                logger.info("No STRICT tests after RelevanceGuard; skipping blocking gating evaluation")
                 except ModelRetry:
                     raise
                 except Exception as e:
