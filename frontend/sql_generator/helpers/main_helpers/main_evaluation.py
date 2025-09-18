@@ -17,6 +17,7 @@ Runs evaluators in parallel with fixed temperature to achieve 100% evaluation re
 """
 
 import logging
+import os
 import asyncio
 from typing import List, Tuple, Any, Optional, Dict
 from pydantic_ai.settings import ModelSettings
@@ -147,7 +148,23 @@ async def evaluate_sql_candidates(state, agents_and_tools):
         if answer not in seen and answer != "GENERATION FAILED":
             seen.add(answer)
             unique_test_answers.append(answer)
-    
+
+    # Always apply Python-only semantic reducer to collapse near-duplicates
+    try:
+        from helpers.semantic_test_reducer import reduce_tests_semantic
+        before_count = len(unique_test_answers)
+        unique_test_answers = reduce_tests_semantic(unique_test_answers)
+        after_count = len(unique_test_answers)
+        if after_count < before_count:
+            logger.info(
+                f"Semantic TestReducer (evaluation): {before_count} -> {after_count}"
+            )
+            # Store filtered tests in state if possible
+            if hasattr(state, 'filtered_tests'):
+                state.filtered_tests = unique_test_answers
+    except Exception as e:
+        logger.error(f"Semantic TestReducer failed during evaluation: {e}")
+
     if not unique_test_answers:
         logger.error("No valid test answers after deduplication")
         return [("No valid tests available after deduplication", ["Failed - no tests"] * len(state.generated_sqls))]
@@ -161,7 +178,8 @@ async def evaluate_sql_candidates(state, agents_and_tools):
     multiple_test_generators_active = num_test_generators_configured >= 2
     logger.debug(f"Main evaluation: {num_test_generators_configured} test generators configured to activate")
     
-    if multiple_test_generators_active and len(unique_test_answers) >= 10:  # Use TestReducer only if >=2 generators and >=10 tests
+    use_llm_reducer = os.getenv('TEST_REDUCER_USE_LLM', 'true').lower() == 'true'
+    if use_llm_reducer and multiple_test_generators_active and len(unique_test_answers) >= 10:  # Use LLM TestReducer only if enabled, >=2 generators and >=10 tests
         try:
             # Extract model config from evaluator agent or workspace
             evaluator_model_config = None
@@ -226,7 +244,9 @@ async def evaluate_sql_candidates(state, agents_and_tools):
             logger.error(f"Error during semantic test filtering: {e}, using deduplicated tests")
     else:
         # Log why semantic filtering was skipped
-        if not multiple_test_generators_active:
+        if not use_llm_reducer:
+            logger.info("Skipping LLM TestReducer: TEST_REDUCER_USE_LLM=false")
+        elif not multiple_test_generators_active:
             logger.info("Skipping semantic test filtering: only one test generator active")
         elif len(unique_test_answers) <= 5:
             logger.debug("Skipping semantic test filtering: not enough tests to benefit")

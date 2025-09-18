@@ -182,6 +182,19 @@ async def _precompute_tests_phase(
                     seen.add(a)
                     unique_tests.append(a)
 
+        # Always apply Python-only semantic reducer to collapse near-duplicates
+        try:
+            from helpers.semantic_test_reducer import reduce_tests_semantic
+            before_count = len(unique_tests)
+            reduced = reduce_tests_semantic(unique_tests)
+            after_count = len(reduced)
+            unique_tests = reduced
+            if after_count < before_count:
+                yield f"THOTHLOG:Semantic TestReducer removed {before_count - after_count} near-duplicate tests\n"
+        except Exception as e:
+            # Non-fatal; continue with exact-deduped list
+            log_error(f"Semantic TestReducer failed in precompute phase: {type(e).__name__}: {str(e)}")
+
         # Store filtered tests for downstream use
         if hasattr(state, 'filtered_tests'):
             state.filtered_tests = unique_tests
@@ -191,7 +204,7 @@ async def _precompute_tests_phase(
             except Exception:
                 pass
 
-        # Count evidence-critical tests
+        # Count evidence-critical tests (after semantic reduction)
         ev_crit_count = sum(1 for t in unique_tests if isinstance(t, str) and "[EVIDENCE-CRITICAL]" in t)
         yield f"THOTHLOG:Precompute tests ready: {len(unique_tests)} tests ({ev_crit_count} evidence-critical)\n"
 
