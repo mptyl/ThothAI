@@ -398,7 +398,10 @@ class ThothInstaller:
         env_lines.append(f"BACKEND_PORT={ports.get('backend', 8040)}")
         env_lines.append(f"SQL_GENERATOR_PORT={ports.get('sql_generator', 8020)}")
         env_lines.append(f"WEB_PORT={ports.get('nginx', 80)}")
-        
+        mermaid_port = ports.get('mermaid_service') or ports.get('mermaid') or 8003
+        env_lines.append(f"MERMAID_SERVICE_PORT={mermaid_port}")
+        env_lines.append("MERMAID_SERVICE_URL=http://mermaid-service:8001")
+
         # Development settings
         dev = self.config.get('development', {})
         env_lines.append(f"DEBUG={str(dev.get('debug', False)).upper()}")
