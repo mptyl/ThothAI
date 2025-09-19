@@ -202,6 +202,7 @@ class StateFactory:
                 evidence_critical_tests = []
             return SqlGenerationDeps(
                 db_type=state.database.db_type,
+                question=state.question,
                 db_schema_str=state.schemas.used_mschema or state.schemas.reduced_mschema,
                 treat_empty_result_as_error=state.database.treat_empty_result_as_error,
                 last_SQL=state.execution.last_SQL,

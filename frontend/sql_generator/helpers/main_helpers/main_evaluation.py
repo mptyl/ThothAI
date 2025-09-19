@@ -147,7 +147,7 @@ async def evaluate_sql_candidates(state, agents_and_tools):
         if answer not in seen and answer != "GENERATION FAILED":
             seen.add(answer)
             unique_test_answers.append(answer)
-    
+
     if not unique_test_answers:
         logger.error("No valid test answers after deduplication")
         return [("No valid tests available after deduplication", ["Failed - no tests"] * len(state.generated_sqls))]

@@ -128,3 +128,14 @@ development:
   debug: false        # Enable debug mode (not recommended for production)
   log_level: "INFO"   # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
   hot_reload: true    # Enable hot reload for development
+
+# RelevanceGuard configuration (used by SQL Generator; env overrides prevail)
+relevance_guard:
+  strict_min_score: 0.75
+  weak_min_score: 0.45
+  drop_below: 0.30
+  w_bm25: 0.60
+  w_struct: 0.40
+  use_rrf: false
+  # Number of STRICT failures required to trigger ModelRetry in gating
+  strict_fails_required: 2
