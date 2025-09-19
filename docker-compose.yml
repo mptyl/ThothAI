@@ -150,6 +150,25 @@ services:
       sql-generator:
         condition: service_started
 
+  # === MERMAID SERVICE ===
+  mermaid-service:
+    build:
+      context: ./docker/mermaid-service
+      dockerfile: Dockerfile
+    image: thoth-mermaid-service:latest
+    container_name: thoth-mermaid-service
+    restart: always
+    ports:
+      - "${MERMAID_SERVICE_PORT:-8003}:8001"
+    networks:
+      - thoth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # === VECTOR DATABASE SERVICE ===
   thoth-qdrant:
     image: qdrant/qdrant:latest

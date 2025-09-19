@@ -48,13 +48,20 @@ $PYTHON_BIN scripts/validate_backend_ai.py --from-env || {
 FRONTEND_PORT=${FRONTEND_PORT:-3200}
 SQL_GENERATOR_PORT=${SQL_GENERATOR_PORT:-8180}
 BACKEND_PORT=${BACKEND_PORT:-8200}
+MERMAID_SERVICE_PORT=${MERMAID_SERVICE_PORT:-8003}
 QDRANT_PORT=6334
+
+if [ -z "$MERMAID_SERVICE_URL" ]; then
+    MERMAID_SERVICE_URL="http://localhost:${MERMAID_SERVICE_PORT}"
+    export MERMAID_SERVICE_URL
+fi
 
 # Global PIDs for cleanup
 DJANGO_PID=""
 QDRANT_CONTAINER=""
 SQL_GEN_PID=""
 FRONTEND_PID=""
+MERMAID_SERVICE_PID=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -263,6 +270,55 @@ if ! check_port $SQL_GENERATOR_PORT; then
     exit 1
 fi
 
+# Check and start Mermaid Service
+echo -e "${YELLOW}Checking Mermaid Service on port $MERMAID_SERVICE_PORT...${NC}"
+
+if check_port $MERMAID_SERVICE_PORT; then
+    echo -e "${GREEN}✓ Mermaid Service is already running on port $MERMAID_SERVICE_PORT${NC}"
+else
+    echo -e "${YELLOW}Mermaid Service is NOT running on port $MERMAID_SERVICE_PORT${NC}"
+    echo -e "${YELLOW}Starting Mermaid Service...${NC}"
+    
+    # Check if mermaid-service directory exists
+    if [ -d "docker/mermaid-service" ]; then
+        cd docker/mermaid-service
+        
+        # Check if node_modules exists
+        if [ ! -d "node_modules" ]; then
+            # Ensure Node.js/npm is installed
+            if ! command -v npm &> /dev/null; then
+                echo -e "${RED}Error: npm is not installed. Please install Node.js (v18+) and retry.${NC}"
+                exit 1
+            fi
+            echo -e "${YELLOW}Installing Mermaid Service dependencies...${NC}"
+            npm install
+        fi
+        
+        # Start Mermaid Service
+        PORT=$MERMAID_SERVICE_PORT npm start &
+        MERMAID_SERVICE_PID=$!
+        cd ../..
+        
+        # Wait for Mermaid Service to start
+        echo -e "${YELLOW}Waiting for Mermaid Service to start...${NC}"
+        for i in {1..30}; do
+            if check_port $MERMAID_SERVICE_PORT; then
+                echo -e "${GREEN}✓ Mermaid Service started successfully on port $MERMAID_SERVICE_PORT${NC}"
+                break
+            fi
+            sleep 1
+        done
+        
+        if ! check_port $MERMAID_SERVICE_PORT; then
+            echo -e "${RED}Failed to start Mermaid Service${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}Mermaid Service directory not found!${NC}"
+        exit 1
+    fi
+fi
+
 # Check and start Frontend (Next.js)
 echo -e "${YELLOW}Checking Frontend on port $FRONTEND_PORT...${NC}"
 if check_port $FRONTEND_PORT; then
@@ -320,6 +376,7 @@ echo -e "   Backend Home:     ${GREEN}http://localhost:$BACKEND_PORT${NC}"
 echo -e "   Django Admin:     ${GREEN}http://localhost:$BACKEND_PORT/admin${NC}"
 echo -e "   SQL Generator:    ${GREEN}http://localhost:$SQL_GENERATOR_PORT${NC}"
 echo -e "   API Docs:         ${GREEN}http://localhost:$SQL_GENERATOR_PORT/docs${NC}"
+echo -e "   Mermaid Service:  ${GREEN}http://localhost:$MERMAID_SERVICE_PORT${NC}"
 echo -e "   Qdrant API:       ${GREEN}http://localhost:$QDRANT_PORT${NC}"
 
 # Function to handle cleanup

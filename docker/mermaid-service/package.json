@@ -1,0 +1,20 @@
+{
+  "name": "thoth-mermaid-service",
+  "version": "1.0.0",
+  "description": "Self-hosted Mermaid diagram rendering service for ThothAI",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node tests/basic-render-test.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "express": "^4.19.2",
+    "mermaid": "^10.9.4",
+    "puppeteer": "^23.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

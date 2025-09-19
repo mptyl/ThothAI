@@ -26,8 +26,13 @@ from io import BytesIO
 logger = logging.getLogger(__name__)
 
 # Mermaid service configuration
-# Using mermaid.ink public service - no local container needed
-MERMAID_INK_SERVICE = "https://mermaid.ink"
+_default_local_url = f"http://localhost:{os.environ.get('MERMAID_SERVICE_PORT', '8003')}"
+if os.environ.get('DOCKER_CONTAINER', 'false').lower() == 'true':
+    _default_service_url = 'http://mermaid-service:8001'
+else:
+    _default_service_url = _default_local_url
+
+MERMAID_SERVICE_URL = os.environ.get('MERMAID_SERVICE_URL', _default_service_url)
 
 
 class MermaidServiceError(Exception):
@@ -38,28 +43,27 @@ class MermaidServiceError(Exception):
 
 def check_mermaid_service_status() -> bool:
     """
-    Check if mermaid.ink service is available.
+    Check if local mermaid service is available.
 
     Returns:
         bool: True if service is available, False otherwise
     """
     try:
-        # Test with a simple diagram to verify mermaid.ink is working
-        test_url = f"{MERMAID_INK_SERVICE}/svg/Z3JhcGggVEQKICAgIEFbVGVzdF0gLS0+IEJbU2VydmljZV0="
-        response = requests.get(test_url, timeout=5)  # Quick check
+        # Test with health endpoint
+        response = requests.get(f"{MERMAID_SERVICE_URL}/health", timeout=5)
         return response.status_code == 200
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-        logger.warning("mermaid.ink service temporarily unavailable")
+        logger.warning("Local mermaid service temporarily unavailable")
         return False
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error checking mermaid.ink service: {e}")
+        logger.error(f"Error checking local mermaid service: {e}")
         return False
 
 
 def ensure_mermaid_service() -> bool:
     """
-    Ensure mermaid.ink service is available.
-    Since mermaid.ink is a public service, we just check its availability.
+    Ensure local mermaid service is available.
+    Since we're using a local service, we just check its availability.
 
     Returns:
         bool: True if service is available, False otherwise
@@ -280,13 +284,13 @@ def generate_mermaid_image(
     height: Optional[int] = None,
 ) -> Tuple[bool, Optional[str], Optional[str]]:
     """
-    Generate an image from Mermaid diagram content using mermaid.ink service.
+    Generate an image from Mermaid diagram content using local mermaid service.
 
     Args:
         mermaid_content (str): The Mermaid diagram content
         output_format (str): Output format ('svg', 'png', 'pdf')
-        width (int, optional): Output width in pixels (not used by mermaid.ink)
-        height (int, optional): Output height in pixels (not used by mermaid.ink)
+        width (int, optional): Output width in pixels (not used by local service)
+        height (int, optional): Output height in pixels (not used by local service)
 
     Returns:
         Tuple[bool, Optional[str], Optional[str]]: (success, output_path, error_message)
@@ -295,29 +299,27 @@ def generate_mermaid_image(
         return False, None, "Empty Mermaid content provided"
 
     try:
-        # Use mermaid.ink service directly - it's more reliable than self-hosted containers
-        import base64
-
-        # Encode the mermaid content for URL
-        encoded_diagram = base64.b64encode(mermaid_content.encode("utf-8")).decode(
-            "ascii"
-        )
-
         # Choose the appropriate endpoint based on format
         if output_format.lower() == "svg":
-            url = f"{MERMAID_INK_SERVICE}/svg/{encoded_diagram}"
+            url = f"{MERMAID_SERVICE_URL}/svg"
             file_extension = "svg"
             content_type = "image/svg+xml"
         else:  # Default to PNG for other formats
-            url = f"{MERMAID_INK_SERVICE}/img/{encoded_diagram}"
+            url = f"{MERMAID_SERVICE_URL}/png"
             file_extension = "png"
             content_type = "image/png"
 
-        # Make HTTP request to mermaid.ink
-        response = requests.get(url, timeout=20)  # Changed from 30 to 20
+        headers = {'Content-Type': 'text/plain; charset=utf-8'}
+        # Make HTTP request to local mermaid service
+        response = requests.post(
+            url,
+            data=mermaid_content.encode('utf-8'),
+            headers=headers,
+            timeout=20,
+        )
 
         if response.status_code != 200:
-            error_msg = f"mermaid.ink returned status {response.status_code}"
+            error_msg = f"Mermaid service returned status {response.status_code}"
             if response.text:
                 error_msg += f": {response.text}"
             logger.error(error_msg)
@@ -345,14 +347,14 @@ def generate_mermaid_image(
 
     except requests.exceptions.Timeout:
         error_msg = "Diagram generation service is temporarily unavailable. Please try again later."
-        logger.warning("mermaid.ink service timeout")
+        logger.warning("Mermaid service timeout")
         return False, None, error_msg
     except requests.exceptions.ConnectionError:
         error_msg = "Diagram generation service is temporarily unavailable. Please try again later."
-        logger.warning("mermaid.ink service connection error")
+        logger.warning("Mermaid service connection error")
         return False, None, error_msg
     except requests.exceptions.RequestException as e:
-        error_msg = f"HTTP request to mermaid.ink failed: {str(e)}"
+        error_msg = f"HTTP request to Mermaid service failed: {str(e)}"
         logger.error(error_msg)
         return False, None, error_msg
     except Exception as e:
