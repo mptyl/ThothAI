@@ -39,8 +39,12 @@ from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_table_comments,
 )
 from thoth_core.thoth_ai.thoth_workflow.generate_db_erd import generate_db_erd
+from thoth_core.thoth_ai.thoth_workflow.async_db_elements import (
+    start_async_db_elements_creation,
+)
 from thoth_core.utilities.task_validation import (
     check_sqldb_task_can_start,
+    check_sqldb_db_elements_can_start,
 )
  
 from thoth_core.widgets import PasswordInputWithToggle
@@ -98,6 +102,7 @@ class SqlDbAdmin(admin.ModelAdmin):
         "vector_db_name",
         "column_comment_status",
         "table_comment_status",
+        "db_elements_status",
     )
     search_fields = ("name", "db_host", "db_type", "db_name", "schema")
     actions = (
@@ -106,6 +111,7 @@ class SqlDbAdmin(admin.ModelAdmin):
         create_tables,
         create_relationships,
         create_db_elements,
+        "create_db_elements_async",
         "validate_db_fk_fields",
         export_db_structure_to_csv,
         "duplicate_sqldb",
@@ -167,6 +173,19 @@ class SqlDbAdmin(admin.ModelAdmin):
                 "fields": ("last_columns_update",),
                 "classes": ("collapse",),
                 "description": "System-managed metadata",
+            },
+        ),
+        (
+            "Database Elements Task Status",
+            {
+                "fields": (
+                    "db_elements_status",
+                    "db_elements_task_id",
+                    "db_elements_start_time",
+                    "db_elements_end_time",
+                ),
+                "classes": ("collapse",),
+                "description": "Status for database elements creation tasks. Check console and log files for detailed progress.",
             },
         ),
         (
@@ -807,6 +826,69 @@ class SqlDbAdmin(admin.ModelAdmin):
 
     generate_all_comments.short_description = (
         "Generate comments for all tables and columns (AI assisted)"
+    )
+
+    def create_db_elements_async(self, request, queryset):
+        """
+        Async version of create_db_elements that processes tables, columns, and relationships
+        in the background without blocking the admin interface.
+        Uses simple logging to console and file only.
+        """
+        if queryset.count() == 0:
+            messages.error(request, "Please select at least one database.")
+            return
+
+        # Check each database can start the task
+        ready_databases = []
+        skipped_databases = []
+        
+        for sqldb in queryset:
+            can_start, message = check_sqldb_db_elements_can_start(sqldb)
+            if can_start:
+                ready_databases.append(sqldb)
+            else:
+                skipped_databases.append((sqldb.name, message))
+
+        if not ready_databases:
+            messages.error(
+                request, 
+                f"No databases are ready for processing. Skipped: {len(skipped_databases)}"
+            )
+            for db_name, reason in skipped_databases:
+                messages.error(request, f"  - {db_name}: {reason}")
+            return
+
+        # Get workspace ID (use first workspace or default)
+        workspace_id = 1  # Default fallback
+        if hasattr(request, 'current_workspace') and request.current_workspace:
+            workspace_id = request.current_workspace.id
+
+        try:
+            # Start async processing
+            sqldb_ids = [db.id for db in ready_databases]
+            task_id = start_async_db_elements_creation(workspace_id, sqldb_ids, request.user.id)
+
+            # Success message
+            messages.success(
+                request,
+                f"Started async database elements creation for {len(ready_databases)} database(s). "
+                f"Task ID: {task_id}. Check console and log files for progress.",
+            )
+
+            # Log skipped databases
+            if skipped_databases:
+                messages.warning(
+                    request,
+                    f"Skipped {len(skipped_databases)} database(s) that were not ready:"
+                )
+                for db_name, reason in skipped_databases:
+                    messages.warning(request, f"  - {db_name}: {reason}")
+
+        except Exception as e:
+            messages.error(request, f"Error starting async database elements creation: {str(e)}")
+
+    create_db_elements_async.short_description = (
+        "Create all database elements (tables, columns, relationships) - ASYNC"
     )
 
     def scan_gdpr_compliance(self, request, queryset):

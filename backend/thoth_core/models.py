@@ -330,6 +330,16 @@ class SqlDb(models.Model):
     column_comment_start_time = models.DateTimeField(blank=True, null=True)
     column_comment_end_time = models.DateTimeField(blank=True, null=True)
 
+    # Async database element creation status and logs
+    db_elements_status = models.CharField(
+        max_length=20,
+        choices=TaskStatus.choices,
+        default=TaskStatus.IDLE,
+    )
+    db_elements_task_id = models.CharField(max_length=255, blank=True, null=True)
+    db_elements_start_time = models.DateTimeField(blank=True, null=True)
+    db_elements_end_time = models.DateTimeField(blank=True, null=True)
+
     def get_collection_name(self):
         if not self.schema or self.schema == "public":
             return self.name

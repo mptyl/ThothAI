@@ -30,3 +30,7 @@ class ThothCoreConfig(AppConfig):
 
             logger = logging.getLogger(__name__)
             logger.warning(f"Failed to initialize database plugins: {e}")
+        
+        # Ensure log directories exist
+        from .logging_setup import ensure_log_directories
+        ensure_log_directories()

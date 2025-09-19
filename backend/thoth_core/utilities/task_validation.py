@@ -376,3 +376,93 @@ def force_reset_sqldb_task_status(
             f"Failed to force reset {task_type} for SqlDb {sql_db.id}: {e}"
         )
         return False
+
+
+def check_sqldb_db_elements_can_start(sql_db: SqlDb):
+    """
+    Check if database elements creation task can start.
+    
+    Args:
+        sql_db: SqlDb instance
+        
+    Returns:
+        tuple: (can_start: bool, message: str)
+    """
+    sql_db.refresh_from_db()
+    
+    current_status = sql_db.db_elements_status
+    
+    if current_status in (TaskStatus.IDLE, TaskStatus.COMPLETED, TaskStatus.FAILED):
+        return True, "Ready to start"
+    
+    if current_status == TaskStatus.RUNNING:
+        is_running = validate_and_cleanup_running_sqldb_db_elements_task(sql_db)
+        if not is_running:
+            sql_db.refresh_from_db()
+            return True, "Previous task was stale and has been cleaned up"
+        return False, "A database elements creation task is currently running"
+    
+    return False, f"Unknown status: {current_status}"
+
+
+def validate_and_cleanup_running_sqldb_db_elements_task(
+    sql_db: SqlDb, timeout_hours: int = 2
+) -> bool:
+    """
+    Validates if a database elements creation task marked as RUNNING is still legitimate.
+    
+    Args:
+        sql_db: SqlDb instance
+        timeout_hours: hours after which a running task is considered stale
+        
+    Returns:
+        bool: True if task should still be considered running; False if reset
+    """
+    current_status = sql_db.db_elements_status
+    if current_status != TaskStatus.RUNNING:
+        return False
+    
+    start_time = sql_db.db_elements_start_time
+    if start_time:
+        cutoff_time = timezone.now() - timedelta(hours=timeout_hours)
+        if start_time < cutoff_time:
+            sql_db.db_elements_status = TaskStatus.FAILED
+            sql_db.db_elements_end_time = timezone.now()
+            sql_db.save(
+                update_fields=["db_elements_status", "db_elements_end_time"]
+            )
+            return False
+    
+    return True
+
+
+def force_reset_sqldb_db_elements_task_status(
+    sql_db: SqlDb, reason: str = "Manual reset"
+) -> bool:
+    """
+    Force reset of SqlDb database elements creation task status and metadata.
+    """
+    try:
+        old_status = sql_db.db_elements_status
+        old_task_id = sql_db.db_elements_task_id
+        
+        sql_db.db_elements_status = TaskStatus.IDLE
+        sql_db.db_elements_task_id = None
+        sql_db.db_elements_end_time = timezone.now()
+        
+        sql_db.save(update_fields=[
+            "db_elements_status", 
+            "db_elements_task_id", 
+            "db_elements_end_time"
+        ])
+        
+        logger.warning(
+            f"Force reset db_elements for SqlDb {sql_db.id}: {reason} "
+            f"(was: {old_status}, task_id: {old_task_id})"
+        )
+        return True
+    except Exception as e:
+        logger.error(
+            f"Failed to force reset db_elements for SqlDb {sql_db.id}: {e}"
+        )
+        return False
