@@ -21,6 +21,7 @@ from thoth_core.thoth_ai.thoth_workflow.create_column_comments import (
 from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_column_comments,
 )
+from thoth_core.utilities.task_validation import check_sqldb_task_can_start
  
 
 
@@ -310,10 +311,20 @@ class SqlColumnAdmin(admin.ModelAdmin):
                 level=messages.ERROR,
             )
             return
-        if sql_db.column_comment_status == "RUNNING":
+
+        can_start, status_message = check_sqldb_task_can_start(
+            sql_db, "column_comment"
+        )
+        sql_db.refresh_from_db()
+
+        if not can_start:
+            current_status = sql_db.column_comment_status or "UNKNOWN"
             self.message_user(
                 request,
-                f"Cannot start column comment generation: a task is already running for database '{sql_db.name}'.",
+                (
+                    f"Cannot start column comment generation for database '{sql_db.name}': "
+                    f"{status_message}. Current status: {current_status}."
+                ),
                 level=messages.WARNING,
             )
             return

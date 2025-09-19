@@ -32,6 +32,7 @@ from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
 from thoth_core.thoth_ai.thoth_workflow.create_db_scope import get_language_description
 from thoth_core.models import LLMChoices
 from thoth_core.thoth_ai.prompts.columns_comment_prompt import get_columns_prompt
+from thoth_core.utilities.task_validation import check_sqldb_task_can_start
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -183,10 +184,50 @@ def generate_column_comments_with_llm(llm_client, variables: Dict[str, Any]):
 
 def create_selected_column_comments(modeladmin, request, queryset):
     try:
+        columns = list(queryset.select_related("sql_table__sql_db"))
         chunk_size = 10
-        total_columns = queryset.count()
+        total_columns = len(columns)
 
-        table = queryset[0].sql_table
+        if total_columns == 0:
+            modeladmin.message_user(
+                request, "No columns selected.", level=messages.WARNING
+            )
+            return
+
+        checked_db_ids = set()
+        blocked_messages = []
+
+        for column in columns:
+            sql_table = getattr(column, "sql_table", None)
+            sql_db = getattr(sql_table, "sql_db", None)
+
+            if not sql_db or sql_db.id in checked_db_ids:
+                continue
+
+            can_start, status_message = check_sqldb_task_can_start(
+                sql_db, "column_comment"
+            )
+            sql_db.refresh_from_db()
+
+            if not can_start:
+                current_status = sql_db.column_comment_status or "UNKNOWN"
+                blocked_messages.append(
+                    (
+                        f"Cannot generate column comments for database '{sql_db.name}': "
+                        f"{status_message}. Current status: {current_status}."
+                    )
+                )
+
+            checked_db_ids.add(sql_db.id)
+
+        if blocked_messages:
+            for message_text in blocked_messages:
+                modeladmin.message_user(
+                    request, message_text, level=messages.WARNING
+                )
+            return
+
+        table = columns[0].sql_table
         # Get language from table's database, fallback to English
         language_code = table.sql_db.language or "en"
         language = get_language_description(language_code)
@@ -214,7 +255,7 @@ def create_selected_column_comments(modeladmin, request, queryset):
             )
 
         for i in range(0, total_columns, chunk_size):
-            chunk = queryset[i : i + chunk_size]
+            chunk = columns[i : i + chunk_size]
             process_column_chunk(
                 modeladmin,
                 request,

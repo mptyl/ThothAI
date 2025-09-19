@@ -710,18 +710,28 @@ class SqlDbAdmin(admin.ModelAdmin):
 
         # SqlDb-scoped readiness checks using shared validator
         ok_cols, msg_cols = check_sqldb_task_can_start(sql_db, "column_comment")
+        sql_db.refresh_from_db()
         if not ok_cols:
-            messages.error(
+            current_status = sql_db.column_comment_status or "UNKNOWN"
+            messages.warning(
                 request,
-                f"Cannot start column comment generation: {msg_cols}. Current column comment status: {sql_db.column_comment_status}",
+                (
+                    f"Cannot start column comment generation for database '{sql_db.name}': "
+                    f"{msg_cols}. Current status: {current_status}."
+                ),
             )
             return
 
         ok_tbls, msg_tbls = check_sqldb_task_can_start(sql_db, "table_comment")
+        sql_db.refresh_from_db()
         if not ok_tbls:
-            messages.error(
+            current_status = sql_db.table_comment_status or "UNKNOWN"
+            messages.warning(
                 request,
-                f"Cannot start table comment generation: {msg_tbls}. Current table comment status: {sql_db.table_comment_status}",
+                (
+                    f"Cannot start table comment generation for database '{sql_db.name}': "
+                    f"{msg_tbls}. Current status: {current_status}."
+                ),
             )
             return
 
@@ -770,9 +780,33 @@ class SqlDbAdmin(admin.ModelAdmin):
 
                     # Step 2: If columns completed successfully, start table comments
                     if sql_db.column_comment_status == "COMPLETED":
-                        table_task_id = start_async_table_comments(
-                            sql_db.id, table_ids, request.user.id
+                        can_start_tables, status_message = check_sqldb_task_can_start(
+                            sql_db, "table_comment"
                         )
+                        sql_db.refresh_from_db()
+
+                        if can_start_tables:
+                            table_task_id = start_async_table_comments(
+                                sql_db.id, table_ids, request.user.id
+                            )
+                        else:
+                            from django.utils import timezone
+
+                            table_status = sql_db.table_comment_status or "UNKNOWN"
+                            log_message = (
+                                f"Table comment generation skipped: {status_message}. "
+                                f"Current status: {table_status}."
+                            )
+                            sql_db.table_comment_status = "FAILED"
+                            sql_db.table_comment_log = log_message
+                            sql_db.table_comment_end_time = timezone.now()
+                            sql_db.save(
+                                update_fields=[
+                                    "table_comment_status",
+                                    "table_comment_log",
+                                    "table_comment_end_time",
+                                ]
+                            )
                     else:
                         # Log that table comments were skipped due to column comment failure
                         sql_db.table_comment_log = "Table comment generation skipped due to column comment failure"

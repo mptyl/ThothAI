@@ -31,6 +31,7 @@ from thoth_core.thoth_ai.prompts.table_comment_prompt import get_table_prompt
 from thoth_core.thoth_ai.thoth_workflow.create_db_scope import get_language_description
 from thoth_core.models import LLMChoices  # Added LLMChoices
 from django.db import transaction  # Added transaction
+from thoth_core.utilities.task_validation import check_sqldb_task_can_start
 
 
 class LLMTimeoutError(Exception):
@@ -200,13 +201,45 @@ def create_table_comments(modeladmin, request, queryset):  # Renamed function
                   for which to generate comments.
     """
     try:
+        tables = list(queryset.select_related("sql_db"))
         chunk_size = 10
-        total_tables = queryset.count()
+        total_tables = len(tables)
 
         if total_tables == 0:
             modeladmin.message_user(
                 request, "No tables selected.", level=messages.WARNING
             )
+            return
+
+        checked_db_ids = set()
+        blocked_messages = []
+
+        for table in tables:
+            sql_db = getattr(table, "sql_db", None)
+            if not sql_db or sql_db.id in checked_db_ids:
+                continue
+
+            can_start, status_message = check_sqldb_task_can_start(
+                sql_db, "table_comment"
+            )
+            sql_db.refresh_from_db()
+
+            if not can_start:
+                current_status = sql_db.table_comment_status or "UNKNOWN"
+                blocked_messages.append(
+                    (
+                        f"Cannot generate table comments for database '{sql_db.name}': "
+                        f"{status_message}. Current status: {current_status}."
+                    )
+                )
+
+            checked_db_ids.add(sql_db.id)
+
+        if blocked_messages:
+            for message_text in blocked_messages:
+                modeladmin.message_user(
+                    request, message_text, level=messages.WARNING
+                )
             return
 
         if total_tables > chunk_size:
@@ -217,7 +250,7 @@ def create_table_comments(modeladmin, request, queryset):  # Renamed function
             )
 
         for i in range(0, total_tables, chunk_size):
-            chunk = queryset[i : i + chunk_size]
+            chunk = tables[i : i + chunk_size]
             process_table_chunk(modeladmin, request, chunk, i // chunk_size + 1)
 
         modeladmin.message_user(
