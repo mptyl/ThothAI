@@ -63,6 +63,7 @@ from .backend_utils.session_utils import get_current_workspace
 import os
 import logging
 import re
+import csv
 from io import BytesIO
 # Vector store handled by thoth-qdrant library
 
@@ -2013,6 +2014,121 @@ def gdpr_export_json(request):
     except Exception as e:
         logger.error(f"Error exporting GDPR JSON: {e}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def gdpr_export_csv(request):
+    """
+    Export GDPR compliance report as CSV.
+    """
+    try:
+        workspace = get_current_workspace(request)
+        if not workspace or not workspace.sql_db:
+            messages.error(request, "No workspace or database selected")
+            return redirect("thoth_ai_backend:gdpr_report")
+
+        sql_db = workspace.sql_db
+        db_name = sql_db.name
+
+        if not sql_db.gdpr_report:
+            messages.error(
+                request,
+                f"GDPR compliance scan has not been performed yet for database '{db_name}'.",
+            )
+            return redirect("thoth_ai_backend:gdpr_report")
+
+        report = sql_db.gdpr_report
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="{db_name}_gdpr_compliance_report.csv"'
+        )
+
+        writer = csv.writer(response)
+        writer.writerow(["Database", db_name])
+        if sql_db.gdpr_scan_date:
+            writer.writerow(
+                [
+                    "Scan Date",
+                    sql_db.gdpr_scan_date.strftime("%Y-%m-%d %H:%M:%S"),
+                ]
+            )
+        risk_info = report.get("risk_score", {})
+        if risk_info:
+            writer.writerow(
+                [
+                    "Risk Level",
+                    f"{risk_info.get('level', 'UNKNOWN')} ({risk_info.get('score', 0)}/100)",
+                ]
+            )
+
+        writer.writerow([])
+        writer.writerow(
+            [
+                "Table Name",
+                "Column Name",
+                "Data Type",
+                "Sensitivity",
+                "Category",
+                "Pattern Type",
+                "Description",
+                "Has Sensitive Data",
+            ]
+        )
+
+        tables = report.get("tables", [])
+        if tables:
+            for table_info in tables:
+                table_name = table_info.get("table_name", "")
+                description = table_info.get("description", "")
+                sensitive_columns = table_info.get("sensitive_columns", [])
+
+                if sensitive_columns:
+                    for column in sensitive_columns:
+                        writer.writerow(
+                            [
+                                table_name,
+                                column.get("column_name", ""),
+                                column.get("data_type", ""),
+                                column.get("sensitivity", ""),
+                                column.get("category", ""),
+                                column.get("pattern_type", ""),
+                                column.get("description", "") or description,
+                                "Yes",
+                            ]
+                        )
+                else:
+                    writer.writerow(
+                        [
+                            table_name,
+                            "",
+                            "",
+                            "NONE",
+                            "",
+                            "",
+                            description,
+                            "No",
+                        ]
+                    )
+        else:
+            writer.writerow([
+                "No tables found in report",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            ])
+
+        logger.info(f"GDPR CSV generated successfully for {db_name}")
+        return response
+
+    except Exception as e:
+        logger.error(f"Error generating GDPR CSV: {e}", exc_info=True)
+        messages.error(request, f"Error generating GDPR CSV: {str(e)}")
+        return redirect("thoth_ai_backend:gdpr_report")
 
 
 @login_required

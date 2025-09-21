@@ -559,3 +559,40 @@ class TestExportImportViews(TestCase):
                 view_name, {"message": str(e), "exception_type": type(e).__name__}
             )
             self.report_data["summary"][view_name] = "FAIL"
+
+    def test_gdpr_export_csv_view(self):
+        """Test GDPR CSV export"""
+        view_name = "gdpr_export_csv"
+        try:
+            self.client.login(username="testuser", password="testpass123")
+
+            session = self.client.session
+            session["current_workspace_id"] = self.workspace.id
+            session.save()
+
+            response = self.client.get(reverse("thoth_ai_backend:gdpr_export_csv"))
+
+            if response.status_code != 200:
+                self._record_error(
+                    view_name,
+                    {
+                        "message": f"GDPR export CSV returned {response.status_code}",
+                        "status_code": response.status_code,
+                    },
+                )
+            elif "text/csv" not in (response.get("Content-Type") or ""):
+                self._record_warning(
+                    view_name,
+                    {
+                        "message": "GDPR export CSV response is not CSV",
+                        "content_type": response.get("Content-Type"),
+                    },
+                )
+
+            self.report_data["summary"][view_name] = "PASS"
+
+        except Exception as e:
+            self._record_error(
+                view_name, {"message": str(e), "exception_type": type(e).__name__}
+            )
+            self.report_data["summary"][view_name] = "FAIL"

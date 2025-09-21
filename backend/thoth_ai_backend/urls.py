@@ -169,4 +169,5 @@ urlpatterns = [
     path("gdpr-report/", GdprReportView.as_view(), name="gdpr_report"),
     path("gdpr-report/export-pdf/", views.gdpr_export_pdf, name="gdpr_export_pdf"),
     path("gdpr-report/export-json/", views.gdpr_export_json, name="gdpr_export_json"),
+    path("gdpr-report/export-csv/", views.gdpr_export_csv, name="gdpr_export_csv"),
 ]
