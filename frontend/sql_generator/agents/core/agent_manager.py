@@ -491,7 +491,7 @@ class ThothAgentManager(BaseAgentManager):
             
             from helpers.language_utils import resolve_language_name
             prompt = TemplateLoader.format(
-                'user_sql_explain',
+                'template_explain_generated_sql.txt',
                 GENERATED_SQL=generated_sql,
                 QUESTION=question,
                 DATABASE_SCHEMA=database_schema,

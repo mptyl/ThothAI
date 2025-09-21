@@ -111,6 +111,9 @@ Complete refactoring of template_preparation.py to eliminate code duplication an
 
 ## Template ID Mapping
 
+Template calls now reference the concrete filenames directly; the list below is
+kept for historical reference only.
+
 ### System Templates
 - `sys_keywords` → system_template_extract_keywords_from_question.txt
 - `sys_sql_gen` → system_template_generate_sql.txt

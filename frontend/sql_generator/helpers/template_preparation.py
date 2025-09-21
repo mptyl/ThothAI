@@ -39,7 +39,7 @@ class TemplateLoader:
         """
         if template_path in cls._cache:
             return cls._cache[template_path]
-        
+
         full_path = os.path.join(get_project_root(), "templates", template_path)
         
         if not os.path.exists(full_path):
