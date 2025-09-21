@@ -137,10 +137,11 @@ def _bm25_scores(query: List[str], docs: List[List[str]]) -> List[float]:
     # Normalize to [0,1]
     if not raw_scores:
         return [0.0 for _ in docs]
-    mn, mx = min(raw_scores), max(raw_scores)
-    if mx <= mn:
+    mx = max(raw_scores)
+    if mx <= 0:
         return [0.0 for _ in docs]
-    return [(s - mn) / (mx - mn) for s in raw_scores]
+    # Scale by the maximum raw score so single-document matches stay at 1.0
+    return [min(1.0, s / mx) for s in raw_scores]
 
 
 # ------------------------ SQL entity extraction ------------------------

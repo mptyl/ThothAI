@@ -20,6 +20,7 @@ efficiency while maintaining comprehensive test coverage.
 """
 
 import logging
+import re
 from typing import Dict, Any, Optional, List
 from pydantic_ai import Agent
 
@@ -28,6 +29,50 @@ from model.evaluator_deps import EvaluatorDeps
 from helpers.template_preparation import TemplateLoader, clean_template_for_llm
 
 logger = logging.getLogger(__name__)
+
+
+_EVIDENCE_TAG_PATTERN = re.compile(r"\[\s*EVIDENCE-CRITICAL\s*\]", re.IGNORECASE)
+
+
+def _normalize_test_text(text: str) -> str:
+    """Normalize a test string for matching while ignoring evidence tags and minor punctuation."""
+    if not isinstance(text, str):
+        return ""
+    without_tag = _EVIDENCE_TAG_PATTERN.sub("", text)
+    without_numbering = re.sub(r"^\s*\d+[\.)-]\s*", "", without_tag)
+    collapsed = re.sub(r"\s+", " ", without_numbering)
+    return collapsed.strip().lower()
+
+
+def _preserve_evidence_tags(original_tests: List[str], reduced_tests: List[str]) -> List[str]:
+    """Ensure tests marked evidence-critical retain their tag after reduction."""
+    critical_signatures = {
+        _normalize_test_text(test)
+        for test in original_tests
+        if isinstance(test, str) and _EVIDENCE_TAG_PATTERN.search(test)
+    }
+
+    if not critical_signatures:
+        return reduced_tests
+
+    preserved: List[str] = []
+    for test in reduced_tests:
+        if not isinstance(test, str):
+            preserved.append(test)
+            continue
+
+        normalized = _normalize_test_text(test)
+        has_tag = bool(_EVIDENCE_TAG_PATTERN.search(test))
+
+        if normalized in critical_signatures and not has_tag:
+            # Reapply tag without disturbing existing formatting unnecessarily
+            trimmed = test.lstrip()
+            prefixed = f"[EVIDENCE-CRITICAL] {trimmed}" if trimmed else "[EVIDENCE-CRITICAL]"
+            preserved.append(prefixed)
+        else:
+            preserved.append(test)
+
+    return preserved
 
 
 def create_test_reducer_agent(
@@ -120,9 +165,18 @@ async def run_test_reducer(
             user_template,
             deps=EvaluatorDeps()
         )
-        
+
         if result and hasattr(result, 'output'):
-            logger.info(f"TestReducer successfully reduced {len(original_tests)} tests to {len(result.output.reduced_tests)}")
+            logger.info(
+                f"TestReducer successfully reduced {len(original_tests)} tests to {len(result.output.reduced_tests)}"
+            )
+
+            try:
+                preserved = _preserve_evidence_tags(original_tests, result.output.reduced_tests)
+                result.output.reduced_tests = preserved
+            except Exception as e:  # pragma: no cover - defensive guard
+                logger.error(f"Failed to preserve evidence-critical tags: {e}")
+
             return result.output
         else:
             logger.error("TestReducer agent returned no output")

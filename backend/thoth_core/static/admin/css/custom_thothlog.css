@@ -26,6 +26,41 @@
     width: 100% !important;
 }
 
+/* Make Evidence Relevance Summary full-width to avoid number wrapping */
+.form-row.field-evidence_relevance_summary_display,
+.form-row.field-evidence_relevance_events_display {
+    display: block !important;
+    width: 100% !important;
+}
+
+.form-row.field-evidence_relevance_summary_display > div,
+.form-row.field-evidence_relevance_events_display > div {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 12px !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+}
+
+.form-row.field-evidence_relevance_summary_display > div > label,
+.form-row.field-evidence_relevance_events_display > div > label {
+    display: inline-flex !important;
+    align-items: baseline !important;
+    text-align: left !important;
+    width: auto !important;
+    padding-bottom: 0 !important;
+    margin-right: 6px !important;
+}
+
+.form-row.field-evidence_relevance_summary_display > div > .readonly,
+.form-row.field-evidence_relevance_events_display > div > .readonly {
+    display: block !important;
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 600px !important;
+    margin-left: 0 !important;
+}
+
 .form-row.field-formatted_evidences > div > label,
 .form-row.field-pool_of_generated_sql_display > div > label {
     display: block !important; /* Make label a block */
@@ -46,6 +81,11 @@
     display: inline-block !important;
     vertical-align: top !important;
     line-height: 1.5 !important;
+}
+
+.form-row.field-evidence_relevance_summary_display > div > .readonly,
+.form-row.field-evidence_relevance_events_display > div > .readonly {
+    display: block !important;
 }
 
 /* Ensure Question textarea has good width */
@@ -113,4 +153,26 @@
 .thoth-ul li {
     margin-left: 0 !important;
     padding-left: 0 !important;
+}
+
+/* Two-column layout for key/value dictionaries rendered via <dl> */
+.thoth-dl {
+    display: grid;
+    grid-template-columns: 240px auto;
+    column-gap: 12px;
+    row-gap: 6px;
+    align-items: start;
+    margin: 0; /* keep it compact inside collapsible */
+}
+
+.thoth-dl dt {
+    grid-column: 1;
+    margin: 0;
+    font-weight: 600;
+}
+
+.thoth-dl dd {
+    grid-column: 2;
+    margin: 0;
+    white-space: nowrap; /* Prevent single numbers from wrapping to next line */
 }

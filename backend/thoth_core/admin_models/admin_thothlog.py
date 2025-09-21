@@ -12,7 +12,7 @@
 
 from django.contrib import admin
 from django import forms
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django.utils import timezone
 import json
@@ -2303,27 +2303,19 @@ class ThothLogAdmin(admin.ModelAdmin):
         # Check if any escalation occurred
         advanced = getattr(obj, 'advanced_escalation', False)
         expert = getattr(obj, 'expert_escalation', False)
-        
+
         if not advanced and not expert:
-            return format_html(
-                '<span style="color: #666; font-style: italic;">No escalation</span>'
-            )
-        
-        flags_html = []
-        if advanced:
-            flags_html.append(
-                '<span style="background: #ffc107; color: #000; padding: 2px 8px; border-radius: 3px; margin-right: 5px;">'
-                '⬆️ ADVANCED'
-                '</span>'
-            )
+            return format_html('<span class="thoth-escalation-badge thoth-escalation-badge--none">No escalation</span>')
+
         if expert:
-            flags_html.append(
-                '<span style="background: #dc3545; color: #fff; padding: 2px 8px; border-radius: 3px;">'
-                '⬆️⬆️ EXPERT'
-                '</span>'
+            return format_html(
+                '<span class="thoth-escalation-badge thoth-escalation-badge--expert">⬆️⬆️ EXPERT</span>'
             )
-        
-        return format_html(''.join(flags_html))
+
+        # At this point we only flagged ADVANCED escalation
+        return format_html(
+            '<span class="thoth-escalation-badge thoth-escalation-badge--advanced">⬆️ ADVANCED</span>'
+        )
     
     escalation_flags_display.short_description = "Escalation Status"
     
@@ -2918,18 +2910,51 @@ class ThothLogAdmin(admin.ModelAdmin):
                 data = json.loads(obj.gold_sql_extracted)
             else:
                 data = obj.gold_sql_extracted
-            
-            html = '<div style="max-height: 300px; overflow-y: auto;">'
-            for i, item in enumerate(data[:5]):  # Show max 5 items
-                html += f'<div style="margin: 10px 0; padding: 10px; border-left: 3px solid #28a745;">'
-                html += f'<strong>Example {i+1}:</strong><br>'
-                html += f'<em>Q:</em> {item.get("question", "N/A")}<br>'
-                html += f'<code style="background: #f8f9fa; padding: 5px;">{item.get("sql", "N/A")}</code>'
-                html += '</div>'
+            if isinstance(data, dict):
+                data = [data]
+            if not isinstance(data, (list, tuple)):
+                data = [
+                    {
+                        "question": "",
+                        "sql": data,
+                    }
+                ]
+
+            slices = list(enumerate(data[:5], start=1))
+            if not slices:
+                return "-"
+            items_html = format_html_join(
+                "",
+                (
+                    "<div class=\"thoth-gold-sql__item\">"
+                    "<div class=\"thoth-gold-sql__header\">Example {0}</div>"
+                    "<p class=\"thoth-gold-sql__question\"><span class=\"thoth-gold-sql__label\">Question:</span> {1}</p>"
+                    "<pre class=\"thoth-gold-sql__sql\">{2}</pre>"
+                    "</div>"
+                ),
+                (
+                    (
+                        index,
+                        item.get("question", "N/A"),
+                        item.get("sql", "N/A"),
+                    )
+                    for index, item in slices
+                ),
+            )
+
+            more_html = ""
             if len(data) > 5:
-                html += f'<div style="text-align: center; color: #666;">... and {len(data) - 5} more examples</div>'
-            html += '</div>'
-            return mark_safe(html)
+                more_html = format_html(
+                    '<div class="thoth-gold-sql__more">... and {} more example{}</div>',
+                    len(data) - 5,
+                    "s" if len(data) - 5 != 1 else "",
+                )
+
+            return format_html(
+                '<div class="thoth-gold-sql">{}</div>{}',
+                items_html,
+                more_html,
+            )
         except:
             return str(obj.gold_sql_extracted)[:200] + "..."
     gold_sql_extracted_display.short_description = "Gold SQL Examples"

@@ -104,6 +104,7 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             elif started_at.tzinfo.tzname(started_at) == 'UTC':
                 started_at = started_at.astimezone(local_tz)
         
+        # Collect per-attempt relevance events from state
         relevance_events: List[Dict[str, Any]] = []
         raw_events = getattr(state, 'relevance_guard_events', []) if hasattr(state, 'relevance_guard_events') else []
         if raw_events:
@@ -111,7 +112,10 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
                 if isinstance(event, dict):
                     relevance_events.append(event)
 
+        # Start from any running totals accumulated during validation
         base_summary = dict(getattr(state, 'relevance_guard_summary', {}) or {})
+
+        # Build a fresh summary from events (if any)
         computed_summary: Dict[str, Any] = {
             "events_recorded": len(relevance_events),
             "total_tests": sum(event.get('tests_total', 0) for event in relevance_events),
@@ -132,7 +136,104 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
                 computed_summary["strict_evaluations"] += len(answers)
                 computed_summary["strict_failures"] += evaluation.get('failed', 0)
 
-        relevance_summary = {**base_summary, **computed_summary}
+        # IMPORTANT: Do not wipe non-zero running totals with zero computed values
+        # When no events are present at this point (e.g., telemetry flush timing),
+        # preserve the base summary that validators already aggregated.
+        if relevance_events:
+            # Merge numbers by simple overwrite since they were recomputed from events
+            relevance_summary = {**base_summary, **computed_summary}
+        else:
+            relevance_summary = dict(base_summary)
+            # Provide stable keys so the admin UI renders consistently
+            # but avoid overwriting non-zero values with zeros
+            relevance_summary.setdefault("events_recorded", base_summary.get("events_recorded", 0))
+            relevance_summary.setdefault("total_tests", base_summary.get("total_tests", 0))
+            relevance_summary.setdefault("strict_total", base_summary.get("strict_total", 0))
+            relevance_summary.setdefault("weak_total", base_summary.get("weak_total", 0))
+            relevance_summary.setdefault("irrelevant_total", base_summary.get("irrelevant_total", 0))
+            relevance_summary.setdefault("strict_evaluations", base_summary.get("strict_evaluations", 0))
+            relevance_summary.setdefault("strict_failures", base_summary.get("strict_failures", 0))
+            relevance_summary.setdefault("timeouts", base_summary.get("timeouts", 0))
+            if base_summary and not raw_events:
+                logger.debug("Relevance summary present but no events attached; preserving base totals.")
+
+        # Fallback: if we still have zeros but evidence-critical tests exist, rebuild
+        # a minimal relevance summary directly from current state using pure-Python classifier.
+        try:
+            def _all_zero(summary: Dict[str, Any]) -> bool:
+                return (
+                    int(summary.get("events_recorded", 0)) == 0
+                    and int(summary.get("total_tests", 0)) == 0
+                    and int(summary.get("strict_total", 0)) == 0
+                    and int(summary.get("weak_total", 0)) == 0
+                    and int(summary.get("irrelevant_total", 0)) == 0
+                )
+
+            if _all_zero(relevance_summary):
+                # Try to extract evidence-critical tests from state
+                ev_tests: List[str] = []
+                try:
+                    if hasattr(state, 'filtered_tests') and state.filtered_tests:
+                        ev_tests = [t for t in state.filtered_tests if isinstance(t, str) and '[EVIDENCE-CRITICAL]' in t]
+                    elif hasattr(state, 'generated_tests') and state.generated_tests:
+                        for _, answers in state.generated_tests:
+                            if isinstance(answers, list):
+                                ev_tests.extend([t for t in answers if isinstance(t, str) and '[EVIDENCE-CRITICAL]' in t])
+                except Exception:
+                    ev_tests = []
+
+                # SQL string to classify against
+                sql_for_class = None
+                try:
+                    sql_for_class = (
+                        getattr(state.generation, 'generated_sql', None)
+                        if hasattr(state, 'generation') else None
+                    ) or getattr(state, 'last_SQL', None)
+                except Exception:
+                    sql_for_class = getattr(state, 'last_SQL', None)
+
+                if ev_tests and sql_for_class:
+                    try:
+                        # Lazy import to avoid circular imports at module load
+                        from agents.validators.relevance_guard import classify_tests, load_config_from_env
+                        cfg = None
+                        try:
+                            cfg = load_config_from_env()
+                        except Exception:
+                            cfg = None
+                        question_text = getattr(getattr(state, 'request', None), 'question', None) or getattr(state, 'question', '') or ''
+                        q_lang = None
+                        db_lang = None
+                        try:
+                            q_lang = getattr(getattr(state, 'request', None), 'original_language', None) or getattr(state, 'original_language', None)
+                            db_lang = getattr(getattr(state, 'request', None), 'language', None)
+                        except Exception:
+                            pass
+                        classification = classify_tests(
+                            question=question_text,
+                            sql=sql_for_class,
+                            tests=ev_tests,
+                            cfg=cfg,
+                            langs=(q_lang or '', db_lang or ''),
+                        )
+
+                        # Build a minimal, correct summary
+                        relevance_summary = {
+                            "events_recorded": 1,
+                            "total_tests": len(ev_tests),
+                            "strict_total": len(classification.get('strict', [])),
+                            "weak_total": len(classification.get('weak', [])),
+                            "irrelevant_total": len(classification.get('irrelevant', [])),
+                            # Keep evaluation counters at zero; we didn't re-run strict evaluator here
+                            "strict_evaluations": int(base_summary.get("strict_evaluations", 0) or 0),
+                            "strict_failures": int(base_summary.get("strict_failures", 0) or 0),
+                            "timeouts": int(base_summary.get("timeouts", 0) or 0),
+                        }
+                        logger.info("Rebuilt evidence relevance summary via fallback classifier (no telemetry events available)")
+                    except Exception as e:
+                        logger.debug(f"Fallback relevance classification skipped due to error: {e}")
+        except Exception as e:
+            logger.debug(f"Error in fallback relevance summary computation: {e}")
 
         model_retry_events: List[Dict[str, Any]] = []
         raw_retry_events = getattr(state, 'model_retry_events', []) if hasattr(state, 'model_retry_events') else []
