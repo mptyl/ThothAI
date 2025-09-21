@@ -17,7 +17,7 @@ SQL generation orchestration for parallel SQL generation.
 import asyncio
 import logging
 import traceback
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 from model.state_factory import StateFactory
@@ -244,6 +244,71 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         Tuple of (success, sql_string)
     """
     logger.debug(f" Starting generate_single_sql_with_method - index: {agent_index}, method: {method}, temp: {temperature}")
+    sql_deps = None
+
+    def flush_validator_telemetry():
+        """Transfer validator telemetry from deps into SystemState contexts."""
+        nonlocal sql_deps
+        if sql_deps is None:
+            return
+
+        generation_context = {
+            "method": method,
+            "temperature": temperature,
+            "agent_index": agent_index,
+            "functionality_level": getattr(state, 'functionality_level', None),
+            "agent_name": getattr(agent, 'name', None),
+        }
+
+        try:
+            if hasattr(sql_deps, 'relevance_guard_events') and sql_deps.relevance_guard_events:
+                enriched_events = []
+                for event in sql_deps.relevance_guard_events:
+                    if not isinstance(event, dict):
+                        continue
+                    enriched = dict(event)
+                    enriched.setdefault('generation_context', generation_context)
+                    enriched_events.append(enriched)
+                if enriched_events:
+                    existing_events = list(getattr(state, 'relevance_guard_events', []) or [])
+                    existing_events.extend(enriched_events)
+                    state.relevance_guard_events = existing_events
+            if hasattr(sql_deps, 'relevance_guard_summary') and sql_deps.relevance_guard_summary:
+                combined_summary: Dict[str, Any] = dict(getattr(state, 'relevance_guard_summary', {}) or {})
+                for key, value in sql_deps.relevance_guard_summary.items():
+                    if isinstance(value, (int, float)) and isinstance(combined_summary.get(key), (int, float)):
+                        combined_summary[key] = combined_summary.get(key, 0) + value
+                    elif key not in combined_summary:
+                        combined_summary[key] = value
+                    else:
+                        combined_summary[key] = value
+                state.relevance_guard_summary = combined_summary
+            if hasattr(sql_deps, 'model_retry_events') and sql_deps.model_retry_events:
+                enriched_retries = []
+                for event in sql_deps.model_retry_events:
+                    if not isinstance(event, dict):
+                        continue
+                    enriched = dict(event)
+                    enriched.setdefault('generation_context', generation_context)
+                    enriched_retries.append(enriched)
+                if enriched_retries:
+                    existing_retry_events = list(getattr(state, 'model_retry_events', []) or [])
+                    existing_retry_events.extend(enriched_retries)
+                    state.model_retry_events = existing_retry_events
+            if hasattr(sql_deps, 'retry_history') and sql_deps.retry_history:
+                combined_history = list(getattr(state, 'retry_history', []) or [])
+                combined_history.extend(sql_deps.retry_history)
+                state.retry_history = combined_history
+        finally:
+            if hasattr(sql_deps, 'relevance_guard_events'):
+                sql_deps.relevance_guard_events = []
+            if hasattr(sql_deps, 'relevance_guard_summary'):
+                sql_deps.relevance_guard_summary = {}
+            if hasattr(sql_deps, 'model_retry_events'):
+                sql_deps.model_retry_events = []
+            if hasattr(sql_deps, 'retry_history'):
+                sql_deps.retry_history = []
+
     try:
         # Create lightweight dependencies using StateFactory
         sql_deps = StateFactory.create_agent_deps(state, "sql_generation")
@@ -313,6 +378,8 @@ async def generate_single_sql_with_method(state, agent, temperature, method, age
         logger.error(f" Individual SQL generation failed with {method} method: {type(e).__name__}: {e}")
         logger.error(f" Traceback: {traceback.format_exc()}")
         return (False, "")
+    finally:
+        flush_validator_telemetry()
 
 
 def clean_sql_results(sql_list):

@@ -280,10 +280,20 @@ class ExecutionState(BaseModel):
         default_factory=dict,
         description="Pass rates for each SQL candidate"
     )
-    
+
     selected_sql_complexity: Optional[float] = Field(
         default=None,
         description="Complexity score of selected SQL (for case B selection)"
+    )
+
+    retry_history: List[str] = Field(
+        default_factory=list,
+        description="Human readable retry history for SQL generation attempts"
+    )
+
+    model_retry_events: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Detailed ModelRetry events captured during validation"
     )
     
     class Config:

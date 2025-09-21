@@ -16,7 +16,7 @@ These classes are designed to be fully pickleable for parallel execution.
 """
 
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Dict, Any
 
 
 class SqlGenerationDeps(BaseModel):
@@ -49,6 +49,11 @@ class SqlGenerationDeps(BaseModel):
 
     # Stateless gating input: evidence-critical tests for this request
     evidence_critical_tests: List[str] = Field(default_factory=list)
+
+    # Telemetry fields captured during validation for downstream logging
+    relevance_guard_events: List[Dict[str, Any]] = Field(default_factory=list)
+    relevance_guard_summary: Dict[str, Any] = Field(default_factory=dict)
+    model_retry_events: List[Dict[str, Any]] = Field(default_factory=list)
     
     class Config:
         """Pydantic configuration"""

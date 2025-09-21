@@ -1089,13 +1089,41 @@ class ThothLog(models.Model):
         null=True,
         help_text="Test-by-test judgments for each SQL candidate"
     )
-    
+
     reduced_tests = models.TextField(
         blank=True,
         default="",
         help_text="Reduced/filtered test list if test reduction was performed"
     )
-    
+
+    evidence_relevance_events = models.JSONField(
+        blank=True,
+        null=True,
+        default=list,
+        help_text="Detailed relevance guard diagnostics for evidence-derived tests"
+    )
+
+    evidence_relevance_summary = models.JSONField(
+        blank=True,
+        null=True,
+        default=dict,
+        help_text="Aggregated summary of evidence relevance evaluation"
+    )
+
+    model_retry_events = models.JSONField(
+        blank=True,
+        null=True,
+        default=list,
+        help_text="Captured ModelRetry events with structured context"
+    )
+
+    retry_history = models.JSONField(
+        blank=True,
+        null=True,
+        default=list,
+        help_text="Compact retry history strings for SQL generation attempts"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

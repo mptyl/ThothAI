@@ -103,12 +103,22 @@ class GenerationResults(BaseModel):
         default=None,
         description="Metrics and scores from the SQL selection process"
     )
-    
+
     selection_metrics_json: str = Field(
         default="",
         description="JSON string representation of selection_metrics for storage"
     )
-    
+
+    relevance_guard_events: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Per-attempt relevance guard diagnostics"
+    )
+
+    relevance_guard_summary: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Aggregated summary of relevance guard outcomes"
+    )
+
     # SQL explanation
     sql_explanation: Optional[str] = Field(
         default=None,

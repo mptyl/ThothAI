@@ -119,6 +119,10 @@ class ThothLogAdmin(admin.ModelAdmin):
         "selected_sql",
         "sql_generation_failure_message",
         "sql_explanation",
+        "evidence_relevance_summary_display",
+        "evidence_relevance_events_display",
+        "model_retry_events_display",
+        "retry_history_display",
         "formatted_available_context_tokens",
         "formatted_full_schema_tokens_count",
         "formatted_schema_link_strategy",
@@ -248,7 +252,31 @@ class ThothLogAdmin(admin.ModelAdmin):
                 "classes": ("collapse",),
             },
         ),
-        
+
+        (
+            "Phase 5b: Evidence Relevance Guard",
+            {
+                "fields": (
+                    "evidence_relevance_summary_display",
+                    "evidence_relevance_events_display",
+                ),
+                "description": "Diagnostics from evidence-derived test relevance checks",
+                "classes": ("collapse",),
+            },
+        ),
+
+        (
+            "Phase 5c: Model Retry Diagnostics",
+            {
+                "fields": (
+                    "retry_history_display",
+                    "model_retry_events_display",
+                ),
+                "description": "Structured payload returned with ModelRetry responses",
+                "classes": ("collapse",),
+            },
+        ),
+
         # Phase 6: SQL Evaluation and Winner Selection (renamed from Phase 7)
         (
             "Phase 6: SQL Evaluation and Winner Selection",
@@ -460,6 +488,66 @@ class ThothLogAdmin(admin.ModelAdmin):
         return mark_safe(render_collapsible("Reduced Schema (click to expand)", inner))
 
     formatted_reduced_schema.short_description = "Reduced Schema"
+
+    def evidence_relevance_summary_display(self, obj):
+        summary = obj.evidence_relevance_summary or {}
+        if not summary:
+            return "-"
+
+        inner = '<div class="readonly" style="max-height: 260px; overflow: auto;">'
+        inner += render_value(summary)
+        inner += '</div>'
+        raw = render_raw_toggle(
+            json.dumps(summary, ensure_ascii=False, indent=2),
+            label="Show raw summary"
+        )
+        return mark_safe(render_collapsible("Evidence relevance summary", inner + raw))
+
+    evidence_relevance_summary_display.short_description = "Relevance Summary"
+
+    def evidence_relevance_events_display(self, obj):
+        events = obj.evidence_relevance_events or []
+        if not events:
+            return "-"
+
+        inner = '<div class="readonly" style="max-height: 360px; overflow: auto;">'
+        inner += render_value(events)
+        inner += '</div>'
+        raw = render_raw_toggle(
+            json.dumps(events, ensure_ascii=False, indent=2),
+            label="Show raw events"
+        )
+        return mark_safe(render_collapsible("Evidence relevance events", inner + raw))
+
+    evidence_relevance_events_display.short_description = "Relevance Events"
+
+    def model_retry_events_display(self, obj):
+        events = obj.model_retry_events or []
+        if not events:
+            return "-"
+
+        inner = '<div class="readonly" style="max-height: 360px; overflow: auto;">'
+        inner += render_value(events)
+        inner += '</div>'
+        raw = render_raw_toggle(
+            json.dumps(events, ensure_ascii=False, indent=2),
+            label="Show raw retries"
+        )
+        return mark_safe(render_collapsible("Model retry events", inner + raw))
+
+    model_retry_events_display.short_description = "Model Retry Events"
+
+    def retry_history_display(self, obj):
+        history = obj.retry_history or []
+        if not history:
+            return "-"
+
+        inner = '<div class="readonly" style="max-height: 220px; overflow: auto;">'
+        inner += render_value(history)
+        inner += '</div>'
+        return mark_safe(render_collapsible("Retry history", inner))
+
+    retry_history_display.short_description = "Retry History"
 
     def formatted_used_mschema(self, obj):
         """Display used_mschema in an expandable container (theme-safe)."""

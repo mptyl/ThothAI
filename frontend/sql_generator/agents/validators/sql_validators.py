@@ -17,6 +17,7 @@ Validators for SQL generation agents.
 import re
 import os
 import asyncio
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pydantic_ai import RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
@@ -123,6 +124,21 @@ class SqlValidators:
         # Keep only the latest 8 entries to avoid unbounded growth
         if len(ctx.deps.retry_history) > 8:
             ctx.deps.retry_history = ctx.deps.retry_history[-8:]
+
+        retry_snapshot = {
+            "category": category.value,
+            "attempt": context.attempt_number,
+            "error_message": context.render_error_detail(),
+            "formatted_message": message,
+            "validation_results": context.validation_results or [],
+            "failed_tests": context.failed_tests or [],
+            "evidence_summary": context.evidence_summary or {},
+            "additional_hints": context.additional_hints or [],
+            "available_tables": context.available_tables or [],
+            "sql_excerpt": (context.sql or ctx.deps.last_SQL or "")[:400],
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+        ctx.deps.model_retry_events.append(retry_snapshot)
 
         if failed_tests is not None:
             ctx.deps.last_failed_tests = failed_tests
@@ -287,6 +303,48 @@ class SqlValidators:
                     if evidence_tests and isinstance(evidence_tests, list) and len(evidence_tests) > 0:
                         if not self.evaluator_agent:
                             logger.warning("Evidence-critical tests present but evaluator_agent is not available - skipping gating")
+                            try:
+                                cfg = load_config_from_env()
+                            except Exception:
+                                cfg = None
+                            deps_question = getattr(ctx.deps, 'question', '') or ''
+                            classification = classify_tests(
+                                question=deps_question,
+                                sql=sql,
+                                tests=evidence_tests,
+                                cfg=cfg,
+                                langs=(getattr(ctx.deps, 'question_language', ''), getattr(ctx.deps, 'db_language', '')),
+                            )
+                            summary = getattr(ctx.deps, 'relevance_guard_summary', {}) or {}
+                            summary.setdefault('total_tests', 0)
+                            summary.setdefault('strict_total', 0)
+                            summary.setdefault('weak_total', 0)
+                            summary.setdefault('irrelevant_total', 0)
+                            summary.setdefault('strict_evaluations', 0)
+                            summary.setdefault('strict_failures', 0)
+                            summary['total_tests'] += len(evidence_tests)
+                            summary['strict_total'] += len(classification.get('strict', []))
+                            summary['weak_total'] += len(classification.get('weak', []))
+                            summary['irrelevant_total'] += len(classification.get('irrelevant', []))
+                            ctx.deps.relevance_guard_summary = summary
+                            ctx.deps.relevance_guard_events.append({
+                                "timestamp": datetime.utcnow().isoformat() + "Z",
+                                "question_excerpt": deps_question[:200] if deps_question else "",
+                                "sql_excerpt": (sql or "")[:400],
+                                "tests_total": len(evidence_tests),
+                                "strict": len(classification.get('strict', [])),
+                                "weak": len(classification.get('weak', [])),
+                                "irrelevant": len(classification.get('irrelevant', [])),
+                                "classification_details": classification.get('details', []),
+                                "languages": {
+                                    "question": getattr(ctx.deps, 'question_language', None),
+                                    "database": getattr(ctx.deps, 'db_language', None),
+                                },
+                                "strict_evaluation": {
+                                    "status": "skipped",
+                                    "reason": "evaluator_unavailable",
+                                },
+                            })
                         else:
                             # Run RelevanceGuard to classify tests
                             try:
@@ -309,6 +367,43 @@ class SqlValidators:
                             log_info(
                                 f"THOTHLOG:RelevanceGuard pre-selection → STRICT={len(strict_tests)}, WEAK={len(weak_tests)}, IRRELEVANT={len(irrelevant_tests)}"
                             )
+
+                            relevance_event = {
+                                "timestamp": datetime.utcnow().isoformat() + "Z",
+                                "question_excerpt": deps_question[:200] if deps_question else "",
+                                "sql_excerpt": (sql or "")[:400],
+                                "tests_total": len(evidence_tests),
+                                "strict": len(strict_tests),
+                                "weak": len(weak_tests),
+                                "irrelevant": len(irrelevant_tests),
+                                "strict_tests": strict_tests,
+                                "weak_tests": weak_tests,
+                                "irrelevant_tests": irrelevant_tests,
+                                "classification_details": classification.get('details', []),
+                                "languages": {
+                                    "question": getattr(ctx.deps, 'question_language', None),
+                                    "database": getattr(ctx.deps, 'db_language', None),
+                                },
+                                "timeouts": False,
+                                "strict_evaluation": None,
+                            }
+
+                            def _record_relevance_event():
+                                ctx.deps.relevance_guard_events.append(relevance_event)
+
+                            summary = getattr(ctx.deps, 'relevance_guard_summary', {}) or {}
+                            summary.setdefault('total_tests', 0)
+                            summary.setdefault('strict_total', 0)
+                            summary.setdefault('weak_total', 0)
+                            summary.setdefault('irrelevant_total', 0)
+                            summary.setdefault('strict_evaluations', 0)
+                            summary.setdefault('strict_failures', 0)
+                            summary['total_tests'] += len(evidence_tests)
+                            summary['strict_total'] += len(strict_tests)
+                            summary['weak_total'] += len(weak_tests)
+                            summary['irrelevant_total'] += len(irrelevant_tests)
+                            ctx.deps.relevance_guard_summary = summary
+
                             # Evaluate ONLY strict tests (blocking); declass others to non-blocking
                             if strict_tests:
                                 unit_tests_str = "\n".join([f"{i}. {t}" for i, t in enumerate(strict_tests, 1)])
@@ -329,6 +424,12 @@ class SqlValidators:
                                         timeout=7
                                     )
                                 except asyncio.TimeoutError:
+                                    relevance_event['timeouts'] = True
+                                    relevance_event['strict_evaluation'] = {
+                                        "status": "timeout",
+                                        "tests": len(strict_tests),
+                                    }
+                                    _record_relevance_event()
                                     ctx.deps.last_execution_error = "Evidence-critical gating timed out"
                                     self._raise_model_retry(
                                         ctx,
@@ -367,6 +468,16 @@ class SqlValidators:
                                     }
                                     for idx, ans in enumerate(answers)
                                 ]
+                                relevance_event['strict_evaluation'] = {
+                                    "status": "completed",
+                                    "answers": answers,
+                                    "passed": passed,
+                                    "failed": len(failing),
+                                    "validation_results": validation_payload,
+                                }
+                                summary['strict_evaluations'] += len(answers)
+                                summary['strict_failures'] += len(failing)
+                                ctx.deps.relevance_guard_summary = summary
                                 # Emit THOTHLOG via dual logger for observability
                                 log_info(
                                     f"THOTHLOG:STRICT gating evaluated {len(answers)} strict tests: {passed} OK, {len(failing)} KO"
@@ -380,6 +491,8 @@ class SqlValidators:
                                     reasons = "; ".join([f"Test {num}: {ans}" for num, ans in failing[:3]])
                                     ctx.deps.last_execution_error = f"Evidence-critical checks failed: {reasons}"
                                     failed_descriptions = [f"Test {num}: {ans}" for num, ans in failing]
+                                    relevance_event['strict_evaluation']['model_retry_triggered'] = True
+                                    _record_relevance_event()
                                     self._raise_model_retry(
                                         ctx,
                                         ErrorCategory.EVIDENCE_MISMATCH,
@@ -398,15 +511,25 @@ class SqlValidators:
                                             "Re-run the mental checks against provided evidence before submitting",
                                         ],
                                     )
+                                else:
+                                    _record_relevance_event()
                             else:
                                 logger.info("No STRICT tests after RelevanceGuard; skipping blocking gating evaluation")
+                                _record_relevance_event()
                 except ModelRetry:
                     raise
                 except Exception as e:
                     logger.error(f"Error during evidence-critical gating: {e}")
+                    ctx.deps.relevance_guard_events.append({
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "question_excerpt": (getattr(ctx.deps, 'question', '') or '')[:200],
+                        "sql_excerpt": (sql or "")[:400],
+                        "tests_total": len(evidence_tests) if isinstance(evidence_tests, list) else 0,
+                        "error": str(e),
+                    })
                     # Be conservative: do not block on gating internal errors; proceed to next checks
                     pass
-                
+
                 # Step 5: Check for empty results if configured and dbmanager is available
                 if ctx.deps.treat_empty_result_as_error and self.dbmanager:
                     logger.debug(f"Step 4: treat_empty_result_as_error=True, checking for empty results")

@@ -17,7 +17,7 @@ ThothLog API functions for logging SQL generation operations to Django backend
 import os
 import logging
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 import hashlib
@@ -104,6 +104,45 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             elif started_at.tzinfo.tzname(started_at) == 'UTC':
                 started_at = started_at.astimezone(local_tz)
         
+        relevance_events: List[Dict[str, Any]] = []
+        raw_events = getattr(state, 'relevance_guard_events', []) if hasattr(state, 'relevance_guard_events') else []
+        if raw_events:
+            for event in raw_events:
+                if isinstance(event, dict):
+                    relevance_events.append(event)
+
+        base_summary = dict(getattr(state, 'relevance_guard_summary', {}) or {})
+        computed_summary: Dict[str, Any] = {
+            "events_recorded": len(relevance_events),
+            "total_tests": sum(event.get('tests_total', 0) for event in relevance_events),
+            "strict_total": sum(event.get('strict', 0) for event in relevance_events),
+            "weak_total": sum(event.get('weak', 0) for event in relevance_events),
+            "irrelevant_total": sum(event.get('irrelevant', 0) for event in relevance_events),
+            "strict_evaluations": 0,
+            "strict_failures": 0,
+            "timeouts": 0,
+        }
+        for event in relevance_events:
+            evaluation = event.get('strict_evaluation') or {}
+            status = evaluation.get('status')
+            if status == 'timeout':
+                computed_summary["timeouts"] += 1
+            if status == 'completed':
+                answers = evaluation.get('answers') or []
+                computed_summary["strict_evaluations"] += len(answers)
+                computed_summary["strict_failures"] += evaluation.get('failed', 0)
+
+        relevance_summary = {**base_summary, **computed_summary}
+
+        model_retry_events: List[Dict[str, Any]] = []
+        raw_retry_events = getattr(state, 'model_retry_events', []) if hasattr(state, 'model_retry_events') else []
+        if raw_retry_events:
+            for event in raw_retry_events:
+                if isinstance(event, dict):
+                    model_retry_events.append(event)
+
+        retry_history = list(getattr(state, 'retry_history', []) or [])
+
         log_data = {
             # Basic request information from RequestContext
             "username": state.request.username if hasattr(state, 'request') else (username or "anonymous"),
@@ -234,6 +273,12 @@ async def send_thoth_log(state: Any, workspace_id: int, workspace_name: str = No
             "enhanced_evaluation_thinking": state.enhanced_evaluation_result[0] if state.enhanced_evaluation_result else "",
             "enhanced_evaluation_answers": state.enhanced_evaluation_result[1] if state.enhanced_evaluation_result else [],
             "enhanced_evaluation_selected_sql": state.enhanced_evaluation_selected_sql if hasattr(state, 'enhanced_evaluation_selected_sql') and state.enhanced_evaluation_selected_sql is not None else "",
+
+            # Evidence relevance and retry telemetry
+            "evidence_relevance_events": relevance_events,
+            "evidence_relevance_summary": relevance_summary,
+            "model_retry_events": model_retry_events,
+            "retry_history": retry_history,
         }
         
         # Log summary of data being sent only in DEBUG level

@@ -438,7 +438,23 @@ class SystemState(BaseModel):
     @selection_metrics_json.setter
     def selection_metrics_json(self, value: str):
         self.generation.selection_metrics_json = value
-        
+
+    @property
+    def relevance_guard_events(self) -> List[Dict[str, Any]]:
+        return self.generation.relevance_guard_events
+
+    @relevance_guard_events.setter
+    def relevance_guard_events(self, value: List[Dict[str, Any]]):
+        self.generation.relevance_guard_events = value
+
+    @property
+    def relevance_guard_summary(self) -> Dict[str, Any]:
+        return self.generation.relevance_guard_summary
+
+    @relevance_guard_summary.setter
+    def relevance_guard_summary(self, value: Dict[str, Any]):
+        self.generation.relevance_guard_summary = value
+
     @property
     def sql_explanation(self) -> Optional[str]:
         return self.generation.sql_explanation
@@ -527,7 +543,23 @@ class SystemState(BaseModel):
     @sql_generation_failure_message.setter
     def sql_generation_failure_message(self, value: Optional[str]):
         self.execution.sql_generation_failure_message = value
-        
+
+    @property
+    def retry_history(self) -> List[str]:
+        return self.execution.retry_history
+
+    @retry_history.setter
+    def retry_history(self, value: List[str]):
+        self.execution.retry_history = value
+
+    @property
+    def model_retry_events(self) -> List[Dict[str, Any]]:
+        return self.execution.model_retry_events
+
+    @model_retry_events.setter
+    def model_retry_events(self, value: List[Dict[str, Any]]):
+        self.execution.model_retry_events = value
+
     @property
     def available_context_tokens(self) -> Optional[int]:
         return self.execution.available_context_tokens
