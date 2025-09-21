@@ -17,7 +17,7 @@ Validators for SQL generation agents.
 import re
 import os
 import asyncio
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic_ai import RunContext, ModelRetry
 from pydantic_ai.settings import ModelSettings
 
@@ -28,6 +28,11 @@ from model.sql_generation_deps import SqlGenerationDeps
 from helpers.logging_config import get_logger
 from helpers.dual_logger import log_info
 from helpers.template_preparation import TemplateLoader
+from helpers.model_retry_formatter import (
+    ErrorCategory,
+    ErrorContext,
+    ModelRetryFormatter,
+)
 from model.evaluator_deps import EvaluatorDeps
 from .relevance_guard import classify_tests, load_config_from_env
 
@@ -76,6 +81,77 @@ class SqlValidators:
         # evaluator_agent is used for evidence-critical gating
         self.dbmanager = dbmanager
         self.evaluator_agent = evaluator_agent
+
+    def _raise_model_retry(
+        self,
+        ctx: RunContext[SqlGenerationDeps],
+        category: ErrorCategory,
+        *,
+        sql: str = "",
+        error_message: str = "",
+        exception: Exception | None = None,
+        validation_results: Optional[List[Dict[str, Any]]] = None,
+        failed_tests: Optional[List[str]] = None,
+        evidence_summary: Optional[Dict[str, Any]] = None,
+        explain_error: str = "",
+        additional_hints: Optional[List[str]] = None,
+        available_tables: Optional[List[str]] = None,
+    ) -> None:
+        """Format and raise a ModelRetry with structured context."""
+
+        ctx.deps.retry_attempt = ctx.retry
+        context = ErrorContext(
+            sql=sql or ctx.deps.last_SQL,
+            db_type=ctx.deps.db_type,
+            question=getattr(ctx.deps, "question", ""),
+            retry_count=ctx.retry,
+            error_message=error_message,
+            exception=exception,
+            validation_results=validation_results,
+            failed_tests=failed_tests,
+            evidence_summary=evidence_summary,
+            explain_error=explain_error or ctx.deps.last_explain_error,
+            previous_errors=list(ctx.deps.retry_history or []),
+            additional_hints=additional_hints,
+            available_tables=available_tables,
+        )
+
+        message = ModelRetryFormatter.format_error(category, context)
+        history_entry = ModelRetryFormatter.build_history_entry(category, context)
+
+        ctx.deps.retry_history.append(history_entry)
+        # Keep only the latest 8 entries to avoid unbounded growth
+        if len(ctx.deps.retry_history) > 8:
+            ctx.deps.retry_history = ctx.deps.retry_history[-8:]
+
+        if failed_tests is not None:
+            ctx.deps.last_failed_tests = failed_tests
+        if explain_error:
+            ctx.deps.last_explain_error = explain_error
+
+        derived_message = context.render_error_detail()
+        ctx.deps.last_execution_error = derived_message
+        ctx.deps.last_generation_success = False
+
+        raise ModelRetry(message)
+
+    @staticmethod
+    def _is_empty_result(result: Any) -> bool:
+        """Return True when an execution result does not contain data."""
+
+        if result is None:
+            return True
+        if isinstance(result, (list, tuple, set)):
+            return len(result) == 0
+        if isinstance(result, dict):
+            return len(result) == 0
+        # SQLAlchemy returns RowMapping or Row, which behave like tuples
+        if hasattr(result, "__len__") and hasattr(result, "__iter__"):
+            try:
+                return len(result) == 0
+            except Exception:  # pragma: no cover - defensive
+                pass
+        return False
     
     def create_sql_validator(self):
         """
@@ -89,7 +165,14 @@ class SqlValidators:
             
             if isinstance(response, InvalidRequest):
                 logger.debug(f"Invalid request received: {response.error_message} - triggering retry")
-                raise ModelRetry('Invalid request')
+                reason = response.error_message or "Invalid SQL generation request"
+                ctx.deps.last_execution_error = reason
+                self._raise_model_retry(
+                    ctx,
+                    ErrorCategory.VALIDATION_FAILED,
+                    error_message=reason,
+                    additional_hints=["Ensure the response schema matches SqlResponse"],
+                )
             
             sql = response.answer
             logger.debug(f"Raw SQL received from agent: {sql}")
@@ -97,8 +180,18 @@ class SqlValidators:
             # Step 1: Check if it's a SELECT statement first
             if not sql.upper().strip().startswith('SELECT'):
                 logger.debug(f"Invalid SQL query - not a SELECT statement: {sql} - triggering retry")
+                ctx.deps.last_SQL = sql
                 ctx.deps.last_execution_error = "Generated SQL is not a SELECT query"
-                raise ModelRetry('Create a SELECT query. Only SELECT statements are allowed for data retrieval.')
+                self._raise_model_retry(
+                    ctx,
+                    ErrorCategory.SYNTAX_ERROR,
+                    sql=sql,
+                    error_message="Create a SELECT query. Only SELECT statements are allowed for data retrieval.",
+                    additional_hints=[
+                        "Start the statement with SELECT",
+                        "Avoid INSERT/UPDATE/DELETE operations in this context",
+                    ],
+                )
             
             # Always save the generated SQL to state for debugging, even if validation fails
             ctx.deps.last_SQL = sql
@@ -111,11 +204,22 @@ class SqlValidators:
             try:
                 sql = self._sanitize_sql_for_database(sql, db_type)
                 logger.debug(f"SQL after {db_type} sanitization: {sql}")
+                ctx.deps.last_SQL = sql
             except ValueError as e:
                 error_msg = f"SQL is not compatible with {db_type} database: {str(e)}"
                 logger.debug(error_msg + " - triggering retry")
                 ctx.deps.last_execution_error = error_msg
-                raise ModelRetry(f"Please generate SQL compatible with {db_type} database. {str(e)}")
+                self._raise_model_retry(
+                    ctx,
+                    ErrorCategory.SCHEMA_ERROR,
+                    sql=ctx.deps.last_SQL,
+                    error_message=error_msg,
+                    exception=e,
+                    additional_hints=[
+                        "Adjust identifier quoting for the target database",
+                        "Verify LIMIT/OFFSET syntax matches the dialect",
+                    ],
+                )
             try:
                 # Step 3: Test SQL executability first using EXPLAIN or equivalent
                 logger.debug(f"Step 1: Testing SQL executability")
@@ -140,8 +244,18 @@ class SqlValidators:
                             error_msg = f"SQL syntax validation failed: {str(explain_error)}"
                             logger.debug(error_msg + " - will trigger retry")
                             ctx.deps.last_execution_error = error_msg
-                            # Re-raise to trigger ModelRetry
-                            raise Exception(error_msg)
+                            ctx.deps.last_explain_error = error_msg
+                            self._raise_model_retry(
+                                ctx,
+                                ErrorCategory.SYNTAX_ERROR,
+                                sql=sql,
+                                error_message=error_msg,
+                                exception=explain_error,
+                                additional_hints=[
+                                    "Review the SQL around the position reported by EXPLAIN",
+                                    "Ensure dialect-specific syntax (e.g., LIMIT/TOP) is correct",
+                                ],
+                            )
                     else:
                         # Fallback to lightweight validation without dbmanager
                         logger.warning("dbmanager not available - skipping EXPLAIN validation in parallel mode")
@@ -151,7 +265,19 @@ class SqlValidators:
                     error_msg = f"SQL executability test failed: {str(e)}"
                     logger.debug(error_msg + " - triggering retry with hints")
                     ctx.deps.last_execution_error = error_msg
-                    raise ModelRetry(f"SQL execution failed during executability test. {error_msg}. Please fix the SQL syntax, ensure all referenced tables and columns exist, and verify the query structure is correct.")
+                    ctx.deps.last_explain_error = error_msg
+                    self._raise_model_retry(
+                        ctx,
+                        ErrorCategory.SYNTAX_ERROR,
+                        sql=sql,
+                        error_message=error_msg,
+                        exception=e,
+                        additional_hints=[
+                            "Re-run EXPLAIN after correcting the syntax",
+                            "Check table and column names against the schema",
+                            "Ensure the query structure follows database conventions",
+                        ],
+                    )
                 
                 logger.debug("SQL validation passed successfully")
                 
@@ -173,7 +299,8 @@ class SqlValidators:
                                 question=deps_question,
                                 sql=sql,
                                 tests=evidence_tests,
-                                cfg=cfg
+                                cfg=cfg,
+                                langs=(getattr(ctx.deps, 'question_language', ''), getattr(ctx.deps, 'db_language', '')),
                             )
                             strict_tests = classification.get('strict', [])
                             weak_tests = classification.get('weak', [])
@@ -203,7 +330,16 @@ class SqlValidators:
                                     )
                                 except asyncio.TimeoutError:
                                     ctx.deps.last_execution_error = "Evidence-critical gating timed out"
-                                    raise ModelRetry("Evidence-critical checks timed out - regenerate SQL and try again")
+                                    self._raise_model_retry(
+                                        ctx,
+                                        ErrorCategory.EVIDENCE_MISMATCH,
+                                        sql=sql,
+                                        error_message="Evidence-critical checks timed out.",
+                                        additional_hints=[
+                                            "Ensure the SQL is concise so evaluator can respond within timeout",
+                                            "Review STRICT requirements and encode them directly in the query",
+                                        ],
+                                    )
                                 # Extract answers
                                 answers = []
                                 if result and hasattr(result, 'output'):
@@ -223,6 +359,14 @@ class SqlValidators:
                                     return False
                                 failing = [(idx+1, ans) for idx, ans in enumerate(answers) if not _is_ok(ans)]
                                 passed = len(answers) - len(failing)
+                                validation_payload = [
+                                    {
+                                        "name": f"Test {idx+1}",
+                                        "passed": _is_ok(ans),
+                                        "error": ans,
+                                    }
+                                    for idx, ans in enumerate(answers)
+                                ]
                                 # Emit THOTHLOG via dual logger for observability
                                 log_info(
                                     f"THOTHLOG:STRICT gating evaluated {len(answers)} strict tests: {passed} OK, {len(failing)} KO"
@@ -235,8 +379,24 @@ class SqlValidators:
                                 if len(failing) >= max(1, fails_required):
                                     reasons = "; ".join([f"Test {num}: {ans}" for num, ans in failing[:3]])
                                     ctx.deps.last_execution_error = f"Evidence-critical checks failed: {reasons}"
-                                    raise ModelRetry(
-                                        "One or more STRICT evidence-derived requirements were not satisfied. Please regenerate a SQL that strictly applies these rules and filters."
+                                    failed_descriptions = [f"Test {num}: {ans}" for num, ans in failing]
+                                    self._raise_model_retry(
+                                        ctx,
+                                        ErrorCategory.EVIDENCE_MISMATCH,
+                                        sql=sql,
+                                        error_message="Strict evidence-derived requirements were not satisfied.",
+                                        validation_results=validation_payload,
+                                        failed_tests=failed_descriptions,
+                                        evidence_summary={
+                                            "strict": len(strict_tests),
+                                            "weak": len(weak_tests),
+                                            "irrelevant": len(irrelevant_tests),
+                                        },
+                                        additional_hints=[
+                                            "Incorporate each STRICT requirement explicitly in the WHERE or HAVING clause",
+                                            "Preserve logical conditions while adjusting aggregations",
+                                            "Re-run the mental checks against provided evidence before submitting",
+                                        ],
                                     )
                             else:
                                 logger.info("No STRICT tests after RelevanceGuard; skipping blocking gating evaluation")
@@ -253,32 +413,34 @@ class SqlValidators:
                     try:
                         # Execute the actual SQL to check for empty results
                         result = self.dbmanager.execute_sql(sql=sql, params={})
+                        empty_result_error = self._is_empty_result(result)
                     except Exception as e:
                         logger.error(f"Error checking for empty results: {e}")
                         # Don't fail on this check, just log it
                         empty_result_error = False
-                    
+
                     if empty_result_error:
-                        error_message = (
-                            "EMPTY RESULT ERROR\n\n"
-                            "Generated SQL Statement:\n"
-                            f"```sql\n{sql}\n```\n\n"
-                            "The query executed successfully but returned zero records.\n"
-                            "Action Required: Please revise the SQL to return meaningful data.\n"
-                            "Consider:\n"
-                            "  • Checking filter conditions (WHERE clauses)\n"
-                            "  • Verifying JOIN conditions\n"
-                            "  • Ensuring the queried tables contain relevant data\n"
-                            "  • Adjusting date ranges or other constraints"
-                        )
-                        
-                        logger.debug(f"Empty result detected with treat_empty_result_as_error=True - triggering ModelRetry")
-                        
-                        # ModelRetry is a normal retry mechanism, not an error - log as info
+                        logger.debug("Empty result detected with treat_empty_result_as_error=True - triggering ModelRetry")
                         log_info("Empty result detected - ModelRetry will be triggered for retry with additional context")
-                        
-                        ctx.deps.last_execution_error = f"Empty result error. {error_message}"
-                        raise ModelRetry(error_message)
+
+                        available_tables: Optional[List[str]] = None
+                        if ctx.deps.db_schema_str:
+                            try:
+                                available_tables = [
+                                    line.strip()
+                                    for line in ctx.deps.db_schema_str.splitlines()
+                                    if line.strip()
+                                ][:10]
+                            except Exception:  # pragma: no cover - defensive parsing
+                                available_tables = None
+
+                        self._raise_model_retry(
+                            ctx,
+                            ErrorCategory.EMPTY_RESULT,
+                            sql=sql,
+                            error_message="The query executed successfully but returned no rows.",
+                            available_tables=available_tables,
+                        )
                 elif ctx.deps.treat_empty_result_as_error and not self.dbmanager:
                     logger.warning("treat_empty_result_as_error=True but dbmanager not available - cannot check")
                 else:
@@ -295,146 +457,22 @@ class SqlValidators:
             except Exception as e:
                 logger.error(f"Exception during SQL validation: {str(e)}")
                 logger.error(f"Exception type: {type(e).__name__}")
-                
+
                 # Get the SQL statement that caused the exception
                 failed_sql = ctx.deps.last_SQL or sql or "SQL statement not available"
-                
-                # Create comprehensive error message for the exception
-                error_message = self._create_exception_error_message(failed_sql, e)
-                
-                # ModelRetry is a normal retry mechanism, log as info
+
                 log_info("SQL execution exception - ModelRetry will be triggered with error details")
-                
-                # Create SQL metadata for tracking
-                ctx.deps.last_execution_error = f"SQL execution failed. {error_message}"
-                ctx.deps.last_generation_success = False
-                
-                logger.error(f"SQL validation failed - SQL was saved to state but marked as failed")
-                raise ModelRetry(error_message)  # This should propagate up
+
+                logger.error("SQL validation failed - SQL was saved to state but marked as failed")
+                self._raise_model_retry(
+                    ctx,
+                    ErrorCategory.EXECUTION_ERROR,
+                    sql=failed_sql,
+                    error_message=f"SQL execution failed: {str(e)}",
+                    exception=e,
+                )
         return validate_sql_creation
     
-    def _format_test_results(self, test_results: Optional[List[str]]) -> dict:
-        """
-        Parse and format test results for better readability.
-        
-        Args:
-            test_results: List of test result strings
-            
-        Returns:
-            Dictionary with formatted test results including passed/failed counts
-        """
-        if not test_results:
-            return {
-                "total_tests": 0,
-                "passed_tests": [],
-                "failed_tests": [],
-                "summary": "No test results available"
-            }
-        
-        passed_tests = []
-        failed_tests = []
-        
-        for i, result in enumerate(test_results):
-            test_info = {
-                "test_number": i + 1,
-                "description": result.strip(),
-                "status": "unknown"
-            }
-            
-            # Try to determine if test passed or failed based on common patterns
-            result_lower = result.lower()
-            if any(keyword in result_lower for keyword in ["pass", "passed", "success", "correct", "valid"]):
-                test_info["status"] = "passed"
-                passed_tests.append(test_info)
-            elif any(keyword in result_lower for keyword in ["fail", "failed", "error", "incorrect", "invalid", "wrong"]):
-                test_info["status"] = "failed"
-                failed_tests.append(test_info)
-            else:
-                # If we can't determine status, assume it's a failure since we're in error handling
-                test_info["status"] = "failed"
-                failed_tests.append(test_info)
-        
-        return {
-            "total_tests": len(test_results),
-            "passed_tests": passed_tests,
-            "failed_tests": failed_tests,
-            "summary": f"{len(passed_tests)} passed, {len(failed_tests)} failed out of {len(test_results)} total tests"
-        }
-
-    def _create_detailed_error_message(self, failed_sql: str, test_results_formatted: dict) -> str:
-        """
-        Create a comprehensive, structured error message for ModelRetry.
-        
-        Args:
-            failed_sql: The SQL statement that failed validation
-            test_results_formatted: Formatted test results from _format_test_results
-            
-        Returns:
-            Detailed error message string
-        """
-        message_parts = [
-            "SQL VALIDATION FAILED",
-            "",
-            "Generated SQL Statement:",
-            f"```sql",
-            failed_sql,
-            f"```",
-            "",
-            f"Test Results Summary: {test_results_formatted['summary']}",
-            ""
-        ]
-        
-        # Add failed tests section
-        if test_results_formatted['failed_tests']:
-            message_parts.extend([
-                "Failed Tests:",
-                ""
-            ])
-            for test in test_results_formatted['failed_tests']:
-                message_parts.append(f"  • Test {test['test_number']}: {test['description']}")
-            message_parts.append("")
-        
-        # Add passed tests section if any
-        if test_results_formatted['passed_tests']:
-            message_parts.extend([
-                "Passed Tests:",
-                ""
-            ])
-            for test in test_results_formatted['passed_tests']:
-                message_parts.append(f"  • Test {test['test_number']}: {test['description']}")
-            message_parts.append("")
-        
-        # Add guidance
-        message_parts.extend([
-            "Action Required:",
-            "Please revise the SQL statement to address the failing tests above.",
-            "Focus on the specific issues identified in the failed tests.",
-            ""
-        ])
-        
-        return "\n".join(message_parts)
-
-    def _add_schema_to_sql(self, sql: str, schema: str) -> str:
-        """
-        Adds a schema to table names in an SQL query using regex.
-        Handles both quoted and unquoted table names, including those in subqueries.
-        """
-        
-        # Pattern 1: Handle quoted table names (e.g., "table_name")
-        # Matches FROM/JOIN followed by quoted table names that don't already have a schema
-        sql = re.sub(r'(?i)\b(FROM|JOIN)\s+"([^"]+)"(?!\.)(?=\s|$|AS\b|\))',
-                     fr'\1 {schema}."\2"',
-                     sql)
-        
-        # Pattern 2: Handle unquoted table names (e.g., table_name)
-        # Matches FROM/JOIN followed by unquoted table names that don't already have a schema
-        # Enhanced to handle more cases including parentheses and various whitespace scenarios
-        sql = re.sub(r'(?i)\b(FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?!\s*\.)(?=\s|$|AS\b|\)|,)',
-                     fr'\1 {schema}.\2',
-                     sql)
-        
-        return sql
-
     def _auto_quote_identifiers(self, sql: str, db_type: str) -> str:
         """
         Automatically quote identifiers that contain spaces or special characters.

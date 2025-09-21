@@ -33,10 +33,13 @@ import math
 import os
 import re
 from dataclasses import dataclass
+import unicodedata
 from pathlib import Path
 from typing import List, Dict, Any
 
 from helpers.logging_config import get_logger
+from helpers.stopwords import union_stopwords, get_stopwords_for
+from helpers.language_utils import resolve_language_code
 
 logger = get_logger(__name__)
 
@@ -76,19 +79,26 @@ def load_config_from_env() -> GuardConfig:
 
 # ------------------------ Tokenization & BM25 ------------------------
 
-_STOPWORDS = {
-    # Italian + English minimal set
+_FALLBACK_STOPWORDS = {
+    # Minimal English set as last-resort fallback
     'the', 'and', 'or', 'of', 'in', 'to', 'for', 'on', 'by', 'with', 'a', 'an',
-    'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'di', 'da', 'per', 'con', 'su', 'tra', 'fra',
 }
 
 
-def _tokenize(text: str) -> List[str]:
+def _normalize(text: str) -> str:
+    if not text:
+        return ""
+    # Unicode normalization and casefold for robust, language-agnostic matching
+    return unicodedata.normalize('NFKC', text).casefold()
+
+
+def _tokenize(text: str, stopwords: set[str]) -> List[str]:
     if not text:
         return []
-    # keep alphanumerics and underscores, split on non-word
-    tokens = re.split(r"\W+", text.lower())
-    return [t for t in tokens if t and t not in _STOPWORDS]
+    # keep alphanumerics and underscores, split on non-word (unicode-aware)
+    norm = _normalize(text)
+    tokens = re.split(r"\W+", norm)
+    return [t for t in tokens if t and t not in stopwords]
 
 
 def _bm25_scores(query: List[str], docs: List[List[str]]) -> List[float]:
@@ -203,7 +213,51 @@ def _combine_scores(bm25: float, struct: float, w_bm25: float, w_struct: float) 
     return max(0.0, min(1.0, score))
 
 
-def classify_tests(question: str, sql: str, tests: List[str], cfg: GuardConfig | None = None) -> Dict[str, Any]:
+def _adjust_language_weights(
+    qlang: str | None,
+    dlang: str | None,
+    tables: List[str],
+    columns: List[str],
+    w_bm25: float,
+    w_struct: float,
+) -> tuple[float, float]:
+    """Lightly adjust weights for morphologically-rich languages when structure anchors exist.
+
+    Rationale: For agglutinative/inflectional languages, lexical overlap (BM25)
+    can be weaker. If we have structural anchors (tables/columns) extracted from
+    SQL, we slightly favor structural evidence.
+
+    Adjustment is conservative and only applies when at least one table/column
+    is available. Otherwise, return original weights.
+    """
+    try:
+        qcode = resolve_language_code(qlang) if qlang else None
+        dcode = resolve_language_code(dlang) if dlang else None
+    except Exception:
+        qcode = dcode = None
+
+    # Set includes several European/Mediterranean languages with rich morphology
+    rich: set[str] = {
+        'fi', 'hu',  # Finnic/Ugric (agglutinative)
+        'tr',        # Turkic (agglutinative)
+        'el',        # Greek (inflectional)
+        'ru', 'uk',  # Slavic
+        'pl', 'cs', 'sk', 'bg', 'ro', 'sl', 'hr', 'sr'
+    }
+
+    if (tables or columns) and any(c in rich for c in (qcode, dcode)):
+        # Slightly lean toward structure while keeping BM25 relevant
+        return 0.45, 0.55
+    return w_bm25, w_struct
+
+
+def classify_tests(
+    question: str,
+    sql: str,
+    tests: List[str],
+    cfg: GuardConfig | None = None,
+    langs: tuple[str | None, str | None] | None = None,
+) -> Dict[str, Any]:
     """
     Classify each test as STRICT/WEAK/IRRELEVANT.
 
@@ -215,8 +269,16 @@ def classify_tests(question: str, sql: str, tests: List[str], cfg: GuardConfig |
     """
     cfg = cfg or load_config_from_env()
 
-    question_tokens = _tokenize(question)
-    docs_tokens = [_tokenize(t or '') for t in tests]
+    # Determine language-aware stopwords: union(question_lang, db_lang)
+    qlang, dlang = (langs or (None, None))
+    try:
+        stopwords = union_stopwords(qlang or "", dlang or "")
+    except Exception:
+        # Last-resort fallback to English minimal set
+        stopwords = _FALLBACK_STOPWORDS
+
+    question_tokens = _tokenize(question, stopwords)
+    docs_tokens = [_tokenize(t or '', stopwords) for t in tests]
     bm25_list = _bm25_scores(question_tokens, docs_tokens) if tests else []
 
     entities = _extract_sql_entities(sql or "")
@@ -232,7 +294,8 @@ def classify_tests(question: str, sql: str, tests: List[str], cfg: GuardConfig |
         bm25 = bm25_list[i] if i < len(bm25_list) else 0.0
         th, ch = _struct_hits(t or '', tables, columns)
         sstruct = _struct_score(th, ch)
-        score = _combine_scores(bm25, sstruct, cfg.w_bm25, cfg.w_struct)
+        adj_wb, adj_ws = _adjust_language_weights(qlang, dlang, tables, columns, cfg.w_bm25, cfg.w_struct)
+        score = _combine_scores(bm25, sstruct, adj_wb, adj_ws)
 
         if score < cfg.drop_below:
             label = "IRRELEVANT"
@@ -260,7 +323,20 @@ def classify_tests(question: str, sql: str, tests: List[str], cfg: GuardConfig |
             "sql_columns": columns,
         })
 
-    _log_classification(question, tables, columns, strict, weak, irrelevant, details, cfg)
+    _log_classification(
+        question,
+        tables,
+        columns,
+        strict,
+        weak,
+        irrelevant,
+        details,
+        cfg,
+        languages={
+            "question": resolve_language_code(qlang) if qlang else None,
+            "database": resolve_language_code(dlang) if dlang else None,
+        },
+    )
 
     return {
         "strict": strict,
@@ -279,6 +355,7 @@ def _log_classification(
     irrelevant: List[str],
     details: List[Dict[str, Any]],
     cfg: GuardConfig,
+    languages: Dict[str, Any] | None = None,
 ):
     # Human-readable INFO logs
     logger.info(
@@ -298,6 +375,7 @@ def _log_classification(
                 "question": question,
                 "sql_tables": tables,
                 "sql_columns": columns,
+                "languages": languages or {},
                 "counts": {
                     "strict": len(strict),
                     "weak": len(weak),
@@ -309,4 +387,3 @@ def _log_classification(
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
         except Exception as e:
             logger.warning(f"Failed to write relevance.jsonl: {e}")
-

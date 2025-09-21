@@ -23,7 +23,7 @@ from tzlocal import get_localzone
 from pydantic import BaseModel
 
 from .system_state import SystemState
-from helpers.language_utils import resolve_language_name
+from helpers.language_utils import resolve_language_name, resolve_language_code
 from .contexts import (
     RequestContext,
     DatabaseContext,
@@ -208,7 +208,9 @@ class StateFactory:
                 last_SQL=state.execution.last_SQL,
                 last_execution_error=state.execution.last_execution_error,
                 last_generation_success=state.execution.last_generation_success,
-                evidence_critical_tests=evidence_critical_tests
+                evidence_critical_tests=evidence_critical_tests,
+                question_language=resolve_language_code(getattr(state, 'original_language', None)),
+                db_language=resolve_language_code(getattr(state.request, 'language', None)),
             )
             
         elif agent_type == "evaluator":

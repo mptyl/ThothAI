@@ -33,12 +33,20 @@ class SqlGenerationDeps(BaseModel):
     question: str = ""
     db_schema_str: str = ""  # Database schema as string for error messages
     treat_empty_result_as_error: bool = False
-    
+
+    # Language context (optional): original question language and DB language
+    question_language: str = ""
+    db_language: str = ""
+
     # Mutable fields that validators write to
     last_SQL: str = ""
     last_execution_error: str = ""
     last_generation_success: bool = False
-    
+    retry_attempt: int = 0
+    retry_history: List[str] = Field(default_factory=list)
+    last_failed_tests: List[str] = Field(default_factory=list)
+    last_explain_error: str = ""
+
     # Stateless gating input: evidence-critical tests for this request
     evidence_critical_tests: List[str] = Field(default_factory=list)
     

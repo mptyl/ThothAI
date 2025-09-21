@@ -111,3 +111,46 @@ def resolve_language_name(value: str | None) -> str:
     # Fallback
     return "English"
 
+
+def resolve_language_code(value: str | None) -> str:
+    """
+    Resolve various language inputs into a canonical ISO-639-1 code.
+
+    Rules:
+    - None/empty -> "en" (default)
+    - ISO-639-1 codes (case-insensitive), optionally with region variants
+      like "en_US" or "pt-BR" -> base code ("en", "pt") if known
+    - Free-form names like "italian", "ENGLISH" -> return corresponding code
+      based on canonical English name mapping
+    - Unknown inputs -> "en"
+    """
+    if not value:
+        return "en"
+
+    raw = value.strip()
+    if not raw:
+        return "en"
+
+    lowered = raw.replace("_", "-").lower()
+    base = lowered.split("-")[0]
+
+    # Direct code
+    if len(base) == 2 and base.isalpha():
+        if base in _LANG_CODE_TO_NAME:
+            return base
+        # Unknown code -> default
+        return "en"
+
+    # Name path: map Title Case name back to code
+    if _is_probable_name(raw):
+        name = raw.strip().title()
+        for code, cname in _LANG_CODE_TO_NAME.items():
+            if cname == name:
+                return code
+        # Try resolving via resolve_language_name then invert
+        canon = resolve_language_name(raw)
+        for code, cname in _LANG_CODE_TO_NAME.items():
+            if cname == canon:
+                return code
+    # Fallback
+    return "en"
