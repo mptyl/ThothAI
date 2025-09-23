@@ -62,6 +62,7 @@ dependencies = [
     "thoth-qdrant[cohere]==0.1.11",  # Updated with cohere and mistral support
     # AI/ML Framework (LiteLLM - lightweight LLM library)
     "litellm>=1.75.5",
+    "fastuuid @ file:///app/vendor/fastuuid/fastuuid-0.12.0.tar.gz",
     # External Embedding Service Clients
     "openai==1.99.9",
     "cohere>=4.0.0",

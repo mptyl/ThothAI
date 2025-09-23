@@ -4,7 +4,7 @@
 
 # === SINGLE-STAGE BUILD FOR BACKEND ===
 
-FROM python:3.13-slim
+FROM python:3.13-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -22,8 +22,20 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     unixodbc-dev \
     freetds-bin \
     freetds-dev \
+    cargo \
+    rustc \
+    pkg-config \
+    tdsodbc \
     libmariadb3 \
     libmariadb-dev \
+    gnupg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Microsoft SQL Server ODBC drivers (17 + 18) for pyodbc compatibility when available
+COPY docker/install-msodbc.sh /tmp/install-msodbc.sh
+RUN /tmp/install-msodbc.sh \
+    && rm -f /tmp/install-msodbc.sh \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

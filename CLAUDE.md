@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Practices
+
+- always put the copyright info as file header in the coding file. Not in config, doc or other files:
+  ```
+  # Copyright (c) 2025 Marco Pancotti
+  # This file is part of ThothAI and is released under the Apache 2.0.
+  # See the LICENSE.md file in the project root for full license information.
+  ```
+- always put a Apache 2.0 LICENSE.md in the directory when you init the project and you don't find it
+- use English for comment and documentation if not specified otherwise
+
 ## Project Overview
 
 ThothAI is an AI-powered natural language to SQL conversion platform that enables users to query databases using plain language. The system uses multiple AI agents powered by PydanticAI to convert questions into SQL queries, execute them, and provide results with explanations.
