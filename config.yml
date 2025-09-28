@@ -126,7 +126,7 @@ docker:
 # Development Settings
 development:
   debug: false        # Enable debug mode (not recommended for production)
-  log_level: "INFO"   # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: "WARNING"   # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
   hot_reload: true    # Enable hot reload for development
 
 # RelevanceGuard configuration (used by SQL Generator; env overrides prevail)
