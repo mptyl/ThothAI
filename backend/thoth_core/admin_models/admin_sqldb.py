@@ -10,8 +10,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from django import forms
 from django.contrib import admin, messages
+from django.http import HttpResponse
 from thoth_core.models import (
     SqlDb,
     VectorDb,
@@ -46,8 +49,12 @@ from thoth_core.utilities.task_validation import (
     check_sqldb_task_can_start,
     check_sqldb_db_elements_can_start,
 )
- 
+
 from thoth_core.widgets import PasswordInputWithToggle
+from thoth_core.admin_utils.sql_comment_script import build_comment_script
+
+
+logger = logging.getLogger(__name__)
 
 
 class SqlDbAdminForm(forms.ModelForm):
@@ -122,6 +129,7 @@ class SqlDbAdmin(admin.ModelAdmin):
         generate_db_erd,
         generate_db_documentation,
         "scan_gdpr_compliance",
+        "download_db_comment_sql",
     )
     fieldsets = (
         (
@@ -693,6 +701,74 @@ class SqlDbAdmin(admin.ModelAdmin):
             )
 
     validate_db_fk_fields.short_description = "Validate FK field format"
+
+    def download_db_comment_sql(self, request, queryset):
+        dbs = list(
+            queryset.order_by("name").prefetch_related("tables__columns")
+        )
+
+        if not dbs:
+            self.message_user(
+                request,
+                "Select at least one SQL database to generate the SQL comment script.",
+                level=messages.WARNING,
+            )
+            return None
+
+        sql_db = dbs[0]
+
+        if len(dbs) > 1:
+            self.message_user(
+                request,
+                (
+                    f"Multiple databases selected; generating script only for '{sql_db.name}'."
+                ),
+                level=messages.INFO,
+            )
+
+        tables = list(sql_db.tables.all())
+        if not tables:
+            self.message_user(
+                request,
+                (
+                    f"No tables found for database '{sql_db.name}'. Import the schema before exporting comments."
+                ),
+                level=messages.WARNING,
+            )
+            return None
+
+        try:
+            comment_script = build_comment_script(sql_db, tables)
+        except NotImplementedError as exc:
+            self.message_user(request, str(exc), level=messages.ERROR)
+            return None
+        except ValueError as exc:
+            self.message_user(request, str(exc), level=messages.WARNING)
+            return None
+        except Exception:  # pragma: no cover - defensive logging
+            logger.exception(
+                "Failed to generate SQL comment script for database %s", sql_db
+            )
+            self.message_user(
+                request,
+                "Unexpected error while generating the SQL comment script.",
+                level=messages.ERROR,
+            )
+            return None
+
+        response = HttpResponse(
+            comment_script.content,
+            content_type="application/sql; charset=utf-8",
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="{comment_script.filename}"'
+        )
+        response["X-Data-Exchange-Path"] = str(comment_script.absolute_path)
+        return response
+
+    download_db_comment_sql.short_description = (
+        "Download SQL comment script for selected database"
+    )
 
     def generate_all_comments(self, request, queryset):
         """

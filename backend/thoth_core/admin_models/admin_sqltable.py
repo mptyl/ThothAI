@@ -10,8 +10,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from django import forms
 from django.contrib import admin, messages
+from django.http import HttpResponse
 from thoth_core.models import SqlTable, SqlDb, SqlColumn
 from thoth_core.utilities.utils import export_csv, import_csv
 from thoth_core.dbmanagement import create_columns
@@ -22,6 +25,10 @@ from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_table_comments,
 )
 from thoth_core.utilities.task_validation import check_sqldb_task_can_start
+from thoth_core.admin_utils.sql_comment_script import build_comment_script
+
+
+logger = logging.getLogger(__name__)
  
 
 
@@ -139,6 +146,7 @@ class SqlTableAdmin(admin.ModelAdmin):
         "copy_generated_to_description",
         create_table_comments,
         "create_table_comments_async",
+        "download_table_comment_sql",
     )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -180,6 +188,62 @@ class SqlTableAdmin(admin.ModelAdmin):
 
     copy_generated_to_description.short_description = (
         "Copy generated comment to description"
+    )
+
+    def download_table_comment_sql(self, request, queryset):
+        tables = list(
+            queryset.select_related("sql_db").prefetch_related("columns")
+        )
+
+        if not tables:
+            self.message_user(
+                request,
+                "Select at least one table to generate the SQL comment script.",
+                level=messages.WARNING,
+            )
+            return None
+
+        sql_db = tables[0].sql_db
+        mismatched = [table for table in tables if table.sql_db_id != sql_db.id]
+        if mismatched:
+            self.message_user(
+                request,
+                "All selected tables must belong to the same SQL database.",
+                level=messages.ERROR,
+            )
+            return None
+
+        try:
+            comment_script = build_comment_script(sql_db, tables)
+        except NotImplementedError as exc:
+            self.message_user(request, str(exc), level=messages.ERROR)
+            return None
+        except ValueError as exc:
+            self.message_user(request, str(exc), level=messages.WARNING)
+            return None
+        except Exception:  # pragma: no cover - defensive logging
+            logger.exception(
+                "Failed to generate SQL comment script for tables in %s", sql_db
+            )
+            self.message_user(
+                request,
+                "Unexpected error while generating the SQL comment script.",
+                level=messages.ERROR,
+            )
+            return None
+
+        response = HttpResponse(
+            comment_script.content,
+            content_type="application/sql; charset=utf-8",
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="{comment_script.filename}"'
+        )
+        response["X-Data-Exchange-Path"] = str(comment_script.absolute_path)
+        return response
+
+    download_table_comment_sql.short_description = (
+        "Download SQL comment script for selected tables"
     )
 
     def validate_table_fk_fields(self, request, queryset):
