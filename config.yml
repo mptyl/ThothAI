@@ -123,11 +123,11 @@ docker:
   compose_file: "docker-compose.yml"
   build_cache: true  # Use Docker build cache for faster rebuilds
 
-# Development Settings
-development:
+# Runtime Settings
+runtime:
   debug: false        # Enable debug mode (not recommended for production)
-  log_level: "WARNING"   # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  hot_reload: true    # Enable hot reload for development
+  backend_log_level: "WARNING"   # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  frontend_log_level: "INFO"     # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # RelevanceGuard configuration (used by SQL Generator; env overrides prevail)
 relevance_guard:

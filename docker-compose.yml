@@ -109,7 +109,6 @@ services:
       - VECTOR_DB_HOST=thoth-qdrant
       - VECTOR_DB_PORT=6333
       - DB_ROOT_PATH=/app/data
-      - FRONTEND_LOGGING_LEVEL=DEBUG
     networks:
       - thoth-network
     extra_hosts:

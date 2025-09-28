@@ -403,17 +403,19 @@ class ThothInstaller:
         env_lines.append("MERMAID_SERVICE_URL=http://mermaid-service:8001")
 
         # Development settings
-        dev = self.config.get('development', {})
-        env_lines.append(f"DEBUG={str(dev.get('debug', False)).upper()}")
-        env_lines.append(f"LOG_LEVEL={dev.get('log_level', 'INFO')}")
+        # Runtime settings
+        runtime = self.config.get('runtime', {})
+        env_lines.append(f"DEBUG={str(runtime.get('debug', False)).upper()}")
+        backend_level = str(runtime.get('backend_log_level', 'INFO')).upper()
+        frontend_level = str(runtime.get('frontend_log_level', 'INFO')).upper()
+        env_lines.append(f"BACKEND_LOGGING_LEVEL={backend_level}")
+        env_lines.append(f"FRONTEND_LOGGING_LEVEL={frontend_level}")
         
         # Additional required environment variables
         env_lines.append('DB_ROOT_PATH=/app/data')
         env_lines.append('DB_NAME_DOCKER=/app/backend_db/db.sqlite3')
         env_lines.append('DB_NAME_LOCAL=db.sqlite3')
         env_lines.append('NODE_ENV=production')
-        env_lines.append('BACKEND_LOGGING_LEVEL=INFO')
-        env_lines.append('FRONTEND_LOGGING_LEVEL=INFO')
         
         # Write .env.docker
         env_path = self.base_dir / '.env.docker'
