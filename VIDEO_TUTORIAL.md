@@ -18,15 +18,25 @@ This document outlines the video tutorial series for ThothAI, an AI-powered natu
 
 **Sections**:
 1. **Introduction (0:30)**
-   - What is ThothAI?
-   - The problem: Natural language to SQL conversion
-   - Target users and use cases
+   - **What is ThothAI?**: An AI-powered platform that transforms natural language questions into SQL queries instantly
+   - **The Problem**: Database access requires SQL expertise - ThothAI breaks down this barrier, making data accessible to everyone
+   - **Target Users**: Data analysts, business professionals, developers, and decision makers who need quick data insights without coding
+   - **Key Value**: Democratize data access across organizations, reduce dependency on technical teams, accelerate decision-making
 
 2. **Core Demo (2:30)**
-   - Live demo: Asking questions in natural language
-   - Real-time SQL generation and execution
-   - Results visualization and explanation
-   - Multi-database support showcase
+   - **Live Demo Workflow**: Type a natural question like "Show me sales by region for Q3" and immediately see the generated SQL query and results side-by-side
+   - **SQL Generation Process**: Explain the sophisticated 7-phase AI workflow:
+   - **Phase 1 - Question Validation**: AI validates the question for appropriateness and translates to database language if needed
+   - **Phase 2 - Keyword Extraction**: NLP extracts database-relevant keywords for precise search
+   - **Phase 3 - Context Retrieval**: Searches vector database for relevant table/column descriptions and similar SQL examples
+   - **Phase 4 - Test Generation**: Creates test scenarios to validate the generated SQL will work correctly
+   - **Phase 5 - SQL Candidate Generation**: Three specialized AI agents (Basic, Advanced, Expert) generate multiple SQL candidates
+   - **Phase 6 - Evaluation & Selection**: Runs test cases against each candidate and selects the best-performing query
+   - **Phase 7 - Response Preparation**: Formats the final SQL with explanations and execution metadata
+   - **Real-time Results**: Demonstrate instant query execution with results displayed in clean tables and charts, showing the power of immediate data access
+   - **Query Optimization**: Show how the system validates and optimizes SQL for performance, explaining the choices made in query construction
+   - **Multi-Database Demo**: Switch between different database types (PostgreSQL, MySQL) to show the same question generating database-specific SQL variations
+   - **Progressive Complexity**: Start with simple queries and build up to more complex examples with multiple conditions and relationships
 
 3. **Key Features (1:30)**
    - Multi-AI provider support (OpenAI, Anthropic, etc.)
