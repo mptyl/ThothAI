@@ -56,7 +56,7 @@ dependencies = [
     "psycopg2-binary==2.9.10",
     # Thoth-specific Libraries (Qdrant as default vector DB)
     # Default: PostgreSQL and SQLite (no system dependencies required)
-    "thoth-dbmanager[postgresql,sqlite]==0.5.10",
+    "thoth-dbmanager[postgresql,sqlite]==0.6.0",
     # Additional SQL Server drivers for better compatibility
     "pymssql>=2.2.0",
     "thoth-qdrant[cohere]==0.1.11",  # Updated with cohere and mistral support

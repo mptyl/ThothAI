@@ -19,7 +19,7 @@ dependencies = [
     "requests>=2.32.0",
     "sqlalchemy>=2.0.0",
     "sqlglot>=25.0.0",
-    "thoth-dbmanager[postgresql,sqlite]>=0.5.10", # Fixed plugin loading for optional dependencies
+    "thoth-dbmanager[postgresql,sqlite]==0.6.0", # Pinned to 0.6.0
     "thoth-qdrant[cohere]>=0.1.11", # Updated with cohere and mistral support
     "uvicorn>=0.35.0",
     # REMOVED: "sentence-transformers>=2.2.0", # Now managed by thoth-qdrant

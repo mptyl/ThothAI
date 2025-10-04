@@ -583,6 +583,14 @@ def initialize_database_plugins():
 
     try:
         from thoth_dbmanager import get_available_databases
+        
+        # Apply SSH tunnel patch for Python 3.13 compatibility
+        # This fixes a scoping issue in thoth-dbmanager v0.6.0
+        try:
+            from .ssh_tunnel_patch import apply_ssh_tunnel_patch
+            apply_ssh_tunnel_patch()
+        except Exception as patch_error:
+            logger.warning(f"Could not apply SSH tunnel patch: {patch_error}")
 
         # Import plugins module to trigger auto-registration of all plugins
         logger.info("Database plugins module imported successfully")
