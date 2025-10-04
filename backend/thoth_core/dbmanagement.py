@@ -14,7 +14,7 @@ import logging
 import os
 from django.db import IntegrityError
 from django.contrib import messages
-from .models import SqlTable, SqlColumn, ColumnDataTypes, Relationship
+from .models import SqlTable, SqlColumn, ColumnDataTypes, Relationship, SSHAuthMethod
 
 # New plugin-based imports
 from thoth_dbmanager import ThothDbFactory, get_available_databases
@@ -22,6 +22,56 @@ from .utilities.utils import initialize_database_plugins
 
 # Get a logger for this module
 logger = logging.getLogger(__name__)
+
+
+def _build_ssh_connection_params(sqldb) -> dict:
+    """Build SSH tunnel parameters for the DB manager if required."""
+
+    if not getattr(sqldb, "ssh_enabled", False):
+        return {}
+
+    missing_fields = []
+    if not sqldb.ssh_host:
+        missing_fields.append("ssh_host")
+    if not sqldb.ssh_username:
+        missing_fields.append("ssh_username")
+    if not sqldb.db_host:
+        missing_fields.append("db_host")
+    if not sqldb.db_port:
+        missing_fields.append("db_port")
+
+    if missing_fields:
+        raise ValueError(
+            f"Missing SSH configuration fields for database '{sqldb.name}': {', '.join(missing_fields)}"
+        )
+
+    params = {
+        "ssh_enabled": True,
+        "ssh_host": sqldb.ssh_host,
+        "ssh_port": sqldb.ssh_port or 22,
+        "ssh_username": sqldb.ssh_username,
+        "ssh_auth_method": sqldb.ssh_auth_method or SSHAuthMethod.PASSWORD,
+        "ssh_password": sqldb.ssh_password or None,
+        "ssh_private_key_path": sqldb.ssh_private_key_path or None,
+        "ssh_private_key_passphrase": sqldb.ssh_private_key_passphrase or None,
+        "ssh_local_bind_host": sqldb.ssh_local_bind_host or "127.0.0.1",
+        "ssh_local_bind_port": sqldb.ssh_local_bind_port,
+        "ssh_known_hosts_path": sqldb.ssh_known_hosts_path or None,
+        "ssh_strict_host_key_check": sqldb.ssh_strict_host_key_check,
+        "ssh_connect_timeout": sqldb.ssh_connect_timeout or 30,
+        "ssh_keepalive_interval": sqldb.ssh_keepalive_interval or 30,
+        "ssh_compression": sqldb.ssh_compression,
+        "ssh_allow_agent": sqldb.ssh_allow_agent,
+    }
+
+    logger.info(
+        "SSH tunnelling enabled for database '%s' via %s:%s",
+        sqldb.name,
+        params["ssh_host"],
+        params["ssh_port"],
+    )
+
+    return params
 
 
 def get_db_manager(sqldb):
@@ -127,6 +177,14 @@ def get_db_manager(sqldb):
                     "password": sqldb.password,
                 }
             )
+
+        try:
+            common_params.update(_build_ssh_connection_params(sqldb))
+        except ValueError:
+            logger.error(
+                "Invalid SSH configuration for database '%s'", sqldb.name
+            )
+            raise
 
         # Create manager using new factory (which uses the plugin system)
         manager = ThothDbFactory.create_manager(**common_params)

@@ -10,17 +10,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import logging
+import os
+import uuid
 
 from django import forms
 from django.contrib import admin, messages
 from django.http import HttpResponse
+from django.conf import settings
 from thoth_core.models import (
-    SqlDb,
-    VectorDb,
-    SqlTable,
-    SqlColumn,
     Relationship,
+    SQLDBChoices,
+    SSHAuthMethod,
+    SqlColumn,
+    SqlDb,
+    SqlTable,
+    VectorDb,
 )
 from thoth_core.utilities.utils import (
     export_csv,
@@ -58,6 +64,15 @@ logger = logging.getLogger(__name__)
 
 
 class SqlDbAdminForm(forms.ModelForm):
+    # Optional file upload to store SSH private key securely on the server
+    ssh_private_key_upload = forms.FileField(
+        required=False,
+        help_text=(
+            "Upload a private key file to store it securely on the backend host. "
+            "If provided, it will be saved under a protected directory and the path will be set automatically."
+        ),
+        label="SSH private key file (upload)",
+    )
     class Meta:
         model = SqlDb
         fields = "__all__"
@@ -70,6 +85,25 @@ class SqlDbAdminForm(forms.ModelForm):
             "schema": "Database schema to use (leave empty for default schema)",
             "user_name": "Database username for authentication",
             "password": "Database password for authentication",
+            "ssh_enabled": "Enable SSH tunnelling to reach the database through a bastion host",
+            "ssh_host": "SSH server host or IP used to establish the tunnel",
+            "ssh_port": "SSH server port (default 22 unless customised)",
+            "ssh_username": "SSH username used to authenticate on the bastion host",
+            "ssh_auth_method": "Authentication strategy: password, private key, or both",
+            "ssh_password": "Password for the SSH user (kept server-side; never written to logs).",
+            "ssh_private_key_path": (
+                "Absolute path to the SSH private key file available on the backend host. "
+                "Alternatively, use 'SSH private key file (upload)' to upload and store it securely."
+            ),
+            "ssh_private_key_passphrase": "Passphrase to decrypt the SSH private key, if protected",
+            "ssh_local_bind_host": "Local interface used for the forwarded port (default 127.0.0.1)",
+            "ssh_local_bind_port": "Local port to bind for the tunnel. Leave blank for an ephemeral port",
+            "ssh_known_hosts_path": "Optional path to a known_hosts file for strict host verification",
+            "ssh_strict_host_key_check": "If enabled, unknown host keys are rejected unless present in known_hosts",
+            "ssh_connect_timeout": "SSH connection timeout in seconds",
+            "ssh_keepalive_interval": "Interval in seconds to send SSH keepalives (0 disables)",
+            "ssh_compression": "Enable SSH compression (useful on slow links)",
+            "ssh_allow_agent": "Allow using the system SSH agent when available",
             "db_mode": "Environment mode (dev/test/prod) - affects connection behavior (REQUIRED)",
             "vector_db": "Associated vector database for storing semantic information about this SQL database",
             "language": "Primary language (ISO 639-1 code; select label shows English name)",
@@ -83,9 +117,16 @@ class SqlDbAdminForm(forms.ModelForm):
                 attrs={"style": "width: 500px; max-width: 100%;"}
             ),
             "password": PasswordInputWithToggle(render_value=True),
+            "ssh_password": PasswordInputWithToggle(render_value=True),
+            "ssh_private_key_passphrase": PasswordInputWithToggle(render_value=True),
+            "ssh_private_key_path": forms.TextInput(
+                attrs={"style": "width: 500px; max-width: 100%;"}
+            ),
+            "ssh_known_hosts_path": forms.TextInput(
+                attrs={"style": "width: 500px; max-width: 100%;"}
+            ),
             "scope": forms.Textarea(attrs={"rows": 8, "cols": 160}),
             "scope_json": forms.Textarea(attrs={"rows": 8, "cols": 160}),
-            "directives": forms.Textarea(attrs={"rows": 8, "cols": 160}),
             "erd": forms.Textarea(attrs={"rows": 12, "cols": 160}),
             # Ensure logs use full available width in the admin form
             "table_comment_log": forms.Textarea(
@@ -96,6 +137,75 @@ class SqlDbAdminForm(forms.ModelForm):
             ),
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if cleaned_data.get("ssh_enabled"):
+            auth_method = cleaned_data.get("ssh_auth_method") or SSHAuthMethod.PASSWORD
+
+            if cleaned_data.get("db_type") == SQLDBChoices.SQLITE:
+                self.add_error(
+                    "ssh_enabled",
+                    "SSH tunnelling is not supported for SQLite backends.",
+                )
+
+            if not cleaned_data.get("ssh_host"):
+                self.add_error("ssh_host", "SSH host is required when tunnelling is enabled.")
+            if not cleaned_data.get("ssh_username"):
+                self.add_error("ssh_username", "SSH username is required when tunnelling is enabled.")
+
+            ssh_port = cleaned_data.get("ssh_port") or 22
+            if ssh_port is not None and ssh_port <= 0:
+                self.add_error("ssh_port", "SSH port must be a positive integer.")
+
+            if auth_method in (SSHAuthMethod.PASSWORD, SSHAuthMethod.PASSWORD_AND_KEY) and not cleaned_data.get("ssh_password"):
+                self.add_error("ssh_password", "Provide the SSH password or change the authentication method.")
+
+            if auth_method in (SSHAuthMethod.PRIVATE_KEY, SSHAuthMethod.PASSWORD_AND_KEY):
+                key_path = cleaned_data.get("ssh_private_key_path")
+                key_upload = self.files.get("ssh_private_key_upload")
+                if not key_path and not key_upload:
+                    self.add_error(
+                        "ssh_private_key_path",
+                        "Provide an absolute path to the SSH private key or upload a key file.",
+                    )
+                if key_path and not os.path.isabs(key_path):
+                    self.add_error(
+                        "ssh_private_key_path",
+                        "SSH private key path must be absolute to avoid ambiguity.",
+                    )
+                # Basic sanity check on uploaded key file content
+                if key_upload is not None:
+                    try:
+                        head = key_upload.read(200).decode(errors="ignore")
+                        # Restore pointer for save_model
+                        key_upload.seek(0)
+                        if "BEGIN" not in head and "PRIVATE KEY" not in head:
+                            self.add_error(
+                                "ssh_private_key_upload",
+                                "The uploaded file doesn't look like a valid private key.",
+                            )
+                    except Exception:
+                        # If we cannot read, let save_model handle it and raise later
+                        pass
+
+            known_hosts = cleaned_data.get("ssh_known_hosts_path")
+            if known_hosts and not os.path.isabs(known_hosts):
+                self.add_error(
+                    "ssh_known_hosts_path", "Known hosts path must be absolute if provided."
+                )
+
+            for field_name in ("ssh_connect_timeout", "ssh_keepalive_interval"):
+                value = cleaned_data.get(field_name)
+                if value is not None and value < 0:
+                    self.add_error(field_name, "Value cannot be negative.")
+
+            local_port = cleaned_data.get("ssh_local_bind_port")
+            if local_port is not None and local_port < 0:
+                self.add_error("ssh_local_bind_port", "Local bind port must be zero or a positive integer.")
+
+        return cleaned_data
+
 
 @admin.register(SqlDb)
 class SqlDbAdmin(admin.ModelAdmin):
@@ -103,6 +213,7 @@ class SqlDbAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "db_host",
+        "ssh_enabled",
         "db_type",
         "db_name",
         "schema",
@@ -144,6 +255,32 @@ class SqlDbAdmin(admin.ModelAdmin):
             {
                 "fields": ("db_host", "db_port", "db_name", "schema"),
                 "description": 'Docker Host Configuration: For databases in Docker containers, use container name (e.g., "thoth-db"). For local databases accessed from Docker, use "host.docker.internal". For external databases, use the actual hostname or IP address. Note: db_name field is required.',
+            },
+        ),
+        (
+            "SSH Tunnel",
+            {
+                "fields": (
+                    "ssh_enabled",
+                    "ssh_host",
+                    "ssh_port",
+                    "ssh_username",
+                    "ssh_auth_method",
+                    "ssh_password",
+                    "ssh_private_key_path",
+                    "ssh_private_key_upload",
+                    "ssh_private_key_passphrase",
+                    "ssh_local_bind_host",
+                    "ssh_local_bind_port",
+                    "ssh_known_hosts_path",
+                    "ssh_strict_host_key_check",
+                    "ssh_connect_timeout",
+                    "ssh_keepalive_interval",
+                    "ssh_compression",
+                    "ssh_allow_agent",
+                ),
+                "classes": ("collapse",),
+                "description": "Configure an optional SSH bastion tunnel. Passwords and passphrases are stored encrypted and never shown in clear text.",
             },
         ),
         (
@@ -225,6 +362,46 @@ class SqlDbAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    def save_model(self, request, obj, form, change):
+        """
+        Persist uploaded SSH private key to a protected directory and set the path.
+        """
+        uploaded = form.files.get("ssh_private_key_upload")
+        if uploaded is not None:
+            try:
+                # Sanitize filename and generate unique target to avoid collisions
+                original_name = os.path.basename(getattr(uploaded, "name", "id_rsa")) or "id_rsa"
+                safe_name = "".join(c for c in original_name if c.isalnum() or c in ("_", "-", ".")) or "id_rsa"
+                unique_suffix = uuid.uuid4().hex[:8]
+                base = (obj.name or "sqldb").replace(" ", "_")
+                target_name = f"{base}__{safe_name}__{unique_suffix}"
+                target_path = os.path.join(settings.SSH_KEYS_DIR, target_name)
+
+                # Write file to disk
+                with open(target_path, "wb") as f:
+                    for chunk in uploaded.chunks() if hasattr(uploaded, "chunks") else [uploaded.read()]:
+                        f.write(chunk)
+                # Restrict permissions
+                with contextlib.suppress(Exception):
+                    os.chmod(target_path, 0o600)
+
+                # Point model field to the stored absolute path
+                obj.ssh_private_key_path = target_path
+
+                self.message_user(
+                    request,
+                    f"SSH private key saved to secure storage and path set.",
+                    level=messages.SUCCESS,
+                )
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Failed to save uploaded SSH private key: {str(e)}",
+                    level=messages.ERROR,
+                )
+
+        super().save_model(request, obj, form, change)
 
     def vector_db_name(self, obj):
         return obj.vector_db.name if obj.vector_db else None
@@ -562,6 +739,7 @@ class SqlDbAdmin(admin.ModelAdmin):
         error_count = 0
 
         for sqldb in queryset:
+            db_manager = None
             try:
                 # Try to get database manager and connect
                 db_manager = get_db_manager(sqldb)
@@ -628,6 +806,11 @@ class SqlDbAdmin(admin.ModelAdmin):
                         request,
                         f"Database '{sqldb.name}' - Connection failed: {error_msg}",
                     )
+
+            finally:
+                if db_manager is not None:
+                    with contextlib.suppress(Exception):
+                        db_manager.close()
 
         # Summary message
         if success_count > 0 and error_count == 0:

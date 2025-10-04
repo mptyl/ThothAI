@@ -120,6 +120,12 @@ class SQLDBChoices(models.TextChoices):
     SQLITE = "SQLite", "SQLite"
 
 
+class SSHAuthMethod(models.TextChoices):
+    PASSWORD = "password", "Password"
+    PRIVATE_KEY = "private_key", "Private key"
+    PASSWORD_AND_KEY = "password_and_key", "Password + private key"
+
+
 class ColumnDataTypes(models.TextChoices):
     INT = "INT", "INT"
     FLOAT = "FLOAT", "FLOAT"
@@ -285,6 +291,28 @@ class SqlDb(models.Model):
     schema = models.CharField(max_length=255, blank=True)
     user_name = models.CharField(max_length=255, blank=True)
     password = models.CharField(max_length=255, blank=True)
+    ssh_enabled = models.BooleanField(default=False)
+    ssh_host = models.CharField(max_length=255, blank=True)
+    ssh_port = models.IntegerField(blank=True, null=True, default=22)
+    ssh_username = models.CharField(max_length=255, blank=True)
+    ssh_auth_method = models.CharField(
+        max_length=32,
+        choices=SSHAuthMethod.choices,
+        default=SSHAuthMethod.PASSWORD,
+    )
+    ssh_password = models.CharField(max_length=255, blank=True)
+    ssh_private_key_path = models.CharField(max_length=500, blank=True)
+    ssh_private_key_passphrase = models.CharField(max_length=255, blank=True)
+    ssh_local_bind_host = models.CharField(
+        max_length=255, blank=True, default="127.0.0.1"
+    )
+    ssh_local_bind_port = models.IntegerField(blank=True, null=True)
+    ssh_known_hosts_path = models.CharField(max_length=500, blank=True)
+    ssh_strict_host_key_check = models.BooleanField(default=True)
+    ssh_connect_timeout = models.IntegerField(blank=True, null=True, default=30)
+    ssh_keepalive_interval = models.IntegerField(blank=True, null=True, default=30)
+    ssh_compression = models.BooleanField(default=False)
+    ssh_allow_agent = models.BooleanField(default=False)
     db_mode = models.CharField(
         max_length=255, choices=DBMODEChoices, default=DBMODEChoices.DEV
     )

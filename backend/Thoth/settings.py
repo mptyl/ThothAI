@@ -186,6 +186,21 @@ else:  # Running locally
         }
     }
 
+# Secrets directories for sensitive uploads (e.g., SSH private keys)
+# In Docker, prefer the mounted secrets volume at /secrets; locally, use project ./secrets
+SECRETS_BASE_DIR = "/secrets" if DOCKER_ENV else str(BASE_DIR / "secrets")
+SSH_KEYS_DIR = os.path.join(SECRETS_BASE_DIR, "ssh_keys")
+try:
+    os.makedirs(SSH_KEYS_DIR, exist_ok=True)
+    # Best-effort: restrict permissions to owner only
+    try:
+        os.chmod(SSH_KEYS_DIR, 0o700)
+    except Exception:
+        pass
+except Exception:
+    # Do not block startup if we cannot create the directory; admin will handle errors
+    pass
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

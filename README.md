@@ -141,6 +141,13 @@ frontend/
 - **Example**: `/Users/username/test_data` containing `dev_databases/*.json`
 - **Usage**: Required for SQL generation testing and validation
 
+### SSH Tunnel Support for Databases
+- **Enable via Admin**: In Django Admin → *SQL databases*, toggle **SSH Tunnel** to reach databases behind bastion hosts.
+- **Credentials**: Supports password, private key, or both. Password/passphrase fields include a visibility toggle (👁️) and are stored server-side without ever hitting logs.
+- **Certificates**: Provide an absolute path to the private key stored on the backend host (recommended: mount inside the `thoth-secrets` volume when running via Docker).
+- **Security**: Strict host key checking is enabled by default—point to a `known_hosts` file if the bastion key is not already trusted. Logs mask all sensitive values.
+- **Connectivity Test**: The existing “Test database connection” admin action now exercises the SSH tunnel before running the probe query.
+
 ## 📊 Logging
 
 ### Docker Environment
