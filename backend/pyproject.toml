@@ -11,7 +11,7 @@ authors = [
 description = "Thoth AI Backend - Django application for AI-powered database management and analysis"
 readme = "README.md"
 keywords = ["django", "ai", "database", "backend", "thoth"]
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
@@ -56,7 +56,7 @@ dependencies = [
     "psycopg2-binary==2.9.10",
     # Thoth-specific Libraries (Qdrant as default vector DB)
     # Default: PostgreSQL and SQLite (no system dependencies required)
-    "thoth-dbmanager[postgresql,sqlite]==0.6.0",
+    "thoth-dbmanager[postgresql,sqlite]==0.6.1",
     # Additional SQL Server drivers for better compatibility
     "pymssql>=2.2.0",
     "thoth-qdrant[cohere]==0.1.11",  # Updated with cohere and mistral support

@@ -1,42 +1,46 @@
-# ThothAI – Dependency Update Plan (2025-10-04)
+# ThothAI – Python 3.13 SSH Tunnel Fix (2025-10-04)
 
 ## Goal
-- Regenerate lockfiles and sync environments.
-- Verify services start successfully.
+- Fix Python 3.13 compatibility issue in thoth-dbmanager SSH tunnel code
+- Publish fixed version 0.6.1 to PyPI
+- Update ThothAI to use new version
+- Remove monkey patch workaround
 
-## Steps
-1) Pin `thoth-dbmanager==0.6.0` where needed.
-   - backend/pyproject.toml: already pinned to 0.6.0. 
-   - frontend/sql_generator/pyproject.toml: updated to 0.6.0. 
-2) Regenerate lockfiles with uv.
-   - backend/: `uv lock` 
-   - frontend/sql_generator/: `uv lock` 
-3) Sync environments.
-   - backend/: `uv sync --frozen` 
-   - frontend/sql_generator/: `uv sync --frozen` 
-4) Start the stack.
-   - `./start-all.sh` 
-5) Validate.
-   - Confirm no dependency resolution errors. 
-   - Confirm services on ports: 8200 (backend), 8180 (SQL Gen), 3200 (frontend), 6334 (Qdrant), 8003 (Mermaid). 
+## Completed Steps 
 
-## Python 3.13 SSH Tunnel Fix (2025-10-04)
+### 1. Fixed thoth-dbmanager source code
+- **Location:** `/Users/mp/Thoth/thoth_sqldb2/thoth_dbmanager/helpers/ssh_tunnel.py`
+- **Change:** Renamed `stop_event` → `stop_evt` in `_build_handler()` method
+- **Reason:** Avoid Python 3.13 PEP 709 class body scoping conflict
+- **Files modified:**
+  - `ssh_tunnel.py` - Fixed variable scoping
+  - `pyproject.toml` - Updated version to 0.6.1, added Python 3.13 classifier
+  - `__init__.py` - Updated `__version__` to 0.6.1
+  - `CHANGELOG.md` - Documented fix
 
-### Issue
-- **Error:** `name 'stop_event' is not defined` when testing SSH tunnel database connections
-- **Cause:** Python 3.13 stricter scoping rules in class bodies (PEP 709)
-- **Affected:** thoth-dbmanager v0.6.0, SSH tunnel feature
+### 2. Built and published to PyPI
+- Built package: `uv build` → dist/thoth_dbmanager-0.6.1-py3-none-any.whl
+- Published: `uv publish` → https://pypi.org/project/thoth-dbmanager/0.6.1/
+- Verified: Package available on PyPI with all extras (postgresql, sqlite, etc.)
 
-### Solution Applied
-- Created monkey patch: `backend/thoth_core/utilities/ssh_tunnel_patch.py` 
-- Auto-applied in: `backend/thoth_core/utilities/utils.py:initialize_database_plugins()` 
-- Documentation: `docs/SSH_TUNNEL_PYTHON313_FIX.md` 
+### 3. Updated ThothAI project
+- `backend/pyproject.toml`: Updated to `thoth-dbmanager[postgresql,sqlite]==0.6.1`
+- `frontend/sql_generator/pyproject.toml`: Updated to `thoth-dbmanager[postgresql,sqlite]==0.6.1`
+- `backend/pyproject.toml`: Added Python version constraint `requires-python = ">=3.13,<3.14"`
+- Regenerated lockfiles: `uv lock --refresh`
+- Synced environments: `uv sync`
 
-### Status
-- **RESOLVED**  - Patch automatically applied at backend startup
-- SSH tunnel database connections should now work with Python 3.13
-- Remove patch when thoth-dbmanager v0.6.1+ is released with upstream fix
+### 4. Removed monkey patch
+- Deleted: `backend/thoth_core/utilities/ssh_tunnel_patch.py`
+- Removed patch application from: `backend/thoth_core/utilities/utils.py`
+- Deleted documentation: `docs/SSH_TUNNEL_PYTHON313_FIX.md`, `SSH_TUNNEL_FIX_SUMMARY.md`
+
+## Next: Test SSH Tunnel Connection
+- Start backend: `cd backend && uv run python manage.py runserver 8200`
+- Test "procurement" database connection in Django admin
+- Verify SSH tunnel works without errors
 
 ## Notes
-- Use PyPI for `thoth-dbmanager`, do not use local path.
-- Correct local source path (for reference only): `/Users/Thoth/thoth_sqldb2`.
+- thoth-dbmanager source: `/Users/mp/Thoth/thoth_sqldb2`
+- Use PyPI version for ThothAI, not local path dependency
+- Python 3.13 fully supported in thoth-dbmanager v0.6.1+

@@ -249,7 +249,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -2009,7 +2009,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "sqlglot", specifier = ">=25.0.0" },
     { name = "sqlparse", specifier = ">=0.5.3" },
-    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.6.0" },
+    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.6.1" },
     { name = "thoth-qdrant", extras = ["cohere"], specifier = ">=0.1.11" },
     { name = "tzlocal", specifier = ">=5.3.1" },
     { name = "uvicorn", specifier = ">=0.35.0" },
@@ -2108,7 +2108,7 @@ wheels = [
 
 [[package]]
 name = "thoth-dbmanager"
-version = "0.6.0"
+version = "0.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasketch" },
@@ -2118,9 +2118,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/e6/53b55f5dd26279925b9f74e813c6fa5c88ad1e7fbca66f6d96a1aaf47995/thoth_dbmanager-0.6.0.tar.gz", hash = "sha256:3e7c195eb34f314554e8058ea8ea693308a2aeb58b5f6fb8c6dca261ea72db50", size = 58872, upload-time = "2025-10-04T15:11:30.491Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/65/59b9b1669c11782135d6bb09349ac4e6f58b7decb7bc53047e45e7aff448/thoth_dbmanager-0.6.1.tar.gz", hash = "sha256:f39a7c02e88c2d55624bd571b794b2d01664bb5778a5b68b7f97ee6e94f4fdee", size = 58945, upload-time = "2025-10-04T17:42:16.88Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/47/177770e45eb06055815166190428196c983c76704e88667a8eb59709c7a4/thoth_dbmanager-0.6.0-py3-none-any.whl", hash = "sha256:5dbe19ce649714a8a22978c57c7f68f36b86263cccd42ad9dbc919c57d6bc660", size = 79132, upload-time = "2025-10-04T15:11:28.837Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/e9/b44c972c4b04a35593fce359a299d2c4bb2745621d9fe29917f75c2030c7/thoth_dbmanager-0.6.1-py3-none-any.whl", hash = "sha256:ca7b058bc89a50d9b25540b5e7e37fc850ca37e42b142f02e8db9522cedfd69c", size = 79202, upload-time = "2025-10-04T17:42:15.037Z" },
 ]
 
 [package.optional-dependencies]
