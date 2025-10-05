@@ -112,6 +112,7 @@ class DBMODEChoices(models.TextChoices):
 
 
 class SQLDBChoices(models.TextChoices):
+    INFORMIX = "Informix", "Informix"
     MARIADB = "MariaDB", "MariaDB"
     MYSQL = "MySQL", "MySQL"
     ORACLE = "Oracle", "Oracle"
@@ -336,6 +337,25 @@ class SqlDb(models.Model):
     directives = models.TextField(blank=True, null=True, verbose_name="Directives")
     gdpr_report = models.JSONField(blank=True, null=True)
     gdpr_scan_date = models.DateTimeField(blank=True, null=True)
+
+    # Informix-specific parameters
+    informix_server = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="INFORMIXSERVER name (required for Informix, e.g., 'ns1i10')"
+    )
+    informix_protocol = models.CharField(
+        max_length=50,
+        blank=True,
+        default='onsoctcp',
+        help_text="Informix connection protocol (default: onsoctcp)"
+    )
+    informix_dir = models.CharField(
+        max_length=500,
+        blank=True,
+        default='/u/appl/ids10',
+        help_text="Path to INFORMIXDIR on remote server (Informix SSH only)"
+    )
 
     # Async AI comment generation status and logs (moved from Workspace)
     table_comment_status = models.CharField(

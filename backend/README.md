@@ -191,10 +191,13 @@ ThothAI supports multiple databases through a modular architecture:
 - **Default Installation**: PostgreSQL and SQLite (no additional dependencies)
 - **Optional Extras**:
   - `mariadb`: Adds MariaDB driver support
-  - `sqlserver`: Adds SQL Server driver support  
+  - `sqlserver`: Adds SQL Server driver support
+  - `informix`: Adds IBM Informix support via SSH tunnel (requires thoth-dbmanager >= 0.7.0)
   - `all-databases`: Installs all optional database drivers
 
 The installer automatically detects and configures the appropriate database drivers based on your selections.
+
+**Note on Informix:** IBM Informix support uses SSH + dbaccess (no local ODBC drivers required). Configure via admin interface with SSH tunnel parameters. See [Informix Configuration Guide](../docs/INFORMIX_CONFIGURATION_GUIDE.md) for details.
 
 ## 5. Testing
 

@@ -49,14 +49,15 @@ docker compose up -d
 # Install uv for Python management
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. Copy and configure environment
-cp .env.local.template .env.local
-# Edit .env.local with your configuration (LLM keys, EMBEDDING_*, BACKEND_AI_PROVIDER/BACKEND_AI_MODEL)
+# 2. Copy and configure the unified config (if you haven't done it yet)
+cp config.yml config.yml.local
+# Edit config.yml.local with your API keys, embeddings, database flags, and ports.
+# This file is now the single source of truth for BOTH Docker and local development.
 
-# 3. Configure test database path
+# 3. (Optional) Override DB root path for the current shell
 export DB_ROOT_PATH=/absolute/path/to/your/dev_databases  # Directory containing BIRD test databases
 
-# 4. Start all services locally
+# 4. Start all services locally (auto-generates .env.local and syncs Python deps)
 ./start-all.sh
 
 # 5. Access services
@@ -140,13 +141,13 @@ frontend/
 - **Format**: Absolute path to directory with `dev_databases/` subdirectory
 - **Example**: `/Users/username/test_data` containing `dev_databases/*.json`
 - **Usage**: Required for SQL generation testing and validation
-
 ### SSH Tunnel Support for Databases
 - **Enable via Admin**: In Django Admin → *SQL databases*, toggle **SSH Tunnel** to reach databases behind bastion hosts.
 - **Credentials**: Supports password, private key, or both. Password/passphrase fields include a visibility toggle (👁️) and are stored server-side without ever hitting logs.
 - **Certificates**: Provide an absolute path to the private key stored on the backend host (recommended: mount inside the `thoth-secrets` volume when running via Docker).
 - **Security**: Strict host key checking is enabled by default—point to a `known_hosts` file if the bastion key is not already trusted. Logs mask all sensitive values.
-- **Connectivity Test**: The existing “Test database connection” admin action now exercises the SSH tunnel before running the probe query.
+- **Connectivity Test**: The existing "Test database connection" admin action now exercises the SSH tunnel before running the probe query.
+- **IBM Informix**: SSH tunnel is **required** for Informix databases (uses SSH + dbaccess, no local drivers needed). See [Informix Configuration Guide](docs/INFORMIX_CONFIGURATION_GUIDE.md) for setup instructions.
 
 ## 📊 Logging
 
@@ -245,7 +246,7 @@ ThothAI uses a multi-level configuration system to manage different deployment e
    - Reference file with all required variables
    - Copy and customize to create `.env.local`
 
-### Configuration Flows
+#### Configuration Flows
 
 #### Docker Deploy (install.sh)
 
@@ -265,21 +266,28 @@ The process:
 #### Local Development (start-all.sh)
 
 ```
+config.yml.local → generate_env_local.py → .env.local
+                ↓                  ↓
+      update_local_db_dependencies.py → backend/frontend pyproject.toml.local
+                ↓
+        uv lock --refresh && uv sync (per directory)
+                ↓
 .env.local → env validation → export variables → Processes inherit environment
            ↓                   ↓                      ↓
    BACKEND_AI_* check       (filter out PORT=)     Django, SQL Gen, Frontend
 ```
 
 The process:
-1. `start-all.sh` loads `.env.local` (excluding the generic PORT)
-2. Validates `BACKEND_AI_PROVIDER`/`BACKEND_AI_MODEL` and API keys from `.env.local` with `scripts/validate_backend_ai.py --from-env`
-3. Exports variables into the shell environment
-4. Each service inherits the variables:
+1. `start-all.sh` regenerates `.env.local` from `config.yml.local` via `scripts/generate_env_local.py`
+2. Database support extras are resolved by `scripts/update_local_db_dependencies.py`, which updates both `backend/pyproject.toml.local` and `frontend/sql_generator/pyproject.toml.local`
+3. Whenever dependencies change, `start-all.sh` runs `uv lock --refresh && uv sync` inside `backend/` and `frontend/sql_generator/`
+4. `.env.local` is loaded (excluding the generic PORT) and validated via `scripts/validate_backend_ai.py --from-env`
+5. Each service inherits the environment variables:
    - Django: uses the variables directly
    - SQL Generator: receives a specific PORT (8180)
    - Frontend: receives a specific PORT (3200)
 
-Important: locally, `config.yml.local` does not automatically update `.env.local` and is not used for startup. To change the backend provider/model in local dev, edit `.env.local` directly.
+Important: keep `config.yml.local` as the authoritative configuration. `start-all.sh` will regenerate `.env.local` and sync Python dependencies automatically whenever the YAML changes.
 
 ### Python Management with uv
 

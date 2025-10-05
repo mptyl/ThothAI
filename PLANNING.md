@@ -1,46 +1,41 @@
-# ThothAI – Python 3.13 SSH Tunnel Fix (2025-10-04)
+# Current Task Plan
 
-## Goal
-- Fix Python 3.13 compatibility issue in thoth-dbmanager SSH tunnel code
-- Publish fixed version 0.6.1 to PyPI
-- Update ThothAI to use new version
-- Remove monkey patch workaround
+## Issue
+- Investigate repeated warnings when running `./start-all.sh`:
+  - `Session data corrupted`
+  - `Not Found: /__reload__/events/`
 
-## Completed Steps 
+## Plan
+1. Inspect Django settings, middleware, and URL routing relevant to sessions and `django_browser_reload`.
+2. Identify misconfiguration or missing conditions causing warnings in non-debug mode.
+3. Apply targeted fixes (e.g., conditional URL inclusion), advise on session cleanup, and validate.
 
-### 1. Fixed thoth-dbmanager source code
-- **Location:** `/Users/mp/Thoth/thoth_sqldb2/thoth_dbmanager/helpers/ssh_tunnel.py`
-- **Change:** Renamed `stop_event` → `stop_evt` in `_build_handler()` method
-- **Reason:** Avoid Python 3.13 PEP 709 class body scoping conflict
-- **Files modified:**
-  - `ssh_tunnel.py` - Fixed variable scoping
-  - `pyproject.toml` - Updated version to 0.6.1, added Python 3.13 classifier
-  - `__init__.py` - Updated `__version__` to 0.6.1
-  - `CHANGELOG.md` - Documented fix
+## Progress Updates
+- 2025-10-05: Completed step 1 (settings and URLs reviewed). Step 2 in progress.
 
-### 2. Built and published to PyPI
-- Built package: `uv build` → dist/thoth_dbmanager-0.6.1-py3-none-any.whl
-- Published: `uv publish` → https://pypi.org/project/thoth-dbmanager/0.6.1/
-- Verified: Package available on PyPI with all extras (postgresql, sqlite, etc.)
+---
 
-### 3. Updated ThothAI project
-- `backend/pyproject.toml`: Updated to `thoth-dbmanager[postgresql,sqlite]==0.6.1`
-- `frontend/sql_generator/pyproject.toml`: Updated to `thoth-dbmanager[postgresql,sqlite]==0.6.1`
-- `backend/pyproject.toml`: Added Python version constraint `requires-python = ">=3.13,<3.14"`
-- Regenerated lockfiles: `uv lock --refresh`
-- Synced environments: `uv sync`
+## Issue
+- Ensure local development exports `DJANGO_API_URL` and `QDRANT_URL` to prevent SQL Generator warnings.
 
-### 4. Removed monkey patch
-- Deleted: `backend/thoth_core/utilities/ssh_tunnel_patch.py`
-- Removed patch application from: `backend/thoth_core/utilities/utils.py`
-- Deleted documentation: `docs/SSH_TUNNEL_PYTHON313_FIX.md`, `SSH_TUNNEL_FIX_SUMMARY.md`
+## Plan
+1. Inspect `.env.local.template` and `config.yml.local` defaults.
+2. Add missing URL entries so `scripts/generate_env_local.py` emits them.
+3. Regenerate environment and confirm warnings disappear.
 
-## Next: Test SSH Tunnel Connection
-- Start backend: `cd backend && uv run python manage.py runserver 8200`
-- Test "procurement" database connection in Django admin
-- Verify SSH tunnel works without errors
+## Progress Updates
+- 2025-10-05: Steps 1-2 completed by updating `.env.local.template` and `config.yml` defaults.
 
-## Notes
-- thoth-dbmanager source: `/Users/mp/Thoth/thoth_sqldb2`
-- Use PyPI version for ThothAI, not local path dependency
-- Python 3.13 fully supported in thoth-dbmanager v0.6.1+
+---
+
+## Issue
+- `start-all.sh` emits warnings about incorrect `.venv` usage during local startup.
+
+## Plan
+1. Review `start-all.sh` virtualenv handling and identify warning sources.
+2. Ensure the script detaches from inherited virtualenvs and validates local `.venv` directories.
+3. Provide follow-up guidance for rerunning the script and monitoring logs.
+
+## Progress Updates
+- 2025-10-05: Step 1 complete (script reviewed).
+- 2025-10-05: Step 2 complete (script now unsets `VIRTUAL_ENV` and cleans invalid `.venv`).

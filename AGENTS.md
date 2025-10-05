@@ -41,7 +41,10 @@ Install and Start
 Configuration System
 - Two parallel config flows (documented in `README.md:1`):
   - Docker: `config.yml.local` → `scripts/installer.py:1` → `.env.docker` + merged `pyproject.toml.local` → `docker-compose.yml:1` env.
-  - Local dev: `.env.local` exported by `start-all.sh:1` (filters out a generic `PORT`).
+  - Local dev: `config.yml.local` → `scripts/generate_env_local.py:1` → `.env.local`
+    - Database extras resolved via `scripts/update_local_db_dependencies.py:1` producing `backend/pyproject.toml.local` and `frontend/sql_generator/pyproject.toml.local`
+    - `start-all.sh:1` runs `uv lock --refresh && uv sync` inside both directories when dependencies change
+    - `.env.local` exported with `PORT` filtered out, same as before
 - Required env:
   - LLMs: at least one of `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` (plus optional Mistral, DeepSeek, OpenRouter, Ollama, LM Studio).
   - Embeddings: `EMBEDDING_PROVIDER`, `EMBEDDING_API_KEY`, `EMBEDDING_MODEL`.
