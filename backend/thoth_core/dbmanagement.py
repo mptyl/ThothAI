@@ -84,6 +84,7 @@ def get_db_manager(sqldb):
 
         # Map Django model db_type to plugin identifiers
         db_type_mapping = {
+            "Informix": "informix",
             "PostgreSQL": "postgresql",
             "SQLite": "sqlite",
             "MySQL": "mysql",
@@ -101,6 +102,23 @@ def get_db_manager(sqldb):
 
         # Get available databases from plugin discovery
         available_databases = get_available_databases()
+
+        # WORKAROUND for thoth-dbmanager 0.7.0 bug: Informix plugin exists but is missing from DATABASE_DEPENDENCIES
+        # Apply same workaround as in initialize_database_plugins()
+        if plugin_db_type == 'informix' and 'informix' not in available_databases:
+            try:
+                from thoth_dbmanager.core.registry import DbPluginRegistry
+                registered_plugins = DbPluginRegistry.list_plugins()
+                
+                if 'informix' in registered_plugins:
+                    try:
+                        import paramiko
+                        available_databases['informix'] = True
+                        logger.info("Informix plugin manually enabled in get_db_manager (workaround for thoth-dbmanager 0.7.0 bug)")
+                    except ImportError:
+                        available_databases['informix'] = False
+            except Exception as e:
+                logger.debug(f"Informix workaround in get_db_manager failed: {e}")
 
         # Check if the requested database type is available
         if plugin_db_type not in available_databases:
@@ -175,6 +193,22 @@ def get_db_manager(sqldb):
                     "database": sqldb.db_name,
                     "user": sqldb.user_name,
                     "password": sqldb.password,
+                }
+            )
+        elif plugin_db_type == "informix":
+            # Informix uses SSH + dbaccess approach
+            # SSH params are handled separately via _build_ssh_connection_params
+            common_params.update(
+                {
+                    "database": sqldb.db_name,
+                    "server": sqldb.informix_server or sqldb.db_host,
+                    "user": sqldb.user_name,
+                    "password": sqldb.password,
+                    "protocol": sqldb.informix_protocol or 'onsoctcp',
+                    "informixdir": sqldb.informix_dir or '/u/appl/ids10',
+                    # For Informix SSH, host is the Informix server (after SSH tunnel)
+                    "host": sqldb.db_host,
+                    "port": sqldb.db_port or 9088,
                 }
             )
 

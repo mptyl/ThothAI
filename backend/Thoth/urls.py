@@ -27,6 +27,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 
@@ -40,5 +41,7 @@ urlpatterns = [
     path("", include(("thoth_core.urls", "thoth_core"), namespace="thoth_core")),
     path("vdb/", include("thoth_ai_backend.urls")),
     path("accounts/", include("allauth.urls")),
-    path("__reload__/", include("django_browser_reload.urls")),
 ]
+
+if settings.DEBUG and "django_browser_reload" in settings.INSTALLED_APPS:
+    urlpatterns.append(path("__reload__/", include("django_browser_reload.urls")))

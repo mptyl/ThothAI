@@ -87,10 +87,11 @@ backend_ai_model:
 # Enable the database drivers you need
 databases:
   sqlite: true       # Always required, cannot be disabled
-  postgresql: true  # Enable for PostgreSQL support
+  postgresql: true   # Enable for PostgreSQL support
   mysql: false       # Enable for MySQL support
-  mariadb: true     # Enable for MariaDB support
-  sqlserver: true   # Enable for SQL Server support
+  mariadb: true      # Enable for MariaDB support
+  sqlserver: true    # Enable for SQL Server support
+  informix: false    # Enable for IBM Informix support (requires SSH tunnel)
 
 # Admin User Configuration
 admin:
@@ -139,3 +140,29 @@ relevance_guard:
   use_rrf: false
   # Number of STRICT failures required to trigger ModelRetry in gating
   strict_fails_required: 2
+
+# Local development configuration (optional for Docker deployments)
+# These values are used to generate .env.local when running start-all.sh
+local:
+  ports:
+    frontend: 3200
+    backend: 8200
+    sql_generator: 8180
+    mermaid_service: 8003
+    qdrant: 6334
+  urls:
+    mermaid_service: "http://localhost:8003"
+    django_api: "http://localhost:8200"
+    qdrant: "http://localhost:6334"
+  paths:
+    exports_dir: "./exports"
+    logs_dir: "./logs"
+    db_root_path: "./data"
+    db_name: "db.sqlite3"
+  options:
+    sqlgen_bypass_evaluation: false
+    relevance_log_jsonl: true
+  security:
+    secret_key: "change-this-to-a-secure-random-string"
+    nextauth_secret: "change-this-to-another-secure-random-string"
+    django_api_key: "generate-a-secure-api-key-here"

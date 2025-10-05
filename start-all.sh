@@ -11,33 +11,102 @@ echo "============================="
 
 # Configuration
 SQL_GEN_DIR="frontend/sql_generator"
+CONFIG_FILE="config.yml.local"
+ENV_FILE=".env.local"
 
-# Load environment variables from root .env.local
-if [ -f .env.local ]; then
-    echo "Loading environment from .env.local"
-    while IFS= read -r line; do
-      if [[ ! "$line" =~ ^# && "$line" =~ = ]]; then
-        export "$line"
-      fi
-    done < .env.local
-    # Avoid leaking a generic PORT that could clash with service-specific ports
-    unset PORT || true
-else
-    echo "Error: .env.local not found in root directory"
-    echo "Please create .env.local from .env.local.template"
-    exit 1
-fi
-
-# Validate backend AI provider/model from environment
+# Determine available Python interpreter early so we can reuse it
 if command -v python3 &> /dev/null; then
   PYTHON_BIN=python3
 elif command -v python &> /dev/null; then
   PYTHON_BIN=python
 else
-  echo "Error: Python is required to validate BACKEND_AI settings"
+  echo "Error: Python is required to generate and validate local environment settings"
   exit 1
 fi
 
+# Detach from any inherited virtual environment to prevent uv warnings
+if [ -n "${VIRTUAL_ENV:-}" ]; then
+  echo "Detected active virtual environment at $VIRTUAL_ENV. Unsetting VIRTUAL_ENV for a clean start."
+  unset VIRTUAL_ENV
+fi
+
+# Ensure configuration file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: $CONFIG_FILE not found in root directory"
+    echo "Please copy config.yml to $CONFIG_FILE and update it with your settings"
+    exit 1
+fi
+
+# Generate or refresh .env.local from config.yml.local when needed
+if [ ! -f "$ENV_FILE" ] || [ "$CONFIG_FILE" -nt "$ENV_FILE" ]; then
+    echo "Generating $ENV_FILE from $CONFIG_FILE..."
+    if ! $PYTHON_BIN scripts/generate_env_local.py; then
+        echo -e "${RED}Failed to generate $ENV_FILE from $CONFIG_FILE${NC}"
+        exit 1
+    fi
+    REGENERATED_ENV=true
+else
+    REGENERATED_ENV=false
+fi
+
+# Update backend/local dependencies based on enabled databases
+echo "Resolving local database dependencies..."
+DB_DEP_OUTPUT=$($PYTHON_BIN scripts/update_local_db_dependencies.py)
+DB_DEP_STATUS=$?
+if [ $DB_DEP_STATUS -ne 0 ]; then
+    echo -e "${RED}Failed to resolve database dependencies. Please review config.yml.local.${NC}"
+    exit $DB_DEP_STATUS
+fi
+echo "$DB_DEP_OUTPUT"
+
+SYNC_REQUIRED=$(printf '%s\n' "$DB_DEP_OUTPUT" | awk -F= '/^SYNC_REQUIRED=/{print $2}')
+SYNC_BACKEND=$(printf '%s\n' "$DB_DEP_OUTPUT" | awk -F= '/^SYNC_BACKEND=/{print $2}')
+SYNC_SQL_GENERATOR=$(printf '%s\n' "$DB_DEP_OUTPUT" | awk -F= '/^SYNC_SQL_GENERATOR=/{print $2}')
+
+if [ "$SYNC_REQUIRED" = "true" ]; then
+    if ! command -v uv &> /dev/null; then
+        echo -e "${RED}Error: 'uv' is required to install database dependencies. Install it from https://docs.astral.sh/uv/getting-started/.${NC}"
+        exit 1
+    fi
+fi
+
+if [ "$SYNC_BACKEND" = "true" ]; then
+    echo "Synchronizing backend dependencies (uv lock --refresh && uv sync)..."
+    if ! (cd backend && uv lock --refresh && uv sync); then
+        echo -e "${RED}Failed to synchronize backend dependencies. Check the output above.${NC}"
+        exit 1
+    fi
+else
+    echo "Backend dependencies already up to date."
+fi
+
+if [ "$SYNC_SQL_GENERATOR" = "true" ]; then
+    echo "Synchronizing SQL Generator dependencies (uv lock --refresh && uv sync)..."
+    if ! (cd frontend/sql_generator && uv lock --refresh && uv sync); then
+        echo -e "${RED}Failed to synchronize SQL Generator dependencies. Check the output above.${NC}"
+        exit 1
+    fi
+else
+    echo "SQL Generator dependencies already up to date."
+fi
+
+# Load environment variables from generated .env.local
+if [ -f "$ENV_FILE" ]; then
+    echo "Loading environment from $ENV_FILE"
+    while IFS= read -r line; do
+      if [[ ! "$line" =~ ^# && "$line" =~ = ]]; then
+        export "$line"
+      fi
+    done < "$ENV_FILE"
+    # Avoid leaking a generic PORT that could clash with service-specific ports
+    unset PORT || true
+else
+    echo "Error: $ENV_FILE not found in root directory"
+    echo "Please ensure scripts/generate_env_local.py succeeds"
+    exit 1
+fi
+
+# Validate backend AI provider/model from environment
 echo "Validating backend AI provider/model from .env.local..."
 $PYTHON_BIN scripts/validate_backend_ai.py --from-env || {
   echo -e "\033[0;31mBackend AI validation failed. Check BACKEND_AI_PROVIDER, BACKEND_AI_MODEL and API keys in .env.local.\033[0m"
@@ -121,35 +190,42 @@ else
     if [ -d "backend" ]; then
         cd backend
         
-        # Check if virtual environment exists
+        # Determine if a valid virtual environment activation script exists
+        BACKEND_VENV_ACTIVATE=""
         if [ -d ".venv" ]; then
-            # Use uv to run Django if available
-            if command -v uv &> /dev/null; then
-                echo -e "${GREEN}Starting Django with uv...${NC}"
-                # Django will use environment variables already exported from root .env.local
-                # Unset VIRTUAL_ENV to avoid conflicts with uv's environment detection
-                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_PORT) &
-                DJANGO_PID=$!
+            if [ -f ".venv/bin/activate" ]; then
+                BACKEND_VENV_ACTIVATE=".venv/bin/activate"
+            elif [ -f ".venv/Scripts/activate" ]; then
+                BACKEND_VENV_ACTIVATE=".venv/Scripts/activate"
             else
-                # Fallback to regular Python
-                echo -e "${GREEN}Starting Django with Python...${NC}"
-                source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate 2>/dev/null
-                python manage.py runserver $BACKEND_PORT &
-                DJANGO_PID=$!
+                echo -e "${YELLOW}Found incomplete .venv directory for backend. Removing and recreating when needed...${NC}"
+                rm -rf .venv
             fi
+        fi
+
+        if command -v uv &> /dev/null; then
+            echo -e "${GREEN}Starting Django with uv...${NC}"
+            # Django will use environment variables already exported from root .env.local
+            # Unset VIRTUAL_ENV to avoid conflicts with uv's environment detection
+            (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_PORT) &
+            DJANGO_PID=$!
         else
-            echo -e "${YELLOW}Creating virtual environment for Django backend...${NC}"
-            if command -v uv &> /dev/null; then
-                uv sync --frozen
-                (unset VIRTUAL_ENV && uv run python manage.py runserver $BACKEND_PORT) &
-                DJANGO_PID=$!
-            else
+            # Fallback to regular Python when uv is unavailable
+            if [ -z "$BACKEND_VENV_ACTIVATE" ]; then
+                echo -e "${YELLOW}Creating virtual environment for Django backend...${NC}"
                 python -m venv .venv
-                source .venv/bin/activate
+                if [ -f ".venv/bin/activate" ]; then
+                    BACKEND_VENV_ACTIVATE=".venv/bin/activate"
+                else
+                    BACKEND_VENV_ACTIVATE=".venv/Scripts/activate"
+                fi
+                source "$BACKEND_VENV_ACTIVATE"
                 pip install -r requirements.txt
-                python manage.py runserver $BACKEND_PORT &
-                DJANGO_PID=$!
+            else
+                source "$BACKEND_VENV_ACTIVATE"
             fi
+            python manage.py runserver $BACKEND_PORT &
+            DJANGO_PID=$!
         fi
         
         cd ..
