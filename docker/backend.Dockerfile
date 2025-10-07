@@ -22,8 +22,6 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     unixodbc-dev \
     freetds-bin \
     freetds-dev \
-    cargo \
-    rustc \
     pkg-config \
     tdsodbc \
     libmariadb3 \
@@ -31,6 +29,12 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     gnupg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Rust via rustup (for fastuuid compilation - requires newer Cargo)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . "$HOME/.cargo/env" \
+    && echo 'source $HOME/.cargo/env' >> ~/.bashrc
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install Microsoft SQL Server ODBC drivers (17 + 18) for pyodbc compatibility when available
 COPY docker/install-msodbc.sh /tmp/install-msodbc.sh

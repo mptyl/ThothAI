@@ -205,8 +205,15 @@ main() {
     # Check for required Python packages
     print_color "Installing required Python packages..." "$YELLOW"
     
-    # Check if we're in a virtual environment
-    if [ -n "$VIRTUAL_ENV" ]; then
+    # Check if uv is available (preferred)
+    if check_command uv; then
+        # Use uv pip install (works with uv-managed venvs)
+        uv pip install --quiet pyyaml requests toml 2>/dev/null || {
+            print_color "Error: Failed to install required Python packages with uv" "$RED"
+            print_color "Please run: uv pip install pyyaml requests toml" "$RED"
+            exit 1
+        }
+    elif [ -n "$VIRTUAL_ENV" ]; then
         # In virtual environment, don't use --user
         $PYTHON_CMD -m pip install --quiet pyyaml requests toml 2>/dev/null || {
             print_color "Warning: Could not install Python packages. Trying with python -m pip..." "$YELLOW"
