@@ -28,6 +28,7 @@ Including another URLconf
 """
 
 from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 
@@ -43,5 +44,12 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
 ]
 
-if settings.DEBUG and "django_browser_reload" in settings.INSTALLED_APPS:
-    urlpatterns.append(path("__reload__/", include("django_browser_reload.urls")))
+# Development-specific features
+if settings.DEBUG:
+    if "django_browser_reload" in settings.INSTALLED_APPS:
+        urlpatterns.append(path("__reload__/", include("django_browser_reload.urls")))
+    
+    # Serve static files in local development (not in Docker)
+    # In Docker, Nginx handles static file serving
+    if not getattr(settings, 'DOCKER_ENV', None):
+        urlpatterns += static(settings.STATIC_URL, document_root=settings.BASE_DIR / "static")

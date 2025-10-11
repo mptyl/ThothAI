@@ -2389,7 +2389,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = "==2.0.40" },
     { name = "tabulate", specifier = "==0.9.0" },
     { name = "tenacity", specifier = ">=8.0.0" },
-    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.7.2" },
+    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.7.4" },
     { name = "thoth-qdrant", extras = ["cohere"], specifier = "==0.1.11" },
     { name = "toml", specifier = "==0.10.2" },
     { name = "uvicorn", specifier = "==0.34.0" },
@@ -2403,7 +2403,7 @@ dev = [{ name = "ruff", specifier = ">=0.12.11" }]
 
 [[package]]
 name = "thoth-dbmanager"
-version = "0.7.2"
+version = "0.7.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "datasketch" },
@@ -2413,9 +2413,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/44/94/8cae8659c8efedd58139d6c75362cbdf1c0f14468bafb0e8a9720c46a691/thoth_dbmanager-0.7.2.tar.gz", hash = "sha256:f35ad3348becc216d46a0dfb0fd116c0b30cf336ad7d161b8b8274f03ab4dd5e", size = 70490, upload-time = "2025-10-05T22:12:45.4Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/d6/c90bd5bb0a831dcf4347f483237be1e4d07c235afe1add9cf95c83069c2a/thoth_dbmanager-0.7.4.tar.gz", hash = "sha256:54d7227b07b96900ae90b547434f14ea63eb4ade56cae5208cd113607e885245", size = 70715, upload-time = "2025-10-11T21:12:07.168Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/3a/148d3d65c4c3a26e1c1f4afdef3bd0d5d990af98046e34de4261b120b218/thoth_dbmanager-0.7.2-py3-none-any.whl", hash = "sha256:11106db64eb3dbb1072943eb47d724f0c9199872cc1dc023f7d93a418dfcaf78", size = 92099, upload-time = "2025-10-05T22:12:43.896Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/92/d93b03b3d57a6533f23958268298316d08c96050fc48ce917fec5b736e85/thoth_dbmanager-0.7.4-py3-none-any.whl", hash = "sha256:4284d2d0b54693b9560389363e14e7d311b94dff22b8325bdddc7c9bfa0e669f", size = 92328, upload-time = "2025-10-11T21:12:05.675Z" },
 ]
 
 [package.optional-dependencies]

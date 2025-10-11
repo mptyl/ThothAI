@@ -25,7 +25,7 @@ PYPROJECT_TARGETS = {
         "relative_dir": "frontend/sql_generator",
     },
 }
-DB_MANAGER_VERSION = "0.7.2"
+DB_MANAGER_VERSION = "0.7.3"
 SUPPORTED_DATABASES = {
     "sqlite": "sqlite",
     "postgresql": "postgresql",

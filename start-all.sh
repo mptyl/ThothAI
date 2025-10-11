@@ -49,6 +49,19 @@ else
     REGENERATED_ENV=false
 fi
 
+# Force DEBUG=TRUE for local development (required for Django static file serving)
+if [ -f "$ENV_FILE" ]; then
+    if grep -q "^DEBUG=" "$ENV_FILE"; then
+        # Replace existing DEBUG setting
+        sed -i.bak 's/^DEBUG=.*/DEBUG=TRUE/' "$ENV_FILE" && rm -f "${ENV_FILE}.bak"
+        echo "Forced DEBUG=TRUE in $ENV_FILE for local development"
+    else
+        # Add DEBUG=TRUE if missing
+        echo "DEBUG=TRUE" >> "$ENV_FILE"
+        echo "Added DEBUG=TRUE to $ENV_FILE"
+    fi
+fi
+
 # Update backend/local dependencies based on enabled databases
 echo "Resolving local database dependencies..."
 DB_DEP_OUTPUT=$($PYTHON_BIN scripts/update_local_db_dependencies.py)

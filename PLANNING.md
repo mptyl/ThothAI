@@ -1,5 +1,35 @@
 # Current Task Plan
 
+## Issue ✅ RESOLVED
+- **Informix Foreign Key Detection Failure**: Database `olimpix` has 210 FK constraints but `create_relationships` action detected 0 relationships.
+
+## Root Cause
+- thoth-dbmanager 0.7.3 uses array syntax `ref.foreign[1]` and `ref.primary[1]` which is not supported in some Informix versions.
+- SQL error: `Column (foreign) not found in any table in the query`
+
+## Solution Implemented
+1. **Investigated** using multiple test scripts to understand Informix system catalog structure
+2. **Developed** alternative query using `sysindexes.part1` to access column numbers
+3. **Created** monkey-patch in `backend/thoth_core/patches/informix_fk_patch.py`
+4. **Verified** patch retrieves all 210 FK relationships successfully
+
+## Files Created/Modified
+- `backend/thoth_core/patches/informix_fk_patch.py` - Patch implementation
+- `backend/thoth_core/patches/__init__.py` - Patch module init
+- `backend/thoth_core/apps.py` - Auto-apply patch on Django startup
+- `docs/INFORMIX_FK_PATCH.md` - Complete documentation
+- Multiple diagnostic scripts in `backend/scripts/` for investigation
+
+## Status
+✅ **RESOLVED** - Patch is working and can detect all 210 FK relationships in olimpix database
+
+## Next Steps
+- Report issue to thoth-dbmanager repository
+- Remove patch when thoth-dbmanager 0.7.4+ is released with fix
+- Consider enhancing patch to support multi-column FKs if needed
+
+---
+
 ## Issue
 - Investigate repeated warnings when running `./start-all.sh`:
   - `Session data corrupted`

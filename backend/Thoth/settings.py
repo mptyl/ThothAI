@@ -241,7 +241,9 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-STATIC_ROOT = "/vol/static/"
+# STATIC_ROOT: where collectstatic gathers all static files
+# In Docker, use /vol/static (mounted volume); locally, use backend/staticfiles
+STATIC_ROOT = "/vol/static/" if DOCKER_ENV else os.path.join(BASE_DIR, "staticfiles")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

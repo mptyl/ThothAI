@@ -56,8 +56,8 @@ dependencies = [
     "psycopg2-binary==2.9.10",
     # Thoth-specific Libraries (Qdrant as default vector DB)
     # Default: PostgreSQL and SQLite (no system dependencies required)
-    # NOTE: Informix support requires thoth-dbmanager>=0.7.1 (bug fix for plugin registration)
-    "thoth-dbmanager[postgresql,sqlite]==0.7.2",
+    # NOTE: Informix FK detection fix included in thoth-dbmanager>=0.7.4
+    "thoth-dbmanager[postgresql,sqlite]==0.7.4",
     # Additional SQL Server drivers for better compatibility
     "pymssql>=2.2.0",
     "thoth-qdrant[cohere]==0.1.11",  # Updated with cohere and mistral support

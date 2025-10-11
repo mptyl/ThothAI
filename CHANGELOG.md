@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Library Updates
+- **thoth-dbmanager 0.7.4**: Updated from 0.7.3 to 0.7.4 with Informix FK detection fix
+  - Fixed foreign key detection for older Informix versions (10.x and earlier)
+  - Uses `sysindexes.part1` instead of unsupported array syntax
+  - Verified with 210 FK relationships in olimpix database
+  - Removed temporary patch from ThothAI codebase (now fixed upstream)
+
 ### Added
 
 #### Database Support & Connectivity
 - **Informix Database Support**: Full support for IBM Informix databases with SSH tunnel capability
   - Auto-detection when paramiko is installed
   - Comprehensive documentation and migration files
-  - Updated to thoth-dbmanager 0.7.2 with proper plugin registration
+  - Updated to thoth-dbmanager 0.7.4 with Informix FK detection fix
 - **SSH Tunnel Support**: Connect to databases via bastion hosts
   - Support for SSH key-based and password authentication
   - SSH agent forwarding support
