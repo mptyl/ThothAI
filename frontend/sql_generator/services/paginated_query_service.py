@@ -334,16 +334,42 @@ class PaginatedQueryService:
         
         Criteri:
         - Contiene operatori aritmetici (+, -, *, /)
-        - NON ha già un alias (AS ...)
+        - NON ha già un alias (AS ...) alla fine dell'espressione
         """
-        # Verifica se ha già un alias
-        if ' AS ' in expression.upper():
-            return False
+        import re
         
         # Verifica presenza operatori aritmetici
         has_operators = any(op in expression for op in ['+', '-', '*', '/'])
         
-        return has_operators
+        if not has_operators:
+            return False
+        
+        # Verifica se ha già un alias alla fine dell'espressione
+        # Un alias valido è: ... AS identifier_name alla fine
+        # Ignoriamo AS dentro CAST(...AS...) o altre funzioni
+        # Il modo più affidabile: l'alias deve essere dopo l'ULTIMA occorrenza di AS
+        
+        # Cerca l'ultima occorrenza di AS seguita da un identificatore
+        matches = list(re.finditer(r'\s+AS\s+([A-Za-z_][A-Za-z0-9_]*)', expression, re.IGNORECASE))
+        
+        if not matches:
+            # Nessun AS trovato, needs alias
+            return True
+        
+        # Controlla se l'ultimo AS è effettivamente un alias (alla fine) o parte di CAST
+        last_match = matches[-1]
+        # Estrai cosa c'è dopo l'ultimo AS
+        after_as = expression[last_match.end():].strip()
+        
+        # Se dopo l'ultimo AS c'è solo whitespace o niente, è un alias
+        # Se c'è altro (come parentesi chiuse per CAST), non è un alias
+        if not after_as or after_as == '':
+            # È un alias alla fine
+            return False
+        
+        # Se dopo c'è solo qualcosa che non è un operatore, assume sia parte di una funzione
+        # Needs alias
+        return True
     
     def _add_aliases_to_calculated_fields(self, sql: str) -> Tuple[str, List[str]]:
         """
