@@ -61,7 +61,7 @@ const Dialog = React.forwardRef<HTMLDivElement, DialogProps>(
             right: 0,
             bottom: 0,
             zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backgroundColor: 'rgba(0, 0, 0, 0.15)',
             backdropFilter: 'blur(8px)'
           }}
           onClick={() => onOpenChange(false)}
