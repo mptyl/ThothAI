@@ -167,6 +167,10 @@ class BasicAiModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name = "Basic AI Model"
+        verbose_name_plural = "Basic AI Models"
+
     def __str__(self):
         return self.name
 
@@ -227,6 +231,10 @@ class AiModel(models.Model):
         verbose_name="Context Size",
     )
 
+    class Meta:
+        verbose_name = "AI Model"
+        verbose_name_plural = "AI Models"
+
     def __str__(self):
         # ritorna la concatenazione di name e specific_model
         return f"{self.name} - {self.specific_model}"
@@ -276,6 +284,10 @@ class Agent(models.Model):
         verbose_name="Timeout",
     )
     retries = models.IntegerField(default=5)
+
+    class Meta:
+        verbose_name = "Agent"
+        verbose_name_plural = "Agents"
 
     def __str__(self):
         return self.name
@@ -393,6 +405,10 @@ class SqlDb(models.Model):
             return self.name
         return f"{self.schema}__{self.name}"
 
+    class Meta:
+        verbose_name = "SQL Database"
+        verbose_name_plural = "SQL Databases"
+
     def __str__(self):
         return f"{self.name} - {self.db_name}"
 
@@ -402,6 +418,10 @@ class SqlTable(models.Model):
     description = models.TextField(blank=True)
     generated_comment = models.TextField(blank=True)
     sql_db = models.ForeignKey(SqlDb, on_delete=models.CASCADE, related_name="tables")
+
+    class Meta:
+        verbose_name = "SQL Table"
+        verbose_name_plural = "SQL Tables"
 
     def __str__(self):
         return self.name
@@ -421,6 +441,10 @@ class SqlColumn(models.Model):
     sql_table = models.ForeignKey(
         SqlTable, on_delete=models.CASCADE, related_name="columns"
     )
+
+    class Meta:
+        verbose_name = "SQL Column"
+        verbose_name_plural = "SQL Columns"
 
 
 class Relationship(models.Model):
@@ -462,6 +486,10 @@ class Relationship(models.Model):
             col = SqlColumn.objects.get(id=col_id)
             col.fk_field = f"{', '.join(references)}"
             col.save()
+
+    class Meta:
+        verbose_name = "Relationship"
+        verbose_name_plural = "Relationships"
 
 
 class VectorDb(models.Model):
@@ -556,6 +584,10 @@ class VectorDb(models.Model):
         if errors:
             raise ValidationError(errors)
 
+    class Meta:
+        verbose_name = "Vector Database"
+        verbose_name_plural = "Vector Databases"
+
     def __str__(self):
         return f"{self.name} - {self.vect_type}"
 
@@ -649,6 +681,10 @@ class Setting(models.Model):
         default=10,
         help_text="Maximum number of example values to retain per column (query-time parameter)",
     )
+
+    class Meta:
+        verbose_name = "Setting"
+        verbose_name_plural = "Settings"
 
     def __str__(self):
         return self.name
@@ -801,6 +837,10 @@ class Workspace(models.Model):
     column_comment_log = models.TextField(blank=True, null=True)
     column_comment_start_time = models.DateTimeField(blank=True, null=True)
     column_comment_end_time = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Workspace"
+        verbose_name_plural = "Workspaces"
 
     def __str__(self):
         return self.name
@@ -1176,6 +1216,8 @@ class ThothLog(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "Thoth Log"
+        verbose_name_plural = "Thoth Logs"
         ordering = ["-started_at"]
         indexes = [
             models.Index(fields=["-started_at"]),
