@@ -10,6 +10,7 @@
 
 ## Progress Updates
 - 2025-11-14: Plan drafted; documentation review underway.
+- 2025-11-17: User manual section 4.1.7 (Workspaces) drafted and committed in thoth_docs.
 
 ## Issue ✅ RESOLVED
 - **Informix Foreign Key Detection Failure**: Database `olimpix` has 210 FK constraints but `create_relationships` action detected 0 relationships.
