@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Marco Pancotti
+// Copyright (c) 2025 Tyl Consulting di Pancotti Marco
 // Licensed under the Apache License, Version 2.0
 
 'use client';

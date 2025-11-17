@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Tyl Consulting di Pancotti Marco
+
 """Synchronize local database dependencies based on config.yml.local."""
 
 from __future__ import annotations

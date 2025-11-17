@@ -1,5 +1,16 @@
 # Current Task Plan
 
+## Issue
+- Update the frontend Documentation page so it mirrors key narratives from `/Users/mp/Thoth/thoth_docs`.
+
+## Plan
+1. **Content Analysis** – Review MkDocs sections (index, quickstart, docker install) to capture the story, lingua, and assets to bring into the React page, noting any translation needs.
+2. **UI Rewrite** – Adapt `frontend/app/documentation/page.tsx` with the new content structure (intro, feature pillars, quickstart, install, architecture) while keeping the authenticated header intact.
+3. **Validation** – Run a sanity pass for React/TypeScript errors, verify component imports, and ensure links/images resolve correctly.
+
+## Progress Updates
+- 2025-11-14: Plan drafted; documentation review underway.
+
 ## Issue ✅ RESOLVED
 - **Informix Foreign Key Detection Failure**: Database `olimpix` has 210 FK constraints but `create_relationships` action detected 0 relationships.
 

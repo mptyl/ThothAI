@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Tyl Consulting di Pancotti Marco
 """Generate .env.local from config.yml.local for local ThothAI development."""
 
 from __future__ import annotations

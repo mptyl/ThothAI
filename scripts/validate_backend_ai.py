@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025 Tyl Consulting di Pancotti Marco
 """
 Validate BACKEND_AI_PROVIDER and BACKEND_AI_MODEL from environment or YAML config.
 
