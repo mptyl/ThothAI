@@ -111,7 +111,7 @@ backend/
 
 frontend/
 ├── sql_generator/       # FastAPI SQL generation service
-│   ├── agents/         # PydanticAI agents
+│   ├── agents/         # PydanticAI agents (Core, Tools, Validators)
 │   └── logs/          # SQL generator logs (local only)
 ├── src/                # Next.js application source
 └── public/            # Static assets
@@ -141,6 +141,7 @@ frontend/
 - **Format**: Absolute path to directory with `dev_databases/` subdirectory
 - **Example**: `/Users/username/test_data` containing `dev_databases/*.json`
 - **Usage**: Required for SQL generation testing and validation
+
 ### SSH Tunnel Support for Databases
 - **Enable via Admin**: In Django Admin → *SQL databases*, toggle **SSH Tunnel** to reach databases behind bastion hosts.
 - **Credentials**: Supports password, private key, or both. Password/passphrase fields include a visibility toggle (👁️) and are stored server-side without ever hitting logs.
@@ -184,18 +185,29 @@ frontend/
 
 ## 🤖 SQL Generation Process
 
-ThothAI uses a multi-agent architecture powered by PydanticAI for intelligent SQL generation:
+ThothAI uses a sophisticated multi-agent architecture powered by PydanticAI for intelligent SQL generation:
 
-1. **Question Analysis**: Natural language processing to understand user intent
-2. **Schema Retrieval**: LSH-based schema matching + vector similarity search
-3. **SQL Generation**: Multiple PydanticAI agents generate candidate queries
-4. **Validation & Selection**: Evaluator agent validates syntax and selects best query
-5. **Execution & Formatting**: Query execution with result pagination and explanation
+1. **Question Analysis**: 
+   - **Validator Agent**: Checks if the question is relevant to the database.
+   - **Translator Agent**: Translates non-English questions to English/SQL context.
+   - **Keyword Extractor**: Identifies key entities and terms.
+2. **Schema Retrieval**: LSH-based schema matching + vector similarity search to find relevant tables and columns.
+3. **SQL Generation**: 
+   - **SQL Agents (Basic/Advanced/Expert)**: Specialized agents generate SQL candidates based on complexity.
+4. **Validation & Selection**: 
+   - **Test Generator Agent**: Creates validation tests based on the question and schema.
+   - **Evaluator Agent**: Validates SQL candidates against generated tests.
+   - **Selection Logic**: Selects the best performing query (Gold/Silver status).
+5. **Execution & Formatting**: Query execution with result pagination and explanation via **Explainer Agent**.
 
 ### Agent System
-- **test_generator_with_evaluator**: Main SQL generation agent
-- **sql_selector_agent**: Selects best SQL from candidates
-- **test_reducer_agent**: Optimizes test cases
+- **question_validator_agent**: Validates user questions for relevance and safety.
+- **question_translator_agent**: Handles multi-language support.
+- **keyword_extraction_agent**: Extracts domain-specific keywords.
+- **sql_basic/advanced/expert_agent**: Tiered agents for generating SQL queries of varying complexity.
+- **test_gen_agent**: Generates unit tests to validate SQL candidates.
+- **evaluator_agent**: Evaluates SQL performance against tests.
+- **sql_explainer_agent**: Generates human-readable explanations of the SQL logic.
 
 ## 🔧 Configuration
 
