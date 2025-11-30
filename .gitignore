@@ -172,3 +172,4 @@ Thumbs.db
 *.pid.lock
 
 .mcp.json
+video_scripts/
