@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { LogOut, Sparkles } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog'
 import { useRouter } from 'next/navigation'
 
 // Disable static generation for this page
@@ -19,10 +20,15 @@ export const dynamic = 'force-dynamic'
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('database')
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
   const router = useRouter()
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true)
+  }
+
+  const handleConfirmLogout = async () => {
     try {
       await logout()
       router.push('/login')
@@ -51,9 +57,9 @@ export default function SettingsPage() {
               {user?.first_name} {user?.last_name}
             </span>
             <ThemeToggle />
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout}
+            <Button
+              variant="ghost"
+              onClick={handleLogoutClick}
               className="flex items-center gap-2 px-3"
               title="Logout from ThothAI"
             >
@@ -102,6 +108,14 @@ export default function SettingsPage() {
       </Tabs>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmationDialog
+        open={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleConfirmLogout}
+        isLoggingOut={isLoading}
+      />
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { Send, Sparkles, Loader2, LogOut, Bot, User, Database, Code2, Brain, Zap
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
+import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 import { useWorkspace } from '@/lib/contexts/workspace-context';
 import { useSidebar } from '@/lib/contexts/sidebar-context';
 import { sqlGeneratorApi, GenerateSQLResponse } from '@/lib/sql-generator-api';
@@ -182,7 +183,8 @@ export default function ChatPage() {
   const [thothaiLogMessage, setThothLogMessage] = useState('');
   const [isLogBlinking, setIsLogBlinking] = useState(false);
   const [likeButtonEnabled, setLikeButtonEnabled] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { selectedWorkspace } = useWorkspace();
   const { flags, strategy, setOperationInProgress } = useSidebar();
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -309,7 +311,11 @@ export default function ChatPage() {
     };
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const handleConfirmLogout = async () => {
     try {
       await logout();
     } catch (error) {
@@ -687,9 +693,9 @@ export default function ChatPage() {
               {user?.first_name} {user?.last_name}
             </span>
             <ThemeToggle />
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout}
+            <Button
+              variant="ghost"
+              onClick={handleLogoutClick}
               className="flex items-center gap-2 px-3"
               title="Logout from ThothAI"
             >
@@ -1062,6 +1068,14 @@ export default function ChatPage() {
           </form>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmationDialog
+        open={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleConfirmLogout}
+        isLoggingOut={isLoading}
+      />
     </div>
   );
 }

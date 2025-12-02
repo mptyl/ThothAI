@@ -7,14 +7,21 @@
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/lib/auth-context';
+import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 import { LogOut, Database, MessageSquare, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 export function WelcomeScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const router = useRouter();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const handleConfirmLogout = async () => {
     try {
       await logout();
     } catch (error) {
@@ -42,9 +49,9 @@ export function WelcomeScreen() {
         
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout}
+          <Button
+            variant="ghost"
+            onClick={handleLogoutClick}
             className="flex items-center gap-2 px-3"
             title="Logout from ThothAI"
           >
@@ -119,6 +126,14 @@ export function WelcomeScreen() {
           <p className="text-xs opacity-70">ThothAI UI v0.1.0</p>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmationDialog
+        open={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleConfirmLogout}
+        isLoggingOut={isLoading}
+      />
     </div>
   );
 }

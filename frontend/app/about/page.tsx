@@ -4,7 +4,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,11 +12,17 @@ import { Button } from '@/components/ui/button';
 import { ExternalLink, Database, Brain, Code2, Users, Mail, Linkedin, Info, LogOut, Key } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAuth } from '@/lib/auth-context';
+import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 
 export default function AboutPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutDialog(true);
+  };
+
+  const handleConfirmLogout = async () => {
     try {
       await logout();
     } catch (error) {
@@ -44,9 +50,9 @@ export default function AboutPage() {
               {user?.first_name} {user?.last_name}
             </span>
             <ThemeToggle />
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout}
+            <Button
+              variant="ghost"
+              onClick={handleLogoutClick}
               className="flex items-center gap-2 px-3"
               title="Logout from ThothAI"
             >
@@ -322,6 +328,14 @@ export default function AboutPage() {
       </Card>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmationDialog
+        open={showLogoutDialog}
+        onOpenChange={setShowLogoutDialog}
+        onConfirm={handleConfirmLogout}
+        isLoggingOut={isLoading}
+      />
     </div>
   );
 }
