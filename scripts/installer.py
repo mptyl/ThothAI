@@ -755,11 +755,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Thoth AI Installer')
     parser.add_argument('--no-cache', action='store_true',
                         help='Build Docker images without cache')
+    parser.add_argument('--generate-env-only', action='store_true',
+                        help='Generate .env.docker and exit (no Docker actions)')
     parser.add_argument('--config', default='config.yml.local',
                         help='Path to configuration file (default: config.yml.local)')
     args = parser.parse_args()
     
     # Create installer with parsed arguments
     installer = ThothInstaller(config_path=args.config, no_cache=args.no_cache)
+
+    if args.generate_env_only:
+        if not installer.load_config():
+            sys.exit(1)
+        if not installer.generate_env_docker():
+            sys.exit(1)
+        sys.exit(0)
+
     if not installer.run():
         sys.exit(1)

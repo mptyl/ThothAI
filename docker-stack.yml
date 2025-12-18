@@ -1,0 +1,287 @@
+# Copyright (c) 2025 Tyl Consulting di Pancotti Marco
+# This file is part of Thoth and is released under the MIT License.
+# See the LICENSE.md file in the project root for full license information.
+#
+# Docker Stack configuration for Docker Swarm deployment
+# Use: docker stack deploy -c docker-stack.yml thoth
+
+version: '3.8'
+
+services:
+  # === BACKEND SERVICE ===
+  backend:
+    image: ${REGISTRY_URL}/thoth-backend:${VERSION:-latest}
+    networks:
+      - thoth-network
+    volumes:
+      - thoth-backend-db:/app/backend_db
+      - thoth-shared-data:/app/data
+      - thoth-logs:/app/logs
+      - backend-static:/vol/static
+      - backend-media:/vol/media
+    environment:
+      - HOST_IP=host.docker.internal
+      - DOCKER_ENV=production
+      - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
+      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
+      - DOCKER_CONTAINER=true
+    secrets:
+      - thoth_env_config
+      - thoth_config_yml
+    configs:
+      - source: thoth_env_docker
+        target: /app/.env.docker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 1200s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # === FRONTEND SERVICE ===
+  frontend:
+    image: ${REGISTRY_URL}/thoth-frontend:${VERSION:-latest}
+    networks:
+      - thoth-network
+    ports:
+      - target: 3000
+        published: ${FRONTEND_PORT:-3040}
+        protocol: tcp
+        mode: ingress
+    volumes:
+      - frontend-cache:/app/.next/cache
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - DJANGO_SERVER=http://proxy:80
+      - SQL_GENERATOR_URL=http://sql-generator:8020
+      - DOCKER_CONTAINER=true
+      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT:-8040}
+      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-8020}
+    secrets:
+      - thoth_env_config
+    configs:
+      - source: thoth_env_docker
+        target: /app/.env.docker
+    deploy:
+      replicas: 2
+      placement:
+        max_replicas_per_node: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # === SQL GENERATOR SERVICE ===
+  sql-generator:
+    image: ${REGISTRY_URL}/thoth-sql-generator:${VERSION:-latest}
+    networks:
+      - thoth-network
+    ports:
+      - target: 8020
+        published: ${SQL_GENERATOR_PORT:-8020}
+        protocol: tcp
+        mode: ingress
+    volumes:
+      - thoth-shared-data:/app/data
+      - thoth-logs:/app/logs
+    environment:
+      - DOCKER_CONTAINER=true
+      - PORT=8020
+      - DJANGO_SERVER=http://backend:8000
+      - VECTOR_DB_HOST=thoth-qdrant
+      - VECTOR_DB_PORT=6333
+      - DB_ROOT_PATH=/app/data
+    secrets:
+      - thoth_env_config
+    configs:
+      - source: thoth_env_docker
+        target: /app/.env.docker
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # === PROXY SERVICE ===
+  proxy:
+    image: ${REGISTRY_URL}/thoth-proxy:${VERSION:-latest}
+    networks:
+      - thoth-network
+    ports:
+      - target: 80
+        published: ${WEB_PORT:-8040}
+        protocol: tcp
+        mode: ingress
+    volumes:
+      - backend-static:/vol/static:ro
+      - backend-media:/vol/media:ro
+    environment:
+      - APP_HOST=backend
+      - APP_PORT=8000
+      - FRONTEND_HOST=frontend
+      - FRONTEND_PORT=3000
+      - SQL_GEN_HOST=sql-generator
+      - SQL_GEN_PORT=8020
+      - DEBUG=False
+    deploy:
+      replicas: 2
+      placement:
+        max_replicas_per_node: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # === MERMAID SERVICE ===
+  mermaid-service:
+    image: ${REGISTRY_URL}/thoth-mermaid-service:${VERSION:-latest}
+    networks:
+      - thoth-network
+    ports:
+      - target: 8001
+        published: ${MERMAID_SERVICE_PORT:-8003}
+        protocol: tcp
+        mode: ingress
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  # === VECTOR DATABASE SERVICE ===
+  thoth-qdrant:
+    image: qdrant/qdrant:latest
+    networks:
+      - thoth-network
+    ports:
+      - target: 6333
+        published: 6333
+        protocol: tcp
+        mode: ingress
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+volumes:
+  backend-static:
+    driver: local
+  backend-media:
+    driver: local
+  frontend-cache:
+    driver: local
+  qdrant-data:
+    driver: local
+  thoth-backend-db:
+    driver: local
+  thoth-logs:
+    driver: local
+  thoth-shared-data:
+    driver: local
+
+networks:
+  thoth-network:
+    driver: overlay
+    attachable: true
+
+secrets:
+  thoth_env_config:
+    external: true
+  thoth_config_yml:
+    external: true
+
+configs:
+  thoth_env_docker:
+    external: true
