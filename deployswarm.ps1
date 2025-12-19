@@ -5,7 +5,8 @@ param(
     [int]$BackendPort = 8040,
     [int]$SqlGeneratorPort = 8020,
     [int]$MermaidPort = 8003,
-    [int]$WebPort = 8040
+    [int]$WebPort = 8040,
+    [string]$StackFile = "docker-stack.yml"
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,10 +24,11 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Fail "Docker non 
 try { docker info --format '{{.Swarm.LocalNodeState}}' | Select-String -Pattern "active" -Quiet | Out-Null } catch { }
 if ($LASTEXITCODE -ne 0) { Fail "Swarm non attivo. Esegui 'docker swarm init' o unisciti a un cluster." }
 
-# Richiede secrets/config già creati: thoth_env_config, thoth_config_yml, thoth_env_docker
 # Richiede immagini già buildate e presenti nel registry con $RegistryUrl e $Version
+# Se usi docker-stack.yml sono richiesti secrets/config esterni. Se non li hai,
+# usa docker-stack-simple.yml (env_file .env.docker) con parametro -StackFile docker-stack-simple.yml
 
-# Imposta variabili d'ambiente per docker stack deploy
+# Imposta variabili d'ambiente per docker stack deploy (per le variabili ${...} nel compose)
 $env:REGISTRY_URL = $RegistryUrl
 $env:VERSION = $Version
 $env:FRONTEND_PORT = $FrontendPort
@@ -44,7 +46,7 @@ Write-Host "  WEB_PORT=$WebPort" -ForegroundColor Gray
 
 # Deploy dello stack
 $stackName = "thoth"
-docker stack deploy -c docker-stack.yml $stackName
+docker stack deploy -c $StackFile $stackName
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Deploy avviato. Verifica con: docker stack services $stackName" -ForegroundColor Green
