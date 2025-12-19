@@ -42,6 +42,19 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Fail "Docker non 
 & $python scripts/validate_config.py config.yml.local
 & $python scripts/configure_embedding.py config.yml.local
 & $python scripts/installer.py --generate-env-only
+& $python scripts/merge_pyproject.py backend
+& $python scripts/merge_pyproject.py frontend/sql_generator
+
+# Verifica che i file generati esistano prima del build
+if (-not (Test-Path "backend/pyproject.toml.merged")) {
+    Fail "backend/pyproject.toml.merged mancante. Rigenera con: $python scripts/merge_pyproject.py backend"
+}
+if (-not (Test-Path "backend/uv.lock")) {
+    Fail "backend/uv.lock mancante. Rigenera con: $python scripts/installer.py --generate-env-only"
+}
+if (-not (Test-Path "frontend/sql_generator/pyproject.toml.merged")) {
+    Fail "frontend/sql_generator/pyproject.toml.merged mancante. Rigenera con: $python scripts/merge_pyproject.py frontend/sql_generator"
+}
 
 # PowerShell 5.1 compat: niente operatore ternario
 if ($NoCache.IsPresent) {
