@@ -12,6 +12,22 @@ function Fail($msg) { Write-Host $msg -ForegroundColor Red; exit 1 }
 $scriptPath = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }
 Set-Location $scriptPath
 
+# Normalizza CRLF -> LF per gli script usati in build (richiede dos2unix in PATH)
+if (Get-Command dos2unix -ErrorAction SilentlyContinue) {
+    $targets = @()
+    $targets += Get-ChildItem -Path "docker" -Recurse -Include *.sh -File -ErrorAction SilentlyContinue
+    $targets += Get-ChildItem -Path "backend" -Recurse -Include *.sh -File -ErrorAction SilentlyContinue
+    $targets += Get-ChildItem -Path "frontend" -Recurse -Include *.sh -File -ErrorAction SilentlyContinue
+    if ($targets.Count -gt 0) {
+        Write-Host "Normalizzazione line ending con dos2unix..." -ForegroundColor Cyan
+        foreach ($f in $targets) { dos2unix $f.FullName *> $null }
+    } else {
+        Write-Host "Nessun file .sh trovato per dos2unix" -ForegroundColor DarkGray
+    }
+} else {
+    Write-Host "dos2unix non trovato: salta normalizzazione CRLF. Installalo o usa Git for Windows per aggiungerlo al PATH." -ForegroundColor Yellow
+}
+
 # Prerequisiti
 if (-not (Test-Path "config.yml.local")) { Fail "config.yml.local mancante" }
 $python = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" }
