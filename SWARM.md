@@ -59,7 +59,7 @@ chmod +x stackswarm.sh
 # variabili di default già nel file; puoi sovrascrivere al volo
 export VERSION="0.1"                          # tag pushato
 export REGISTRY_URL="registry.uni.com/tylconsulting/thothai"
-export FRONTEND_PORT=3040 BACKEND_PORT=8040 SQL_GENERATOR_PORT=8020 WEB_PORT=8040
+export WEB_PORT=7400 FRONTEND_PORT=7401 SQL_GENERATOR_PORT=7402 MERMAID_SERVICE_PORT=7403
 
 # se vuoi usare lo stack semplice (env_file .env.docker)
 ./stackswarm.sh
@@ -82,6 +82,19 @@ docker stack ps thoth
 - Per cambiare porte o tag, esporta le variabili prima di lanciare `stackswarm.sh`.
 - Assicurati di pushare con lo stesso tag che poi imposti in `VERSION` sul server.
 
+## Porte (rimappatura Swarm: range 7400–7420)
+
+Nel file `docker-stack-simple.yml` le porte esterne che in `docker-compose.yml` erano su `80xx` o `30xx` sono state rimappate nel range `7400–7420`.
+
+Mapping (porta host → porta container):
+
+- `7400` → `proxy:80` (UI + API via Nginx)
+- `7401` → `frontend:3000` (Next.js)
+- `7402` → `sql-generator:8020` (FastAPI)
+- `7403` → `thoth-mermaid-service:8001` (Mermaid rendering)
+
+Nota: `thoth-qdrant` resta esposto su `6333:6333` (non fa parte del gruppo `80xx/30xx`).
+
 ## Volumi e persistenza (Swarm multi-nodo)
 
 Con Docker Swarm su più nodi, la gestione dei volumi è un punto critico: per default **i volumi non “seguono” il container** se un servizio viene riprogrammato su un nodo diverso.
@@ -91,16 +104,52 @@ Con Docker Swarm su più nodi, la gestione dei volumi è un punto critico: per d
 Nel file `docker-stack-simple.yml` sono presenti:
 
 - **Named volumes (driver `local`)**
-  - `thoth-backend-db` (SQLite del backend)
-  - `qdrant-data` (storage Qdrant)
-  - `thoth-shared-data`, `thoth-logs`, `backend-static`, `backend-media`, `frontend-cache`
+  - `thoth-backend-db`
+    - **Tipo dato**: dati applicativi (persistenti)
+    - **Contenuto**: database SQLite del backend (`/app/backend_db/db.sqlite3`)
+    - **Note**: stateful; da backuppare
+  - `qdrant-data`
+    - **Tipo dato**: dati applicativi (persistenti)
+    - **Contenuto**: storage del vector DB Qdrant (`/qdrant/storage`)
+    - **Note**: stateful; da backuppare
+  - `thoth-shared-data`
+    - **Tipo dato**: dati applicativi / dataset (persistenti)
+    - **Contenuto**: cartella dati condivisa tra servizi (`/app/data`), usata anche come `DB_ROOT_PATH` dal SQL Generator
+    - **Servizi**: `backend`, `sql-generator`
+  - `thoth-logs`
+    - **Tipo dato**: log (persistenti)
+    - **Contenuto**: log applicativi (`/app/logs`) scritti da backend e sql-generator
+    - **Servizi**: `backend`, `sql-generator`
+  - `backend-static`
+    - **Tipo dato**: asset statici (persistenti, read-only dal proxy)
+    - **Contenuto**: file statici Django (`/vol/static`) serviti dal proxy
+    - **Servizi**: `backend` (scrive), `proxy` (legge) se montato
+  - `backend-media`
+    - **Tipo dato**: file utente / upload (persistenti, read-only dal proxy)
+    - **Contenuto**: media Django (`/vol/media`) serviti dal proxy
+    - **Servizi**: `backend` (scrive), `proxy` (legge) se montato
+  - `frontend-cache`
+    - **Tipo dato**: cache build/runtime (non critico)
+    - **Contenuto**: cache Next.js (`/app/.next/cache`), utile per performance ma ricreabile
+    - **Servizi**: `frontend`
   - In Swarm, con driver `local`, questi volumi sono **locali al nodo** dove gira il task. Se Swarm sposta il servizio su un altro nodo, verrà usato/creato un volume omonimo **su quel nodo**, che non contiene i dati del nodo precedente.
 
 - **Bind mount (path host `./...`)**
   - `./data_exchange:/app/data_exchange`
+    - **Tipo dato**: file di scambio con l’esterno di Docker (import/export)
+    - **Contenuto**: cartella condivisa tra host e container per CSV/documenti/backup e output runtime
+    - **Servizi**: `backend` (rw), `sql-generator` (rw), `frontend` (ro)
   - `./config.yml.local:/app/config.yml.local:ro`
+    - **Tipo dato**: configurazione (file)
+    - **Contenuto**: configurazione locale dell’istanza (API keys/ports/provider), letta in runtime
+    - **Servizi**: `backend`
   - `./frontend/public:/app/public:ro`
+    - **Tipo dato**: asset UI (file)
+    - **Contenuto**: asset statici del frontend (icone/immagini), montati read-only
+    - **Servizi**: `frontend`
   - In Swarm, un bind mount funziona solo se **quel path esiste sul nodo** dove viene schedulato il container. Se i file/cartelle non sono presenti su tutti i nodi (o non sono condivisi via NFS), il task può fallire in startup.
+
+Nota: nello stack “semplice” attuale (`docker-stack-simple.yml`) il servizio `proxy` non monta `backend-static`, `backend-media` e `data_exchange` (a differenza di `docker-compose.yml`). Se ti serve servire correttamente `/static` e `/media` via Nginx o esporre `data_exchange` dal proxy, aggiungi i mount anche nel servizio `proxy`.
 
 ### Raccomandazioni per ambienti multi-nodo
 
