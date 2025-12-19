@@ -33,9 +33,9 @@ COPY components ./components
 COPY lib ./lib
 COPY public ./public
 
-# Build arguments for public URLs
-ARG NEXT_PUBLIC_DJANGO_SERVER
-ARG NEXT_PUBLIC_SQL_GENERATOR_URL
+# Build arguments for public URLs (defaults for standalone builds)
+ARG NEXT_PUBLIC_DJANGO_SERVER=http://localhost:8040
+ARG NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:8020
 ENV NEXT_PUBLIC_DJANGO_SERVER=$NEXT_PUBLIC_DJANGO_SERVER
 ENV NEXT_PUBLIC_SQL_GENERATOR_URL=$NEXT_PUBLIC_SQL_GENERATOR_URL
 
