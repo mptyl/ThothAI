@@ -12,6 +12,7 @@
 - 2025-11-14: Plan drafted; documentation review underway.
 - 2025-11-17: User manual section 4.1.7 (Workspaces) drafted and committed in thoth_docs.
 - 2025-12-19: Docker Swarm port remap: updated docker-stack-simple.yml to map proxy/frontend/sql-generator/mermaid external ports into 7400–7420 range.
+- 2025-12-19: Updated SWARM_VOLUMES.md to correct Swarm volume guidance (NFS via local driver_opts, bind mounts per-node, backup notes, SQLite on NFS warning).
 
 ## Issue ✅ RESOLVED
 - **Informix Foreign Key Detection Failure**: Database `olimpix` has 210 FK constraints but `create_relationships` action detected 0 relationships.
