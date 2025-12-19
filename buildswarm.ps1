@@ -43,7 +43,12 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Fail "Docker non 
 & $python scripts/configure_embedding.py config.yml.local
 & $python scripts/installer.py --generate-env-only
 
-$cacheFlag = $NoCache.IsPresent ? "--no-cache" : ""
+# PowerShell 5.1 compat: niente operatore ternario
+if ($NoCache.IsPresent) {
+    $cacheFlag = "--no-cache"
+} else {
+    $cacheFlag = ""
+}
 
 # Build immagini (context root, Dockerfile in docker/)
 docker build $cacheFlag -f docker/backend.Dockerfile           -t "$RegistryUrl/thoth-backend:$Version"           .
