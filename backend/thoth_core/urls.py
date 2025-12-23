@@ -14,6 +14,7 @@ from django.urls import path
 from . import views
 from .views import TableColumnsDetailView, ThothLogListCreateView, ThothLogDetailView
 from .auth_callback import AdminCallbackView
+from .api_views import data_exchange_views
 
 urlpatterns = [
     path("", views.index, name="index"),
@@ -88,5 +89,26 @@ urlpatterns = [
         "api/generate-frontend-token/",
         views.generate_frontend_token,
         name="generate-frontend-token",
+    ),
+    # Data exchange API endpoints
+    path(
+        "api/data-exchange/list/",
+        data_exchange_views.list_files,
+        name="data_exchange_list",
+    ),
+    path(
+        "api/data-exchange/upload/",
+        data_exchange_views.upload_file,
+        name="data_exchange_upload",
+    ),
+    path(
+        "api/data-exchange/download/<str:filename>/",
+        data_exchange_views.download_file,
+        name="data_exchange_download",
+    ),
+    path(
+        "api/data-exchange/delete/<str:filename>/",
+        data_exchange_views.delete_file,
+        name="data_exchange_delete",
     ),
 ]

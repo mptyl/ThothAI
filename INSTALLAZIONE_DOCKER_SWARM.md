@@ -52,27 +52,72 @@ docker node ls
 
 ThothAI è composta da **6 servizi** interconnessi:
 
-| Servizio | Descrizione | Porta | Replicas |
-|----------|-------------|-------|----------|
-| **backend** | Django REST API + Admin | 8000 (interno) | 1 |
-| **frontend** | Next.js Web App | 3040 | 2 |
-| **sql-generator** | FastAPI + PydanticAI agents | 8020 | 1 |
-| **proxy** | Nginx reverse proxy | 8040 | 2 |
-| **mermaid-service** | Generazione diagrammi | 8003 | 1 |
-| **thoth-qdrant** | Vector database (Qdrant) | 6333 | 1 |
+| Servizio | Descrizione | Porta Swarm (default) | Porta Interna | Replicas |
+|----------|-------------|----------------------|---------------|----------|
+| **proxy** | Nginx reverse proxy | 7000 | 80 | 2 |
+| **frontend** | Next.js Web App | 7001 | 3000 | 2 |
+| **backend** | Django REST API + Admin | 7002 (via proxy) | 8000 | 1 |
+| **sql-generator** | FastAPI + PydanticAI agents | 7003 | 8020 | 1 |
+| **mermaid-service** | Generazione diagrammi | 7004 | 8001 | 1 |
+| **thoth-qdrant** | Vector database (Qdrant) | 7005 | 6333 | 1 |
+
+### Volumi Condivisi
+
+| Volume | Descrizione | Accesso |
+|--------|-------------|---------|
+| **thoth-data-exchange** | Volume per scambio dati tra servizi | backend, frontend (ro), sql-generator, proxy (ro) |
+| **thoth-backend-db** | Database SQLite backend | backend |
+| **thoth-qdrant-data** | Storage Qdrant vector DB | thoth-qdrant |
+| **thoth-logs** | Log applicativi | backend, sql-generator |
+| **backend-static** | File statici Django | backend, proxy (ro) |
+| **backend-media** | File media Django | backend, proxy (ro) |
 
 ### Flusso di Comunicazione
 
 ```
-User → proxy:8040 → backend:8000 (API/Admin)
-                  → frontend:3000 (Web UI)
-                  → sql-generator:8020 (SQL Gen)
+User → proxy:7000 → backend:8000 (API/Admin via proxy)
+                   → frontend:3000 (Web UI)
+                   → sql-generator:8020 (SQL Gen via proxy)
 
 frontend → backend (API calls)
-         → sql-generator (SQL generation)
+          → sql-generator (SQL generation)
+          → thoth-data-exchange (lettura file)
 
 sql-generator → backend (metadata)
-              → thoth-qdrant (vector search)
+               → thoth-qdrant (vector search)
+               → thoth-data-exchange (lettura/scrittura file)
+
+proxy → thoth-data-exchange (lettura file statici/media)
+```
+
+### Volume thoth-data-exchange
+
+Il volume **thoth-data-exchange** è un volume condiviso Docker Swarm che permette lo scambio di file tra i servizi:
+
+**Caratteristiche:**
+- **Persistenza**: I dati persistono anche se i container vengono ricreati
+- **Accesso multi-servizio**: Montato su backend (RW), frontend (RO), sql-generator (RW), proxy (RO)
+- **Uso tipico**: Import/export CSV, documenti, backup, file temporanei
+
+**Permessi:**
+- **backend**: Read/Write - può creare e modificare file
+- **sql-generator**: Read/Write - può leggere e generare file
+- **frontend**: Read-Only - può solo leggere file (es. per download)
+- **proxy**: Read-Only - serve file statici e media
+
+**Esempi di utilizzo:**
+```bash
+# Copiare file nel volume dal host
+docker cp local_file.csv $(docker ps -q -f name=thoth_backend):/app/data_exchange/
+
+# Eseguire comando nel container per accedere al volume
+docker exec -it $(docker ps -q -f name=thoth_backend) ls -la /app/data_exchange/
+
+# Backup del volume
+docker run --rm \
+  -v thoth-data-exchange:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/data-exchange-backup.tar.gz -C /data .
 ```
 
 ---
@@ -119,12 +164,14 @@ embedding:
   api_key: "sk-..."
   model: "text-embedding-3-small"
 
-# === PORTE (opzionale, default mostrati) ===
+# === PORTE (opzionale, default mostrati per Swarm) ===
 ports:
-  frontend: 3040
-  backend: 8040
-  sql_generator: 8020
-  mermaid_service: 8003
+  web: 7000              # Proxy Nginx (accesso principale)
+  frontend: 7001         # Frontend Next.js
+  backend: 7002          # Backend Django (via proxy)
+  sql_generator: 7003    # SQL Generator FastAPI
+  mermaid_service: 7004  # Mermaid Service
+  qdrant: 7005           # Qdrant Vector DB
 
 # === ADMIN (opzionale) ===
 admin:
@@ -324,11 +371,12 @@ Creare un file `.env.swarm` con le variabili per il deploy:
 cat > .env.swarm << EOF
 REGISTRY_URL=registry.uni.com/tylconsulting/ThothAI
 VERSION=0.1
-FRONTEND_PORT=3040
-BACKEND_PORT=8040
-SQL_GENERATOR_PORT=8020
-MERMAID_SERVICE_PORT=8003
-WEB_PORT=8040
+WEB_PORT=7000              # Proxy Nginx
+FRONTEND_PORT=7001         # Frontend Next.js
+BACKEND_PORT=7002          # Backend Django (via proxy)
+SQL_GENERATOR_PORT=7003    # SQL Generator FastAPI
+MERMAID_SERVICE_PORT=7004  # Mermaid Service
+QDRANT_PORT=7005           # Qdrant Vector DB
 EOF
 ```
 
@@ -388,11 +436,67 @@ docker service logs -f thoth_backend
 
 Dopo il deploy completo:
 
-- **Frontend**: <http://localhost:3040> (o IP del nodo Swarm)
-- **Admin Django**: <http://localhost:8040/admin>
-- **API Backend**: <http://localhost:8040/api>
-- **SQL Generator**: <http://localhost:8020/docs> (Swagger UI)
-- **Qdrant Dashboard**: <http://localhost:6333/dashboard>
+#### Accesso Diretto (Porte Esterne)
+- **Frontend**: <http://localhost:7001> (o IP del nodo Swarm)
+- **SQL Generator**: <http://localhost:7003/docs> (Swagger UI)
+- **Mermaid Service**: <http://localhost:7004>
+- **Qdrant Dashboard**: <http://localhost:7005/dashboard>
+- **Backend**: <http://localhost:7002> ⚠️ **DA AGGIUNGERE** (vedi nota sotto)
+
+#### Accesso via Proxy (Porta 7000)
+Il proxy Nginx sulla porta **7000** funge da punto di accesso principale con routing basato sui path:
+
+| Path | Destinazione | Descrizione |
+|-------|--------------|-------------|
+| `/` | Backend (Django) | Home page Django |
+| `/admin` | Backend (Django) | Admin panel Django |
+| `/api` | Backend (Django) | REST API |
+| `/static` | Backend (Django) | File statici |
+| `/media` | Backend (Django) | File media |
+| `/exports` | Volume data-exchange | File condivisi |
+| `/frontend/` | Frontend (Next.js) | Web UI |
+| `/sql-generator/` | SQL Generator | API SQL generation |
+
+**Accesso via proxy:**
+- **Frontend**: <http://localhost:7000/frontend/>
+- **Admin Django**: <http://localhost:7000/admin>
+- **API Backend**: <http://localhost:7000/api>
+- **Home Django**: <http://localhost:7000/>
+- **SQL Generator**: <http://localhost:7000/sql-generator/>
+
+⚠️ **IMPORTANTE - Accesso Diretto al Backend**:
+
+Il backend (Django) deve esporre una porta esterna diretta per l'accesso alla home page che implementa importanti funzionalità. Per abilitare l'accesso diretto al backend:
+
+1. Modificare [`docker-stack.yml`](docker-stack.yml:12) aggiungendo la sezione `ports` al servizio `backend`:
+
+```yaml
+backend:
+  image: ${REGISTRY_URL}/thoth-backend:${VERSION:-latest}
+  networks:
+    - thoth-network
+  ports:
+    - target: 8000
+      published: ${BACKEND_PORT:-7002}
+      protocol: tcp
+      mode: ingress
+  volumes:
+    # ... resto della configurazione
+```
+
+2. Aggiornare la variabile `BACKEND_PORT` nel file `.env.swarm` o esportarla:
+
+```bash
+export BACKEND_PORT=7002
+```
+
+3. Redeployare lo stack:
+
+```bash
+docker stack deploy -c docker-stack.yml thoth
+```
+
+Dopo questa modifica, il backend sarà accessibile direttamente su <http://localhost:7002> per la home page, mentre admin e API rimarranno accessibili anche via proxy.
 
 ### Credenziali Default Admin
 
@@ -433,17 +537,17 @@ docker events --filter 'type=service'
 ### Health Check
 
 ```bash
-# Backend health
-curl http://localhost:8040/admin/login/
+# Backend health (via proxy)
+curl http://localhost:7000/admin/login/
 
 # Frontend health
-curl http://localhost:3040
+curl http://localhost:7001
 
 # SQL Generator health
-curl http://localhost:8020/health
+curl http://localhost:7003/health
 
 # Qdrant health
-curl http://localhost:6333/
+curl http://localhost:7005/
 ```
 
 ---
@@ -645,11 +749,18 @@ docker run --rm \
   -v "$BACKUP_DIR":/backup \
   alpine tar czf /backup/qdrant-data.tar.gz -C /data .
 
+# Backup data-exchange (volume condiviso)
+docker run --rm \
+  -v thoth-data-exchange:/data \
+  -v "$BACKUP_DIR":/backup \
+  alpine tar czf /backup/data-exchange.tar.gz -C /data .
+
 # Backup configs
 cp .env.docker "$BACKUP_DIR/"
 cp config.yml.local "$BACKUP_DIR/"
 
 echo "Backup completato in $BACKUP_DIR"
+echo "Volumi backupati: backend-db, qdrant-data, data-exchange"
 EOF
 
 chmod +x backup-thoth.sh
@@ -707,7 +818,7 @@ Per problemi o domande:
 - [ ] Immagini buildate e pushate al registry
 - [ ] Secrets creati (`thoth_env_config`, `thoth_config_yml`)
 - [ ] File `.env.swarm` preparato con REGISTRY_URL e VERSION
-- [ ] Porte firewall aperte (3040, 8040, 8020, 6333)
+- [ ] Porte firewall aperte (7000, 7001, 7002, 7003, 7004, 7005)
 - [ ] Risorse sufficienti sul cluster (CPU, RAM, Disco)
 - [ ] Backup strategy definita
 - [ ] Monitoraggio configurato

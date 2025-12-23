@@ -13,17 +13,23 @@ services:
     image: ${REGISTRY_URL}/thoth-backend:${VERSION:-latest}
     networks:
       - thoth-network
+    ports:
+      - target: 8000
+        published: ${BACKEND_PORT:-7002}
+        protocol: tcp
+        mode: ingress
     volumes:
       - thoth-backend-db:/app/backend_db
       - thoth-shared-data:/app/data
       - thoth-logs:/app/logs
       - backend-static:/vol/static
       - backend-media:/vol/media
+      - thoth-data-exchange:/app/data_exchange
     environment:
       - HOST_IP=host.docker.internal
       - DOCKER_ENV=production
       - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
-      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
+      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-7001}
       - DOCKER_CONTAINER=true
     secrets:
       - thoth_env_config
@@ -65,11 +71,12 @@ services:
       - thoth-network
     ports:
       - target: 3000
-        published: ${FRONTEND_PORT:-3040}
+        published: ${FRONTEND_PORT:-7001}
         protocol: tcp
         mode: ingress
     volumes:
       - frontend-cache:/app/.next/cache
+      - thoth-data-exchange:/app/data_exchange:ro
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -77,8 +84,8 @@ services:
       - DJANGO_SERVER=http://proxy:80
       - SQL_GENERATOR_URL=http://sql-generator:8020
       - DOCKER_CONTAINER=true
-      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT:-8040}
-      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-8020}
+      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT:-7002}
+      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-7003}
     secrets:
       - thoth_env_config
     configs:
@@ -111,12 +118,13 @@ services:
       - thoth-network
     ports:
       - target: 8020
-        published: ${SQL_GENERATOR_PORT:-8020}
+        published: ${SQL_GENERATOR_PORT:-7003}
         protocol: tcp
         mode: ingress
     volumes:
       - thoth-shared-data:/app/data
       - thoth-logs:/app/logs
+      - thoth-data-exchange:/app/data_exchange
     environment:
       - DOCKER_CONTAINER=true
       - PORT=8020
@@ -157,12 +165,13 @@ services:
       - thoth-network
     ports:
       - target: 80
-        published: ${WEB_PORT:-8040}
+        published: ${WEB_PORT:-7000}
         protocol: tcp
         mode: ingress
     volumes:
       - backend-static:/vol/static:ro
       - backend-media:/vol/media:ro
+      - thoth-data-exchange:/vol/data_exchange:ro
     environment:
       - APP_HOST=backend
       - APP_PORT=8000
@@ -198,7 +207,7 @@ services:
       - thoth-network
     ports:
       - target: 8001
-        published: ${MERMAID_SERVICE_PORT:-8003}
+        published: ${MERMAID_SERVICE_PORT:-7004}
         protocol: tcp
         mode: ingress
     healthcheck:
@@ -228,7 +237,7 @@ services:
       - thoth-network
     ports:
       - target: 6333
-        published: 6333
+        published: 7005
         protocol: tcp
         mode: ingress
     volumes:
@@ -269,6 +278,8 @@ volumes:
   thoth-logs:
     driver: local
   thoth-shared-data:
+    driver: local
+  thoth-data-exchange:
     driver: local
 
 networks:
