@@ -1,48 +1,112 @@
+# === ThothAI Docker Ignore ===
+
 # Python
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
+**/__pycache__
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+**/.Python
+**/*.so
 **/.venv
 **/venv
 **/env
-**/.env
-**/_env
+**/pip-log.txt
+**/pip-delete-this-directory.txt
 
-# Node
+# Node / Frontend
 **/node_modules
 **/.next
 **/dist
 **/build
+**/out
+**/.cache
+**/.parcel-cache
+**/.webassets-cache
 
-# IDE
-.vscode
-.idea
+# IDEs & System
+.vscode/
+.idea/
 *.iml
-
-# OS
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
+desktop.ini
+.directory
+.Spotlight-V100
+.Trashes
 
 # Git
 .git
 .gitignore
+.gitattributes
+
+# Configuration & Secrets
+**/*.local
+.env
+.env.*
+!.env.template
+.env.docker
+.admin_password.hash
+.pypi-token
+swarm_config.env
+
+# Runtime Data & Volumes (Use bind mounts instead)
+data_exchange/
+qdrant_storage/
+postgres_data/
+exports/
+backend/logs/
+frontend/logs/
+frontend/sql_generator/logs/
+staticfiles/
+media/
+
+# AI Tooling & Metadata
+.claude/
+.roo/
+.windsurf/
+.uv-cache/
+.mcp.json
+
+# Documentation & Legacy
+docs/
+legacy/
+video_scripts/
+informix_and_olimpx/
+CHANGELOG.md
+AGENTS.md
+PLANNING.md
+VIDEO_TUTORIAL.md
+
+# Scripts (Host-only or redundant)
+*.ps1
+*.bat
+install.sh
+deploy-swarm.sh
+build-and-install.sh
+build-and-push-images.sh
+start-all.sh
+stackswarm.sh
+remove-sensitive-files.sh
+update_copyright_*.sh
 
 # Tests
-.pytest_cache
+.pytest_cache/
 .coverage
-htmlcov
+htmlcov/
+test-results/
+playwright-report/
+playwright/.cache/
+cs_test/
+backend/tests/reports/
 
-# Logs
-*.log
-logs/
-
-# Database
+# Database (Local SQLites)
 *.db
 *.sqlite
 *.sqlite3
+*.sqlite3-journal
 
-# Backend data directory (we copy from main data/ instead)
+# Backend specifically
 backend/data/

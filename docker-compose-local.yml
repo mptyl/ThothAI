@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # === MERMAID SERVICE ===
+  mermaid-service:
+    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-mermaid-service:${VERSION:-latest}
+    container_name: thoth-mermaid-service
+    restart: always
+    ports:
+      - "${MERMAID_SERVICE_PORT:-8003}:8001"
+    networks:
+      - thoth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # === VECTOR DATABASE SERVICE ===
+  thoth-qdrant:
+    image: qdrant/qdrant:latest
+    container_name: thoth-qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - thoth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  qdrant-data:
+    name: thoth-qdrant-data
+    external: true
+
+networks:
+  thoth-network:
+    external: true
+    name: thoth-network
