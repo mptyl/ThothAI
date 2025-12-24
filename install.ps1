@@ -53,12 +53,23 @@ function Test-PythonVersion {
 function Show-Usage {
     Write-ColorOutput "Usage: .\install.ps1 [OPTIONS]" "Blue"
     Write-ColorOutput ""
+    Write-ColorOutput "ThothAI Docker Compose Installer" "Yellow"
+    Write-ColorOutput "This script installs ThothAI using Docker Compose for local deployment." "White"
+    Write-ColorOutput ""
     Write-ColorOutput "Options:" "Yellow"
     Write-ColorOutput "  -CleanCache    Clean Docker build cache before building"
-    Write-ColorOutput "  -PruneAll      Remove all ThothAI Docker resources"
-    Write-ColorOutput "  -DryRun        Show what would be removed without removing"
-    Write-ColorOutput "  -Force          Skip confirmation prompt"
-    Write-ColorOutput "  -Help           Show this help message"
+    Write-ColorOutput "  -PruneAll      Remove all ThothAI Docker resources (containers, images, volumes, networks)"
+    Write-ColorOutput "  -DryRun        Show what would be removed without actually removing anything"
+    Write-ColorOutput "  -Force         Skip confirmation prompt (use with -PruneAll)"
+    Write-ColorOutput "  -Help          Show this help message"
+    Write-Host ""
+    Write-ColorOutput "Examples:" "Yellow"
+    Write-ColorOutput "  .\install.ps1                # Standard installation" "White"
+    Write-ColorOutput "  .\install.ps1 -CleanCache    # Clean build cache before installing" "White"
+    Write-ColorOutput "  .\install.ps1 -PruneAll      # Remove all ThothAI resources" "White"
+    Write-ColorOutput "  .\install.ps1 -PruneAll -DryRun  # Preview what would be removed" "White"
+    Write-Host ""
+    Write-ColorOutput "Note: For Docker Swarm deployment, use install-swarm.ps1 instead." "Yellow"
     Write-Host ""
 }
 
@@ -219,13 +230,76 @@ function Remove-DockerResources {
     Write-ColorOutput "All ThothAI Docker resources have been removed" "Green"
 }
 
+# Function to show deployment status
+function Show-DeploymentStatus {
+    Write-ColorOutput "============================================" "Blue"
+    Write-ColorOutput "       Deployment Status" "Blue"
+    Write-ColorOutput "============================================" "Blue"
+    Write-Host ""
+    
+    Write-ColorOutput "Docker Containers:" "Yellow"
+    $containers = docker ps --filter "name=thoth-" --format "table {{.Names}}`t{{.Status}}`t{{.Ports}}" 2>$null
+    if ($containers) {
+        Write-Host $containers
+    } else {
+        Write-ColorOutput "No containers running" "Gray"
+    }
+    Write-Host ""
+    
+    Write-ColorOutput "Docker Volumes:" "Yellow"
+    $volumes = docker volume ls --filter "name=^thoth-" --format "table {{.Name}}`t{{.Driver}}" 2>$null
+    if ($volumes) {
+        Write-Host $volumes
+    } else {
+        Write-ColorOutput "No volumes found" "Gray"
+    }
+    Write-Host ""
+    
+    Write-ColorOutput "Docker Networks:" "Yellow"
+    $networks = docker network ls --filter "name=thoth-" --format "table {{.Name}}`t{{.Driver}}" 2>$null
+    if ($networks) {
+        Write-Host $networks
+    } else {
+        Write-ColorOutput "No networks found" "Gray"
+    }
+    Write-Host ""
+}
+
+# Function to show access information
+function Show-AccessInfo {
+    Write-ColorOutput "============================================" "Blue"
+    Write-ColorOutput "       Access Information" "Blue"
+    Write-ColorOutput "============================================" "Blue"
+    Write-Host ""
+    
+    Write-ColorOutput "The following services are now available:" "Yellow"
+    Write-ColorOutput "  Main Application:  http://localhost:8040" "Green"
+    Write-ColorOutput "  Frontend Direct:   http://localhost:3040" "Green"
+    Write-ColorOutput "  Backend API:       http://localhost:8040/api" "Green"
+    Write-ColorOutput "  Admin Panel:       http://localhost:8040/admin" "Green"
+    Write-ColorOutput "  SQL Generator:     http://localhost:8020" "Green"
+    Write-ColorOutput "  Qdrant Dashboard:  http://localhost:6333/dashboard" "Green"
+    Write-ColorOutput "  Mermaid Service:   http://localhost:8003" "Green"
+    Write-Host ""
+    
+    Write-ColorOutput "Useful Commands:" "Yellow"
+    Write-ColorOutput "  View logs:    docker compose logs -f" "White"
+    Write-ColorOutput "  Stop:         docker compose down" "White"
+    Write-ColorOutput "  Restart:      docker compose restart" "White"
+    Write-ColorOutput "  Update:       git pull && .\install.ps1" "White"
+    Write-Host ""
+    
+    Write-ColorOutput "For Docker Swarm deployment, use install-swarm.ps1 instead." "Yellow"
+    Write-Host ""
+}
+
 # Note: Line endings are managed via repository .gitattributes.
 # No runtime conversion is performed by the installer.
 
 # Main installation flow
 function Main {
     Write-ColorOutput "============================================" "Blue"
-    Write-ColorOutput "       Thoth AI Installer" "Blue"
+    Write-ColorOutput "  ThothAI Docker Compose Installer" "Blue"
     Write-ColorOutput "============================================" "Blue"
     Write-Host ""
     
@@ -396,7 +470,18 @@ function Main {
     }
     
     # Run installer
-    Write-ColorOutput "Starting installation..." "Blue"
+    Write-ColorOutput "Starting Docker Compose Installation..." "Blue"
+    Write-ColorOutput ""
+    Write-ColorOutput "This will:" "Yellow"
+    Write-ColorOutput "  1. Generate .env.docker from config.yml.local" "White"
+    Write-ColorOutput "  2. Create Docker volumes and networks" "White"
+    Write-ColorOutput "  3. Build Docker images locally" "White"
+    Write-ColorOutput "  4. Start services with docker-compose up -d" "White"
+    Write-ColorOutput "  5. Run initial setup commands" "White"
+    Write-Host ""
+    Write-ColorOutput "This may take several minutes on first run..." "Yellow"
+    Write-Host ""
+    
     if ($InstallerArgs.Count -gt 0) {
         & $PythonCmd scripts/installer.py $InstallerArgs
     } else {
@@ -408,6 +493,12 @@ function Main {
         Write-ColorOutput "============================================" "Green"
         Write-ColorOutput "    Installation completed successfully!" "Green"
         Write-ColorOutput "============================================" "Green"
+        
+        # Show deployment status
+        Show-DeploymentStatus
+        
+        # Show access information
+        Show-AccessInfo
     } else {
         Write-ColorOutput ""
         Write-ColorOutput "Installation failed" "Red"

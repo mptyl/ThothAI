@@ -2,6 +2,10 @@
 # Copyright (c) 2025 Marco Pancotti
 # This file is part of Thoth and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
+#
+# ThothAI Docker Compose Installer
+# This script installs ThothAI using Docker Compose for local deployment.
+# For Docker Swarm deployment, use install-swarm.sh instead.
 
 set -e
 
@@ -15,6 +19,15 @@ NC='\033[0m' # No Color
 # Function to print colored output
 print_color() {
     echo -e "${2}${1}${NC}"
+}
+
+# Function to print section header
+print_header() {
+    echo ""
+    print_color "============================================" "$BLUE"
+    print_color "  $1" "$BLUE"
+    print_color "============================================" "$BLUE"
+    echo ""
 }
 
 # Function to check command availability
@@ -40,12 +53,23 @@ check_python_version() {
 show_usage() {
     print_color "Usage: $0 [OPTIONS]" "$BLUE"
     print_color "" "$NC"
+    print_color "ThothAI Docker Compose Installer" "$YELLOW"
+    print_color "This script installs ThothAI using Docker Compose for local deployment." "$NC"
+    print_color "" "$NC"
     print_color "Options:" "$YELLOW"
     print_color "  --clean-cache    Clean Docker build cache before building" "$NC"
     print_color "  --prune-all      Remove all ThothAI Docker resources (containers, images, volumes, networks)" "$NC"
     print_color "  --dry-run        Show what would be removed without actually removing anything" "$NC"
-    print_color "  --force          Skip confirmation prompt" "$NC"
+    print_color "  --force          Skip confirmation prompt (use with --prune-all)" "$NC"
     print_color "  --help           Show this help message" "$NC"
+    echo ""
+    print_color "Examples:" "$YELLOW"
+    print_color "  $0                    # Standard installation" "$NC"
+    print_color "  $0 --clean-cache      # Clean build cache before installing" "$NC"
+    print_color "  $0 --prune-all        # Remove all ThothAI resources" "$NC"
+    print_color "  $0 --prune-all --dry-run  # Preview what would be removed" "$NC"
+    echo ""
+    print_color "Note: For Docker Swarm deployment, use install-swarm.sh instead." "$YELLOW"
     echo ""
 }
 
@@ -58,7 +82,7 @@ prune_resources() {
         print_color "[DRY RUN] The following resources would be removed:" "$YELLOW"
         
         echo -e "\n[Containers]"
-        docker ps -a --filter "name=^thoth-|^/thoth-" --format "{{.Names}}" 2>/dev/null || true
+        docker ps -a --filter "name=^thoth-" --format "{{.Names}}" 2>/dev/null || true
         
         echo -e "\n[Volumes]"
         docker volume ls -q --filter "name=^thoth-" 2>/dev/null || true
@@ -74,6 +98,7 @@ prune_resources() {
     
     if [ "$force" != true ]; then
         print_color "WARNING: This will remove all ThothAI containers, images, volumes, and networks!" "$RED"
+        print_color "This includes all data stored in Docker volumes!" "$RED"
         read -p "Are you sure you want to continue? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -86,7 +111,7 @@ prune_resources() {
     
     # 1. Stop and remove all ThothAI containers
     print_color "Stopping and removing ThothAI containers..." "$YELLOW"
-    docker ps -a -q --filter "name=^thoth-|^/thoth-" --format "{{.ID}}" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
+    docker ps -a -q --filter "name=^thoth-" --format "{{.ID}}" 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
     
     # 2. Remove all ThothAI volumes
     print_color "Removing ThothAI volumes..." "$YELLOW"
@@ -109,6 +134,23 @@ prune_resources() {
     done
     
     print_color "All ThothAI Docker resources have been removed" "$GREEN"
+}
+
+# Function to show deployment status
+show_deployment_status() {
+    print_header "Deployment Status"
+    
+    print_color "Docker Containers:" "$YELLOW"
+    docker ps --filter "name=thoth-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || print_color "No containers running" "$YELLOW"
+    echo ""
+    
+    print_color "Docker Volumes:" "$YELLOW"
+    docker volume ls --filter "name=^thoth-" --format "table {{.Name}}\t{{.Driver}}" 2>/dev/null || print_color "No volumes found" "$YELLOW"
+    echo ""
+    
+    print_color "Docker Networks:" "$YELLOW"
+    docker network ls --filter "name=^thoth-" --format "table {{.Name}}\t{{.Driver}}" 2>/dev/null || print_color "No networks found" "$YELLOW"
+    echo ""
 }
 
 # Main installation flow
@@ -149,10 +191,7 @@ main() {
         esac
     done
     
-    print_color "============================================" "$BLUE"
-    print_color "       Thoth AI Installer" "$BLUE"
-    print_color "============================================" "$BLUE"
-    echo ""
+    print_header "ThothAI Docker Compose Installer"
 
     # Check for config.yml.local first
     if [ ! -f "config.yml.local" ]; then
@@ -235,26 +274,28 @@ main() {
         }
     fi
     
-    print_color "Prerequisites OK" "$GREEN"
+    print_color "✓ Prerequisites OK" "$GREEN"
     echo ""
     
     # Clean Docker cache if requested
     if [ "$PRUNE_ALL" = true ]; then
         prune_resources "$DRY_RUN" "$FORCE"
-        echo ""
+        if [ "$DRY_RUN" = false ]; then
+            echo ""
+        fi
     elif [ "$CLEAN_CACHE" = true ]; then
         print_color "Cleaning Docker build cache..." "$YELLOW"
         docker builder prune -a -f
-        print_color "Docker build cache cleaned" "$GREEN"
+        print_color "✓ Docker build cache cleaned" "$GREEN"
         echo ""
     fi
 
     # Validate configuration
     print_color "Validating configuration..." "$YELLOW"
     if $PYTHON_CMD scripts/validate_config.py config.yml.local; then
-        print_color "Configuration validation passed" "$GREEN"
+        print_color "✓ Configuration validation passed" "$GREEN"
     else
-        print_color "Configuration validation failed" "$RED"
+        print_color "✗ Configuration validation failed" "$RED"
         print_color "Please fix the errors above and run again" "$RED"
         exit 1
     fi
@@ -272,7 +313,7 @@ main() {
         print_color "" "$NC"
         exit 1
     fi
-    print_color "Embedding configuration completed" "$GREEN"
+    print_color "✓ Embedding configuration completed" "$GREEN"
     echo ""
 
     # Pass clean cache option to Python installer
@@ -282,12 +323,45 @@ main() {
     fi
     
     # Run installer
-    print_color "Starting installation..." "$BLUE"
+    print_header "Starting Docker Compose Installation"
+    print_color "This will:" "$YELLOW"
+    print_color "  1. Generate .env.docker from config.yml.local" "$NC"
+    print_color "  2. Create Docker volumes and networks" "$NC"
+    print_color "  3. Build Docker images locally" "$NC"
+    print_color "  4. Start services with docker-compose up -d" "$NC"
+    print_color "  5. Run initial setup commands" "$NC"
+    echo ""
+    print_color "This may take several minutes on first run..." "$YELLOW"
+    echo ""
+    
     if $PYTHON_CMD scripts/installer.py $INSTALLER_ARGS; then
         print_color "" "$NC"
-        print_color "============================================" "$GREEN"
-        print_color "    Installation completed successfully!" "$GREEN"
-        print_color "============================================" "$GREEN"
+        print_header "Installation completed successfully!"
+        
+        # Show deployment status
+        show_deployment_status
+        
+        # Show access information
+        print_header "Access Information"
+        print_color "The following services are now available:" "$YELLOW"
+        print_color "  Main Application:  http://localhost:8040" "$GREEN"
+        print_color "  Frontend Direct:   http://localhost:3040" "$GREEN"
+        print_color "  Backend API:       http://localhost:8040/api" "$GREEN"
+        print_color "  Admin Panel:       http://localhost:8040/admin" "$GREEN"
+        print_color "  SQL Generator:     http://localhost:8020" "$GREEN"
+        print_color "  Qdrant Dashboard:  http://localhost:6333/dashboard" "$GREEN"
+        print_color "  Mermaid Service:   http://localhost:8003" "$GREEN"
+        echo ""
+        
+        print_color "Useful Commands:" "$YELLOW"
+        print_color "  View logs:    docker compose logs -f" "$NC"
+        print_color "  Stop:         docker compose down" "$NC"
+        print_color "  Restart:      docker compose restart" "$NC"
+        print_color "  Update:       git pull && ./install.sh" "$NC"
+        echo ""
+        
+        print_color "For Docker Swarm deployment, use install-swarm.sh instead." "$YELLOW"
+        echo ""
     else
         print_color "" "$NC"
         print_color "Installation failed" "$RED"

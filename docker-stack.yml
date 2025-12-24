@@ -10,12 +10,12 @@ version: '3.8'
 services:
   # === BACKEND SERVICE ===
   backend:
-    image: ${REGISTRY_URL}/thoth-backend:${VERSION:-latest}
+    image: ${DOCKER_USERNAME}/thoth-backend:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
       - target: 8000
-        published: ${BACKEND_PORT:-7002}
+        published: ${BACKEND_PROXY_PORT:-8040}
         protocol: tcp
         mode: ingress
     volumes:
@@ -29,7 +29,7 @@ services:
       - HOST_IP=host.docker.internal
       - DOCKER_ENV=production
       - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
-      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-7001}
+      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
       - DOCKER_CONTAINER=true
     secrets:
       - thoth_env_config
@@ -66,12 +66,12 @@ services:
 
   # === FRONTEND SERVICE ===
   frontend:
-    image: ${REGISTRY_URL}/thoth-frontend:${VERSION:-latest}
+    image: ${DOCKER_USERNAME}/thoth-frontend:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
       - target: 3000
-        published: ${FRONTEND_PORT:-7001}
+        published: ${FRONTEND_PORT:-3040}
         protocol: tcp
         mode: ingress
     volumes:
@@ -84,8 +84,8 @@ services:
       - DJANGO_SERVER=http://proxy:80
       - SQL_GENERATOR_URL=http://sql-generator:8020
       - DOCKER_CONTAINER=true
-      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT:-7002}
-      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-7003}
+      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PROXY_PORT:-8040}
+      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-8020}
     secrets:
       - thoth_env_config
     configs:
@@ -113,12 +113,12 @@ services:
 
   # === SQL GENERATOR SERVICE ===
   sql-generator:
-    image: ${REGISTRY_URL}/thoth-sql-generator:${VERSION:-latest}
+    image: ${DOCKER_USERNAME}/thoth-sql-generator:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
       - target: 8020
-        published: ${SQL_GENERATOR_PORT:-7003}
+        published: ${SQL_GENERATOR_PORT:-8020}
         protocol: tcp
         mode: ingress
     volumes:
@@ -160,12 +160,12 @@ services:
 
   # === PROXY SERVICE ===
   proxy:
-    image: ${REGISTRY_URL}/thoth-proxy:${VERSION:-latest}
+    image: ${DOCKER_USERNAME}/thoth-proxy:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
       - target: 80
-        published: ${WEB_PORT:-7000}
+        published: ${BACKEND_PROXY_PORT:-8040}
         protocol: tcp
         mode: ingress
     volumes:
@@ -202,12 +202,12 @@ services:
 
   # === MERMAID SERVICE ===
   mermaid-service:
-    image: ${REGISTRY_URL}/thoth-mermaid-service:${VERSION:-latest}
+    image: ${DOCKER_USERNAME}/thoth-mermaid-service:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
       - target: 8001
-        published: ${MERMAID_SERVICE_PORT:-7004}
+        published: ${MERMAID_SERVICE_PORT:-8003}
         protocol: tcp
         mode: ingress
     healthcheck:
@@ -237,7 +237,7 @@ services:
       - thoth-network
     ports:
       - target: 6333
-        published: 7005
+        published: ${QDRANT_PORT:-6333}
         protocol: tcp
         mode: ingress
     volumes:

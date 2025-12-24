@@ -4,7 +4,8 @@
 # See the LICENSE.md file in the project root for full license information.
 
 # Start all ThothAI services
-# This script starts Frontend, Django backend, Qdrant, and SQL Generator services
+# This script starts Frontend, Django backend, Qdrant, Mermaid Service, and SQL Generator services
+# For local development: Django, SQL Generator, and Next.js run natively; Qdrant and Mermaid run in Docker
 
 echo "Starting ThothAI Services..."
 echo "============================="
@@ -143,7 +144,7 @@ DJANGO_PID=""
 QDRANT_CONTAINER=""
 SQL_GEN_PID=""
 FRONTEND_PID=""
-MERMAID_SERVICE_PID=""
+MERMAID_CONTAINER=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -359,34 +360,50 @@ if ! check_port $SQL_GENERATOR_PORT; then
     exit 1
 fi
 
-# Check and start Mermaid Service
+# Check and start Mermaid Service (via Docker)
 echo -e "${YELLOW}Checking Mermaid Service on port $MERMAID_SERVICE_PORT...${NC}"
 
 if check_port $MERMAID_SERVICE_PORT; then
     echo -e "${GREEN}✓ Mermaid Service is already running on port $MERMAID_SERVICE_PORT${NC}"
 else
     echo -e "${YELLOW}Mermaid Service is NOT running on port $MERMAID_SERVICE_PORT${NC}"
-    echo -e "${YELLOW}Starting Mermaid Service...${NC}"
+    
+    # Check if Docker is available
+    if ! command -v docker &> /dev/null; then
+        echo -e "${RED}Docker is not installed or not available${NC}"
+        echo -e "${YELLOW}Please install Docker to run Mermaid Service${NC}"
+        exit 1
+    fi
+    
+    echo -e "${YELLOW}Starting Mermaid Service via Docker...${NC}"
     
     # Check if mermaid-service directory exists
     if [ -d "docker/mermaid-service" ]; then
-        cd docker/mermaid-service
-        
-        # Check if node_modules exists
-        if [ ! -d "node_modules" ]; then
-            # Ensure Node.js/npm is installed
-            if ! command -v npm &> /dev/null; then
-                echo -e "${RED}Error: npm is not installed. Please install Node.js (v18+) and retry.${NC}"
+        # Check if mermaid-thoth image exists
+        if docker images --format "{{.Repository}}" | grep -q "^mermaid-thoth$"; then
+            echo -e "${GREEN}✓ Mermaid Service Docker image already exists${NC}"
+        else
+            echo -e "${YELLOW}Building Mermaid Service Docker image...${NC}"
+            if ! docker build -t mermaid-thoth docker/mermaid-service; then
+                echo -e "${RED}Failed to build Mermaid Service Docker image${NC}"
                 exit 1
             fi
-            echo -e "${YELLOW}Installing Mermaid Service dependencies...${NC}"
-            npm install
+            echo -e "${GREEN}✓ Mermaid Service Docker image built successfully${NC}"
         fi
         
-        # Start Mermaid Service
-        PORT=$MERMAID_SERVICE_PORT npm start &
-        MERMAID_SERVICE_PID=$!
-        cd ../..
+        # Check if mermaid-thoth container exists
+        if docker ps -a --format "table {{.Names}}" | grep -q "^mermaid-thoth$"; then
+            echo -e "${YELLOW}Removing existing mermaid-thoth container...${NC}"
+            docker rm -f mermaid-thoth >/dev/null 2>&1 || true
+        fi
+        
+        # Start Mermaid Service container
+        docker run -d \
+            --name mermaid-thoth \
+            --restart unless-stopped \
+            -p $MERMAID_SERVICE_PORT:8001 \
+            mermaid-thoth
+        MERMAID_CONTAINER="mermaid-thoth"
         
         # Wait for Mermaid Service to start
         echo -e "${YELLOW}Waiting for Mermaid Service to start...${NC}"
@@ -491,12 +508,25 @@ cleanup() {
         echo -e "${GREEN}✓ Django backend stopped${NC}"
     fi
     
+    # Ask about Mermaid container
+    if [ ! -z "$MERMAID_CONTAINER" ]; then
+        read -p "Stop Mermaid container? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            docker stop $MERMAID_CONTAINER >/dev/null 2>&1
+            docker rm $MERMAID_CONTAINER >/dev/null 2>&1
+            echo -e "${GREEN}✓ Mermaid container stopped and removed${NC}"
+        else
+            echo -e "${YELLOW}Mermaid container left running${NC}"
+        fi
+    fi
+    
     # Ask about Qdrant container
     if [ ! -z "$QDRANT_CONTAINER" ]; then
         read -p "Stop Qdrant container? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            docker stop $QDRANT_CONTAINER
+            docker stop $QDRANT_CONTAINER >/dev/null 2>&1
             echo -e "${GREEN}✓ Qdrant container stopped${NC}"
         else
             echo -e "${YELLOW}Qdrant container left running${NC}"

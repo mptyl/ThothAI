@@ -1,686 +1,548 @@
-# Manuale Completo: Creazione, Pubblicazione e Utilizzo delle Immagini ThothAI
+# Guida Completa al Deployment di ThothAI
+
+Questa guida descrive i tre scenari di deployment disponibili per ThothAI:
+
+1. **Sviluppo Locale** - Esecuzione nativa dei servizi con Docker minimo
+2. **Docker Compose** - Tutti i servizi in Docker per deployment locale
+3. **Docker Swarm** - Deployment distribuito su server remoto
+
+---
+
+# Panoramica degli Scenari di Deployment
+
+| Scenario | Script di Avvio | Servizi in Docker | Servizi Nativi | Porte Frontend | Porte Backend |
+|----------|----------------|-------------------|----------------|-----------------|----------------|
+| **Sviluppo Locale** | [`start-all.sh`](start-all.sh:1) / [`start-all.ps1`](start-all.ps1:1) | Qdrant, Mermaid | Django, SQL Generator, Next.js | 3200 | 8200 |
+| **Docker Compose** | [`install.sh`](install.sh:1) / [`install.ps1`](install.ps1:1) | Tutti i servizi | Nessuno | 3040 | 8040 |
+| **Docker Swarm** | [`install-swarm.sh`](install-swarm.sh:1) / [`install-swarm.ps1`](install-swarm.ps1:1) | Tutti i servizi (remoto) | Nessuno | 3040 (configurabile) | 8040 (configurabile) |
+
+---
+
+# PARTE 1: SVILUPPO LOCALE
+
+## Panoramica
+
+Lo scenario di sviluppo locale esegue Django, SQL Generator e Next.js nativamente sulla macchina locale, mentre Qdrant e Mermaid Service vengono eseguiti in Docker. Questo è ideale per lo sviluppo e il debug.
 
 ## Prerequisiti
 
-Assicurati di avere installato sul tuo Mac:
-- Docker Desktop (in esecuzione)
-- Python 3.9+
-- Un account Docker Hub (https://hub.docker.com/)
+Assicurati di avere installato sul tuo sistema:
+- **Python 3.9+**
+- **Node.js 20+** (per Next.js)
+- **Docker Desktop** (in esecuzione, per Qdrant e Mermaid)
+- **uv** (gestore pacchetti Python) - Installa con: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 
----
-
-# PARTE 1: CREARE LE IMMAGINI LOCALMENTE
-
-## Passo 1.1: Preparare la Configurazione
+## Passo 1.1: Clonare il Progetto
 
 ```bash
-# Naviga nella directory del progetto
-cd /Users/mp/ThothAI
+# Naviga nella directory desiderata
+cd /path/to/your/projects
 
-# Crea il file di configurazione se non esiste
+# Clona il repository
+git clone <repository-url> ThothAI
+
+# Entra nella directory del progetto
+cd ThothAI
+```
+
+## Passo 1.2: Configurare il Progetto
+
+```bash
+# Copia il template di configurazione
 cp config.yml config.yml.local
 
-# Modifica config.yml.local con le tue API keys e impostazioni
+# Modifica config.yml.local con le tue impostazioni
 nano config.yml.local
 ```
 
-## Passo 1.2: Eseguire l'Installer
+Imposta i seguenti parametri in [`config.yml.local`](config.yml.local:1):
+- **LLM API Keys**: Almeno una tra `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`
+- **Embedding Provider**: `EMBEDDING_PROVIDER`, `EMBEDDING_API_KEY`, `EMBEDDING_MODEL`
+- **Database preferences**: MariaDB, SQL Server, ecc. (opzionale)
+- **Admin email**: Per il superuser Django (opzionale)
+- **Service ports**: Se i default confliggono
 
-L'installer prepara tutti i file necessari per il build:
-
-```bash
-# Esegui l'installer
-./install.sh
-```
-
-Questo script:
-- Verifica i prerequisiti (Docker, Python)
-- Valida la configurazione
-- Genera `.env.docker`
-- Genera i file `pyproject.toml.merged` per backend e sql-generator
-- Crea i volumi e le reti Docker necessarie
-
-## Passo 1.3: Verificare i File Generati
-
-```bash
-# Verifica che i file siano stati generati
-ls -la .env.docker
-ls -la backend/pyproject.toml.merged
-ls -la frontend/sql_generator/pyproject.toml.merged
-```
-
-## Passo 1.4: Build delle Immagini
-
-```bash
-# Build usando docker-compose (modo più semplice)
-docker compose build
-
-# Oppure build singolarmente per ogni immagine
-docker build -f docker/backend.Dockerfile -t thoth-backend:latest .
-docker build -f docker/frontend.Dockerfile -t thoth-frontend:latest ./frontend
-docker build -f docker/sql-generator.Dockerfile -t thoth-sql-generator:latest .
-docker build -f docker/proxy.Dockerfile -t thoth-proxy:latest ./backend/proxy
-docker build -f docker/mermaid-service/Dockerfile -t thoth-mermaid-service:latest ./docker/mermaid-service
-```
-
-## Passo 1.5: Verificare le Immagini Buildate
-
-```bash
-# Lista tutte le immagini ThothAI
-docker images | grep thoth
-```
-
-Dovresti vedere:
-```
-thoth-backend              latest    <hash>    <tempo fa>    <dimensione>
-thoth-frontend             latest    <hash>    <tempo fa>    <dimensione>
-thoth-sql-generator        latest    <hash>    <tempo fa>    <dimensione>
-thoth-proxy                latest    <hash>    <tempo fa>    <dimensione>
-thoth-mermaid-service      latest    <hash>    <tempo fa>    <dimensione>
-```
-
----
-
-# PARTE 2: PUBBLICARE SU DOCKER HUB (IMMAGINI PUBBLICHE)
-
-## Passo 2.1: Creare Account Docker Hub
-
-1. Vai su https://hub.docker.com/
-2. Crea un account gratuito o accedi
-3. Verifica l'email se richiesto
-4. Crea un Access Token (consigliato per sicurezza):
-   - Vai a **Account Settings > Security > New Access Token**
-   - Descrizione: "ThothAI Mac Build"
-   - Salva il token (non sarà più visibile)
-
-## Passo 2.2: Login a Docker Hub
-
-```bash
-# Login usando il token come password
-docker login
-Username: <tuo-username-docker-hub>
-Password: <access-token>
-```
-
-## Passo 2.3: Taggare le Immagini per Docker Hub
-
-Sostituisci `<tuo-username>` con il tuo username Docker Hub:
-
-```bash
-# Tagga ogni immagine con il tuo username
-docker tag thoth-backend:latest <tuo-username>/thoth-backend:latest
-docker tag thoth-frontend:latest <tuo-username>/thoth-frontend:latest
-docker tag thoth-sql-generator:latest <tuo-username>/thoth-sql-generator:latest
-docker tag thoth-proxy:latest <tuo-username>/thoth-proxy:latest
-docker tag thoth-mermaid-service:latest <tuo-username>/thoth-mermaid-service:latest
-```
-
-## Passo 2.4: Push delle Immagini su Docker Hub
-
-```bash
-# Push tutte le immagini
-docker push <tuo-username>/thoth-backend:latest
-docker push <tuo-username>/thoth-frontend:latest
-docker push <tuo-username>/thoth-sql-generator:latest
-docker push <tuo-username>/thoth-proxy:latest
-docker push <tuo-username>/thoth-mermaid-service:latest
-```
-
-## Passo 2.5: Rendere le Immagini Pubbliche
-
-1. Accedi a https://hub.docker.com/
-2. Vai al tuo profilo
-3. Per ogni repository creato:
-   - Clicca sul repository (es. `<tuo-username>/thoth-backend`)
-   - Vai a **Settings**
-   - In **Visibility**, seleziona **Public**
-   - Conferma il cambio
-
-## Passo 2.6: Verificare le Immagini Pubbliche
-
-```bash
-# Logout da Docker Hub per testare pull anonimo
-docker logout
-
-# Prova a pullare le immagini (dovrebbe funzionare senza login)
-docker pull <tuo-username>/thoth-backend:latest
-docker pull <tuo-username>/thoth-frontend:latest
-docker pull <tuo-username>/thoth-sql-generator:latest
-docker pull <tuo-username>/thoth-proxy:latest
-docker pull <tuo-username>/thoth-mermaid-service:latest
-
-# Riloggia se necessario
-docker login
-```
-
----
-
-# PARTE 3: UTILIZZARE LE IMMAGINI IN LOCALE (DOCKER COMPOSE - NON SWARM)
-
-## Passo 3.1: Creare docker-compose-pubblico.yml
-
-Crea un nuovo file `docker-compose-pubblico.yml` nella root del progetto:
-
+Esempio di configurazione minima:
 ```yaml
-version: '3.8'
+llm:
+  openai:
+    api_key: "sk-..."
+    model: "gpt-4"
 
-services:
-  # === BACKEND SERVICE ===
-  backend:
-    image: <tuo-username>/thoth-backend:latest
-    container_name: thoth-backend
-    restart: always
-    volumes:
-      - thoth-backend-db:/app/backend_db
-      - thoth-shared-data:/app/data
-      - ./data_exchange:/app/data_exchange
-      - thoth-logs:/app/logs
-      - backend-static:/vol/static
-      - backend-media:/vol/media
-      - thoth-secrets:/secrets
-      - ./config.yml.local:/app/config.yml.local:ro
-    env_file: .env.docker
-    environment:
-      - HOST_IP=host.docker.internal
-      - DOCKER_ENV=development
-      - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
-      - FRONTEND_URL=http://localhost:3040
-    networks:
-      - thoth-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 1200s
-    depends_on:
-      - thoth-qdrant
+embedding:
+  provider: "openai"
+  api_key: "sk-..."
+  model: "text-embedding-3-small"
 
-  # === FRONTEND SERVICE ===
-  frontend:
-    image: <tuo-username>/thoth-frontend:latest
-    container_name: thoth-frontend
-    restart: always
-    ports:
-      - "3040:3000"
-    volumes:
-      - frontend-cache:/app/.next/cache
-      - ./frontend/public:/app/public:ro
-      - thoth-secrets:/secrets
-      - ./data_exchange:/app/data_exchange:ro
-    env_file: .env.docker
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-      - DJANGO_SERVER=http://proxy:80
-      - SQL_GENERATOR_URL=http://sql-generator:8020
-      - DOCKER_CONTAINER=true
-      - HOST_IP=host.docker.internal
-      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:8040
-      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:8020
-    networks:
-      - thoth-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - backend
-      - sql-generator
-
-  # === SQL GENERATOR SERVICE ===
-  sql-generator:
-    image: <tuo-username>/thoth-sql-generator:latest
-    container_name: thoth-sql-generator
-    restart: always
-    ports:
-      - "8020:8020"
-    volumes:
-      - thoth-shared-data:/app/data
-      - ./data_exchange:/app/data_exchange
-      - thoth-logs:/app/logs
-      - thoth-secrets:/secrets
-    env_file: .env.docker
-    environment:
-      - DOCKER_CONTAINER=true
-      - HOST_IP=host.docker.internal
-      - PORT=8020
-      - DJANGO_SERVER=http://backend:8000
-      - VECTOR_DB_HOST=thoth-qdrant
-      - VECTOR_DB_PORT=6333
-      - DB_ROOT_PATH=/app/data
-    networks:
-      - thoth-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      - backend
-      - thoth-qdrant
-
-  # === PROXY SERVICE ===
-  proxy:
-    image: <tuo-username>/thoth-proxy:latest
-    container_name: thoth-proxy
-    restart: always
-    ports:
-      - "8040:80"
-    volumes:
-      - backend-static:/vol/static:ro
-      - backend-media:/vol/media:ro
-      - ./data_exchange:/vol/data_exchange:ro
-    environment:
-      - APP_HOST=backend
-      - APP_PORT=8000
-      - FRONTEND_HOST=frontend
-      - FRONTEND_PORT=3000
-      - SQL_GEN_HOST=sql-generator
-      - SQL_GEN_PORT=8020
-      - DEBUG=False
-    networks:
-      - thoth-network
-    depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_started
-      sql-generator:
-        condition: service_started
-
-  # === MERMAID SERVICE ===
-  mermaid-service:
-    image: <tuo-username>/thoth-mermaid-service:latest
-    container_name: thoth-mermaid-service
-    restart: always
-    ports:
-      - "8003:8001"
-    networks:
-      - thoth-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # === VECTOR DATABASE SERVICE ===
-  thoth-qdrant:
-    image: qdrant/qdrant:latest
-    container_name: thoth-qdrant
-    restart: always
-    ports:
-      - "6333:6333"
-    volumes:
-      - qdrant-data:/qdrant/storage
-    networks:
-      - thoth-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-volumes:
-  backend-static:
-    name: thoth-backend-static
-  backend-media:
-    name: thoth-backend-media
-  frontend-cache:
-    name: thoth-frontend-cache
-  qdrant-data:
-    name: thoth-qdrant-data
-  thoth-secrets:
-    name: thoth-secrets
-  thoth-backend-db:
-    name: thoth-backend-db
-  thoth-logs:
-    name: thoth-logs
-  thoth-shared-data:
-    name: thoth-shared-data
-
-networks:
-  thoth-network:
-    external: true
-    name: thoth-network
+admin:
+  email: "admin@example.com"
 ```
 
-## Passo 3.2: Creare Volumi e Reti (se non esistono)
+## Passo 1.3: Avviare i Servizi
 
-```bash
-# Crea la rete se non esiste
-docker network create thoth-network || true
-
-# Crea i volumi se non esistono
-docker volume create thoth-backend-static || true
-docker volume create thoth-backend-media || true
-docker volume create thoth-frontend-cache || true
-docker volume create thoth-qdrant-data || true
-docker volume create thoth-secrets || true
-docker volume create thoth-backend-db || true
-docker volume create thoth-logs || true
-docker volume create thoth-shared-data || true
-```
-
-## Passo 3.3: Avviare i Servizi
+### Su Linux/macOS
 
 ```bash
 # Avvia tutti i servizi
-docker compose -f docker-compose-pubblico.yml up -d
-
-# Verifica lo stato
-docker compose -f docker-compose-pubblico.yml ps
-
-# Guarda i log
-docker compose -f docker-compose-pubblico.yml logs -f
+./start-all.sh
 ```
 
-## Passo 3.4: Accesso all'Applicazione
+### Su Windows (PowerShell)
+
+```powershell
+# Avvia tutti i servizi
+.\start-all.ps1
+```
+
+Lo script [`start-all.sh`](start-all.sh:1) eseguirà automaticamente:
+1. Generazione di [`.env.local`](.env.local:1) da [`config.yml.local`](config.yml.local:1)
+2. Risoluzione delle dipendenze del database locale
+3. Sincronizzazione delle dipendenze con `uv`
+4. Avvio di Django backend su porta 8200
+5. Avvio di Qdrant in Docker su porta 6334
+6. Avvio di SQL Generator su porta 8180
+7. Avvio di Mermaid Service in Docker su porta 8003
+8. Avvio di Next.js frontend su porta 3200
+
+## Passo 1.4: Accesso all'Applicazione
 
 Una volta avviati i servizi, accedi a:
-- **Frontend**: http://localhost:3040
-- **Backend (via proxy)**: http://localhost:8040
-- **Admin**: http://localhost:8040/admin
-- **API**: http://localhost:8040/api
-- **SQL Generator**: http://localhost:8020
-- **Qdrant**: http://localhost:6333
-- **Mermaid Service**: http://localhost:8003
 
-## Passo 3.5: Comandi Utili
+| Servizio | URL | Note |
+|----------|-----|------|
+| **Frontend** | http://localhost:3200 | Interfaccia utente principale |
+| **Backend** | http://localhost:8200 | API Django |
+| **Admin Panel** | http://localhost:8200/admin | Pannello amministrativo |
+| **SQL Generator** | http://localhost:8180 | API SQL Generator |
+| **API Docs** | http://localhost:8180/docs | Documentazione FastAPI |
+| **Mermaid Service** | http://localhost:8003 | Servizio diagrammi |
+| **Qdrant** | http://localhost:6334 | Database vettoriale |
+
+## Passo 1.5: Arrestare i Servizi
+
+Premi `Ctrl+C` per arrestare tutti i servizi. Lo script ti chiederà se desideri arrestare anche i container Docker (Qdrant e Mermaid).
+
+## Risoluzione dei Problemi
+
+### Porte già in uso
+
+Se una porta è già in uso, lo script [`start-all.sh`](start-all.sh:1) tenterà automaticamente di liberarla. Se non riesce:
 
 ```bash
-# Fermare tutti i servizi
-docker compose -f docker-compose-pubblico.yml down
+# Trova il processo che usa la porta
+lsof -ti:3200
 
-# Fermare e rimuovere volumi
-docker compose -f docker-compose-pubblico.yml down -v
+# Termina il processo
+kill -9 <PID>
+```
 
-# Riavviare un servizio specifico
-docker compose -f docker-compose-pubblico.yml restart backend
+Oppure modifica le porte in [`config.yml.local`](config.yml.local:1):
+```yaml
+ports:
+  frontend: 3201
+  backend: 8201
+  sql_generator: 8181
+```
 
-# Guardare i log di un servizio
-docker compose -f docker-compose-pubblico.yml logs backend
+### Dipendenze non sincronizzate
+
+Se ricevi errori sulle dipendenze:
+
+```bash
+# Sincronizza le dipendenze del backend
+cd backend && uv lock --refresh && uv sync && cd ..
+
+# Sincronizza le dipendenze del SQL Generator
+cd frontend/sql_generator && uv lock --refresh && uv sync && cd ../..
+```
+
+### Qdrant non si avvia
+
+Assicurati che Docker Desktop sia in esecuzione:
+
+```bash
+# Verifica lo stato di Docker
+docker ps
+
+# Avvia Qdrant manualmente
+docker run -d \
+    --name qdrant-thoth \
+    --restart unless-stopped \
+    -p 6334:6333 \
+    -v $(pwd)/qdrant_storage:/qdrant/storage:z \
+    qdrant/qdrant
 ```
 
 ---
 
-# PARTE 4: UTILIZZARE LE IMMAGINI IN LOCALE (DOCKER SWARM)
+# PARTE 2: DOCKER COMPOSE
 
-## Passo 4.1: Inizializzare Docker Swarm
+## Panoramica
+
+Lo scenario Docker Compose esegue tutti i servizi in Docker sulla macchina locale. Questo è ideale per deployment locali completi e testing di produzione.
+
+## Prerequisiti
+
+Assicurati di avere installato sul tuo sistema:
+- **Docker Desktop** (in esecuzione, con Docker Compose)
+- **Python 3.9+** (per lo script di installazione)
+
+## Passo 2.1: Clonare il Progetto
 
 ```bash
-# Inizializza Swarm sul tuo Mac
+# Naviga nella directory desiderata
+cd /path/to/your/projects
+
+# Clona il repository
+git clone <repository-url> ThothAI
+
+# Entra nella directory del progetto
+cd ThothAI
+```
+
+## Passo 2.2: Configurare il Progetto
+
+```bash
+# Copia il template di configurazione
+cp config.yml config.yml.local
+
+# Modifica config.yml.local con le tue impostazioni
+nano config.yml.local
+```
+
+Imposta i seguenti parametri in [`config.yml.local`](config.yml.local:1):
+- **LLM API Keys**: Almeno una tra `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`
+- **Embedding Provider**: `EMBEDDING_PROVIDER`, `EMBEDDING_API_KEY`, `EMBEDDING_MODEL`
+- **Database preferences**: MariaDB, SQL Server, ecc. (opzionale)
+- **Admin email**: Per il superuser Django (opzionale)
+- **Service ports**: Se i defaults confliggono
+
+## Passo 2.3: Eseguire l'Installer
+
+### Su Linux/macOS
+
+```bash
+# Esegui l'installer standard
+./install.sh
+
+# Con opzioni aggiuntive
+./install.sh --clean-cache    # Pulisci la cache di build
+./install.sh --prune-all      # Rimuovi tutte le risorse Docker
+./install.sh --help           # Mostra tutte le opzioni
+```
+
+### Su Windows (PowerShell)
+
+```powershell
+# Esegui l'installer standard
+.\install.ps1
+
+# Con opzioni aggiuntive
+.\install.ps1 -CleanCache
+.\install.ps1 -PruneAll
+.\install.ps1 -Help
+```
+
+Lo script [`install.sh`](install.sh:1) eseguirà automaticamente:
+1. Verifica dei prerequisiti (Docker, Python)
+2. Validazione della configurazione in [`config.yml.local`](config.yml.local:1)
+3. Generazione di [`.env.docker`](.env.docker:1) da [`config.yml.local`](config.yml.local:1)
+4. Generazione dei file `pyproject.toml.merged` per backend e sql-generator
+5. Creazione dei volumi e delle reti Docker necessarie
+6. Build delle immagini Docker locali
+7. Avvio dei servizi con `docker compose up -d`
+8. Esecuzione dei comandi di setup iniziale
+
+## Passo 2.4: Verificare lo Stato dei Servizi
+
+```bash
+# Verifica lo stato dei container
+docker compose ps
+
+# Guarda i log in tempo reale
+docker compose logs -f
+
+# Guarda i log di un servizio specifico
+docker compose logs -f backend
+```
+
+## Passo 2.5: Accesso all'Applicazione
+
+Una volta avviati i servizi, accedi a:
+
+| Servizio | URL | Note |
+|----------|-----|------|
+| **Frontend** | http://localhost:3040 | Interfaccia utente principale |
+| **Backend (via proxy)** | http://localhost:8040 | API Django tramite Nginx |
+| **Admin Panel** | http://localhost:8040/admin | Pannello amministrativo |
+| **API** | http://localhost:8040/api | API endpoints |
+| **SQL Generator** | http://localhost:8020 | API SQL Generator |
+| **Qdrant Dashboard** | http://localhost:6333/dashboard | Dashboard Qdrant |
+| **Mermaid Service** | http://localhost:8003 | Servizio diagrammi |
+
+## Passo 2.6: Comandi Utili
+
+```bash
+# Fermare tutti i servizi
+docker compose down
+
+# Fermare e rimuovere volumi
+docker compose down -v
+
+# Riavviare un servizio specifico
+docker compose restart backend
+
+# Guardare i log di un servizio
+docker compose logs backend
+
+# Ricostruire le immagini
+docker compose build
+
+# Aggiornare il progetto
+git pull && ./install.sh
+```
+
+## Risoluzione dei Problemi
+
+### Porte già in uso
+
+Se una porta è già in uso, modifica le porte in [`config.yml.local`](config.yml.local:1):
+
+```yaml
+ports:
+  frontend: 3041
+  backend_proxy: 8041
+  sql_generator: 8021
+  qdrant: 6334
+  mermaid_service: 8004
+```
+
+Poi riavvia:
+
+```bash
+docker compose down
+./install.sh
+```
+
+### Build fallita
+
+Se la build delle immagini fallisce:
+
+```bash
+# Pulisci la cache di build
+docker builder prune -a -f
+
+# Riavvia con cache pulita
+./install.sh --clean-cache
+```
+
+### Servizi non si avviano
+
+Controlla i log per identificare il problema:
+
+```bash
+# Guarda tutti i log
+docker compose logs
+
+# Guarda i log di un servizio specifico
+docker compose logs backend
+docker compose logs frontend
+docker compose logs sql-generator
+```
+
+### Rimuovere tutte le risorse Docker
+
+Se desideri ricominciare da zero:
+
+```bash
+# Rimuovi tutte le risorse ThothAI
+./install.sh --prune-all
+
+# Oppure manualmente
+docker compose down -v
+docker volume ls -q --filter "name=^thoth-" | xargs -r docker volume rm
+docker network ls -q --filter "name=^thoth-" | xargs -r docker network rm
+docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "^thoth-" | xargs -r docker rmi -f
+```
+
+---
+
+# PARTE 3: DOCKER SWARM
+
+## Panoramica
+
+Lo scenario Docker Swarm distribuisce ThothAI su un server remoto. Le immagini Docker vengono costruite localmente, pushate su Docker Hub, e poi distribuite su un cluster Swarm remoto. Questo è ideale per deployment in produzione.
+
+## Prerequisiti
+
+### Sul tuo sistema locale:
+- **Docker Desktop** (in esecuzione)
+- **Python 3.9+** (per lo script di installazione)
+- **SSH client** (per connessione al server remoto)
+- **Account Docker Hub** (con accesso push)
+
+### Sul server remoto:
+- **Docker** (installato e in esecuzione)
+- **Docker Swarm** (inizializzato con `docker swarm init`)
+- **Accesso SSH** (con chiave o password)
+
+## Passo 3.1: Clonare il Progetto
+
+```bash
+# Naviga nella directory desiderata
+cd /path/to/your/projects
+
+# Clona il repository
+git clone <repository-url> ThothAI
+
+# Entra nella directory del progetto
+cd ThothAI
+```
+
+## Passo 3.2: Configurare il Progetto
+
+### Configurazione principale
+
+```bash
+# Copia il template di configurazione
+cp config.yml config.yml.local
+
+# Modifica config.yml.local con le tue impostazioni
+nano config.yml.local
+```
+
+Imposta i seguenti parametri in [`config.yml.local`](config.yml.local:1):
+- **LLM API Keys**: Almeno una tra `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`
+- **Embedding Provider**: `EMBEDDING_PROVIDER`, `EMBEDDING_API_KEY`, `EMBEDDING_MODEL`
+- **Database preferences**: MariaDB, SQL Server, ecc. (opzionale)
+- **Admin email**: Per il superuser Django (opzionale)
+
+### Configurazione Swarm
+
+```bash
+# Copia il template di configurazione Swarm
+cp swarm_config.env.template swarm_config.env
+
+# Modifica swarm_config.env con le tue impostazioni
+nano swarm_config.env
+```
+
+Imposta i seguenti parametri in [`swarm_config.env`](swarm_config.env:1):
+
+```bash
+# Docker Configuration
+DOCKER_USERNAME=your-dockerhub-username  # REQUIRED: Il tuo username Docker Hub
+STACK_NAME=thoth                        # Nome dello stack Swarm
+
+# Service Port Configuration
+FRONTEND_PORT=3040                      # Porta frontend (modifica se necessario)
+BACKEND_PROXY_PORT=8040                 # Porta backend via proxy
+SQL_GENERATOR_PORT=8020                 # Porta SQL Generator
+QDRANT_PORT=6333                        # Porta Qdrant
+MERMAID_SERVICE_PORT=8003               # Porta Mermaid Service
+```
+
+## Passo 3.3: Preparare il Server Remoto
+
+### Inizializzare Swarm sul server remoto
+
+```bash
+# Connettiti al server remoto
+ssh user@your-server
+
+# Inizializza Swarm (se non già fatto)
 docker swarm init
 
 # Verifica che Swarm sia attivo
 docker info | grep Swarm
 ```
 
-## Passo 4.2: Creare docker-stack-pubblico.yml
-
-Crea un nuovo file `docker-stack-pubblico.yml` nella root del progetto:
-
-```yaml
-version: '3.8'
-
-services:
-  # === BACKEND SERVICE ===
-  backend:
-    image: <tuo-username>/thoth-backend:latest
-    networks:
-      - thoth-network
-    volumes:
-      - thoth-backend-db:/app/backend_db
-      - thoth-shared-data:/app/data
-      - thoth-logs:/app/logs
-      - backend-static:/vol/static
-      - backend-media:/vol/media
-      - thoth-data-exchange:/app/data_exchange
-    environment:
-      - HOST_IP=host.docker.internal
-      - DOCKER_ENV=production
-      - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
-      - FRONTEND_URL=http://localhost:3040
-      - DOCKER_CONTAINER=true
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 1200s
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-
-  # === FRONTEND SERVICE ===
-  frontend:
-    image: <tuo-username>/thoth-frontend:latest
-    networks:
-      - thoth-network
-    ports:
-      - target: 3000
-        published: 3040
-        protocol: tcp
-        mode: host
-    volumes:
-      - frontend-cache:/app/.next/cache
-      - thoth-data-exchange:/app/data_exchange:ro
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-      - DJANGO_SERVER=http://proxy:80
-      - SQL_GENERATOR_URL=http://sql-generator:8020
-      - DOCKER_CONTAINER=true
-      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:8040
-      - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:8020
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
-
-  # === SQL GENERATOR SERVICE ===
-  sql-generator:
-    image: <tuo-username>/thoth-sql-generator:latest
-    networks:
-      - thoth-network
-    ports:
-      - target: 8020
-        published: 8020
-        protocol: tcp
-        mode: host
-    volumes:
-      - thoth-shared-data:/app/data
-      - thoth-logs:/app/logs
-      - thoth-data-exchange:/app/data_exchange
-    environment:
-      - DOCKER_CONTAINER=true
-      - PORT=8020
-      - DJANGO_SERVER=http://backend:8000
-      - VECTOR_DB_HOST=thoth-qdrant
-      - VECTOR_DB_PORT=6333
-      - DB_ROOT_PATH=/app/data
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-
-  # === PROXY SERVICE ===
-  proxy:
-    image: <tuo-username>/thoth-proxy:latest
-    networks:
-      - thoth-network
-    ports:
-      - target: 80
-        published: 8040
-        protocol: tcp
-        mode: host
-    volumes:
-      - backend-static:/vol/static:ro
-      - backend-media:/vol/media:ro
-      - thoth-data-exchange:/vol/data_exchange:ro
-    environment:
-      - APP_HOST=backend
-      - APP_PORT=8000
-      - FRONTEND_HOST=frontend
-      - FRONTEND_PORT=3000
-      - SQL_GEN_HOST=sql-generator
-      - SQL_GEN_PORT=8020
-      - DEBUG=False
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
-
-  # === MERMAID SERVICE ===
-  mermaid-service:
-    image: <tuo-username>/thoth-mermaid-service:latest
-    networks:
-      - thoth-network
-    ports:
-      - target: 8001
-        published: 8003
-        protocol: tcp
-        mode: host
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 1G
-        reservations:
-          cpus: '0.1'
-          memory: 256M
-
-  # === VECTOR DATABASE SERVICE ===
-  thoth-qdrant:
-    image: qdrant/qdrant:latest
-    networks:
-      - thoth-network
-    ports:
-      - target: 6333
-        published: 6333
-        protocol: tcp
-        mode: host
-    volumes:
-      - qdrant-data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
-
-volumes:
-  backend-static:
-    driver: local
-  backend-media:
-    driver: local
-  frontend-cache:
-    driver: local
-  qdrant-data:
-    driver: local
-  thoth-backend-db:
-    driver: local
-  thoth-logs:
-    driver: local
-  thoth-shared-data:
-    driver: local
-  thoth-data-exchange:
-    driver: local
-
-networks:
-  thoth-network:
-    driver: overlay
-    attachable: true
-```
-
-## Passo 4.3: Deploy dello Stack
+### Verificare la connessione SSH
 
 ```bash
-# Deploy dello stack
-docker stack deploy -c docker-stack-pubblico.yml thoth
+# Testa la connessione SSH dal tuo sistema locale
+ssh user@your-server
 
-# Verifica lo stato dei servizi
-docker stack services thoth
-
-# Guarda i log di un servizio
-docker service logs thoth_backend
+# Se usi una chiave SSH personalizzata
+ssh -i ~/.ssh/custom_key user@your-server
 ```
 
-## Passo 4.4: Accesso all'Applicazione
+## Passo 3.4: Eseguire il Deployment
 
-Le stesse URL di prima:
-- **Frontend**: http://localhost:3040
-- **Backend (via proxy)**: http://localhost:8040
-- **Admin**: http://localhost:8040/admin
-- **API**: http://localhost:8040/api
-- **SQL Generator**: http://localhost:8020
-- **Qdrant**: http://localhost:6333
-- **Mermaid Service**: http://localhost:8003
+### Su Linux/macOS
 
-## Passo 4.5: Comandi Utili per Swarm
+```bash
+# Deployment standard
+./install-swarm.sh --server user@your-server
+
+# Con porta SSH personalizzata
+./install-swarm.sh --server user@your-server --port 2222
+
+# Con chiave SSH personalizzata
+./install-swarm.sh --server user@your-server --key ~/.ssh/custom_key
+
+# Tutte le opzioni
+./install-swarm.sh --server user@your-server --port 2222 --key ~/.ssh/custom_key
+```
+
+### Su Windows (PowerShell)
+
+```powershell
+# Deployment standard
+.\install-swarm.ps1 -Server user@your-server
+
+# Con porta SSH personalizzata
+.\install-swarm.ps1 -Server user@your-server -Port 2222
+
+# Con chiave SSH personalizzata
+.\install-swarm.ps1 -Server user@your-server -Key ~/.ssh/custom_key
+
+# Tutte le opzioni
+.\install-swarm.ps1 -Server user@your-server -Port 2222 -Key ~/.ssh/custom_key
+```
+
+Lo script [`install-swarm.sh`](install-swarm.sh:1) eseguirà automaticamente:
+1. Verifica dei prerequisiti (Docker, SSH, envsubst)
+2. Caricamento e validazione della configurazione da [`swarm_config.env`](swarm_config.env:1)
+3. Build locale delle immagini Docker (tramite [`install.sh`](install.sh:1))
+4. Tag delle immagini con il tuo username Docker Hub
+5. Push delle immagini su Docker Hub
+6. Login a Docker Hub (se non già loggato)
+7. Preparazione del file [`docker-stack-swarm.yml`](docker-stack-swarm.yml:1) con le variabili sostituite
+8. Deploy dello stack sul server remoto tramite SSH
+9. Creazione dei secrets e configs su Swarm
+10. Attesa che tutti i servizi siano avviati
+
+## Passo 3.5: Verificare lo Stato dei Servizi
+
+```bash
+# Verifica lo stato dei servizi sul server remoto
+docker stack services thoth
+
+# Verifica i task dei servizi
+docker stack ps thoth
+
+# Guarda i log di un servizio specifico
+docker service logs thoth_backend
+docker service logs thoth_frontend
+docker service logs thoth_sql-generator
+```
+
+## Passo 3.6: Accesso all'Applicazione
+
+Una volta completato il deployment, accedi a:
+
+| Servizio | URL | Note |
+|----------|-----|------|
+| **Frontend** | http://your-server:3040 | Interfaccia utente principale |
+| **Backend (via proxy)** | http://your-server:8040 | API Django tramite Nginx |
+| **Admin Panel** | http://your-server:8040/admin | Pannello amministrativo |
+| **API** | http://your-server:8040/api | API endpoints |
+| **SQL Generator** | http://your-server:8020 | API SQL Generator |
+| **Qdrant Dashboard** | http://your-server:6333/dashboard | Dashboard Qdrant |
+| **Mermaid Service** | http://your-server:8003 | Servizio diagrammi |
+
+## Passo 3.7: Comandi Utili per Swarm
 
 ```bash
 # Rimuovere lo stack
@@ -699,63 +561,226 @@ docker service scale thoth_frontend=2
 docker service logs -f thoth_backend
 
 # Aggiornare un servizio
-docker service update --image <tuo-username>/thoth-backend:latest thoth_backend
+docker service update --image your-dockerhub-username/thoth-backend:latest thoth_backend
+
+# Rollback di un servizio
+docker service rollback thoth_backend
+```
+
+## Risoluzione dei Problemi
+
+### Docker Hub login fallito
+
+```bash
+# Login manuale a Docker Hub
+docker login
+
+# Verifica il login
+docker info | grep Username
+```
+
+### Connessione SSH fallita
+
+```bash
+# Testa la connessione SSH
+ssh -v user@your-server
+
+# Se usi una chiave SSH personalizzata
+ssh -v -i ~/.ssh/custom_key user@your-server
+
+# Verifica che la chiave sia caricata nell'agent
+ssh-add -l
+ssh-add ~/.ssh/custom_key
+```
+
+### Swarm non inizializzato sul server remoto
+
+```bash
+# Connettiti al server remoto
+ssh user@your-server
+
+# Inizializza Swarm
+docker swarm init
+
+# Verifica lo stato
+docker info | grep Swarm
+```
+
+### Servizi non si avviano
+
+Controlla i log per identificare il problema:
+
+```bash
+# Guarda i log di tutti i servizi
+docker stack services thoth
+
+# Guarda i task per vedere gli errori
+docker stack ps thoth --no-trunc
+
+# Guarda i log di un servizio specifico
+docker service logs thoth_backend --tail 100
+```
+
+### Porte già in uso sul server remoto
+
+Modifica le porte in [`swarm_config.env`](swarm_config.env:1):
+
+```bash
+FRONTEND_PORT=3041
+BACKEND_PROXY_PORT=8041
+SQL_GENERATOR_PORT=8021
+QDRANT_PORT=6334
+MERMAID_SERVICE_PORT=8004
+```
+
+Poi riavvia il deployment:
+
+```bash
+docker stack rm thoth
+./install-swarm.sh --server user@your-server
+```
+
+### Immagini non trovate su Docker Hub
+
+Assicurati che le immagini siano state pushate correttamente:
+
+```bash
+# Verifica che le immagini esistano su Docker Hub
+# Visita https://hub.docker.com/u/your-dockerhub-username
+
+# Oppure verifica localmente
+docker images | grep thoth
+
+# Push manuale delle immagini
+docker push your-dockerhub-username/thoth-backend:latest
+docker push your-dockerhub-username/thoth-frontend:latest
+docker push your-dockerhub-username/thoth-sql-generator:latest
+docker push your-dockerhub-username/thoth-proxy:latest
+docker push your-dockerhub-username/thoth-mermaid-service:latest
 ```
 
 ---
 
 # RIEPILOGO COMANDI PRINCIPALI
 
-## Build e Push
+## Sviluppo Locale
+
 ```bash
-# Build locale
-docker compose build
+# Avvio
+./start-all.sh          # Linux/macOS
+.\start-all.ps1         # Windows (PowerShell)
 
-# Tag per Docker Hub
-docker tag thoth-backend:latest <tuo-username>/thoth-backend:latest
-docker tag thoth-frontend:latest <tuo-username>/thoth-frontend:latest
-docker tag thoth-sql-generator:latest <tuo-username>/thoth-sql-generator:latest
-docker tag thoth-proxy:latest <tuo-username>/thoth-proxy:latest
-docker tag thoth-mermaid-service:latest <tuo-username>/thoth-mermaid-service:latest
-
-# Push su Docker Hub
-docker push <tuo-username>/thoth-backend:latest
-docker push <tuo-username>/thoth-frontend:latest
-docker push <tuo-username>/thoth-sql-generator:latest
-docker push <tuo-username>/thoth-proxy:latest
-docker push <tuo-username>/thoth-mermaid-service:latest
+# Arresto (Ctrl+C)
 ```
 
-## Docker Compose (Non Swarm)
-```bash
-# Avvia
-docker compose -f docker-compose-pubblico.yml up -d
+## Docker Compose
 
-# Ferma
-docker compose -f docker-compose-pubblico.yml down
+```bash
+# Installazione
+./install.sh            # Linux/macOS
+.\install.ps1           # Windows (PowerShell)
+
+# Avvio
+docker compose up -d
+
+# Arresto
+docker compose down
 
 # Logs
-docker compose -f docker-compose-pubblico.yml logs -f
+docker compose logs -f
+
+# Aggiornamento
+git pull && ./install.sh
 ```
 
 ## Docker Swarm
-```bash
-# Deploy
-docker stack deploy -c docker-stack-pubblico.yml thoth
 
-# Rimuovi
-docker stack rm thoth
+```bash
+# Deployment
+./install-swarm.sh --server user@your-server              # Linux/macOS
+.\install-swarm.ps1 -Server user@your-server              # Windows (PowerShell)
 
 # Stato
 docker stack services thoth
+
+# Logs
+docker service logs -f thoth_backend
+
+# Rimozione
+docker stack rm thoth
 ```
+
+---
+
+# CONFRONTO TRA SCENARI
+
+| Caratteristica | Sviluppo Locale | Docker Compose | Docker Swarm |
+|----------------|-----------------|----------------|--------------|
+| **Complessità** | Bassa | Media | Alta |
+| **Risorse Richieste** | Moderate | Alte (Docker) | Alte (Docker + Server) |
+| **Tempo di Setup** | Veloce (~5 min) | Medio (~15 min) | Lento (~30 min) |
+| **Isolamento** | Parziale | Completo | Completo |
+| **Scalabilità** | No | No | Sì |
+| **Ideale per** | Sviluppo e Debug | Testing Locale | Produzione |
+
+---
+
+# FILE DI CONFIGURAZIONE RIFERIMENTO
+
+## config.yml.local
+
+File di configurazione principale per tutti gli scenari. Contiene:
+- API keys per LLM e embedding
+- Preferenze del database
+- Email admin
+- Porte dei servizi (per sviluppo locale)
+
+## swarm_config.env
+
+File di configurazione specifico per Docker Swarm. Contiene:
+- `DOCKER_USERNAME`: Username Docker Hub (REQUIRED)
+- `STACK_NAME`: Nome dello stack Swarm
+- Porte dei servizi (FRONTEND_PORT, BACKEND_PROXY_PORT, ecc.)
+
+## .env.local
+
+Generato automaticamente da [`config.yml.local`](config.yml.local:1) per lo sviluppo locale. Non modificare manualmente.
+
+## .env.docker
+
+Generato automaticamente da [`config.yml.local`](config.yml.local:1) per Docker Compose e Swarm. Non modificare manualmente.
 
 ---
 
 # NOTE IMPORTANTI
 
-1. **Sostituisci `<tuo-username>`** con il tuo username Docker Hub reale in tutti i file e comandi
-2. Le immagini pubbliche possono essere pullate da chiunque senza login
-3. Assicurati che `.env.docker` e `config.yml.local` siano presenti nella directory del progetto
-4. Per Swarm su Mac, usa `mode: host` per le porte pubblicate
-5. I volumi vengono mantenuti tra i riavvii dei container
+1. **Non committare file sensibili**: I file [`.env.local`](.env.local:1), [`.env.docker`](.env.docker:1), [`config.yml.local`](config.yml.local:1) e [`swarm_config.env`](swarm_config.env:1) contengono API keys e non devono essere committati su git.
+
+2. **Docker Hub Username**: Per Docker Swarm, il `DOCKER_USERNAME` in [`swarm_config.env`](swarm_config.env:1) deve corrispondere al tuo username Docker Hub reale.
+
+3. **Porte**: Se le porte di default sono già in uso, modifica i file di configurazione appropriati prima di avviare i servizi.
+
+4. **Prima installazione**: La prima installazione richiede più tempo per il build delle immagini Docker.
+
+5. **Aggiornamenti**: Per aggiornare ThothAI, esegui `git pull` e riavvia lo script di installazione appropriato.
+
+6. **Backup dei dati**: Per Docker Compose e Swarm, i dati sono persistenti nei volumi Docker. Assicurati di fare backup regolari.
+
+---
+
+# RISORSE AGGIUNTIVE
+
+- [README.md](README.md:1) - Documentazione principale del progetto
+- [AGENTS.md](AGENTS.md:1) - Guida agli agenti AI
+- [docs/DOCKER_INSTALLATION.md](DOCKER_INSTALLATION.md:1) - Guida all'installazione Docker
+- [docs/DOCKER_SWARM.md](DOCKER_SWARM.md:1) - Guida dettagliata a Docker Swarm
+
+---
+
+# SUPPORTO
+
+Per problemi o domande:
+1. Controlla la sezione "Risoluzione dei Problemi" appropriata
+2. Consulta i log dei servizi per identificare l'errore
+3. Verifica che tutti i prerequisiti siano installati
+4. Assicurati che i file di configurazione siano corretti
