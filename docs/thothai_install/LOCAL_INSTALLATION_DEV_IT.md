@@ -36,8 +36,8 @@ graph TB
     class Browser browser;
 
     %% Connections
-    Browser -- "http://localhost:3000" --> Frontend
-    Browser -- "http://localhost:8000" --> Backend
+    Browser -- "http://localhost:3200" --> Frontend
+    Browser -- "http://localhost:8200" --> Backend
     Frontend -- "API Call" --> Backend
     Backend -.->|"gRPC (6333)"| Qdrant
     Backend -.->|"HTTP (8003)"| Mermaid
@@ -50,9 +50,25 @@ In questa modalità:
 1.  **Backend (Django)** e **Frontend (Next.js)** girano nativamente sulla macchina host per permettere il debug e l'hot-reload.
 2.  **Servizi di Supporto** (Qdrant, Mermaid Service) girano su Docker per semplificare la configurazione.
 
-## 3. Configurazione Servizi di Supporto (Docker)
+## 3. Avvio Automatico (Consigliato)
 
-Abbiamo predisposto un file docker-compose specifico per avviare solo i servizi necessari allo sviluppo senza avviare l'intera stack applicativa.
+Il metodo più semplice per avviare l'ambiente di sviluppo è utilizzare lo script `start-all.sh`, che si occupa automaticamente di:
+1. Avviare i container di supporto (Qdrant, Mermaid) usando `docker-compose-local.yml`.
+2. Avviare il Backend Django (porta 8200).
+3. Avviare il Frontend Next.js (porta 3200).
+4. Avviare il Generatore SQL (porta 8180).
+
+Esegui dalla root del progetto:
+
+```bash
+./start-all.sh
+```
+
+Per fermare tutti i servizi, premi `Ctrl+C`.
+
+## 4. Configurazione Servizi di Supporto (Avvio Manuale)
+
+Se preferisci gestire i servizi manualmente, puoi avviare solo i container di supporto.
 
 1.  Assicurati che Docker sia attivo.
 2.  Avvia i servizi di supporto:
@@ -63,7 +79,7 @@ Abbiamo predisposto un file docker-compose specifico per avviare solo i servizi 
     *   **Thoth Qdrant**: DB Vettoriale (Porta 6333)
     *   **Mermaid Service**: Servizio di generazione diagrammi (Porta 8003)
 
-## 4. Installazione e Avvio Backend
+## 5. Installazione e Avvio Backend (Manuale)
 
 1.  Spostati nella root del progetto.
 2.  Installa `uv` (se non presente):
@@ -72,22 +88,22 @@ Abbiamo predisposto un file docker-compose specifico per avviare solo i servizi 
     ```
 3.  Crea l'ambiente virtuale e installa le dipendenze:
     ```bash
-    uv venv
+    # Sincronizza l'ambiente usando uv (legge pyproject.toml/uv.lock)
+    uv sync
     source .venv/bin/activate
-    uv pip install -e ".[dev]"
     ```
 4.  Configura le variabili d'ambiente:
     *   Copia `.env.local` (generato da `config.yml.local` via script di setup o creato manualmente) come `.env` nella cartella `backend/`.
-    *   Assicurati che `DB_HOST` punti a localhost o al servizio corretto.
-
+    *   Ricorda che in modalità manuale devi esportare le variabili o usare un `.env` valido.
+    
 5.  Esegui le migrazioni e avvia il server:
     ```bash
     cd backend
-    python manage.py migrate
-    python manage.py runserver 0.0.0.0:8000
+    uv run python manage.py migrate
+    uv run python manage.py runserver 0.0.0.0:8200
     ```
 
-## 5. Installazione e Avvio Frontend
+## 6. Installazione e Avvio Frontend (Manuale)
 
 1.  In un nuovo terminale, vai nella cartella `frontend`:
     ```bash
@@ -99,17 +115,17 @@ Abbiamo predisposto un file docker-compose specifico per avviare solo i servizi 
     ```
 3.  Avvia il server di sviluppo:
     ```bash
-    npm run dev
+    PORT=3200 npm run dev
     ```
-    Il frontend sarà accessibile su `http://localhost:3000`.
+    Il frontend sarà accessibile su `http://localhost:3200`.
 
-## 6. Accesso all'Applicazione
+## 7. Accesso all'Applicazione
 
-*   Frontend (Dev): `http://localhost:3000`
-*   Backend API (Dev): `http://localhost:8000`
+*   Frontend (Dev): `http://localhost:3200`
+*   Backend API (Dev): `http://localhost:8200`
 *   Qdrant Dashboard: `http://localhost:6333/dashboard`
 
 ## 7. Troubleshooting
 
 *   **Problemi di connessione DB:** Verifica che i container di supporto siano attivi con `docker ps`.
-*   **Errori CORS:** In modalità sviluppo, assicurarsi che le porte 3000 e 8000 siano correttamente configurate nelle whitelist CORS del backend.
+*   **Errori CORS:** In modalità sviluppo, assicurarsi che le porte 3200 e 8200 siano correttamente configurate nelle whitelist CORS del backend.

@@ -132,12 +132,16 @@ FRONTEND_PORT=${FRONTEND_PORT:-3200}
 SQL_GENERATOR_PORT=${SQL_GENERATOR_PORT:-8180}
 BACKEND_PORT=${BACKEND_PORT:-8200}
 MERMAID_SERVICE_PORT=${MERMAID_SERVICE_PORT:-8003}
-QDRANT_PORT=6334
+QDRANT_PORT=${QDRANT_PORT:-6333}
+DOCKER_USERNAME=${DOCKER_USERNAME:-tylconsulting}
 
 if [ -z "$MERMAID_SERVICE_URL" ]; then
     MERMAID_SERVICE_URL="http://localhost:${MERMAID_SERVICE_PORT}"
     export MERMAID_SERVICE_URL
 fi
+
+# Export variables for docker compose
+export MERMAID_SERVICE_PORT QDRANT_PORT DOCKER_USERNAME
 
 # Global PIDs for cleanup
 DJANGO_PID=""
@@ -190,7 +194,15 @@ cleanup_sql_generator() {
 echo -e "${BLUE}ThothAI Service Startup Script${NC}"
 echo "==============================="
 
-# Step 1: Check and start all required services
+# Step 0: Stop any base Docker services to avoid conflicts
+echo -e "${YELLOW}Stopping base Docker services (docker-compose.yml)...${NC}"
+docker compose -f docker-compose.yml down 2>/dev/null || true
+
+# Step 0.1: Ensure local Django port is clear
+echo -e "${YELLOW}Ensuring port $BACKEND_PORT is clear...${NC}"
+kill_port $BACKEND_PORT
+
+# Step 1: Starting all services...
 echo -e "\n${YELLOW}Step 1: Starting all services...${NC}"
 
 # Check and start Django backend
@@ -264,7 +276,7 @@ else
     fi
 fi
 
-# Check and start Qdrant
+# Check and start Qdrant via Docker Compose
 if check_port $QDRANT_PORT; then
     echo -e "${GREEN}✓ Qdrant is already running on port $QDRANT_PORT${NC}"
 else
@@ -276,23 +288,13 @@ else
         echo -e "${YELLOW}Please install Docker to run Qdrant${NC}"
         exit 1
     fi
-    
-    # Check if qdrant-thoth container exists
-    if docker ps -a --format "table {{.Names}}" | grep -q "^qdrant-thoth$"; then
-        echo -e "${YELLOW}Starting existing qdrant-thoth container...${NC}"
-        docker start qdrant-thoth
-        # Ensure it auto-starts with Docker daemon
-        docker update --restart unless-stopped qdrant-thoth >/dev/null 2>&1 || true
-        QDRANT_CONTAINER="qdrant-thoth"
+
+    echo -e "${YELLOW}Starting Qdrant via Docker Compose...${NC}"
+    if docker compose -f docker-compose-local.yml up -d qdrant; then
+         QDRANT_CONTAINER="qdrant-thoth"
     else
-        echo -e "${YELLOW}Creating and starting new qdrant-thoth container...${NC}"
-        docker run -d \
-            --name qdrant-thoth \
-            --restart unless-stopped \
-            -p 6334:6333 \
-            -v $(pwd)/qdrant_storage:/qdrant/storage:z \
-            qdrant/qdrant
-        QDRANT_CONTAINER="qdrant-thoth"
+         echo -e "${RED}Failed to start Qdrant via Docker Compose${NC}"
+         exit 1
     fi
     
     # Wait for Qdrant to start
@@ -360,7 +362,7 @@ if ! check_port $SQL_GENERATOR_PORT; then
     exit 1
 fi
 
-# Check and start Mermaid Service (via Docker)
+# Check and start Mermaid Service (via Docker Compose)
 echo -e "${YELLOW}Checking Mermaid Service on port $MERMAID_SERVICE_PORT...${NC}"
 
 if check_port $MERMAID_SERVICE_PORT; then
@@ -375,52 +377,27 @@ else
         exit 1
     fi
     
-    echo -e "${YELLOW}Starting Mermaid Service via Docker...${NC}"
+    echo -e "${YELLOW}Starting Mermaid Service via Docker Compose...${NC}"
     
-    # Check if mermaid-service directory exists
-    if [ -d "docker/mermaid-service" ]; then
-        # Check if mermaid-thoth image exists
-        if docker images --format "{{.Repository}}" | grep -q "^mermaid-thoth$"; then
-            echo -e "${GREEN}✓ Mermaid Service Docker image already exists${NC}"
-        else
-            echo -e "${YELLOW}Building Mermaid Service Docker image...${NC}"
-            if ! docker build -t mermaid-thoth docker/mermaid-service; then
-                echo -e "${RED}Failed to build Mermaid Service Docker image${NC}"
-                exit 1
-            fi
-            echo -e "${GREEN}✓ Mermaid Service Docker image built successfully${NC}"
-        fi
-        
-        # Check if mermaid-thoth container exists
-        if docker ps -a --format "table {{.Names}}" | grep -q "^mermaid-thoth$"; then
-            echo -e "${YELLOW}Removing existing mermaid-thoth container...${NC}"
-            docker rm -f mermaid-thoth >/dev/null 2>&1 || true
-        fi
-        
-        # Start Mermaid Service container
-        docker run -d \
-            --name mermaid-thoth \
-            --restart unless-stopped \
-            -p $MERMAID_SERVICE_PORT:8001 \
-            mermaid-thoth
-        MERMAID_CONTAINER="mermaid-thoth"
-        
-        # Wait for Mermaid Service to start
-        echo -e "${YELLOW}Waiting for Mermaid Service to start...${NC}"
-        for i in {1..30}; do
-            if check_port $MERMAID_SERVICE_PORT; then
-                echo -e "${GREEN}✓ Mermaid Service started successfully on port $MERMAID_SERVICE_PORT${NC}"
-                break
-            fi
-            sleep 1
-        done
-        
-        if ! check_port $MERMAID_SERVICE_PORT; then
-            echo -e "${RED}Failed to start Mermaid Service${NC}"
-            exit 1
-        fi
+    if docker compose -f docker-compose-local.yml up -d mermaid-service; then
+         MERMAID_CONTAINER="mermaid-service"
     else
-        echo -e "${RED}Mermaid Service directory not found!${NC}"
+         echo -e "${RED}Failed to start Mermaid Service via Docker Compose${NC}"
+         exit 1
+    fi
+    
+    # Wait for Mermaid Service to start
+    echo -e "${YELLOW}Waiting for Mermaid Service to start...${NC}"
+    for i in {1..30}; do
+        if check_port $MERMAID_SERVICE_PORT; then
+            echo -e "${GREEN}✓ Mermaid Service started successfully on port $MERMAID_SERVICE_PORT${NC}"
+            break
+        fi
+        sleep 1
+    done
+    
+    if ! check_port $MERMAID_SERVICE_PORT; then
+        echo -e "${RED}Failed to start Mermaid Service${NC}"
         exit 1
     fi
 fi
@@ -513,9 +490,8 @@ cleanup() {
         read -p "Stop Mermaid container? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            docker stop $MERMAID_CONTAINER >/dev/null 2>&1
-            docker rm $MERMAID_CONTAINER >/dev/null 2>&1
-            echo -e "${GREEN}✓ Mermaid container stopped and removed${NC}"
+             docker compose -f docker-compose-local.yml stop mermaid-service >/dev/null 2>&1
+             echo -e "${GREEN}✓ Mermaid container stopped${NC}"
         else
             echo -e "${YELLOW}Mermaid container left running${NC}"
         fi
@@ -526,7 +502,7 @@ cleanup() {
         read -p "Stop Qdrant container? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            docker stop $QDRANT_CONTAINER >/dev/null 2>&1
+            docker compose -f docker-compose-local.yml stop qdrant >/dev/null 2>&1
             echo -e "${GREEN}✓ Qdrant container stopped${NC}"
         else
             echo -e "${YELLOW}Qdrant container left running${NC}"

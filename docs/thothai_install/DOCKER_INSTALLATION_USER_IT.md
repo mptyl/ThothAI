@@ -32,9 +32,9 @@ Abbiamo semplificato il processo in un unico script che scarica tutto il necessa
 **Cosa fa questo comando:**
 1.  Verifica la configurazione in `config.yml.local`.
 2.  Genera i file di ambiente necessari (`.env.docker`).
-3.  Scarica (Pull) le ultime versioni delle immagini ufficiali di ThothAI da Docker Hub.
-4.  Crea la rete e i volumi Docker per i dati persistenti.
-5.  Avvia l'applicazione.
+3.  **Scelta Build/Pull**: Chiede se scaricare le immagini da Docker Hub o costruirle localmente.
+4.  **Setup**: Crea la rete e i volumi Docker per i dati persistenti.
+5.  **Avvio**: Avvia l'applicazione con `docker compose`.
 
 ```mermaid
 graph TD

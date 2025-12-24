@@ -44,7 +44,11 @@ jobs:
           cd /path/to/ThothAI
           git pull origin main
           cp config.yml.production config.yml.local # Assicura config corretta
-          ./install.sh --force-recreate
+          # Setup ambiente (generazione .env.docker)
+          python3 scripts/installer.py --generate-env-only
+          # Pull e Riavvio
+          docker compose pull
+          docker compose up -d --force-recreate
 ```
 
 ### 2.2 Pipeline per Docker Swarm

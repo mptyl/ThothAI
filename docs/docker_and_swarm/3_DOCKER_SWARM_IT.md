@@ -26,18 +26,24 @@ Questa modalità è utile allo **Sviluppatore** per testare come l'applicazione 
 Lo sviluppatore vuole testare le immagini costruite localmente senza necessariamente pusharle su Hub (anche se Swarm preferisce immagini da registry).
 
 1.  **Build delle immagini**:
+    Poiché `install.sh` avvia sempre i servizi, per fare solo la build usiamo `docker compose`:
     ```bash
-    ./install.sh --no-start
+    # Costruisce le immagini locali (thoth-backend:latest, ecc.)
+    docker compose build
     ```
-    Questo costruisce le immagini `thoth-backend:latest`, `thoth-frontend:latest` ecc.
 
 2.  **Deploy dello Stack**:
-    Per usare immagini locali con Swarm, queste devono essere accessibili. In Docker Desktop (single node swarm), le immagini locali sono visibili.
+    Per usare immagini locali con Swarm (Single Node Local), le immagini devono essere presenti nella cache Docker locale.
     
-    Prepara le configurazioni (secret/config) ed esegui:
+    Prepara le configurazioni ed esegui:
     ```bash
-    # Crea configurazioni (esempio manuale per test locale)
-    docker config create thoth_env_docker .env.docker
+    # Genera env per docker se non esiste
+    python3 scripts/installer.py --generate-env-only
+    
+    # Crea config e secret
+    docker config create thoth_env_docker .env.docker 2>/dev/null || true
+    
+    # Deploy (nota: Stack Name 'thoth')
     docker stack deploy -c docker-stack.yml thoth
     ```
 

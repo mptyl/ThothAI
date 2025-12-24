@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Infrastructure & Deployment
+- **Docker Swarm Support**: Full orchestration support for multi-node deployments.
+  - New deployment scripts: `deploy-swarm.sh`, `install-swarm.sh`, and `install-swarm.ps1`.
+  - Added `docker-stack.yml` for stack-based services.
+  - Configurable port mapping range (7400-7420) for Swarm environments.
+  - Support for Swarm volume persistence and multi-node setup guidance.
+- **Hybrid Data Exchange**: Integrated solution for seamless data synchronization.
+  - API endpoints for secure data transfer between local and remote environments.
+  - Dedicated CLI tool (`data-exchange-cli.py`) for management.
+  - Integration with Docker Swarm volumes for persistent storage.
+- **Developer Experience (DX)**:
+  - **Direnv Integration**: Added `.envrc` support for automatic environment loading.
+  - **Project Branding**: Added terminal `BANNER.txt` for easy project identification.
+  - **Installer Flags**: Added `--generate-env-only` flag to the installer script.
+
+#### Frontend & User Experience
+- **Logout Confirmation**: Implemented a global `LogoutConfirmationDialog`.
+  - Consistent UX across all application pages.
+  - Integrated loading indicators for the logout sequence.
+- **Testing Infrastructure**: Integrated **Playwright** for automated end-to-end (E2E) testing.
+
+#### SQL Generation & Database
+- **Enhanced Alias Detection**: Improved SQL expression parsing using advanced regex pattern matching for better alias identification.
+- **Admin Interface**: Added verbose names to Django admin models for improved readability and maintenance.
+
+### Changed
+
+#### Documentation & Structure
+- **Global Documentation Overhaul**: Reorganized technical guides into specialized categories.
+  - New structure in `docs/thothai_install/` for targeted installation scenarios (Local, Docker, Swarm).
+  - Moved historical context and superseded plans to `docs/legacy/`.
+  - Enhanced README with detailed multi-agent system and SQL generation process descriptions.
+- **Script Refactoring**:
+  - Convered `deployswarm.ps1` from a stack deployment tool to a specialized image push script.
+  - Updated `install.sh` and `start-all.sh` for improved robustness in containerized environments.
+
+#### Code Quality
+- **Licensing**: Updated copyright headers to "Tyl Consulting di Pancotti Marco".
+
+### Fixed
+- **PowerShell Compatibility**: Replaced ternary operators with if-else blocks in `.ps1` scripts to ensure compatibility with PowerShell 5.1.
+- **Dependency Management**: Added missing peer dependencies across multiple packages in `package-lock.json`.
+
+---
+
+## [0.7.4] - 2025-10-11
+
 ### Changed
 
 #### Library Updates

@@ -40,7 +40,7 @@ L'utilizzatore finale ha l'obiettivo di avviare l'applicazione il più velocemen
 
 ### 3.2 Installazione e Avvio
 
-ThothAI fornisce script automatici che gestiscono tutto: validazione configurazione, setup rete/volumi, build e avvio.
+ThothAI fornisce uno script `install.sh` (interattivo) che gestisce tutto il processo.
 
 *   **Linux/macOS**:
     ```bash
@@ -52,11 +52,13 @@ ThothAI fornisce script automatici che gestiscono tutto: validazione configurazi
     ```
 
 Lo script eseguirà:
-1.  Validazione di `config.yml.local`.
-2.  Generazione di `.env.docker` (file di ambiente per Docker).
-3.  Creazione dei volumi docker necessari (es. `thoth-secrets`, `thoth-data`).
-4.  Build locale delle immagini (o pull se configurato diversamente).
-5.  Avvio dello stack con `docker compose up -d`.
+1.  **Stop dei servizi locali**: Arresta eventuali servizi di sviluppo (`docker-compose-local.yml`) per evitare conflitti di porta.
+2.  **Validazione Configurazione**: Controlla la presenza di `config.yml.local`.
+3.  **Scelta Build/Pull**: Ti chiederà se vuoi scaricare le immagini da Docker Hub (default) o costruirle localmente (utile se hai modificato il codice ma vuoi testare in full-docker).
+4.  **Setup Ambiente**: Genera `.env.docker` e crea i volumi necessari (es. `thoth-secrets`).
+5.  **Avvio**: Lancia lo stack con `docker compose up -d` (usando `docker-compose-hub.yml` o `docker-compose.yml` a seconda della scelta).
+
+> **Nota per Sviluppatori (Hybrid Mode)**: Se vuoi sviluppare con codice nativo su host (hot-reload) e servizi di supporto su Docker, NON usare `install.sh`. Usa invece `start-all.sh`. Vedi la guida [LOCAL_INSTALLATION_DEV_IT](../thothai_install/LOCAL_INSTALLATION_DEV_IT.md).
 
 ### 3.3 Accesso all'Applicazione
 
