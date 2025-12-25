@@ -8,73 +8,73 @@ $ErrorActionPreference = "Stop"
 
 function Fail($msg) { Write-Host $msg -ForegroundColor Red; exit 1 }
 
-# Porta la working directory nella cartella dello script
+# Change working directory to script folder
 $scriptPath = if ($PSScriptRoot) { $PSScriptRoot } else { Get-Location }
 Set-Location $scriptPath
 
-# Normalizza CRLF -> LF per gli script usati in build (richiede dos2unix in PATH)
+# Normalize CRLF -> LF for scripts used in build (requires dos2unix in PATH)
 if (Get-Command dos2unix -ErrorAction SilentlyContinue) {
     $targets = @()
     $targets += Get-ChildItem -Path "docker" -Recurse -Include *.sh -File -ErrorAction SilentlyContinue
     $targets += Get-ChildItem -Path "backend" -Recurse -Include *.sh -File -ErrorAction SilentlyContinue
     $targets += Get-ChildItem -Path "frontend" -Recurse -Include *.sh -File -ErrorAction SilentlyContinue
     if ($targets.Count -gt 0) {
-        Write-Host "Normalizzazione line ending con dos2unix..." -ForegroundColor Cyan
+        Write-Host "Normalizing line ending with dos2unix..." -ForegroundColor Cyan
         foreach ($f in $targets) { dos2unix $f.FullName *> $null }
     } else {
-        Write-Host "Nessun file .sh trovato per dos2unix" -ForegroundColor DarkGray
+        Write-Host "No .sh files found for dos2unix" -ForegroundColor DarkGray
     }
 } else {
-    Write-Host "dos2unix non trovato: salta normalizzazione CRLF. Installalo o usa Git for Windows per aggiungerlo al PATH." -ForegroundColor Yellow
+    Write-Host "dos2unix not found: skip CRLF normalization. Install it or use Git for Windows to add it to PATH." -ForegroundColor Yellow
 }
 
-# Prerequisiti
-if (-not (Test-Path "config.yml.local")) { Fail "config.yml.local mancante" }
+# Prerequisites
+if (-not (Test-Path "config.yml.local")) { Fail "config.yml.local missing" }
 $python = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" }
           elseif (Get-Command python -ErrorAction SilentlyContinue) { "python" }
-          else { Fail "Python 3.9+ non trovato" }
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Fail "Docker non trovato" }
+          else { Fail "Python 3.9+ not found" }
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Fail "Docker not found" }
 
-# Dipendenze Python minime (silenzioso)
+# Minimum Python dependencies (silent)
 & $python -m pip install --quiet pyyaml requests toml
 
-# Genera i file necessari (.env.docker, backend/pyproject.toml.merged, backend/uv.lock)
+# Generate necessary files (.env.docker, backend/pyproject.toml.merged, backend/uv.lock)
 & $python scripts/validate_config.py config.yml.local
 & $python scripts/configure_embedding.py config.yml.local
 & $python scripts/installer.py --generate-env-only
 & $python scripts/merge_pyproject.py backend
 & $python scripts/merge_pyproject.py frontend/sql_generator
 
-# Verifica che i file generati esistano prima del build
+# Verify generated files exist before build
 if (-not (Test-Path "backend/pyproject.toml.merged")) {
-    Fail "backend/pyproject.toml.merged mancante. Rigenera con: $python scripts/merge_pyproject.py backend"
+    Fail "backend/pyproject.toml.merged missing. Regenerate with: $python scripts/merge_pyproject.py backend"
 }
 if (-not (Test-Path "backend/uv.lock")) {
-    Fail "backend/uv.lock mancante. Rigenera con: $python scripts/installer.py --generate-env-only"
+    Fail "backend/uv.lock missing. Regenerate with: $python scripts/installer.py --generate-env-only"
 }
 if (-not (Test-Path "frontend/sql_generator/pyproject.toml.merged")) {
-    Fail "frontend/sql_generator/pyproject.toml.merged mancante. Rigenera con: $python scripts/merge_pyproject.py frontend/sql_generator"
+    Fail "frontend/sql_generator/pyproject.toml.merged missing. Regenerate with: $python scripts/merge_pyproject.py frontend/sql_generator"
 }
 
-# PowerShell 5.1 compat: niente operatore ternario
+# PowerShell 5.1 compat: no ternary operator
 if ($NoCache.IsPresent) {
     $cacheFlag = "--no-cache"
 } else {
     $cacheFlag = ""
 }
 
-# Build immagini (context root, Dockerfile in docker/)
+# Build images (context root, Dockerfile in docker/)
 docker build $cacheFlag -f docker/backend.Dockerfile           -t "$RegistryUrl/thoth-backend:$Version"           .
 docker build $cacheFlag -f docker/frontend.Dockerfile          -t "$RegistryUrl/thoth-frontend:$Version"          ./frontend
 docker build $cacheFlag -f docker/sql-generator.Dockerfile     -t "$RegistryUrl/thoth-sql-generator:$Version"     .
 docker build $cacheFlag -f docker/proxy.Dockerfile             -t "$RegistryUrl/thoth-proxy:$Version"             ./backend/proxy
 docker build $cacheFlag -f docker/mermaid-service/Dockerfile   -t "$RegistryUrl/thoth-mermaid-service:$Version"   ./docker/mermaid-service
 
-# Tag facoltativi latest
+# Optional latest tags
 docker tag "$RegistryUrl/thoth-backend:$Version"           "$RegistryUrl/thoth-backend:latest"
 docker tag "$RegistryUrl/thoth-frontend:$Version"          "$RegistryUrl/thoth-frontend:latest"
 docker tag "$RegistryUrl/thoth-sql-generator:$Version"     "$RegistryUrl/thoth-sql-generator:latest"
 docker tag "$RegistryUrl/thoth-proxy:$Version"             "$RegistryUrl/thoth-proxy:latest"
 docker tag "$RegistryUrl/thoth-mermaid-service:$Version"   "$RegistryUrl/thoth-mermaid-service:latest"
 
-Write-Host "Build completata. Ora puoi eseguire docker push/tag o deploy swarm." -ForegroundColor Green
+Write-Host "Build completed. Now you can execute docker push/tag or deploy swarm." -ForegroundColor Green

@@ -140,19 +140,19 @@ main() {
     
     # Warning about slow data upload only for first run (when shared-data volume is new)
     if [ "$SHARED_DATA_EXISTS" = false ]; then
-        print_color "⚠️  ATTENZIONE: Caricamento dati in corso..." "$YELLOW"
-        print_color "   I dati di esempio verranno caricati nel volume Docker." "$YELLOW"
-        print_color "   Questa operazione può richiedere diversi minuti a seconda della velocità del disco." "$YELLOW"
-        print_color "   L'applicazione sarà disponibile dopo il completamento di questa operazione." "$YELLOW"
+        print_color "⚠️  WARNING: Data loading in progress..." "$YELLOW"
+        print_color "   Sample data will be loaded into the Docker volume." "$YELLOW"
+        print_color "   This operation may take several minutes depending on disk speed." "$YELLOW"
+        print_color "   The application will be available after this operation completes." "$YELLOW"
         echo ""
     fi
     
     docker compose -f $COMPOSE_FILE up -d
 
     # Wait for backend to be healthy
-    print_color "⏳ In attesa che il backend sia pronto..." "$YELLOW"
+    print_color "⏳ Waiting for backend to be ready..." "$YELLOW"
     if [ "$SHARED_DATA_EXISTS" = false ]; then
-        print_color "   Il caricamento dei dati può richiedere tempo (fino a 20 minuti)..." "$YELLOW"
+        print_color "   Data loading may take time (up to 20 minutes)..." "$YELLOW"
     fi
     echo ""
 
@@ -163,14 +163,14 @@ main() {
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         if docker exec thoth-backend curl -f http://localhost:8000/admin/login/ >/dev/null 2>&1; then
             BACKEND_READY=true
-            print_color "✓ Backend pronto!" "$GREEN"
+            print_color "✓ Backend ready!" "$GREEN"
             break
         fi
         RETRY_COUNT=$((RETRY_COUNT + 1))
         # Show progress every 10 retries (1 minute)
         if [ $((RETRY_COUNT % 10)) -eq 0 ]; then
             ELAPSED=$((RETRY_COUNT * 10 / 60))
-            print_color "   Ancora in attesa... (${ELAPSED} minuti trascorsi)" "$YELLOW"
+            print_color "   Still waiting... (${ELAPSED} minutes elapsed)" "$YELLOW"
         else
             echo -n "."
         fi
@@ -179,9 +179,9 @@ main() {
     echo ""
 
     if [ "$BACKEND_READY" = false ]; then
-        print_color "⚠️  Il backend non è ancora pronto, ma i servizi sono avviati." "$YELLOW"
-        print_color "   Controllare i log con: docker logs -f thoth-backend" "$YELLOW"
-        print_color "   L'applicazione potrebbe essere disponibile tra qualche minuto." "$YELLOW"
+        print_color "⚠️  Backend is not ready yet, but services are started." "$YELLOW"
+        print_color "   Check logs with: docker logs -f thoth-backend" "$YELLOW"
+        print_color "   The application may be available in a few minutes." "$YELLOW"
     fi
 
     print_header "Installation Complete!"

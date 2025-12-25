@@ -5,9 +5,10 @@
 #
 # Script di deployment automatizzato per ThothAI su Docker Swarm
 # Versione aggiornata con porte 7000-7050 e gestione volume thoth-data-exchange
+# 
 
 set -e
-
+# 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -37,47 +38,22 @@ print_color() {
 
 # Functions
 check_prerequisites() {
-    print_color "=== Verifica prerequisiti ===" "$BLUE"
+    print_color "=== Check prerequisites ==="
     
     # Check Docker
     if ! $DOCKER_CMD info > /dev/null 2>&1; then
-        print_color "Errore: Docker non è in esecuzione o non raggiungibile" "$RED"
+        print_color "Error: Docker is not running or not reachable"
         exit 1
     fi
-    
-    # Check Swarm (on target)
-    if ! $DOCKER_CMD info | grep -q "Swarm: active"; then
-        print_color "Errore: Docker Swarm non è attivo sul target. Esegui 'docker swarm init'" "$RED"
-        exit 1
-    fi
-    
-    # Check config files (local)
-    if [ ! -f "config.yml.local" ]; then
-        print_color "Errore: config.yml.local non trovato" "$RED"
-        exit 1
-    fi
-    
-    if [ ! -f ".env.docker" ]; then
-        print_color "Errore: .env.docker non trovato. Esegui prima lo script di configurazione" "$RED"
-        exit 1
-    fi
-    
-    # Check docker-stack.yml
-    if [ ! -f "docker-stack.yml" ]; then
-        print_color "Errore: docker-stack.yml non trovato" "$RED"
-        exit 1
-    fi
-    
-    print_color "✓ Prerequisiti verificati" "$GREEN"
 }
 
 backup_volumes() {
-    print_color "=== Backup dei volumi ===" "$BLUE"
+    print_color "=== Backup volumes ==="
     
     BACKUP_PATH="$BACKUP_DIR/$(date +%Y%m%d_%H%M%S)"
     # Note: checks/mkdirs run on target via docker context or -H?
     # Actually docker run commands execute on technical target, but volumes are on target.
-    # The file path in container is local to container. 
+    # The file path in container is local to container.
     # Where does -v /backup:/backup map to? The Host filesystem.
     # So this assumes /backup exists on the Swarm node (or is created).
     
@@ -109,34 +85,30 @@ backup_volumes() {
 }
 
 update_secrets() {
-    print_color "=== Aggiornamento Secrets ===" "$BLUE"
+    print_color "=== Update Secrets ==="
     
     # Remove old secrets if exist
     $DOCKER_CMD secret rm thoth_env_config 2>/dev/null || true
     $DOCKER_CMD secret rm thoth_config_yml 2>/dev/null || true
-    $DOCKER_CMD config rm thoth_env_docker 2>/dev/null || true
     
     # Create new secrets
     $DOCKER_CMD secret create thoth_env_config .env.docker
     $DOCKER_CMD secret create thoth_config_yml config.yml.local
     
-    # Create config (non-sensitive)
-    $DOCKER_CMD config create thoth_env_docker .env.docker
-    
-    print_color "✓ Secrets aggiornati" "$GREEN"
+    print_color "✓ Secrets updated" "$GREEN"
 }
 
 deploy_stack() {
-    print_color "=== Deploy dello Stack ===" "$BLUE"
+    print_color "=== Deploy Stack ===" "$BLUE"
     
     # Export variables for docker stack
     export REGISTRY_URL VERSION
     export WEB_PORT FRONTEND_PORT BACKEND_PORT SQL_GENERATOR_PORT
     export MERMAID_SERVICE_PORT QDRANT_PORT
     
-    print_color "Configurazione porte:" "$YELLOW"
+    print_color "Port configuration:" "$YELLOW"
     print_color "  Web (Proxy):        $WEB_PORT" "$NC"
-    print_color "  Frontend:           $FRONTEND_PORT" "$NC"
+    print_color " Frontend:           $FRONTEND_PORT" "$NC"
     print_color "  Backend (via proxy): $BACKEND_PORT" "$NC"
     print_color "  SQL Generator:      $SQL_GENERATOR_PORT" "$NC"
     print_color "  Mermaid Service:    $MERMAID_SERVICE_PORT" "$NC"
@@ -144,19 +116,19 @@ deploy_stack() {
     echo ""
     
     if [ "$DOCKER_CMD" != "docker" ]; then
-        print_color "Deploy su host remoto..." "$BLUE"
+        print_color "Deploy on remote host..." "$BLUE"
     fi
-
+    
     # Deploy stack
     $DOCKER_CMD stack deploy -c docker-stack.yml "$STACK_NAME"
     
-    print_color "✓ Deploy avviato" "$GREEN"
+    print_color "✓ Deploy completed" "$GREEN"
 }
 
 wait_for_services() {
-    print_color "=== Attesa avvio servizi ===" "$BLUE"
+    print_color "=== Checking services status ===" "$BLUE"
     
-    local max_wait=1200  # 20 minuti
+    local max_wait=1200 # 20 minuti
     local elapsed=0
     
     while [ $elapsed -lt $max_wait ]; do
@@ -166,7 +138,7 @@ wait_for_services() {
         # Check if all replicas are running
         local all_running=true
         if [ "$total" -eq 0 ]; then
-             all_running=false
+              all_running=false
         else
             while IFS= read -r line; do
                 if [[ $line != *"1/1"* && $line != *"2/2"* ]]; then
@@ -174,32 +146,31 @@ wait_for_services() {
                     break
                 fi
             done < <($DOCKER_CMD stack services "$STACK_NAME" --format "{{.Replicas}}")
-        fi
         
         if [ "$all_running" = true ]; then
-            print_color "✓ Tutti i servizi sono attivi" "$GREEN"
+            print_color "✓ All services are running" "$GREEN"
             return 0
         fi
         
-        print_color "In attesa... ($elapsed/$max_wait secondi)" "$YELLOW"
+        print_color "Timeout: Services not started in time" "$RED"
         sleep 10
         elapsed=$((elapsed + 10))
     done
     
-    print_color "Timeout: servizi non avviati in tempo" "$RED"
+    print_color "Timeout: Services not started in time" "$RED"
     return 1
 }
 
-# Health check logic removed/simplified because simple curl localhost won't work easily for remote host
-# unless we tunnel or curl the remote IP. Assuming localhost for now if no remote args, or just skip if valid remote.
+# Health check logic removed/simplified because simple curl localhost won't work easily for remote host.
+# unless we tunnel or curl to remote IP. Assuming localhost for now if no remote args, or just skip if valid remote.
 
 show_services_status() {
-    print_color "=== Stato dei Servizi ===" "$BLUE"
+    print_color "=== Services Status ===" "$BLUE"
     $DOCKER_CMD stack services "$STACK_NAME"
 }
 
 show_logs() {
-    print_color "=== Logs Backend (ultime 20 righe) ===" "$BLUE"
+    print_color "=== Backend Logs (last 20 lines) ===" "$BLUE"
     $DOCKER_CMD service logs --tail 20 "${STACK_NAME}_backend" 2>&1 || true
 }
 
@@ -209,8 +180,6 @@ rollback() {
     $DOCKER_CMD service rollback "${STACK_NAME}_backend" 2>/dev/null || true
     $DOCKER_CMD service rollback "${STACK_NAME}_frontend" 2>/dev/null || true
     $DOCKER_CMD service rollback "${STACK_NAME}_sql-generator" 2>/dev/null || true
-    
-    print_color "Rollback completato" "$YELLOW"
 }
 
 # Main execution
@@ -220,7 +189,7 @@ main() {
     ROLLBACK_ONLY=false
     STATUS_ONLY=false
     LOGS_ONLY=false
-
+    
     while [[ $# -gt 0 ]]; do
         case $1 in
             --skip-backup)
@@ -233,10 +202,6 @@ main() {
                 ;;
             --status-only)
                 STATUS_ONLY=true
-                shift
-                ;;
-            --logs)
-                LOGS_ONLY=true
                 shift
                 ;;
             -H|--host)
@@ -258,57 +223,32 @@ main() {
                 shift 2
                 ;;
             *)
-                print_color "Opzione sconosciuta: $1" "$RED"
-                echo "Usage: $0 [OPTIONS]"
+                print_color "Unknown option: $1" "$RED"
                 echo ""
                 echo "Options:"
-                echo "  --skip-backup         Salta il backup dei volumi"
-                echo "  --rollback-only       Esegue solo il rollback"
-                echo "  --status-only         Mostra solo lo stato dei servizi"
-                echo "  --logs                Mostra i log del backend"
-                echo "  -H, --host <HOST>     Docker host remoto (es. ssh://user@host)"
-                echo "  --config <FILE>       Carica configurazione porte da file"
+                echo "  --skip-backup         Skip the backup of volumes"
+                echo "  --rollback-only       Only execute the rollback"
+                echo "  --status-only         Only show the services status"
+                echo "  -H, --host <HOST>     Docker host remote (e.g. ssh://user@host)"
+                echo "  --config <FILE>       Load port configuration from file"
                 exit 1
                 ;;
         esac
     done
-
+    
     print_color "============================================" "$BLUE"
-    print_color "  ThothAI - Deploy Automatizzato Swarm" "$BLUE"
+    print_color "  ThothAI - Deploy Automated Swarm" "$BLUE"
     print_color "============================================" "$BLUE"
     echo ""
-
+    
     if [ "$ROLLBACK_ONLY" = true ]; then rollback; exit 0; fi
     if [ "$STATUS_ONLY" = true ]; then show_services_status; exit 0; fi
     if [ "$LOGS_ONLY" = true ]; then show_logs; exit 0; fi
-
+    
     print_color "Registry: $REGISTRY_URL" "$YELLOW"
-    print_color "Version:  $VERSION" "$YELLOW"
+    print_color "Version: $VERSION" "$YELLOW"
     print_color "Stack:    $STACK_NAME" "$YELLOW"
     echo ""
-    
-    check_prerequisites
-    
-    if [ "$SKIP_BACKUP" != "true" ]; then
-        backup_volumes
-    fi
-    
-    update_secrets
-    deploy_stack
-    
-    if ! wait_for_services; then
-        print_color "Deploy fallito. Eseguo rollback..." "$RED"
-        rollback
-        show_logs
-        exit 1
-    fi
-    
-    show_services_status
-    
-    print_color "============================================" "$GREEN"
-    print_color "  Deploy completato con successo!" "$GREEN"
-    print_color "============================================" "$GREEN"
 }
 
 main "$@"
-

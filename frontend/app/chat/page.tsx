@@ -63,7 +63,7 @@ interface Message {
 // Function to convert markdown-style formatting to HTML
 function markdownToHtml(text: string): string {
   if (!text) return '';
-  
+
   // High-level section headers that indicate major sections
   const highLevelHeaders = [
     'Data Selection',
@@ -72,33 +72,33 @@ function markdownToHtml(text: string): string {
     'Sorting and Ordering',
     'Limiting Results',
     'Overall Result',
-    'Selezione dei Dati',
-    'Filtri Applicati',
-    'Raggruppamento e Aggregazione',
-    'Ordinamento',
-    'Limitazione dei Risultati',
-    'Risultato Complessivo'
+    'Data Selection',
+    'Filters Applied',
+    'Grouping and Aggregation',
+    'Sorting and Ordering',
+    'Limiting Results',
+    'Overall Result'
   ];
-  
+
   // Check if a line starts with a high-level header
   const isHighLevelHeader = (line: string): boolean => {
     const trimmed = line.trim();
-    return highLevelHeaders.some(header => 
-      trimmed.startsWith(`**${header}`) || 
+    return highLevelHeaders.some(header =>
+      trimmed.startsWith(`**${header}`) ||
       trimmed.startsWith(header)
     );
   };
-  
+
   // Split text into lines for processing
   const lines = text.split('\n');
   let html = '';
   let inList = false;
   let inSubSection = false;
-  
+
   lines.forEach((line, index) => {
     // Convert **bold** to <strong>
     line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    
+
     // Check if this is a high-level header
     if (isHighLevelHeader(line)) {
       // Close any open list
@@ -122,7 +122,7 @@ function markdownToHtml(text: string): string {
       // Remove the bullet point and add as list item
       const content = line.replace(/^[\s-•]+/, '').trim();
       html += `<li>${content}</li>`;
-    } 
+    }
     // Empty line
     else if (line.trim() === '') {
       // Don't close the list on empty lines within sections
@@ -134,7 +134,7 @@ function markdownToHtml(text: string): string {
       if (!inList) {
         html += '<br/>';
       }
-    } 
+    }
     // Regular text that's not a bullet point
     else {
       // If we're in a subsection and this line doesn't start with a bullet,
@@ -166,12 +166,12 @@ function markdownToHtml(text: string): string {
       }
     }
   });
-  
+
   // Close list if still open
   if (inList) {
     html += '</ul>';
   }
-  
+
   // Sanitize HTML to prevent XSS attacks
   return DOMPurify.sanitize(html);
 }
@@ -188,7 +188,7 @@ export default function ChatPage() {
   const { selectedWorkspace } = useWorkspace();
   const { flags, strategy, setOperationInProgress } = useSidebar();
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  
+
   // Force re-render when flags change to show/hide SQL and explanations
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
   const prevExplainFlagRef = React.useRef(flags.explain_generated_query);
@@ -228,19 +228,19 @@ export default function ChatPage() {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.explanation) {
         // Update the message with the generated explanation
-        setMessages(prev => prev.map(m => 
-          m.id === message.id 
+        setMessages(prev => prev.map(m =>
+          m.id === message.id
             ? {
-                ...m,
-                sqlExplanation: {
-                  text: data.explanation,
-                  language: data.language || 'English'
-                },
-                explanationReady: true
-              }
+              ...m,
+              sqlExplanation: {
+                text: data.explanation,
+                language: data.language || 'English'
+              },
+              explanationReady: true
+            }
             : m
         ));
       } else {
@@ -256,22 +256,22 @@ export default function ChatPage() {
     // Trigger re-render when show_sql or explain_generated_query flags change
     forceUpdate();
   }, [flags.show_sql, flags.explain_generated_query]);
-  
+
   // Separate effect for handling on-demand explanation generation
   React.useEffect(() => {
     // Check if explain_generated_query was just turned ON (was false, now true)
     if (!prevExplainFlagRef.current && flags.explain_generated_query) {
       // Check if we have a generated SQL but no explanation yet
       const lastMessage = messages[messages.length - 1];
-      if (lastMessage?.type === 'assistant' && 
-          lastMessage.sqlReady && 
-          lastMessage.generatedSql && 
-          (!lastMessage.sqlExplanation || !lastMessage.sqlExplanation.text)) {
+      if (lastMessage?.type === 'assistant' &&
+        lastMessage.sqlReady &&
+        lastMessage.generatedSql &&
+        (!lastMessage.sqlExplanation || !lastMessage.sqlExplanation.text)) {
         // Call the explain-sql endpoint to generate explanation on-demand
         generateExplanationOnDemand(lastMessage);
       }
     }
-    
+
     prevExplainFlagRef.current = flags.explain_generated_query;
   }, [flags.explain_generated_query, generateExplanationOnDemand, messages]);
 
@@ -305,7 +305,7 @@ export default function ChatPage() {
     };
 
     window.addEventListener('app-reset', handleAppReset);
-    
+
     return () => {
       window.removeEventListener('app-reset', handleAppReset);
     };
@@ -326,7 +326,7 @@ export default function ChatPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanMessage = message.trim();
-    
+
     // Check if workspace is selected
     if (!selectedWorkspace || !selectedWorkspace.id) {
       // Add error message to chat
@@ -345,24 +345,24 @@ export default function ChatPage() {
       setMessages(prev => [...prev, errorMessage]);
       return;
     }
-    
+
     if (cleanMessage && !isProcessing) {
       setIsProcessing(true);
-      
+
       // Track the operation in sidebar context
       const operationId = `sql-gen-${Date.now()}`;
       setOperationInProgress(true, operationId);
-      
+
       // Clear all previous messages completely before processing new question
       setMessages([]);
-      
+
       // Initialize logs and start blinking
       setThothLogMessage('');
       setIsLogBlinking(true);
-      
+
       // Disable Like button when starting new query
       setLikeButtonEnabled(false);
-      
+
       // Add user message to chat
       const userMessage: Message = {
         id: Date.now().toString(),
@@ -370,16 +370,16 @@ export default function ChatPage() {
         content: cleanMessage,
         timestamp: new Date()
       };
-      
+
       setMessages([userMessage]);
       setMessage('');
-      
+
       // Reset textarea height after clearing message
       const textarea = e.currentTarget.querySelector('textarea');
       if (textarea) {
         textarea.style.height = 'auto';
       }
-      
+
       try {
         // Create streaming message placeholder
         const streamingMessageId = (Date.now() + 1).toString();
@@ -390,12 +390,12 @@ export default function ChatPage() {
           timestamp: new Date(),
           isProcessing: true
         };
-        
+
         setMessages(prev => [...prev, streamingMessage]);
-        
+
         let accumulatedContent = '';
-        const collectedLogs: Array<{timestamp: string, message: string}> = [];
-        
+        const collectedLogs: Array<{ timestamp: string, message: string }> = [];
+
         // Call SQL Generator API with streaming support
         await sqlGeneratorApi.generateSQLStream(
           {
@@ -409,7 +409,7 @@ export default function ChatPage() {
             // Check if chunk contains THOTHLOG
             const lines = chunk.split('\n');
             let filteredChunk = '';
-            
+
             for (const line of lines) {
               if (line.startsWith('THOTHLOG:')) {
                 // Extract log message
@@ -418,13 +418,13 @@ export default function ChatPage() {
                   timestamp: new Date().toISOString(),
                   message: logContent
                 };
-                
+
                 // Update current log display
                 setThothLogMessage(logContent);
-                
+
                 // Add to logs list
                 collectedLogs.push(logEntry);
-                
+
               } else if (line.startsWith('SQL_FORMATTED:')) {
                 // Extract formatted SQL from backend (ALWAYS sent)
                 const sqlFormattedJson = line.substring(14).trim(); // Remove 'SQL_FORMATTED:' prefix
@@ -432,13 +432,13 @@ export default function ChatPage() {
                   const sqlFormattedData = JSON.parse(sqlFormattedJson);
                   if (sqlFormattedData.type === 'sql_formatted') {
                     // Store the formatted SQL (will be shown based on flag)
-                    setMessages(prev => 
-                      prev.map(msg => 
-                        msg.id === streamingMessageId 
-                          ? { 
-                              ...msg, 
-                              formattedSql: sqlFormattedData.sql
-                            }
+                    setMessages(prev =>
+                      prev.map(msg =>
+                        msg.id === streamingMessageId
+                          ? {
+                            ...msg,
+                            formattedSql: sqlFormattedData.sql
+                          }
                           : msg
                       )
                     );
@@ -455,16 +455,16 @@ export default function ChatPage() {
                     // Update the message with SQL ready data - this will trigger automatic query execution
                     // IMPORTANT: Preserve all existing fields including formattedSql
                     // Also store the SQL for potential on-demand explanation generation
-                    setMessages(prev => 
-                      prev.map(msg => 
-                        msg.id === streamingMessageId 
-                          ? { 
-                              ...msg, 
-                              sqlReady: sqlReadyData,
-                              isExecutingQuery: true,
-                              generatedSql: sqlReadyData.sql,  // Store for on-demand explanation
-                              originalQuestion: cleanMessage  // Store the original question
-                            }
+                    setMessages(prev =>
+                      prev.map(msg =>
+                        msg.id === streamingMessageId
+                          ? {
+                            ...msg,
+                            sqlReady: sqlReadyData,
+                            isExecutingQuery: true,
+                            generatedSql: sqlReadyData.sql,  // Store for on-demand explanation
+                            originalQuestion: cleanMessage  // Store the original question
+                          }
                           : msg
                       )
                     );
@@ -478,7 +478,7 @@ export default function ChatPage() {
                 if (process.env.NODE_ENV === 'development') {
                   console.log('Received legacy QUERY_RESULTS marker - ignoring');
                 }
-                
+
               } else if (line.startsWith('QUERY_ERROR:')) {
                 // Extract query error from backend
                 const errorJson = line.substring(12).trim(); // Remove 'QUERY_ERROR:' prefix
@@ -487,14 +487,14 @@ export default function ChatPage() {
                   if (error.type === 'query_error') {
                     // Update the message with query error immediately
                     // IMPORTANT: Preserve all existing fields including formattedSql
-                    setMessages(prev => 
-                      prev.map(msg => 
-                        msg.id === streamingMessageId 
-                          ? { 
-                              ...msg, 
-                              queryError: error.error,
-                              isExecutingQuery: false
-                            }
+                    setMessages(prev =>
+                      prev.map(msg =>
+                        msg.id === streamingMessageId
+                          ? {
+                            ...msg,
+                            queryError: error.error,
+                            isExecutingQuery: false
+                          }
                           : msg
                       )
                     );
@@ -502,7 +502,7 @@ export default function ChatPage() {
                 } catch (e) {
                   console.error('Failed to parse query error:', e);
                 }
-                
+
               } else if (line.startsWith('SQL_EXPLANATION:')) {
                 // Extract SQL explanation from backend
                 const explanationJson = line.substring(16).trim(); // Remove 'SQL_EXPLANATION:' prefix
@@ -511,17 +511,17 @@ export default function ChatPage() {
                   if (explanationData.type === 'sql_explanation') {
                     // Store the explanation but don't display it yet
                     // It will be displayed after the table data is loaded
-                    setMessages(prev => 
-                      prev.map(msg => 
-                        msg.id === streamingMessageId 
-                          ? { 
-                              ...msg, 
-                              sqlExplanation: {
-                                text: explanationData.explanation,
-                                language: explanationData.language
-                              },
-                              explanationReady: true
-                            }
+                    setMessages(prev =>
+                      prev.map(msg =>
+                        msg.id === streamingMessageId
+                          ? {
+                            ...msg,
+                            sqlExplanation: {
+                              text: explanationData.explanation,
+                              language: explanationData.language
+                            },
+                            explanationReady: true
+                          }
                           : msg
                       )
                     );
@@ -529,7 +529,7 @@ export default function ChatPage() {
                 } catch (e) {
                   console.error('Failed to parse SQL explanation:', e);
                 }
-                
+
               } else if (line.startsWith('SQL_GENERATION_FAILED:')) {
                 // Handle SQL generation failure - extract the error message but don't display the JSON
                 const failureJson = line.substring(22).trim(); // Remove 'SQL_GENERATION_FAILED:' prefix
@@ -545,21 +545,21 @@ export default function ChatPage() {
                 } catch (e) {
                   console.error('Failed to parse SQL generation failure:', e);
                 }
-                
+
               } else if (line.startsWith('CRITICAL_ERROR:')) {
                 // Handle critical errors with structured formatting
                 const errorJson = line.substring(15).trim(); // Remove 'CRITICAL_ERROR:' prefix
                 try {
                   const errorData = JSON.parse(errorJson);
                   // Update message with critical error data
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === streamingMessageId 
-                        ? { 
-                            ...msg, 
-                            criticalError: errorData,
-                            isProcessing: false
-                          }
+                  setMessages(prev =>
+                    prev.map(msg =>
+                      msg.id === streamingMessageId
+                        ? {
+                          ...msg,
+                          criticalError: errorData,
+                          isProcessing: false
+                        }
                         : msg
                     )
                   );
@@ -567,7 +567,7 @@ export default function ChatPage() {
                 } catch (e) {
                   console.error('Failed to parse critical error:', e);
                 }
-                
+
               } else {
                 // Add non-special content to the message
                 if (line.trim()) {
@@ -575,18 +575,18 @@ export default function ChatPage() {
                 }
               }
             }
-            
+
             // Update the streaming message with filtered content
             if (filteredChunk) {
               accumulatedContent += filteredChunk;
-              setMessages(prev => 
+              setMessages(prev =>
                 prev.map(msg => {
                   if (msg.id === streamingMessageId) {
                     // Preserve all existing fields while updating content
-                    return { 
-                      ...msg, 
-                      content: accumulatedContent, 
-                      isProcessing: true 
+                    return {
+                      ...msg,
+                      content: accumulatedContent,
+                      isProcessing: true
                     };
                   }
                   return msg;
@@ -595,48 +595,48 @@ export default function ChatPage() {
             }
           }
         );
-        
+
         // Mark streaming as completed
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === streamingMessageId 
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === streamingMessageId
               ? { ...msg, isProcessing: false }
               : msg
           )
         );
-        
+
         // Note: SQL generation completes with SQL_READY marker
         // Query execution happens automatically via PaginatedDataTable
-        
+
         // Stop the blinking animation and clear the log message when processing is complete
         setIsLogBlinking(false);
         setThothLogMessage('');
-        
-        
+
+
       } catch (error) {
         // Remove any processing messages and add error message
         setMessages(prev => prev.filter(msg => !msg.isProcessing));
-        
+
         // Stop the blinking animation and clear the log message when there's an error
         setIsLogBlinking(false);
         setThothLogMessage('');
-        
+
         const details = error instanceof Error ? error.message : 'Failed to generate SQL';
-        
+
         // Check if it's a cancellation
-        const isCancellation = details.includes('Operation cancelled by user') || 
-                              details.includes('aborted') || 
-                              details.includes('cancelled');
-        
+        const isCancellation = details.includes('Operation cancelled by user') ||
+          details.includes('aborted') ||
+          details.includes('cancelled');
+
         if (!isCancellation) {
           // Only show error message if it's not a cancellation
           const errorMessage: Message = {
             id: (Date.now() + 3).toString(),
             type: 'system',
-            content: `Error: ${details}\n\nTroubleshooting info:\n- SQL Generator URL: ${sqlGeneratorApi.getBaseURL()}\n- Tip: Ensure the service is running and CORS allows the frontend origin.\n- You can test with: curl -v ${sqlGeneratorApi.getBaseURL()}/health` ,
+            content: `Error: ${details}\n\nTroubleshooting info:\n- SQL Generator URL: ${sqlGeneratorApi.getBaseURL()}\n- Tip: Ensure the service is running and CORS allows the frontend origin.\n- You can test with: curl -v ${sqlGeneratorApi.getBaseURL()}/health`,
             timestamp: new Date()
           };
-          
+
           setMessages(prev => [...prev, errorMessage]);
         } else {
           // Add a cancellation notice
@@ -646,7 +646,7 @@ export default function ChatPage() {
             content: `Operation cancelled.`,
             timestamp: new Date()
           };
-          
+
           setMessages(prev => [...prev, cancelMessage]);
         }
       } finally {
@@ -674,20 +674,19 @@ export default function ChatPage() {
               <p className="text-sm text-muted-foreground">Natural Language to SQL</p>
             </div>
           </div>
-          
+
           {/* ThothAI Log Viewer */}
           <div className="flex-1 mx-4">
             <input
               type="text"
               readOnly
               value={thothaiLogMessage}
-              className={`w-full bg-background/50 border border-border/50 rounded-md px-3 py-2 text-lg font-medium text-center ${
-                isLogBlinking ? 'animate-pulse-continuous' : ''
-              } thoth-log-text`}
+              className={`w-full bg-background/50 border border-border/50 rounded-md px-3 py-2 text-lg font-medium text-center ${isLogBlinking ? 'animate-pulse-continuous' : ''
+                } thoth-log-text`}
               title="ThothAI processing status"
             />
           </div>
-          
+
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium text-foreground mr-2">
               {user?.first_name} {user?.last_name}
@@ -715,17 +714,17 @@ export default function ChatPage() {
               {/* ThothAI Logo Section */}
               <div className="relative">
                 <div className="relative p-8 rounded-3xl">
-                  <img 
-                    src="/dio-thoth-dx.png" 
-                    alt="ThothAI Dio" 
+                  <img
+                    src="/dio-thoth-dx.png"
+                    alt="ThothAI Dio"
                     className="h-48 w-48 object-contain mx-auto"
-                    style={{ 
+                    style={{
                       filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))'
                     }}
                   />
                 </div>
               </div>
-              
+
               <div className="text-center space-y-4 max-w-2xl">
                 <h2 className="text-4xl font-bold" style={{ color: '#4a90a4' }}>
                   Welcome to ThothAI{user?.first_name ? `, ${user.first_name}` : ''}
@@ -735,7 +734,7 @@ export default function ChatPage() {
                   and I&apos;ll transform your questions into precise SQL queries.
                 </p>
               </div>
-              
+
               {/* Feature Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 w-full max-w-3xl">
                 <div className="p-4 rounded-xl bg-card/50 border border-border/50 backdrop-blur-sm hover:bg-card/70 transition-all">
@@ -762,182 +761,182 @@ export default function ChatPage() {
                 <React.Fragment key={msg.id}>
                   <div className="w-full animate-fadeIn">
                     {msg.type === 'user' ? (
-                    /* User message */
-                    <OutputBlock
-                      imageSrc="/user-icon.svg"
-                      imageAlt="User"
-                    >
-                      <p className="text-lg leading-relaxed text-foreground mt-0.5">{msg.content}</p>
-                    </OutputBlock>
-                  ) : (
-                    /* AI/System message - only show if there's content to display based on flags */
-                    (msg.content.trim() || 
-                     msg.isProcessing || 
-                     msg.criticalError ||
-                     (msg.formattedSql && flags.show_sql)) ? (
-                      <OutputBlock>
-                        <div>
-                          {msg.isProcessing && (
-                            <div className="flex items-center gap-2 mb-2">
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">Generating response...</span>
-                            </div>
-                          )}
-                          
-                          {/* Critical Error Display */}
-                          {msg.criticalError && (
-                            <div className="space-y-3 p-4 rounded-lg bg-background/10 border border-border/30">
-                              {/* Part 1: Extract TEST code and show as Validation Error - In evidenza */}
-                              <div className="text-lg font-bold">
-                                {(() => {
-                                  // Extract TEST code from message if present
-                                  const match = msg.criticalError.message?.match(/^(TEST\d+):/);
-                                  return match ? `${match[1]} - Validation Error` : 'Validation Error';
-                                })()}
-                              </div>
-                              
-                              {/* Part 2: Message (remove TEST code prefix if present) */}
-                              <div className="text-base">
-                                {(() => {
-                                  // Remove TEST code prefix from message
-                                  const message = msg.criticalError.message || '';
-                                  return message.replace(/^TEST\d+:\s*/, '');
-                                })()}
-                              </div>
-                              
-                              {/* Part 3: Impact */}
-                              {msg.criticalError.impact && (
-                                <div className="text-base">
-                                  {msg.criticalError.impact}
-                                </div>
-                              )}
-                              
-                              {/* Part 4: Action - In evidenza */}
-                              {msg.criticalError.action && (
-                                <div className="text-base font-bold pt-2">
-                                  {msg.criticalError.action}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Content display - skip SQL if it's in formattedSql, skip if critical error */}
-                          {!msg.criticalError && !msg.formattedSql && (msg.content.includes('SELECT') || msg.content.includes('FROM')) ? (
-                            // Legacy support - only show inline SQL if no formattedSql available
-                            <div className="space-y-3">
-                              <div className="bg-slate-900 dark:bg-slate-950 rounded-lg font-mono text-sm overflow-x-auto">
-                                <code className="text-green-400 whitespace-pre-wrap block py-0.5">
-                                  {msg.content.split('\n').map((line, i) => (
-                                    <div key={i} className="leading-relaxed">
-                                      {line.split(/\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|AND|OR|GROUP BY|ORDER BY|LIMIT|AS|IS|NOT|NULL|ASC|DESC|NULLS|LAST|FIRST|DISTINCT|HAVING|UNION|ALL|EXISTS|IN|BETWEEN|LIKE|CASE|WHEN|THEN|ELSE|END|T1|T2)(?=\s|$)/gi).map((part, j) => (
-                                        <span key={j} className={
-                                          /^(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|GROUP BY|ORDER BY|LIMIT|AS|HAVING|UNION|DISTINCT)$/i.test(part)
-                                            ? 'text-blue-400 font-semibold'
-                                            : /^(AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE)$/i.test(part)
-                                            ? 'text-cyan-400'
-                                            : /^(IS|NULL|ASC|DESC|NULLS|LAST|FIRST|ALL)$/i.test(part)
-                                            ? 'text-red-400'
-                                            : /^(CASE|WHEN|THEN|ELSE|END)$/i.test(part)
-                                            ? 'text-orange-400'
-                                            : /^(T1|T2)$/i.test(part)
-                                            ? 'text-yellow-400'
-                                            : ''
-                                        }>
-                                          {part}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ))}
-                                </code>
-                              </div>
-                            </div>
-                          ) : !msg.criticalError && msg.content.trim() ? (
-                            <div className="space-y-2">
-                              {msg.content.split('\n').map((paragraph, i) => (
-                                <p key={i} className="text-base leading-relaxed text-foreground">
-                                  {paragraph.startsWith('- ') ? (
-                                    <span className="flex items-start gap-2">
-                                      <span className="mt-1">•</span>
-                                      <span>{paragraph.substring(2)}</span>
-                                    </span>
-                                  ) : paragraph.startsWith('Evidences found:') || paragraph.startsWith('SQL examples:') ? (
-                                    <span className="font-semibold">{paragraph}</span>
-                                  ) : paragraph.startsWith('Similar Columns') || paragraph.startsWith('Schema') ? (
-                                    <span className="font-medium">{paragraph}</span>
-                                  ) : (
-                                    paragraph
-                                  )}
-                                </p>
-                              ))}
-                            </div>
-                          ) : null}
-                          
-                          {msg.isProcessing && msg.content && (
-                            <span className="inline-block w-2 h-5 bg-foreground/50 animate-pulse ml-1"></span>
-                          )}
-                          
-                          {/* Formatted SQL Display - Show only if flag is enabled and SQL exists */}
-                          {msg.formattedSql && flags.show_sql ? (
-                                  <div className="space-y-3">
-                                    <div className="bg-slate-900 dark:bg-slate-950 rounded-lg font-mono text-sm overflow-x-auto">
-                                      <code className="text-green-400 whitespace-pre-wrap block py-0.5">
-                                  {msg.formattedSql.split('\n').map((line, i) => (
-                                    <div key={i} className="leading-relaxed">
-                                      {line.split(/\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|AND|OR|GROUP BY|ORDER BY|LIMIT|AS|IS|NOT|NULL|ASC|DESC|NULLS|LAST|FIRST|DISTINCT|HAVING|UNION|ALL|EXISTS|IN|BETWEEN|LIKE|CASE|WHEN|THEN|ELSE|END|T1|T2)(?=\s|$)/gi).map((part, j) => (
-                                        <span key={j} className={
-                                          /^(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|GROUP BY|ORDER BY|LIMIT|AS|HAVING|UNION|DISTINCT)$/i.test(part)
-                                            ? 'text-blue-400 font-semibold'
-                                            : /^(AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE)$/i.test(part)
-                                            ? 'text-cyan-400'
-                                            : /^(IS|NULL|ASC|DESC|NULLS|LAST|FIRST|ALL)$/i.test(part)
-                                            ? 'text-red-400'
-                                            : /^(CASE|WHEN|THEN|ELSE|END)$/i.test(part)
-                                            ? 'text-orange-400'
-                                            : /^(T1|T2)$/i.test(part)
-                                            ? 'text-yellow-400'
-                                            : ''
-                                        }>
-                                          {part}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ))}
-                                      </code>
-                                    </div>
-                                  </div>
-                          ) : null}
-                          
-                          {/* Query Execution Results */}
-                          {msg.isExecutingQuery && (
-                            <div className="mt-4 flex items-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">Executing query...</span>
-                            </div>
-                          )}
-                          
-                          {msg.queryError && (
-                            <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4 mt-4">
-                              <div className="text-red-700 dark:text-red-400 font-semibold">Query Execution Error</div>
-                              <div className="text-red-600 dark:text-red-500 mt-2">{msg.queryError}</div>
-                            </div>
-                          )}
-                        </div>
+                      /* User message */
+                      <OutputBlock
+                        imageSrc="/user-icon.svg"
+                        imageAlt="User"
+                      >
+                        <p className="text-lg leading-relaxed text-foreground mt-0.5">{msg.content}</p>
                       </OutputBlock>
-                  ) : null
-                  )}
+                    ) : (
+                      /* AI/System message - only show if there's content to display based on flags */
+                      (msg.content.trim() ||
+                        msg.isProcessing ||
+                        msg.criticalError ||
+                        (msg.formattedSql && flags.show_sql)) ? (
+                        <OutputBlock>
+                          <div>
+                            {msg.isProcessing && (
+                              <div className="flex items-center gap-2 mb-2">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Generating response...</span>
+                              </div>
+                            )}
+
+                            {/* Critical Error Display */}
+                            {msg.criticalError && (
+                              <div className="space-y-3 p-4 rounded-lg bg-background/10 border border-border/30">
+                                {/* Part 1: Extract TEST code and show as Validation Error - In evidenza */}
+                                <div className="text-lg font-bold">
+                                  {(() => {
+                                    // Extract TEST code from message if present
+                                    const match = msg.criticalError.message?.match(/^(TEST\d+):/);
+                                    return match ? `${match[1]} - Validation Error` : 'Validation Error';
+                                  })()}
+                                </div>
+
+                                {/* Part 2: Message (remove TEST code prefix if present) */}
+                                <div className="text-base">
+                                  {(() => {
+                                    // Remove TEST code prefix from message
+                                    const message = msg.criticalError.message || '';
+                                    return message.replace(/^TEST\d+:\s*/, '');
+                                  })()}
+                                </div>
+
+                                {/* Part 3: Impact */}
+                                {msg.criticalError.impact && (
+                                  <div className="text-base">
+                                    {msg.criticalError.impact}
+                                  </div>
+                                )}
+
+                                {/* Part 4: Action - In evidenza */}
+                                {msg.criticalError.action && (
+                                  <div className="text-base font-bold pt-2">
+                                    {msg.criticalError.action}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Content display - skip SQL if it's in formattedSql, skip if critical error */}
+                            {!msg.criticalError && !msg.formattedSql && (msg.content.includes('SELECT') || msg.content.includes('FROM')) ? (
+                              // Legacy support - only show inline SQL if no formattedSql available
+                              <div className="space-y-3">
+                                <div className="bg-slate-900 dark:bg-slate-950 rounded-lg font-mono text-sm overflow-x-auto">
+                                  <code className="text-green-400 whitespace-pre-wrap block py-0.5">
+                                    {msg.content.split('\n').map((line, i) => (
+                                      <div key={i} className="leading-relaxed">
+                                        {line.split(/\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|AND|OR|GROUP BY|ORDER BY|LIMIT|AS|IS|NOT|NULL|ASC|DESC|NULLS|LAST|FIRST|DISTINCT|HAVING|UNION|ALL|EXISTS|IN|BETWEEN|LIKE|CASE|WHEN|THEN|ELSE|END|T1|T2)(?=\s|$)/gi).map((part, j) => (
+                                          <span key={j} className={
+                                            /^(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|GROUP BY|ORDER BY|LIMIT|AS|HAVING|UNION|DISTINCT)$/i.test(part)
+                                              ? 'text-blue-400 font-semibold'
+                                              : /^(AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE)$/i.test(part)
+                                                ? 'text-cyan-400'
+                                                : /^(IS|NULL|ASC|DESC|NULLS|LAST|FIRST|ALL)$/i.test(part)
+                                                  ? 'text-red-400'
+                                                  : /^(CASE|WHEN|THEN|ELSE|END)$/i.test(part)
+                                                    ? 'text-orange-400'
+                                                    : /^(T1|T2)$/i.test(part)
+                                                      ? 'text-yellow-400'
+                                                      : ''
+                                          }>
+                                            {part}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ))}
+                                  </code>
+                                </div>
+                              </div>
+                            ) : !msg.criticalError && msg.content.trim() ? (
+                              <div className="space-y-2">
+                                {msg.content.split('\n').map((paragraph, i) => (
+                                  <p key={i} className="text-base leading-relaxed text-foreground">
+                                    {paragraph.startsWith('- ') ? (
+                                      <span className="flex items-start gap-2">
+                                        <span className="mt-1">•</span>
+                                        <span>{paragraph.substring(2)}</span>
+                                      </span>
+                                    ) : paragraph.startsWith('Evidences found:') || paragraph.startsWith('SQL examples:') ? (
+                                      <span className="font-semibold">{paragraph}</span>
+                                    ) : paragraph.startsWith('Similar Columns') || paragraph.startsWith('Schema') ? (
+                                      <span className="font-medium">{paragraph}</span>
+                                    ) : (
+                                      paragraph
+                                    )}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : null}
+
+                            {msg.isProcessing && msg.content && (
+                              <span className="inline-block w-2 h-5 bg-foreground/50 animate-pulse ml-1"></span>
+                            )}
+
+                            {/* Formatted SQL Display - Show only if flag is enabled and SQL exists */}
+                            {msg.formattedSql && flags.show_sql ? (
+                              <div className="space-y-3">
+                                <div className="bg-slate-900 dark:bg-slate-950 rounded-lg font-mono text-sm overflow-x-auto">
+                                  <code className="text-green-400 whitespace-pre-wrap block py-0.5">
+                                    {msg.formattedSql.split('\n').map((line, i) => (
+                                      <div key={i} className="leading-relaxed">
+                                        {line.split(/\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|AND|OR|GROUP BY|ORDER BY|LIMIT|AS|IS|NOT|NULL|ASC|DESC|NULLS|LAST|FIRST|DISTINCT|HAVING|UNION|ALL|EXISTS|IN|BETWEEN|LIKE|CASE|WHEN|THEN|ELSE|END|T1|T2)(?=\s|$)/gi).map((part, j) => (
+                                          <span key={j} className={
+                                            /^(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|ON|GROUP BY|ORDER BY|LIMIT|AS|HAVING|UNION|DISTINCT)$/i.test(part)
+                                              ? 'text-blue-400 font-semibold'
+                                              : /^(AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE)$/i.test(part)
+                                                ? 'text-cyan-400'
+                                                : /^(IS|NULL|ASC|DESC|NULLS|LAST|FIRST|ALL)$/i.test(part)
+                                                  ? 'text-red-400'
+                                                  : /^(CASE|WHEN|THEN|ELSE|END)$/i.test(part)
+                                                    ? 'text-orange-400'
+                                                    : /^(T1|T2)$/i.test(part)
+                                                      ? 'text-yellow-400'
+                                                      : ''
+                                          }>
+                                            {part}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ))}
+                                  </code>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {/* Query Execution Results */}
+                            {msg.isExecutingQuery && (
+                              <div className="mt-4 flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">Executing query...</span>
+                              </div>
+                            )}
+
+                            {msg.queryError && (
+                              <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-4 mt-4">
+                                <div className="text-red-700 dark:text-red-400 font-semibold">Query Execution Error</div>
+                                <div className="text-red-600 dark:text-red-500 mt-2">{msg.queryError}</div>
+                              </div>
+                            )}
+                          </div>
+                        </OutputBlock>
+                      ) : null
+                    )}
                   </div>
-                  
+
                   {/* Render DataTable/PaginatedDataTable outside of message container */}
                   {msg.sqlReady && (
                     <div className="w-full animate-fadeIn">
-                      <PaginatedDataTable 
+                      <PaginatedDataTable
                         sql={msg.sqlReady.sql}
                         workspaceId={msg.sqlReady.workspace_id}
                         onError={(error) => {
                           // Update message with error
-                          setMessages(prev => 
-                            prev.map(m => 
-                              m.id === msg.id 
+                          setMessages(prev =>
+                            prev.map(m =>
+                              m.id === msg.id
                                 ? { ...m, queryError: error, isExecutingQuery: false }
                                 : m
                             )
@@ -945,9 +944,9 @@ export default function ChatPage() {
                         }}
                         onDataLoaded={() => {
                           // Update message to indicate loading is complete and table is loaded
-                          setMessages(prev => 
-                            prev.map(m => 
-                              m.id === msg.id 
+                          setMessages(prev =>
+                            prev.map(m =>
+                              m.id === msg.id
                                 ? { ...m, isExecutingQuery: false, tableDataLoaded: true }
                                 : m
                             )
@@ -958,14 +957,14 @@ export default function ChatPage() {
                       />
                     </div>
                   )}
-                  
+
                   {/* Render SQL Explanation after table is loaded - only if flag is enabled and there's actual text */}
                   {msg.sqlExplanation && msg.sqlExplanation.text && msg.sqlExplanation.text.trim() !== '' && msg.explanationReady && msg.tableDataLoaded && flags.explain_generated_query && (
                     <div className="w-full animate-fadeIn mt-2">
                       <OutputBlock
                         imageAlt="ThothAI Explanation"
                       >
-                        <div 
+                        <div
                           className="text-base leading-relaxed text-foreground"
                           style={{ fontSize: 'calc(1rem - 1px)' }}
                           dangerouslySetInnerHTML={{ __html: markdownToHtml(msg.sqlExplanation.text) }}
@@ -973,12 +972,12 @@ export default function ChatPage() {
                       </OutputBlock>
                     </div>
                   )}
-                  
+
                   {/* Legacy support for old query results format */}
                   {msg.queryResults && !msg.sqlReady && (
                     <div className="w-full animate-fadeIn">
-                      <DataTable 
-                        data={msg.queryResults} 
+                      <DataTable
+                        data={msg.queryResults}
                         isLoading={false}
                         error={null}
                       />
@@ -1022,7 +1021,7 @@ export default function ChatPage() {
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 {/* Like Button */}
-                <LikeButton 
+                <LikeButton
                   enabled={likeButtonEnabled}
                   workspaceId={selectedWorkspace?.id || 0}
                   onSuccess={() => {
@@ -1035,7 +1034,7 @@ export default function ChatPage() {
                     console.error('Failed to save SQL feedback:', error);
                   }}
                 />
-                
+
                 {/* Send Button */}
                 <button
                   type="submit"

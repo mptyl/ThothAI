@@ -64,83 +64,83 @@ function Invoke-Docker {
 }
 
 function Check-Prerequisites {
-    Write-ColorOutput "=== Verifica prerequisiti ===" "Blue"
+    Write-ColorOutput "=== Check prerequisites ===" "Blue"
 
     # Check Docker
     try {
         Invoke-Docker "info" > $null 2>&1
         if ($LASTEXITCODE -ne 0) { throw }
     } catch {
-        Write-ColorOutput "Errore: Docker non è raggiungibile" "Red"
+        Write-ColorOutput "Error: Docker is not reachable" "Red"
         exit 1
     }
 
     # Check Swarm
     $info = Invoke-Docker "info"
     if ($info -notmatch "Swarm: active") {
-        Write-ColorOutput "Errore: Docker Swarm non è attivo sul target. Esegui 'docker swarm init'" "Red"
+        Write-ColorOutput "Error: Docker Swarm is not active on target. Run 'docker swarm init'" "Red"
         exit 1
     }
 
     # Check config files (local check)
     if (-not (Test-Path "config.yml.local")) {
-        Write-ColorOutput "Errore: config.yml.local non trovato" "Red"
+        Write-ColorOutput "Error: config.yml.local not found" "Red"
         exit 1
     }
 
     if (-not (Test-Path ".env.docker")) {
-        Write-ColorOutput "Errore: .env.docker non trovato. Esegui prima lo script di configurazione" "Red"
+        Write-ColorOutput "Error: .env.docker not found. Run configuration script first" "Red"
         exit 1
     }
 
     if (-not (Test-Path "docker-stack.yml")) {
-        Write-ColorOutput "Errore: docker-stack.yml non trovato" "Red"
+        Write-ColorOutput "Error: docker-stack.yml not found" "Red"
         exit 1
     }
 
-    Write-ColorOutput "✓ Prerequisiti verificati" "Green"
+    Write-ColorOutput "✓ Prerequisites verified" "Green"
 }
 
 function Backup-Volumes {
-    Write-ColorOutput "=== Backup dei volumi ===" "Blue"
+    Write-ColorOutput "=== Backup volumes ===" "Blue"
 
     $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $BackupPath = "$BackupDir/$Timestamp"
     
-    # Questo comando crea la directory sul REMOTE host se usiamo remote host?
-    # No, i comandi docker run vengono eseguiti nel contesto del daemon docker.
-    # Se il daemon è remoto, il backup avviene sui volumi remoti, ma dove salviamo il tar?
-    # Se montiamo -v /backup:/backup, è path del server remoto.
+    # This command creates the directory on the REMOTE host if we use remote host?
+    # No, docker run commands are executed in the context of the docker daemon.
+    # If the daemon is remote, the backup happens on remote volumes, but where do we save the tar?
+    # If we mount -v /backup:/backup, it's the path of the remote server.
     
-    # Creiamo la directory di backup (se remoto, questo comando mkdir locale non serve a nulla per il docker remoto bind mount)
-    # Assumiamo che la directory esista o venga creata nel container
+    # Create the backup directory (if remote, this local mkdir command is useless for remote docker bind mount)
+    # Assume the directory exists or is created in the container
     
     # Backup database
-    Write-ColorOutput "Backup database..." "Yellow"
+    Write-ColorOutput "Backing up database..." "Yellow"
     Invoke-Docker "run", "--rm",
         "-v", "thoth_backend-db:/data",
         "-v", "$BackupPath`:/backup",
         "alpine", "sh", "-c", "mkdir -p /backup && tar czf /backup/backend-db.tar.gz -C /data . 2>/dev/null || true" | Out-Null
 
     # Backup Qdrant
-    Write-ColorOutput "Backup Qdrant..." "Yellow"
+    Write-ColorOutput "Backing up Qdrant..." "Yellow"
     Invoke-Docker "run", "--rm",
         "-v", "thoth_qdrant-data:/data",
         "-v", "$BackupPath`:/backup",
         "alpine", "sh", "-c", "mkdir -p /backup && tar czf /backup/qdrant-data.tar.gz -C /data . 2>/dev/null || true" | Out-Null
         
     # Backup data-exchange
-    Write-ColorOutput "Backup thoth-data-exchange..." "Yellow"
+    Write-ColorOutput "Backing up thoth-data-exchange..." "Yellow"
     Invoke-Docker "run", "--rm",
         "-v", "thoth-data-exchange:/data",
         "-v", "$BackupPath`:/backup",
         "alpine", "sh", "-c", "mkdir -p /backup && tar czf /backup/data-exchange.tar.gz -C /data . 2>/dev/null || true" | Out-Null
 
-    Write-ColorOutput "✓ Backup (best effort) completato in $BackupPath sul nodo swarm" "Green"
+    Write-ColorOutput "✓ Backup (best effort) completed in $BackupPath on swarm node" "Green"
 }
 
 function Update-Secrets {
-    Write-ColorOutput "=== Aggiornamento Secrets ===" "Blue"
+    Write-ColorOutput "=== Update Secrets ===" "Blue"
 
     Invoke-Docker "secret", "rm", "thoth_env_config" 2>$null | Out-Null
     Invoke-Docker "secret", "rm", "thoth_config_yml" 2>$null | Out-Null
@@ -150,11 +150,11 @@ function Update-Secrets {
     Invoke-Docker "secret", "create", "thoth_config_yml", "config.yml.local" | Out-Null
     Invoke-Docker "config", "create", "thoth_env_docker", ".env.docker" | Out-Null
 
-    Write-ColorOutput "✓ Secrets aggiornati" "Green"
+    Write-ColorOutput "✓ Secrets updated" "Green"
 }
 
 function Deploy-Stack {
-    Write-ColorOutput "=== Deploy dello Stack ===" "Blue"
+    Write-ColorOutput "=== Deploy Stack ===" "Blue"
 
     # Set env vars for docker stack
     $env:REGISTRY_URL = $RegistryUrl
@@ -166,7 +166,7 @@ function Deploy-Stack {
     $env:MERMAID_SERVICE_PORT = $MermaidServicePort
     $env:QDRANT_PORT = $QdrantPort
 
-    Write-ColorOutput "Configurazione porte:" "Yellow"
+    Write-ColorOutput "Port configuration:" "Yellow"
     Write-ColorOutput "  Web (Proxy):        $env:WEB_PORT"
     Write-ColorOutput "  Frontend:           $env:FRONTEND_PORT"
     Write-ColorOutput "  Backend:            $env:BACKEND_PORT"
@@ -176,15 +176,15 @@ function Deploy-Stack {
     Write-Host ""
     
     if ($RemoteHost) {
-        Write-ColorOutput "Deploy su host remoto: $RemoteHost" "Magenta"
+        Write-ColorOutput "Deploy on remote host: $RemoteHost" "Magenta"
     }
 
     Invoke-Docker "stack", "deploy", "-c", "docker-stack.yml", $StackName
-    Write-ColorOutput "✓ Deploy avviato" "Green"
+    Write-ColorOutput "✓ Deploy started" "Green"
 }
 
 function Wait-For-Services {
-    Write-ColorOutput "=== Attesa avvio servizi ===" "Blue"
+    Write-ColorOutput "=== Wait for services to start ===" "Blue"
     $MaxWait = 1200 # 20 mins
     $Elapsed = 0
 
@@ -206,16 +206,16 @@ function Wait-For-Services {
         }
 
         if ($allRunning) {
-            Write-ColorOutput "✓ Tutti i servizi sono attivi" "Green"
+            Write-ColorOutput "✓ All services are running" "Green"
             return $true
         }
 
-        Write-ColorOutput "In attesa... ($Elapsed/$MaxWait secondi)" "Yellow"
+        Write-ColorOutput "Waiting... ($Elapsed/$MaxWait seconds)" "Yellow"
         Start-Sleep -Seconds 10
         $Elapsed += 10
     }
 
-    Write-ColorOutput "Timeout: servizi non avviati in tempo" "Red"
+    Write-ColorOutput "Timeout: Services not started in time" "Red"
     return $false
 
 }
@@ -226,16 +226,16 @@ function Rollback-Stack {
     Invoke-Docker "service", "rollback", "${StackName}_backend" 2>$null | Out-Null
     Invoke-Docker "service", "rollback", "${StackName}_frontend" 2>$null | Out-Null
     Invoke-Docker "service", "rollback", "${StackName}_sql-generator" 2>$null | Out-Null
-    Write-ColorOutput "Rollback completato" "Yellow"
+    Write-ColorOutput "Rollback completed" "Yellow"
 }
 
 function Show-Logs {
-    Write-ColorOutput "=== Logs Backend (ultime 20 righe) ===" "Blue"
+    Write-ColorOutput "=== Backend Logs (last 20 lines) ===" "Blue"
     Invoke-Docker "service", "logs", "--tail", "20", "${StackName}_backend" 2>$null
 }
 
 function Show-Status {
-    Write-ColorOutput "=== Stato dei Servizi ===" "Blue"
+    Write-ColorOutput "=== Service Status ===" "Blue"
     Invoke-Docker "stack", "services", $StackName
 }
 
@@ -260,7 +260,7 @@ Update-Secrets
 Deploy-Stack
 
 if (-not (Wait-For-Services)) {
-    Write-ColorOutput "Deploy fallito. Eseguo rollback..." "Red"
+    Write-ColorOutput "Deploy failed. Executing rollback..." "Red"
     Rollback-Stack
     Show-Logs
     exit 1
@@ -269,5 +269,5 @@ if (-not (Wait-For-Services)) {
 Show-Status
 
 Write-ColorOutput "============================================" "Green"
-Write-ColorOutput "  Deploy completato con successo!" "Green"
+Write-ColorOutput "  Deploy completed successfully!" "Green"
 Write-ColorOutput "============================================" "Green"

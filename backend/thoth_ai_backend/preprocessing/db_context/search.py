@@ -92,20 +92,20 @@ if __name__ == "__main__":
         results = query_vector_db(document_store, query, 5)
 
         # Log results
-        logger.info(f"\nRisultati per la query: '{query}'\n")
+        logger.info(f"\nResults for the query: '{query}'\n")
         for i, doc in enumerate(results, 1):
-            logger.info(f"Risultato #{i}")
-            logger.info(f"Tabella: {doc.table_name}")
-            logger.info(f"Nome originale colonna: {doc.original_column_name}")
-            logger.info(f"Colonna: {doc.column_name}")
+            logger.info(f"Result #{i}")
+            logger.info(f"Table: {doc.table_name}")
+            logger.info(f"Original column name: {doc.original_column_name}")
+            logger.info(f"Column: {doc.column_name}")
             if doc.column_description:
-                logger.info(f"Descrizione colonna: {doc.column_description}")
+                logger.info(f"Column description: {doc.column_description}")
             if doc.value_description:
-                logger.info(f"Descrizione valori: {doc.value_description}")
+                logger.info(f"Value description: {doc.value_description}")
             if hasattr(doc, "score"):
                 logger.info(f"Score: {doc.score:.4f}")
             logger.info("-" * 50)
     except SqlDb.DoesNotExist:
-        logger.error(f"Database '{db_name}' non trovato.")
+        logger.error(f"Database '{db_name}' not found.")
     except Exception as e:
-        logger.error(f"Si è verificato un errore: {str(e)}", exc_info=True)
+        logger.error(f"An error has been verified: {str(e)}", exc_info=True)

@@ -3,7 +3,7 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 #
-# Script per build e push delle immagini Docker al registry per deployment su Swarm
+# Script for building and pushing Docker images to registry for Swarm deployment
 
 set -e
 
@@ -24,15 +24,15 @@ show_usage() {
     print_color "Usage: $0 REGISTRY_URL VERSION [OPTIONS]" "$BLUE"
     print_color "" "$NC"
     print_color "Arguments:" "$YELLOW"
-    print_color "  REGISTRY_URL    URL del registry Docker (es: registry.uni.com/tylconsulting/ThothAI)" "$NC"
-    print_color "  VERSION         Versione dell'immagine (es: 0.1, 1.0, latest)" "$NC"
+    print_color "  REGISTRY_URL    Docker registry URL (e.g.: registry.uni.com/tylconsulting/ThothAI)" "$NC"
+    print_color "  VERSION         Image version (e.g.: 0.1, 1.0, latest)" "$NC"
     print_color "" "$NC"
     print_color "Options:" "$YELLOW"
-    print_color "  --no-cache      Build senza usare la cache" "$NC"
-    print_color "  --push-only     Solo push delle immagini (salta il build)" "$NC"
-    print_color "  --help          Mostra questo messaggio" "$NC"
+    print_color "  --no-cache      Build without using cache" "$NC"
+    print_color "  --push-only     Push only images (skip build)" "$NC"
+    print_color "  --help          Show this message" "$NC"
     echo ""
-    print_color "Esempio:" "$GREEN"
+    print_color "Example:" "$GREEN"
     print_color "  $0 registry.uni.com/tylconsulting/ThothAI 0.1" "$NC"
     echo ""
 }
@@ -61,7 +61,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            print_color "Opzione sconosciuta: $1" "$RED"
+            print_color "Unknown option: $1" "$RED"
             show_usage
             exit 1
             ;;
@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 print_color "============================================" "$BLUE"
-print_color "  ThothAI - Build e Push Immagini Docker" "$BLUE"
+print_color "  ThothAI - Build and Push Docker Images" "$BLUE"
 print_color "============================================" "$BLUE"
 echo ""
 print_color "Registry: $REGISTRY_URL" "$YELLOW"
@@ -78,7 +78,7 @@ echo ""
 
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
-    print_color "Errore: Docker non è in esecuzione" "$RED"
+    print_color "Error: Docker is not running" "$RED"
     exit 1
 fi
 
@@ -93,7 +93,7 @@ declare -A IMAGES=(
 
 # Build images
 if [ "$PUSH_ONLY" = false ]; then
-    print_color "=== FASE 1: Build delle immagini ===" "$BLUE"
+    print_color "=== PHASE 1: Build images ===" "$BLUE"
     echo ""
     
     for image_name in "${!IMAGES[@]}"; do
@@ -110,44 +110,44 @@ if [ "$PUSH_ONLY" = false ]; then
             -t "$REGISTRY_URL/thoth-$image_name:$VERSION" \
             -t "$REGISTRY_URL/thoth-$image_name:latest" \
             "$context"; then
-            print_color "✓ Build completato per $image_name" "$GREEN"
+            print_color "✓ Build completed for $image_name" "$GREEN"
         else
-            print_color "✗ Errore durante il build di $image_name" "$RED"
+            print_color "✗ Error during build of $image_name" "$RED"
             exit 1
         fi
         echo ""
     done
     
     # Pull and tag Qdrant
-    print_color "Pulling e tagging Qdrant..." "$YELLOW"
+    print_color "Pulling and tagging Qdrant..." "$YELLOW"
     if docker pull qdrant/qdrant:latest; then
         docker tag qdrant/qdrant:latest "$REGISTRY_URL/thoth-qdrant:$VERSION"
         docker tag qdrant/qdrant:latest "$REGISTRY_URL/thoth-qdrant:latest"
-        print_color "✓ Qdrant pronto" "$GREEN"
+        print_color "✓ Qdrant ready" "$GREEN"
     else
-        print_color "✗ Errore durante il pull di Qdrant" "$RED"
+        print_color "✗ Error during pull of Qdrant" "$RED"
         exit 1
     fi
     echo ""
 else
-    print_color "=== FASE 1: Build saltato (--push-only) ===" "$YELLOW"
+    print_color "=== PHASE 1: Build skipped (--push-only) ===" "$YELLOW"
     echo ""
 fi
 
 # Push images
-print_color "=== FASE 2: Push delle immagini al registry ===" "$BLUE"
+print_color "=== PHASE 2: Push images to registry ===" "$BLUE"
 echo ""
 
 # Check if logged in to registry
-print_color "Verifico login al registry..." "$YELLOW"
+print_color "Checking registry login..." "$YELLOW"
 if ! docker login "$REGISTRY_URL" 2>/dev/null; then
-    print_color "Esegui il login al registry:" "$YELLOW"
+    print_color "Execute login to registry:" "$YELLOW"
     if ! docker login "$REGISTRY_URL"; then
-        print_color "✗ Login fallito" "$RED"
+        print_color "✗ Login failed" "$RED"
         exit 1
     fi
 fi
-print_color "✓ Login verificato" "$GREEN"
+print_color "✓ Login verified" "$GREEN"
 echo ""
 
 # Push all images
@@ -157,36 +157,36 @@ for image_name in "${ALL_IMAGES[@]}"; do
     print_color "Pushing thoth-$image_name:$VERSION..." "$YELLOW"
     
     if docker push "$REGISTRY_URL/thoth-$image_name:$VERSION"; then
-        print_color "✓ Push completato per thoth-$image_name:$VERSION" "$GREEN"
+        print_color "✓ Push completed for thoth-$image_name:$VERSION" "$GREEN"
     else
-        print_color "✗ Errore durante il push di thoth-$image_name:$VERSION" "$RED"
+        print_color "✗ Error during push of thoth-$image_name:$VERSION" "$RED"
         exit 1
     fi
     
     print_color "Pushing thoth-$image_name:latest..." "$YELLOW"
     if docker push "$REGISTRY_URL/thoth-$image_name:latest"; then
-        print_color "✓ Push completato per thoth-$image_name:latest" "$GREEN"
+        print_color "✓ Push completed for thoth-$image_name:latest" "$GREEN"
     else
-        print_color "✗ Errore durante il push di thoth-$image_name:latest" "$RED"
+        print_color "✗ Error during push of thoth-$image_name:latest" "$RED"
         exit 1
     fi
     echo ""
 done
 
 print_color "============================================" "$GREEN"
-print_color "  Build e Push completati con successo!" "$GREEN"
+print_color "  Build and Push completed successfully!" "$GREEN"
 print_color "============================================" "$GREEN"
 echo ""
-print_color "Immagini disponibili nel registry:" "$YELLOW"
+print_color "Images available in registry:" "$YELLOW"
 for image_name in "${ALL_IMAGES[@]}"; do
     print_color "  - $REGISTRY_URL/thoth-$image_name:$VERSION" "$NC"
 done
 echo ""
-print_color "Prossimo passo:" "$BLUE"
-print_color "  Configura i secrets e deploy lo stack con:" "$NC"
+print_color "Next step:" "$BLUE"
+print_color "  Configure secrets and deploy stack with:" "$NC"
 print_color "  ./deploy-swarm.sh" "$GREEN"
 echo ""
-print_color "Nota: Le porte default per Swarm sono 7000-7050" "$YELLOW"
+print_color "Note: Default ports for Swarm are 7000-7050" "$YELLOW"
 print_color "  - Proxy (Web):     7000" "$NC"
 print_color "  - Frontend:        7001" "$NC"
 print_color "  - Backend:         7002 (via proxy)" "$NC"

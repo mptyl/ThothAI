@@ -294,7 +294,7 @@ function Show-AccessInfo {
 }
 
 # Note: Line endings are managed via repository .gitattributes.
-# No runtime conversion is performed by the installer.
+# No runtime conversion is performed by installer.
 
 # Main installation flow
 function Main {
@@ -442,7 +442,7 @@ function Main {
         Write-ColorOutput "Configuration validation passed" "Green"
     } else {
         Write-ColorOutput "Configuration validation failed" "Red"
-        Write-ColorOutput "Please fix the errors above and run again" "Red"
+        Write-ColorOutput "Please fix errors above and run again" "Red"
         exit 1
     }
     Write-Host ""
@@ -495,10 +495,10 @@ function Main {
     
     # Warning about slow data upload only for first run (when shared-data volume is new)
     if (-not $SharedDataExists) {
-        Write-ColorOutput "⚠️  ATTENZIONE: Caricamento dati in corso..." "Yellow"
-        Write-ColorOutput "   I dati di esempio verranno caricati nel volume Docker." "Yellow"
-        Write-ColorOutput "   Questa operazione può richiedere diversi minuti a seconda della velocità del disco." "Yellow"
-        Write-ColorOutput "   L'applicazione sarà disponibile dopo il completamento di questa operazione." "Yellow"
+        Write-ColorOutput "⚠️  WARNING: Data loading in progress..." "Yellow"
+        Write-ColorOutput "   Sample data will be loaded into the Docker volume." "Yellow"
+        Write-ColorOutput "   This operation may take several minutes depending on disk speed." "Yellow"
+        Write-ColorOutput "   The application will be available after this operation completes." "Yellow"
         Write-Host ""
     }
     
@@ -510,9 +510,9 @@ function Main {
     
     if ($LASTEXITCODE -eq 0) {
         # Wait for backend to be healthy
-        Write-ColorOutput "⏳ In attesa che il backend sia pronto..." "Yellow"
+        Write-ColorOutput "⏳ Waiting for backend to be ready..." "Yellow"
         if (-not $SharedDataExists) {
-            Write-ColorOutput "   Il caricamento dei dati può richiedere tempo (fino a 20 minuti)..." "Yellow"
+            Write-ColorOutput "   Data loading may take time (up to 20 minutes)..." "Yellow"
         }
         Write-Host ""
         
@@ -524,14 +524,14 @@ function Main {
             $result = docker exec thoth-backend curl -f http://localhost:8000/admin/login/ 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $BackendReady = $true
-                Write-ColorOutput "✓ Backend pronto!" "Green"
+                Write-ColorOutput "✓ Backend ready!" "Green"
                 break
             }
             $RetryCount++
             # Show progress every 10 retries (1 minute)
             if ($RetryCount % 10 -eq 0) {
                 $Elapsed = [math]::Floor(($RetryCount * 10) / 60)
-                Write-ColorOutput "   Ancora in attesa... ($Elapsed minuti trascorsi)" "Yellow"
+                Write-ColorOutput "   Still waiting... ($Elapsed minutes elapsed)" "Yellow"
             } else {
                 Write-Host -NoNewline "."
             }
@@ -540,9 +540,9 @@ function Main {
         Write-Host ""
         
         if (-not $BackendReady) {
-            Write-ColorOutput "⚠️  Il backend non è ancora pronto, ma i servizi sono avviati." "Yellow"
-            Write-ColorOutput "   Controllare i log con: docker logs -f thoth-backend" "Yellow"
-            Write-ColorOutput "   L'applicazione potrebbe essere disponibile tra qualche minuto." "Yellow"
+            Write-ColorOutput "⚠️  Backend is not ready yet, but services are started." "Yellow"
+            Write-ColorOutput "   Check logs with: docker logs -f thoth-backend" "Yellow"
+            Write-ColorOutput "   The application may be available in a few minutes." "Yellow"
         }
         
         Write-ColorOutput ""
@@ -558,7 +558,7 @@ function Main {
     } else {
         Write-ColorOutput ""
         Write-ColorOutput "Installation failed" "Red"
-        Write-ColorOutput "Please check the error messages above" "Red"
+        Write-ColorOutput "Please check error messages above" "Red"
         exit 1
     }
 }

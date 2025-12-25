@@ -1,13 +1,13 @@
 #!/bin/bash
 # Copyright (c) 2025 Marco Pancotti
-# This file is part of ThothAI and is released under the Apache 2.0.
+# This file is part of ThothAI and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
-
+ 
 # Script to sync dev_databases from local filesystem to Docker volume
 # This performs a non-destructive sync: adds new files without overwriting existing ones
-
+ 
 set -e
-
+ 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Determine source directory. If DB_ROOT_PATH is provided (e.g., via .env.local), use it.
@@ -17,7 +17,7 @@ else
     SOURCE_DIR="$PROJECT_ROOT/data/dev_databases"
 fi
 VOLUME_NAME="thoth-shared-data"
-
+ 
 echo "======================================"
 echo "Syncing dev_databases to Docker volume"
 echo "======================================"
@@ -27,25 +27,25 @@ if [ -n "$DB_ROOT_PATH" ]; then
 fi
 echo "Target Volume: $VOLUME_NAME"
 echo ""
-
+ 
 # Check if source directory exists
 if [ ! -d "$SOURCE_DIR" ]; then
     echo "ERROR: Source directory does not exist: $SOURCE_DIR"
     exit 1
 fi
-
+ 
 # Check if Docker volume exists
 if ! docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
     echo "ERROR: Docker volume '$VOLUME_NAME' does not exist"
     echo "Run 'docker-compose up' at least once to create the volume"
     exit 1
 fi
-
+ 
 # Function to sync using a temporary Alpine container
 sync_with_docker() {
     echo "Starting sync operation..."
     
-    # Use Alpine with rsync installed for the sync operation
+    # Use Alpine with rsync installed for sync operation
     docker run --rm \
         -v "$SOURCE_DIR":/source:ro \
         -v "$VOLUME_NAME":/target \
@@ -55,10 +55,10 @@ sync_with_docker() {
             apk add --no-cache rsync >/dev/null 2>&1
         fi
         
-        # Create target directory if it doesnt exist
+        # Create target directory if it doesn't exist
         mkdir -p /target/dev_databases
         
-        # Perform the sync
+        # Perform sync
         # --archive: preserve permissions, timestamps, etc.
         # --ignore-existing: skip files that exist on receiver
         # --recursive: recurse into directories
@@ -79,7 +79,7 @@ sync_with_docker() {
         find /target/dev_databases -type f | wc -l
     '
 }
-
+ 
 # Function to show what will be synced (dry run)
 show_changes() {
     echo "Checking for new files to sync..."
@@ -106,7 +106,7 @@ show_changes() {
         done
     '
 }
-
+ 
 # Main execution
 if [ "$1" == "--dry-run" ]; then
     echo "DRY RUN MODE - No changes will be made"
@@ -126,11 +126,11 @@ else
         exit 0
     fi
 fi
-
+ 
 echo ""
 echo "To run without confirmation, use: $0 --force"
 echo "To see what would be synced, use: $0 --dry-run"
-
+ 
 # Handle --force flag
 if [ "$1" == "--force" ]; then
     sync_with_docker

@@ -24,12 +24,12 @@ class Command(BaseCommand):
         parser.add_argument(
             "sqlite_path",
             type=str,
-            help="Percorso del file SQLite relativo alla directory data/ (es: file.sqlite o subdir/file.sqlite)",
+            help="Path to SQLite file relative to data/ directory (e.g., file.sqlite or subdir/file.sqlite)",
         )
         parser.add_argument(
             "--target-db",
             type=str,
-            help="Nome del database PostgreSQL di destinazione (default: nome del file SQLite senza estensione)",
+            help="Name of destination PostgreSQL database (default: SQLite filename without extension)",
         )
         parser.add_argument(
             "--create-db",
@@ -44,7 +44,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Mostra il comando pgloader che verrebbe eseguito senza eseguirlo",
+            help="Shows the pgloader command that would be executed without running it",
         )
 
     def handle(self, *args, **options):
@@ -54,21 +54,21 @@ class Command(BaseCommand):
         drop_tables = options.get("drop_tables", False)
         dry_run = options.get("dry_run", False)
 
-        # Determina il nome del database di destinazione
+        # Determine the destination database name
         if not target_db:
-            # Usa solo il nome del file (senza directory e senza estensione)
+            # Use only the filename (without directory and without extension)
             filename = os.path.basename(sqlite_path_input)
             target_db = os.path.splitext(filename)[0]
 
-        self.stdout.write("Conversione SQLite -> PostgreSQL")
-        self.stdout.write(f"File SQLite: {sqlite_path_input}")
-        self.stdout.write(f"Database PostgreSQL di destinazione: {target_db}")
+        self.stdout.write("Converting SQLite to PostgreSQL")
+        self.stdout.write(f"SQLite file: {sqlite_path_input}")
+        self.stdout.write(f"Destination PostgreSQL database: {target_db}")
 
         try:
-            # Step 1: Valida il file SQLite
+            # Step 1: Validate the SQLite file
             sqlite_full_path = self._validate_sqlite_file(sqlite_path_input)
 
-            # Step 2: Ottieni le credenziali PostgreSQL
+            # Step 2: Get PostgreSQL credentials
             pg_config = self._get_postgres_config()
 
             # Step 3: Create the database if requested
@@ -81,18 +81,18 @@ class Command(BaseCommand):
             if not dry_run:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"Conversione completata con successo! "
-                        f"Database '{target_db}' è ora disponibile in PostgreSQL."
+                        f"Conversion completed successfully! "
+                        f"Database '{target_db}' is now available in PostgreSQL."
                     )
                 )
 
         except CommandError:
             raise
         except Exception as e:
-            raise CommandError(f"Errore durante la conversione: {str(e)}")
+            raise CommandError(f"Error during conversion: {str(e)}")
 
     def _validate_sqlite_file(self, sqlite_filename):
-        """Valida l'esistenza e la validità del file SQLite"""
+        """Validate the existence and validity of the SQLite file"""
         # Percorso nel container dell'app
         data_dir = "/app/data"
         sqlite_path = os.path.join(data_dir, sqlite_filename)
@@ -100,8 +100,8 @@ class Command(BaseCommand):
         # Check if the file exists
         if not os.path.exists(sqlite_path):
             raise CommandError(
-                f"File SQLite non trovato: {sqlite_path}\n"
-                f"Assicurati che il file sia presente nella directory data/"
+                f"SQLite file not found: {sqlite_path}\n"
+                f"Ensure the file is present in the data/ directory"
             )
 
         # Verifica che sia un file SQLite valido
@@ -115,16 +115,16 @@ class Command(BaseCommand):
             if not tables:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"Il file SQLite '{sqlite_filename}' non contiene tabelle."
+                        f"The SQLite file '{sqlite_filename}' does not contain tables."
                     )
                 )
             else:
                 self.stdout.write(
-                    f"File SQLite valido con {len(tables)} tabelle trovate."
+                    f"Valid SQLite file with {len(tables)} tables found."
                 )
 
         except sqlite3.Error as e:
-            raise CommandError(f"File SQLite non valido: {str(e)}")
+            raise CommandError(f"Invalid SQLite file: {str(e)}")
 
         return sqlite_path
 
@@ -141,7 +141,7 @@ class Command(BaseCommand):
 
     def _create_postgres_database(self, target_db, pg_config, drop_tables):
         """Create the PostgreSQL database if it does not exist"""
-        self.stdout.write(f"Verificando/creando database '{target_db}'...")
+        self.stdout.write(f"Verifying/creating database '{target_db}'...")
 
         # Comando per creare il database
         create_db_cmd = [
@@ -169,10 +169,10 @@ class Command(BaseCommand):
             )
 
             if result.returncode == 0 and "1" in result.stdout:
-                self.stdout.write(f"Database '{target_db}' già esistente.")
+                self.stdout.write(f"Database '{target_db}' already exists.")
 
                 if drop_tables:
-                    self.stdout.write("Eliminando tabelle esistenti...")
+                    self.stdout.write("Dropping existing tables...")
                     drop_cmd = [
                         "docker",
                         "exec",
@@ -197,13 +197,13 @@ class Command(BaseCommand):
 
                     if drop_result.returncode != 0:
                         raise CommandError(
-                            f"Errore nell'eliminazione delle tabelle: {drop_result.stderr}"
+                            f"Error dropping tables: {drop_result.stderr}"
                         )
 
                     self.stdout.write("Tabelle eliminate con successo.")
             else:
                 # Crea il database
-                self.stdout.write(f"Creando database '{target_db}'...")
+                self.stdout.write(f"Creating database '{target_db}'...")
                 create_cmd = [
                     "docker",
                     "exec",
@@ -238,7 +238,7 @@ class Command(BaseCommand):
 
         except subprocess.SubprocessError as e:
             raise CommandError(
-                f"Errore nell'esecuzione del comando PostgreSQL: {str(e)}"
+                f"Error executing PostgreSQL command: {str(e)}"
             )
 
     def _run_pgloader(self, sqlite_path, target_db, pg_config, dry_run):
@@ -267,11 +267,11 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write(
-                self.style.WARNING("DRY RUN: Il comando non è stato eseguito.")
+                self.style.WARNING("DRY RUN: The command was not executed.")
             )
             return
 
-        self.stdout.write("Eseguendo pgloader...")
+        self.stdout.write("Executing pgloader...")
 
         try:
             # Esegui pgloader
@@ -288,13 +288,13 @@ class Command(BaseCommand):
                 self.stdout.write(result.stdout)
 
             if result.stderr:
-                self.stdout.write("Errori/Warning pgloader:")
+                self.stdout.write("Errors/Warning pgloader:")
                 self.stdout.write(result.stderr)
 
             if result.returncode != 0:
                 raise CommandError(
                     f"pgloader ha terminato con errore (codice {result.returncode}). "
-                    f"Controlla l'output sopra per i dettagli."
+                    f"Check the output above for details."
                 )
 
         except subprocess.TimeoutExpired:
@@ -303,4 +303,4 @@ class Command(BaseCommand):
                 "Il database potrebbe essere troppo grande o ci potrebbero essere problemi di connessione."
             )
         except subprocess.SubprocessError as e:
-            raise CommandError(f"Errore nell'esecuzione di pgloader: {str(e)}")
+            raise CommandError(f"Error executing pgloader: {str(e)}")
