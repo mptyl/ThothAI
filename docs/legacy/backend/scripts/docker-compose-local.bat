@@ -1,6 +1,6 @@
 @echo off
 REM Copyright (c) 2025 Marco Pancotti
-REM This file is part of Thoth and is released under the MIT License.
+REM This file is part of ThothAI and is released under the Apache 2.0.
 REM See the LICENSE.md file in the project root for full license information.
 
 REM Run Docker Compose with local override (no registry cache)

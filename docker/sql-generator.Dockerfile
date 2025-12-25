@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Marco Pancotti
-# This file is part of Thoth and is released under the MIT License.
+# This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
 # === SINGLE-STAGE BUILD FOR SQL GENERATOR ===
@@ -38,7 +38,7 @@ RUN uv sync --frozen --no-cache
 
 # Normalize line endings and ensure scripts are executable (robust on Windows checkouts)
 RUN if [ -d /app/scripts ]; then \
-      find /app/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + -exec chmod +x {} +; \
+    find /app/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + -exec chmod +x {} +; \
     fi || true
 
 # Copy data directory into image (for reference/backup)

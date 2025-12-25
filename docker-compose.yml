@@ -1,5 +1,5 @@
-# Copyright (c) 2025 Tyl Consulting di Pancotti Marco
-# This file is part of Thoth and is released under the MIT License.
+# Copyright (c) 2025 Marco Pancotti
+# This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
 version: '3.8'
@@ -37,11 +37,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/admin/login/" ]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 1200s  # 20 minutes for initial setup with AI operations
+      start_period: 1200s # 20 minutes for initial setup with AI operations
     depends_on:
       - thoth-qdrant
 
@@ -162,7 +162,7 @@ services:
     networks:
       - thoth-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -180,7 +180,7 @@ services:
     networks:
       - thoth-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:6333/" ]
       interval: 30s
       timeout: 10s
       retries: 3
