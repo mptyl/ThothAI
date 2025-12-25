@@ -482,6 +482,26 @@ function Main {
     Write-ColorOutput "This may take several minutes on first run..." "Yellow"
     Write-Host ""
     
+    # Check if thoth-shared-data volume already exists
+    $SharedDataExists = $false
+    try {
+        $volumeInfo = docker volume inspect thoth-shared-data 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $SharedDataExists = $true
+        }
+    } catch {
+        # Volume doesn't exist
+    }
+    
+    # Warning about slow data upload only for first run (when shared-data volume is new)
+    if (-not $SharedDataExists) {
+        Write-ColorOutput "⚠️  ATTENZIONE: Caricamento dati in corso..." "Yellow"
+        Write-ColorOutput "   I dati di esempio verranno caricati nel volume Docker." "Yellow"
+        Write-ColorOutput "   Questa operazione può richiedere diversi minuti a seconda della velocità del disco." "Yellow"
+        Write-ColorOutput "   L'applicazione sarà disponibile dopo il completamento di questa operazione." "Yellow"
+        Write-Host ""
+    }
+    
     if ($InstallerArgs.Count -gt 0) {
         & $PythonCmd scripts/installer.py $InstallerArgs
     } else {
@@ -489,6 +509,42 @@ function Main {
     }
     
     if ($LASTEXITCODE -eq 0) {
+        # Wait for backend to be healthy
+        Write-ColorOutput "⏳ In attesa che il backend sia pronto..." "Yellow"
+        if (-not $SharedDataExists) {
+            Write-ColorOutput "   Il caricamento dei dati può richiedere tempo (fino a 20 minuti)..." "Yellow"
+        }
+        Write-Host ""
+        
+        $MaxRetries = 120  # 20 minutes (120 * 10 seconds)
+        $RetryCount = 0
+        $BackendReady = $false
+        
+        while ($RetryCount -lt $MaxRetries) {
+            $result = docker exec thoth-backend curl -f http://localhost:8000/admin/login/ 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $BackendReady = $true
+                Write-ColorOutput "✓ Backend pronto!" "Green"
+                break
+            }
+            $RetryCount++
+            # Show progress every 10 retries (1 minute)
+            if ($RetryCount % 10 -eq 0) {
+                $Elapsed = [math]::Floor(($RetryCount * 10) / 60)
+                Write-ColorOutput "   Ancora in attesa... ($Elapsed minuti trascorsi)" "Yellow"
+            } else {
+                Write-Host -NoNewline "."
+            }
+            Start-Sleep -Seconds 10
+        }
+        Write-Host ""
+        
+        if (-not $BackendReady) {
+            Write-ColorOutput "⚠️  Il backend non è ancora pronto, ma i servizi sono avviati." "Yellow"
+            Write-ColorOutput "   Controllare i log con: docker logs -f thoth-backend" "Yellow"
+            Write-ColorOutput "   L'applicazione potrebbe essere disponibile tra qualche minuto." "Yellow"
+        }
+        
         Write-ColorOutput ""
         Write-ColorOutput "============================================" "Green"
         Write-ColorOutput "    Installation completed successfully!" "Green"

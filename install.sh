@@ -41,13 +41,13 @@ main() {
     BUILD_LOCALLY=false
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --local|--build)
+            --build)
                 BUILD_LOCALLY=true
                 shift
                 ;;
             --help|-h)
-                echo "Usage: $0 [--local|--build]"
-                echo "  --local, --build: Build images locally instead of pulling from Docker Hub"
+                echo "Usage: $0 [--build]"
+                echo "  --build: Build images locally instead of pulling from Docker Hub"
                 exit 0
                 ;;
             *)
@@ -90,16 +90,7 @@ main() {
     export DOCKER_USERNAME
     print_color "Using Docker Registry User: $DOCKER_USERNAME" "$BLUE"
 
-    # 6. Interactive choice if not specified via flag
-    if [ "$BUILD_LOCALLY" = false ]; then
-        print_color "Do you want to build images locally instead of pulling from Docker Hub?" "$BLUE"
-        read -p "Enter 'build' for local build, or press Enter for Docker Hub [hub]: " choice
-        if [ "$choice" == "build" ]; then
-            BUILD_LOCALLY=true
-        fi
-    fi
-
-    # 7. Prepare Images
+    # 6. Prepare Images
     print_header "Preparing Images..."
     if [ "$BUILD_LOCALLY" = true ]; then
         print_color "Local build requested. Skipping Docker Hub pull." "$YELLOW"
@@ -135,16 +126,68 @@ main() {
     docker network create thoth-network 2>/dev/null || true
     
     VOLUMES="thoth-backend-static thoth-backend-media thoth-frontend-cache thoth-qdrant-data thoth-secrets thoth-shared-data"
+    
+    # Check if thoth-shared-data volume already exists and is initialized
+    SHARED_DATA_EXISTS=false
+    if docker volume inspect thoth-shared-data >/dev/null 2>&1; then
+        # Volume exists, check if it has data (try to inspect a container using it)
+        SHARED_DATA_EXISTS=true
+    fi
+    
     for vol in $VOLUMES; do
         docker volume create $vol 2>/dev/null || true
     done
     
+    # Warning about slow data upload only for first run (when shared-data volume is new)
+    if [ "$SHARED_DATA_EXISTS" = false ]; then
+        print_color "⚠️  ATTENZIONE: Caricamento dati in corso..." "$YELLOW"
+        print_color "   I dati di esempio verranno caricati nel volume Docker." "$YELLOW"
+        print_color "   Questa operazione può richiedere diversi minuti a seconda della velocità del disco." "$YELLOW"
+        print_color "   L'applicazione sarà disponibile dopo il completamento di questa operazione." "$YELLOW"
+        echo ""
+    fi
+    
     docker compose -f $COMPOSE_FILE up -d
+
+    # Wait for backend to be healthy
+    print_color "⏳ In attesa che il backend sia pronto..." "$YELLOW"
+    if [ "$SHARED_DATA_EXISTS" = false ]; then
+        print_color "   Il caricamento dei dati può richiedere tempo (fino a 20 minuti)..." "$YELLOW"
+    fi
+    echo ""
+
+    MAX_RETRIES=120  # 20 minutes (120 * 10 seconds)
+    RETRY_COUNT=0
+    BACKEND_READY=false
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if docker exec thoth-backend curl -f http://localhost:8000/admin/login/ >/dev/null 2>&1; then
+            BACKEND_READY=true
+            print_color "✓ Backend pronto!" "$GREEN"
+            break
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        # Show progress every 10 retries (1 minute)
+        if [ $((RETRY_COUNT % 10)) -eq 0 ]; then
+            ELAPSED=$((RETRY_COUNT * 10 / 60))
+            print_color "   Ancora in attesa... (${ELAPSED} minuti trascorsi)" "$YELLOW"
+        else
+            echo -n "."
+        fi
+        sleep 10
+    done
+    echo ""
+
+    if [ "$BACKEND_READY" = false ]; then
+        print_color "⚠️  Il backend non è ancora pronto, ma i servizi sono avviati." "$YELLOW"
+        print_color "   Controllare i log con: docker logs -f thoth-backend" "$YELLOW"
+        print_color "   L'applicazione potrebbe essere disponibile tra qualche minuto." "$YELLOW"
+    fi
 
     print_header "Installation Complete!"
     print_color "ThothAI is running using $COMPOSE_FILE." "$GREEN"
     print_color "Frontend: http://localhost:3040" "$GREEN"
-    print_color "Backend:  http://localhost:8040/admin" "$GREEN"
+    print_color "Backend:  http://localhost:8040" "$GREEN"
 }
 
 main "$@"
