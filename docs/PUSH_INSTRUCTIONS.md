@@ -21,20 +21,20 @@ Use the `push.sh` script to build and push all images to Docker Hub. **Important
 ### Basic Usage
 
 ```bash
-./push.sh docker.io/tylconsulting/thothai VERSION
+./push.sh docker.io/tylconsulting VERSION
 ```
 
 ### Examples
 
 ```bash
 # Push version 1.0
-./push.sh docker.io/tylconsulting/thothai 1.0
+./push.sh docker.io/tylconsulting 1.0
 
 # Push version 2.1 without cache
-./push.sh docker.io/tylconsulting/thothai 2.1 --no-cache
+./push.sh docker.io/tylconsulting 2.1 --no-cache
 
 # Push only (skip build if images already exist)
-./push.sh docker.io/tylconsulting/thothai 1.0 --push-only
+./push.sh docker.io/tylconsulting 1.0 --push-only
 ```
 
 ### Options
@@ -87,12 +87,35 @@ docker login -u tylconsulting
 
 Make sure you have push access to the `tylconsulting` organization on Docker Hub.
 
+### "insufficient_scope: authorization failed" Error
+
+This error typically occurs when using a **Personal Access Token (PAT)** with incorrect permissions:
+
+**Solution 1: Use your account password instead of PAT**
+```bash
+docker logout
+docker login -u tylconsulting
+# Enter your account password when prompted
+```
+
+**Solution 2: Create a new PAT with proper scope**
+1. Go to https://hub.docker.com/settings/security
+2. Click "New Access Token"
+3. Give it a description (e.g., "ThothAI Push")
+4. **IMPORTANT**: Select **"Read & Write"** scope, NOT "Read Only"
+5. Copy the token and use it as password when logging in
+
+**Solution 3: Verify existing PAT scope**
+- If you already have a PAT, check its scope in Docker Hub settings
+- PATs with "Read Only" scope cannot push images
+- Delete and recreate the PAT with "Read & Write" scope
+
 ### Push Fails
 
 If push fails for a specific image, you can retry with `--push-only` after fixing the issue:
 
 ```bash
-./push.sh docker.io/tylconsulting/thothai 1.0 --push-only
+./push.sh docker.io/tylconsulting 1.0 --push-only
 ```
 
 ## Next Steps

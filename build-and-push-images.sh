@@ -140,11 +140,32 @@ echo ""
 
 # Check if logged in to registry
 print_color "Checking registry login..." "$YELLOW"
-if ! docker login "$REGISTRY_URL" 2>/dev/null; then
-    print_color "Execute login to registry:" "$YELLOW"
-    if ! docker login "$REGISTRY_URL"; then
-        print_color "✗ Login failed" "$RED"
-        exit 1
+
+# For Docker Hub, use special login handling
+if [[ "$REGISTRY_URL" == *"docker.io"* ]]; then
+    # Extract organization from registry URL (e.g., docker.io/tylconsulting/thothai -> tylconsulting)
+    ORG=$(echo "$REGISTRY_URL" | cut -d'/' -f2)
+    print_color "Docker Hub detected. Using organization: $ORG" "$NC"
+    
+    # Check if already logged in to Docker Hub
+    if ! docker info 2>/dev/null | grep -q "Username: $ORG"; then
+        print_color "Execute login to Docker Hub with organization account:" "$YELLOW"
+        if ! docker login -u "$ORG"; then
+            print_color "✗ Login failed" "$RED"
+            print_color "" "$NC"
+            print_color "Note: If using a Personal Access Token, ensure it has 'Read & Write' scope." "$YELLOW"
+            print_color "PATs with 'Read Only' scope will cause 'insufficient_scope' errors." "$YELLOW"
+            exit 1
+        fi
+    fi
+else
+    # For custom registries, use standard login
+    if ! docker login "$REGISTRY_URL" 2>/dev/null; then
+        print_color "Execute login to registry:" "$YELLOW"
+        if ! docker login "$REGISTRY_URL"; then
+            print_color "✗ Login failed" "$RED"
+            exit 1
+        fi
     fi
 fi
 print_color "✓ Login verified" "$GREEN"
