@@ -26,7 +26,7 @@ RUN mkdir -p /vol/static /vol/media /vol/exports
 # Health check
 # Extended start-period to 20 minutes for initial installation when AI operations take time
 HEALTHCHECK --interval=10s --timeout=5s --start-period=1200s --retries=5 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1/health || exit 1
 
 EXPOSE 80 8040 3000 8001
 

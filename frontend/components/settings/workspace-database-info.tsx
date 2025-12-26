@@ -37,7 +37,7 @@ export function WorkspaceDatabaseInfo() {
           }
         });
       }
-      
+
       // Warn about potential connection issues
       const host = fullWorkspaceData.sql_db.vector_db.host;
       if (host && host !== 'localhost' && host !== '127.0.0.1') {
@@ -56,19 +56,19 @@ export function WorkspaceDatabaseInfo() {
   // Test Vector DB Connection
   const testVectorDbConnection = async () => {
     if (!fullWorkspaceData?.id) return
-    
+
     setIsTestingVectorDb(true)
     try {
       const baseUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200'
       const token = localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token')
-      
+
       const response = await fetch(`${baseUrl}/api/workspace/${fullWorkspaceData.id}/test-vector-db/`, {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'
         }
       })
-      
+
       const data = await response.json()
       setVectorDbTestData(data)
       // Debug logging in development only
@@ -86,19 +86,19 @@ export function WorkspaceDatabaseInfo() {
   // Diagnostic function
   const runDiagnostics = async () => {
     if (!fullWorkspaceData?.id) return
-    
+
     setIsDiagnosing(true)
     try {
       const baseUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200'
       const token = localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token')
-      
+
       const response = await fetch(`${baseUrl}/api/workspace/${fullWorkspaceData.id}/check-embedding/`, {
         headers: {
           'Authorization': `Token ${token}`,
           'Content-Type': 'application/json'
         }
       })
-      
+
       const data = await response.json()
       setDiagnosticData(data)
       // Debug logging in development only
@@ -335,12 +335,12 @@ export function WorkspaceDatabaseInfo() {
                 ) : (
                   <p>No embedding configuration available.</p>
                 )}
-                
+
                 {(!embedding_config?.provider || !embedding_config?.model || !embedding_config?.has_api_key) && (
                   <Alert className="mt-4" variant="destructive">
                     <AlertCircle className="w-4 h-4" />
                     <AlertDescription>
-                      Embedding configuration is incomplete. 
+                      Embedding configuration is incomplete.
                       Please set the required environment variables in your <code>.env.local</code> file:
                       <ul className="list-disc pl-5 mt-2 space-y-1">
                         {!embedding_config?.provider && <li><code>EMBEDDING_PROVIDER</code></li>}
@@ -350,12 +350,12 @@ export function WorkspaceDatabaseInfo() {
                     </AlertDescription>
                   </Alert>
                 )}
-                
+
                 {/* Diagnostic Tools */}
                 <div className="mt-4 space-y-4">
                   <div className="flex gap-2">
-                    <Button 
-                      onClick={testVectorDbConnection} 
+                    <Button
+                      onClick={testVectorDbConnection}
                       disabled={isTestingVectorDb}
                       variant="outline"
                       className="flex-1 border-cyan-500/50 hover:bg-cyan-500/10"
@@ -371,9 +371,9 @@ export function WorkspaceDatabaseInfo() {
                         </span>
                       )}
                     </Button>
-                    
-                    <Button 
-                      onClick={runDiagnostics} 
+
+                    <Button
+                      onClick={runDiagnostics}
                       disabled={isDiagnosing}
                       variant="outline"
                       className="flex-1 border-cyan-500/50 hover:bg-cyan-500/10"
@@ -390,7 +390,7 @@ export function WorkspaceDatabaseInfo() {
                       )}
                     </Button>
                   </div>
-                  
+
                   {vectorDbTestData && (
                     <Alert className={vectorDbTestData.error ? "border-red-500" : vectorDbTestData.connection_successful ? "border-green-500" : "border-yellow-500"}>
                       <AlertDescription>
@@ -422,7 +422,7 @@ export function WorkspaceDatabaseInfo() {
                               <XCircle className="w-4 h-4" />
                             </button>
                           </div>
-                          
+
                           {vectorDbTestData.connection_info && (
                             <div className="text-sm space-y-1">
                               <p><strong>Host:</strong> {vectorDbTestData.connection_info.host}</p>
@@ -435,11 +435,11 @@ export function WorkspaceDatabaseInfo() {
                               )}
                             </div>
                           )}
-                          
+
                           {vectorDbTestData.error && (
                             <p className="text-red-600 text-sm">{vectorDbTestData.error}</p>
                           )}
-                          
+
                           {vectorDbTestData.connection_info && (
                             <details className="mt-2">
                               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
@@ -454,7 +454,7 @@ export function WorkspaceDatabaseInfo() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  
+
                   {diagnosticData && (
                     <Alert className={diagnosticData.error ? "border-red-500" : diagnosticData.embedding_test?.test_successful ? "border-green-500" : "border-yellow-500"}>
                       <AlertDescription>
@@ -486,7 +486,7 @@ export function WorkspaceDatabaseInfo() {
                               <XCircle className="w-4 h-4" />
                             </button>
                           </div>
-                          
+
                           {diagnosticData.embedding_test && (
                             <div className="text-sm space-y-1">
                               <p><strong>Test Text:</strong> &quot;{diagnosticData.embedding_test.test_text}&quot;</p>
@@ -507,8 +507,8 @@ export function WorkspaceDatabaseInfo() {
                               )}
                             </div>
                           )}
-                          
-                          
+
+
                           {diagnosticData.error && (
                             <p className="text-red-600 text-sm">{diagnosticData.error}</p>
                           )}
@@ -542,8 +542,8 @@ export function WorkspaceDatabaseInfo() {
         <AlertDescription className="text-base">
           <span className="flex items-start gap-2">
             <span>
-              Workspace configurations including database settings, embedding configurations, and Belt and Suspenders feature 
-              are managed at the workspace level through the Django admin interface. 
+              Workspace configurations including database settings, embedding configurations, and Belt and Suspenders feature
+              are managed at the workspace level through the Django admin interface.
               Contact your administrator to modify these settings.
             </span>
           </span>

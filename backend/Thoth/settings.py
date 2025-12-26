@@ -372,6 +372,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8040",  # Backend Docker port (via proxy)
     "http://localhost:80",    # Web proxy port
     "http://127.0.0.1:80",    # Web proxy port
+    "http://localhost:7001",  # Docker Swarm Frontend
+    "http://127.0.0.1:7001",  # Docker Swarm Frontend
+    "http://localhost:7010",  # Docker Swarm Proxy
+    "http://127.0.0.1:7010",  # Docker Swarm Proxy
 ]
 
 # For development, allow all origins from localhost

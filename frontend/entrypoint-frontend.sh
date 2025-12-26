@@ -18,5 +18,23 @@ else
     exit 1
 fi
 
+# Create .env file for Next.js standalone to read runtime variables
+# Next.js standalone mode runs server.js which reads .env from its execution directory
+echo "Creating .env files for Next.js runtime..."
+
+# Create .env in root (where server.js runs)
+cat > /app/.env << EOF
+RUNTIME_BACKEND_URL=${RUNTIME_BACKEND_URL}
+RUNTIME_SQL_GENERATOR_URL=${RUNTIME_SQL_GENERATOR_URL}
+EOF
+
+# Also create .env.production for production mode
+cat > /app/.env.production << EOF
+RUNTIME_BACKEND_URL=${RUNTIME_BACKEND_URL}
+RUNTIME_SQL_GENERATOR_URL=${RUNTIME_SQL_GENERATOR_URL}
+EOF
+
+echo ".env files created with RUNTIME_BACKEND_URL=${RUNTIME_BACKEND_URL}"
+
 # Run the Next.js application with all environment variables
 exec npm run start

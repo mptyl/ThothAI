@@ -13,11 +13,6 @@ services:
     image: ${DOCKER_USERNAME}/thoth-backend:${VERSION:-latest}
     networks:
       - thoth-network
-    ports:
-      - target: 8000
-        published: ${BACKEND_PROXY_PORT:-8040}
-        protocol: tcp
-        mode: ingress
     volumes:
       - thoth-backend-db:/app/backend_db
       - thoth-shared-data:/app/data
@@ -25,15 +20,18 @@ services:
       - backend-static:/vol/static
       - backend-media:/vol/media
       - thoth-data-exchange:/app/data_exchange
+      - thoth-backend-secrets:/vol/secrets
     environment:
       - HOST_IP=host.docker.internal
       - DOCKER_ENV=production
       - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
       - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
       - DOCKER_CONTAINER=true
+      - AUTO_GENERATE_SECRETS=true
     secrets:
       - thoth_env_config
-      - thoth_config_yml
+      - source: thoth_config_yml
+        target: /app/config.yml.local
     configs:
       - source: thoth_env_docker
         target: /app/.env.docker
@@ -44,6 +42,10 @@ services:
       retries: 5
       start_period: 1200s
     deploy:
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=backend"
       replicas: 1
       placement:
         constraints:
@@ -77,6 +79,7 @@ services:
     volumes:
       - frontend-cache:/app/.next/cache
       - thoth-data-exchange:/app/data_exchange:ro
+      - thoth-backend-secrets:/secrets:ro
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -84,17 +87,26 @@ services:
       - DJANGO_SERVER=http://proxy:80
       - SQL_GENERATOR_URL=http://sql-generator:8020
       - DOCKER_CONTAINER=true
-      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PROXY_PORT:-8040}
+      # Build-time embedded (for client-side fallback)
+      - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${WEB_PORT:-7010}
       - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-8020}
+      # Runtime variables for /api/config endpoint
+      # Runtime variables for /api/config endpoint
+      # The frontend container needs to know where the Proxy is (Gateway)
+      # In execution, this points to the external URL of the Proxy
+      - RUNTIME_BACKEND_URL=http://localhost:${WEB_PORT:-7010}
+      - RUNTIME_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-7003}
     secrets:
       - thoth_env_config
     configs:
       - source: thoth_env_docker
         target: /app/.env.docker
     deploy:
-      replicas: 2
-      placement:
-        max_replicas_per_node: 1
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=frontend"
+      replicas: 1
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -106,7 +118,7 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 2G
+          memory: 1G
         reservations:
           cpus: '0.25'
           memory: 512M
@@ -125,6 +137,7 @@ services:
       - thoth-shared-data:/app/data
       - thoth-logs:/app/logs
       - thoth-data-exchange:/app/data_exchange
+      - thoth-backend-secrets:/secrets:ro
     environment:
       - DOCKER_CONTAINER=true
       - PORT=8020
@@ -138,6 +151,10 @@ services:
       - source: thoth_env_docker
         target: /app/.env.docker
     deploy:
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=sql-generator"
       replicas: 1
       placement:
         constraints:
@@ -165,7 +182,7 @@ services:
       - thoth-network
     ports:
       - target: 80
-        published: ${BACKEND_PROXY_PORT:-8040}
+        published: ${WEB_PORT:-7010}
         protocol: tcp
         mode: ingress
     volumes:
@@ -181,9 +198,11 @@ services:
       - SQL_GEN_PORT=8020
       - DEBUG=False
     deploy:
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=proxy"
       replicas: 2
-      placement:
-        max_replicas_per_node: 1
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -210,13 +229,11 @@ services:
         published: ${MERMAID_SERVICE_PORT:-8003}
         protocol: tcp
         mode: ingress
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     deploy:
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=mermaid"
       replicas: 1
       restart_policy:
         condition: on-failure
@@ -242,12 +259,11 @@ services:
         mode: ingress
     volumes:
       - qdrant-data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     deploy:
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=qdrant"
       replicas: 1
       placement:
         constraints:
@@ -274,6 +290,8 @@ volumes:
   qdrant-data:
     driver: local
   thoth-backend-db:
+    driver: local
+  thoth-backend-secrets:
     driver: local
   thoth-logs:
     driver: local

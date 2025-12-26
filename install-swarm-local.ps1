@@ -2,18 +2,9 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 #
-# Script for deploying ThothAI to a remote Docker Swarm server using images from Docker Hub
+# Script for deploying ThothAI to local Docker Swarm using images from Docker Hub
 
 param(
-    [Parameter(Mandatory=$false, HelpMessage="SSH connection string (e.g., user@hostname or user@ip)")]
-    [string]$Server,
-
-    [Parameter(HelpMessage="SSH port (default: 22)")]
-    [int]$Port = 22,
-
-    [Parameter(HelpMessage="Path to SSH private key (default: ~/.ssh/id_rsa)")]
-    [string]$Key = "$env:USERPROFILE\.ssh\id_rsa",
-
     [switch]$SkipPull,
     [switch]$SkipSecrets,
     [switch]$Help
@@ -34,25 +25,21 @@ function Write-ColorOutput {
 
 # Function to show usage
 function Show-Usage {
-    Write-ColorOutput "Usage: .\install-swarm.ps1 [OPTIONS]" "Cyan"
+    Write-ColorOutput "Usage: .\install-swarm-local.ps1 [OPTIONS]" "Cyan"
     Write-ColorOutput "" "White"
     Write-ColorOutput "Options:" "Yellow"
-    Write-ColorOutput "  -Server <SSH_CONNECTION_STRING>  Deploy to remote server via SSH (REQUIRED)" "White"
-    Write-ColorOutput "  -Port <SSH_PORT>                 SSH port (default: 22)" "White"
-    Write-ColorOutput "  -Key <SSH_KEY_PATH>              Path to SSH private key (default: ~/.ssh/id_rsa)" "White"
     Write-ColorOutput "  -SkipPull                        Skip pulling images from Docker Hub" "White"
     Write-ColorOutput "  -SkipSecrets                     Skip creating secrets and configs" "White"
     Write-ColorOutput "  -Help                            Show this help message" "White"
     Write-ColorOutput "" "White"
     Write-ColorOutput "Description:" "Green"
-    Write-ColorOutput "  Deploys ThothAI to a remote Docker Swarm server using pre-built images from Docker Hub." "White"
+    Write-ColorOutput "  Deploys ThothAI to local Docker Swarm using pre-built images from Docker Hub." "White"
     Write-ColorOutput "  No local build is required - images are pulled directly from Docker Hub." "White"
-    Write-ColorOutput "  Manages SSH connection to remote server for deployment." "White"
     Write-ColorOutput "" "White"
     Write-ColorOutput "Examples:" "Green"
-    Write-ColorOutput "  .\install-swarm.ps1 -Server user@192.168.1.100" "White"
-    Write-ColorOutput "  .\install-swarm.ps1 -Server user@swarm.example.com -Port 2222 -Key C:\Users\user\.ssh\custom_key" "White"
-    Write-ColorOutput "  .\install-swarm.ps1 -Server admin@10.0.0.50 -SkipPull" "White"
+    Write-ColorOutput "  .\install-swarm-local.ps1                        # Full deployment" "White"
+    Write-ColorOutput "  .\install-swarm-local.ps1 -SkipPull              # Deploy without pulling images" "White"
+    Write-ColorOutput "  .\install-swarm-local.ps1 -SkipSecrets           # Deploy without recreating secrets" "White"
     Write-ColorOutput "" "White"
 }
 
@@ -66,55 +53,6 @@ function Test-Command {
         return $true
     }
     catch {
-        return $false
-    }
-}
-
-# Function to prompt for server if not provided
-function Prompt-ForServer {
-    Write-ColorOutput "No server specified. Please enter SSH connection string:" "Yellow"
-    Write-ColorOutput "Format: user@hostname or user@ip_address" "White"
-    $serverInput = Read-Host "SSH connection string"
-    
-    if ([string]::IsNullOrWhiteSpace($serverInput)) {
-        Write-ColorOutput "Error: SSH connection string is required" "Red"
-        exit 1
-    }
-    
-    return $serverInput
-}
-
-# Function to test SSH connection
-function Test-SSHConnection {
-    param(
-        [string]$SshServer,
-        [int]$SshPort,
-        [string]$SshKey
-    )
-    
-    Write-ColorOutput "Testing SSH connection to $SshServer`:$SshPort..." "Yellow"
-    
-    # Build SSH command
-    $sshCmd = "ssh"
-    if (Test-Path $SshKey) {
-        $sshCmd = "ssh -i $SshKey -p $SshPort -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
-    } else {
-        $sshCmd = "ssh -p $SshPort -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
-    }
-    
-    # Test connection
-    $result = cmd /c "$sshCmd $SshServer echo 'Connection successful' 2>&1"
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-ColorOutput "✓ SSH connection successful" "Green"
-        return $true
-    } else {
-        Write-ColorOutput "✗ SSH connection failed" "Red"
-        Write-ColorOutput "Please check:" "Yellow"
-        Write-ColorOutput "  - Server address and user are correct" "White"
-        Write-ColorOutput "  - SSH key path is correct (if using key auth)" "White"
-        Write-ColorOutput "  - SSH key is loaded in ssh-agent or password is correct" "White"
-        Write-ColorOutput "  - Server is reachable and SSH service is running" "White"
         return $false
     }
 }
@@ -176,7 +114,7 @@ function Test-Config {
         $Config['FRONTEND_PORT'] = '7001'
     }
     if (-not $Config.ContainsKey('BACKEND_PROXY_PORT')) {
-        $Config['BACKEND_PROXY_PORT'] = '7000'
+        $Config['BACKEND_PROXY_PORT'] = $Config['WEB_PORT']
     }
     if (-not $Config.ContainsKey('SQL_GENERATOR_PORT')) {
         $Config['SQL_GENERATOR_PORT'] = '7003'
@@ -285,6 +223,13 @@ function Prepare-StackFile {
         '${SQL_GENERATOR_PORT}' = $Config['SQL_GENERATOR_PORT']
         '${MERMAID_SERVICE_PORT}' = $Config['MERMAID_SERVICE_PORT']
         '${WEB_PORT}' = $Config['WEB_PORT']
+        '${BACKEND_PROXY_PORT}' = $Config['BACKEND_PROXY_PORT']
+        '${APP_HOST}' = 'backend'
+        '${APP_PORT}' = '8000'
+        '${FRONTEND_HOST}' = 'frontend'
+        '${SQL_GEN_HOST}' = 'sql-generator'
+        '${SQL_GEN_PORT}' = '8020'
+        '${DEBUG}' = 'False'
     }
 
     foreach ($key in $replacements.Keys) {
@@ -297,45 +242,14 @@ function Prepare-StackFile {
     Write-ColorOutput "✓ docker-stack-swarm.yml created" "Green"
 }
 
-# Function to deploy stack to remote Swarm
-function Deploy-StackRemote {
+# Function to create secrets and configs
+function Create-SecretsAndConfigs {
     param(
-        [string]$SshServer,
-        [int]$SshPort,
-        [string]$SshKey,
         [hashtable]$Config
     )
 
-    Write-ColorOutput "=== Deploying to remote Docker Swarm ===" "Cyan"
+    Write-ColorOutput "=== Creating secrets and configs ===" "Cyan"
     Write-ColorOutput "" "White"
-
-    # Set DOCKER_HOST for SSH connection
-    $dockerHost = "ssh://$SshServer`:$SshPort"
-    Write-ColorOutput "Setting DOCKER_HOST=$dockerHost" "Yellow"
-    $env:DOCKER_HOST = $dockerHost
-
-    # Add SSH key to agent if specified (requires Pageant for PuTTY or ssh-agent for OpenSSH)
-    if (Test-Path $SshKey) {
-        Write-ColorOutput "SSH key found at $SshKey" "Yellow"
-        Write-ColorOutput "Note: Ensure your SSH key is loaded in ssh-agent or Pageant" "Yellow"
-    } else {
-        Write-ColorOutput "Warning: SSH key not found at $SshKey" "Yellow"
-        Write-ColorOutput "Continuing anyway (assuming SSH agent has the key or password auth)" "Yellow"
-    }
-
-    # Check if Swarm is active on remote
-    Write-ColorOutput "Checking Swarm status on remote host..." "Yellow"
-    $dockerInfo = docker info 2>&1
-    if ($dockerInfo -notmatch "Swarm:\s+active") {
-        Write-ColorOutput "Error: Docker Swarm is not active on the remote host" "Red"
-        Write-ColorOutput "Please initialize Swarm on the remote host: docker swarm init" "Yellow"
-        exit 1
-    }
-    Write-ColorOutput "✓ Swarm is active on remote host" "Green"
-    Write-ColorOutput "" "White"
-
-    # Create secrets and configs on remote
-    Write-ColorOutput "Creating secrets and configs on remote Swarm..." "Yellow"
 
     $stackName = $Config['STACK_NAME']
 
@@ -389,9 +303,31 @@ function Deploy-StackRemote {
     $stackContent | Out-File -FilePath "docker-stack-swarm.yml" -Encoding utf8
     Write-ColorOutput "✓ Updated docker-stack-swarm.yml" "Green"
     Write-ColorOutput "" "White"
+}
+
+# Function to deploy stack to local Swarm
+function Deploy-Stack {
+    param(
+        [hashtable]$Config
+    )
+
+    Write-ColorOutput "=== Deploying to local Docker Swarm ===" "Cyan"
+    Write-ColorOutput "" "White"
+
+    # Check if Swarm is active locally
+    Write-ColorOutput "Checking Swarm status..." "Yellow"
+    $dockerInfo = docker info 2>&1
+    if ($dockerInfo -notmatch "Swarm:\s+active") {
+        Write-ColorOutput "Error: Docker Swarm is not active" "Red"
+        Write-ColorOutput "Please initialize Swarm: docker swarm init" "Yellow"
+        exit 1
+    }
+    Write-ColorOutput "✓ Swarm is active" "Green"
+    Write-ColorOutput "" "White"
 
     # Deploy stack
-    Write-ColorOutput "Deploying stack '$stackName' to remote Swarm..." "Yellow"
+    $stackName = $Config['STACK_NAME']
+    Write-ColorOutput "Deploying stack '$stackName' to local Swarm..." "Yellow"
     docker stack deploy -c docker-stack-swarm.yml $stackName
     if ($LASTEXITCODE -eq 0) {
         Write-ColorOutput "✓ Stack deployment initiated" "Green"
@@ -491,24 +427,20 @@ function Show-DeploymentStatus {
 # Function to show access URLs
 function Show-AccessUrls {
     param(
-        [string]$SshServer,
         [hashtable]$Config
     )
-
-    # Extract IP/hostname from SSH connection string
-    $serverAddress = $SshServer -split '@' | Select-Object -Last 1
 
     Write-ColorOutput "=== Access URLs ===" "Green"
     Write-ColorOutput "" "White"
 
     Write-ColorOutput "The following services should be accessible at:" "White"
-    Write-ColorOutput "  Frontend (Next.js):     http://$serverAddress`:$($Config['FRONTEND_PORT'])" "Yellow"
-    Write-ColorOutput "  Backend (Django):       http://$serverAddress`:$($Config['BACKEND_PROXY_PORT'])/api" "Yellow"
-    Write-ColorOutput "  Admin Panel:             http://$serverAddress`:$($Config['BACKEND_PROXY_PORT'])/admin" "Yellow"
-    Write-ColorOutput "  SQL Generator:          http://$serverAddress`:$($Config['SQL_GENERATOR_PORT'])" "Yellow"
-    Write-ColorOutput "  Mermaid Service:        http://$serverAddress`:$($Config['MERMAID_SERVICE_PORT'])" "Yellow"
-    Write-ColorOutput "  Qdrant Dashboard:       http://$serverAddress`:$($Config['QDRANT_PORT'])/dashboard" "Yellow"
-    Write-ColorOutput "  Web (Proxy):            http://$serverAddress`:$($Config['WEB_PORT'])" "Yellow"
+    Write-ColorOutput "  Frontend (Next.js):     http://localhost:$($Config['FRONTEND_PORT'])" "Yellow"
+    Write-ColorOutput "  Backend (Django):       http://localhost:$($Config['BACKEND_PROXY_PORT'])/api" "Yellow"
+    Write-ColorOutput "  Admin Panel:             http://localhost:$($Config['BACKEND_PROXY_PORT'])/admin" "Yellow"
+    Write-ColorOutput "  SQL Generator:          http://localhost:$($Config['SQL_GENERATOR_PORT'])" "Yellow"
+    Write-ColorOutput "  Mermaid Service:        http://localhost:$($Config['MERMAID_SERVICE_PORT'])" "Yellow"
+    Write-ColorOutput "  Qdrant Dashboard:       http://localhost:$($Config['QDRANT_PORT'])/dashboard" "Yellow"
+    Write-ColorOutput "  Web (Proxy):            http://localhost:$($Config['WEB_PORT'])" "Yellow"
     Write-ColorOutput "" "White"
 
     Write-ColorOutput "Useful commands:" "Yellow"
@@ -527,21 +459,10 @@ try {
         exit 0
     }
 
-    # Prompt for server if not provided
-    if ([string]::IsNullOrWhiteSpace($Server)) {
-        $Server = Prompt-ForServer
-    }
-
     Write-ColorOutput "============================================" "Cyan"
-    Write-ColorOutput "  ThothAI - Remote Docker Swarm Deployment" "Cyan"
+    Write-ColorOutput "  ThothAI - Local Docker Swarm Deployment" "Cyan"
     Write-ColorOutput "  Using images from Docker Hub" "Cyan"
     Write-ColorOutput "============================================" "Cyan"
-    Write-ColorOutput "" "White"
-
-    Write-ColorOutput "Remote Server:" "Yellow"
-    Write-ColorOutput "  Server:  $Server" "White"
-    Write-ColorOutput "  Port:    $Port" "White"
-    Write-ColorOutput "  SSH Key: $Key" "White"
     Write-ColorOutput "" "White"
 
     # Check prerequisites
@@ -552,18 +473,7 @@ try {
         exit 1
     }
 
-    if (-not (Test-Command "ssh")) {
-        Write-ColorOutput "Error: SSH client is not installed" "Red"
-        exit 1
-    }
-
     Write-ColorOutput "✓ Prerequisites OK" "Green"
-    Write-ColorOutput "" "White"
-
-    # Test SSH connection
-    if (-not (Test-SSHConnection -SshServer $Server -SshPort $Port -SshKey $Key)) {
-        exit 1
-    }
     Write-ColorOutput "" "White"
 
     # Load and validate configuration
@@ -584,8 +494,16 @@ try {
     Prepare-StackFile -Config $config
     Write-ColorOutput "" "White"
 
-    # Deploy to remote Swarm
-    Deploy-StackRemote -SshServer $Server -SshPort $Port -SshKey $Key -Config $config
+    # Create secrets and configs
+    if (-not $SkipSecrets) {
+        Create-SecretsAndConfigs -Config $config
+    } else {
+        Write-ColorOutput "Skipping secrets and configs creation" "Yellow"
+        Write-ColorOutput "" "White"
+    }
+
+    # Deploy to local Swarm
+    Deploy-Stack -Config $config
     Write-ColorOutput "" "White"
 
     # Wait for services
@@ -598,10 +516,10 @@ try {
         Write-ColorOutput "" "White"
         
         # Show access URLs
-        Show-AccessUrls -SshServer $Server -Config $config
+        Show-AccessUrls -Config $config
         
         Write-ColorOutput "============================================" "Green"
-        Write-ColorOutput "  Remote deployment completed!" "Green"
+        Write-ColorOutput "  Local deployment completed!" "Green"
         Write-ColorOutput "============================================" "Green"
         Write-ColorOutput "" "White"
     } else {

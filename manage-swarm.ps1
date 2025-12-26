@@ -24,9 +24,9 @@ function Write-ColorOutput {
 }
 
 # Configuration Defaults
-$RegistryUrl = "registry.uni.com/tylconsulting/ThothAI"
+$RegistryUrl = "your-dockerhub-username"
 $Version = "latest"
-$StackName = "thoth"
+$StackName = "thothai-swarm"
 $BackupDir = "/backup/thoth"
 
 # Default Ports
@@ -107,25 +107,17 @@ function Backup-Volumes {
     $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $BackupPath = "$BackupDir/$Timestamp"
     
-    # This command creates the directory on the REMOTE host if we use remote host?
-    # No, docker run commands are executed in the context of the docker daemon.
-    # If the daemon is remote, the backup happens on remote volumes, but where do we save the tar?
-    # If we mount -v /backup:/backup, it's the path of the remote server.
-    
-    # Create the backup directory (if remote, this local mkdir command is useless for remote docker bind mount)
-    # Assume the directory exists or is created in the container
-    
     # Backup database
     Write-ColorOutput "Backing up database..." "Yellow"
     Invoke-Docker "run", "--rm",
-        "-v", "thoth_backend-db:/data",
+        "-v", "${StackName}_thoth-backend-db:/data",
         "-v", "$BackupPath`:/backup",
         "alpine", "sh", "-c", "mkdir -p /backup && tar czf /backup/backend-db.tar.gz -C /data . 2>/dev/null || true" | Out-Null
 
     # Backup Qdrant
     Write-ColorOutput "Backing up Qdrant..." "Yellow"
     Invoke-Docker "run", "--rm",
-        "-v", "thoth_qdrant-data:/data",
+        "-v", "${StackName}_qdrant-data:/data",
         "-v", "$BackupPath`:/backup",
         "alpine", "sh", "-c", "mkdir -p /backup && tar czf /backup/qdrant-data.tar.gz -C /data . 2>/dev/null || true" | Out-Null
         
@@ -142,19 +134,36 @@ function Backup-Volumes {
 function Update-Secrets {
     Write-ColorOutput "=== Update Secrets ===" "Blue"
 
-    Invoke-Docker "secret", "rm", "thoth_env_config" 2>$null | Out-Null
-    Invoke-Docker "secret", "rm", "thoth_config_yml" 2>$null | Out-Null
-    Invoke-Docker "config", "rm", "thoth_env_docker" 2>$null | Out-Null
+    Invoke-Docker "secret", "rm", "${StackName}_thoth_env_config" 2>$null | Out-Null
+    Invoke-Docker "secret", "rm", "${StackName}_thoth_config_yml" 2>$null | Out-Null
 
-    Invoke-Docker "secret", "create", "thoth_env_config", ".env.docker" | Out-Null
-    Invoke-Docker "secret", "create", "thoth_config_yml", "config.yml.local" | Out-Null
-    Invoke-Docker "config", "create", "thoth_env_docker", ".env.docker" | Out-Null
+    Invoke-Docker "secret", "create", "${StackName}_thoth_env_config", ".env.docker" | Out-Null
+    Write-ColorOutput "✓ Created secret: ${StackName}_thoth_env_config" "Green"
+
+    Invoke-Docker "secret", "create", "${StackName}_thoth_config_yml", "config.yml.local" | Out-Null
+    Write-ColorOutput "✓ Created secret: ${StackName}_thoth_config_yml" "Green"
 
     Write-ColorOutput "✓ Secrets updated" "Green"
 }
 
-function Deploy-Stack {
-    Write-ColorOutput "=== Deploy Stack ===" "Blue"
+function Update-Configs {
+    Write-ColorOutput "=== Update Configs ===" "Blue"
+
+    Invoke-Docker "config", "rm", "${StackName}_thoth_env_docker" 2>$null | Out-Null
+
+    Invoke-Docker "config", "create", "${StackName}_thoth_env_docker", ".env.docker" | Out-Null
+    Write-ColorOutput "✓ Created config: ${StackName}_thoth_env_docker" "Green"
+
+    Write-ColorOutput "✓ Configs updated" "Green"
+}
+
+function Prepare-StackFile {
+    Write-ColorOutput "=== Prepare Stack File ===" "Blue"
+
+    if (-not (Test-Path "docker-stack.yml")) {
+        Write-ColorOutput "Error: docker-stack.yml not found" "Red"
+        exit 1
+    }
 
     # Set env vars for docker stack
     $env:REGISTRY_URL = $RegistryUrl
@@ -179,7 +188,42 @@ function Deploy-Stack {
         Write-ColorOutput "Deploy on remote host: $RemoteHost" "Magenta"
     }
 
-    Invoke-Docker "stack", "deploy", "-c", "docker-stack.yml", $StackName
+    # Read the stack file
+    $stackContent = Get-Content "docker-stack.yml" -Raw
+
+    # Perform environment variable substitutions
+    $replacements = @{
+        '${REGISTRY_URL}' = $RegistryUrl
+        '${VERSION}' = $Version
+        '${WEB_PORT}' = $WebPort
+        '${FRONTEND_PORT}' = $FrontendPort
+        '${BACKEND_PORT}' = $BackendPort
+        '${SQL_GENERATOR_PORT}' = $SqlGeneratorPort
+        '${MERMAID_SERVICE_PORT}' = $MermaidServicePort
+        '${QDRANT_PORT}' = $QdrantPort
+    }
+
+    foreach ($key in $replacements.Keys) {
+        $stackContent = $stackContent -replace [regex]::Escape($key), $replacements[$key]
+    }
+
+    # Write to docker-stack-swarm.yml
+    Write-ColorOutput "Creating docker-stack-swarm.yml with port substitutions..." "Yellow"
+    $stackContent | Out-File -FilePath "docker-stack-swarm.yml" -Encoding utf8
+    Write-ColorOutput "✓ docker-stack-swarm.yml created" "Green"
+
+    # Update with stack-specific names
+    $stackContent = $stackContent -replace 'thoth_env_config', "${StackName}_thoth_env_config"
+    $stackContent = $stackContent -replace 'thoth_config_yml', "${StackName}_thoth_config_yml"
+    $stackContent = $stackContent -replace 'thoth_env_docker', "${StackName}_thoth_env_docker"
+    $stackContent | Out-File -FilePath "docker-stack-swarm.yml" -Encoding utf8
+    Write-ColorOutput "✓ Updated docker-stack-swarm.yml with stack-specific names" "Green"
+}
+
+function Deploy-Stack {
+    Write-ColorOutput "=== Deploy Stack ===" "Blue"
+
+    Invoke-Docker "stack", "deploy", "-c", "docker-stack-swarm.yml", $StackName
     Write-ColorOutput "✓ Deploy started" "Green"
 }
 
@@ -217,7 +261,6 @@ function Wait-For-Services {
 
     Write-ColorOutput "Timeout: Services not started in time" "Red"
     return $false
-
 }
 
 function Rollback-Stack {
@@ -257,6 +300,8 @@ if (-not $SkipBackup) {
 }
 
 Update-Secrets
+Update-Configs
+Prepare-StackFile
 Deploy-Stack
 
 if (-not (Wait-For-Services)) {

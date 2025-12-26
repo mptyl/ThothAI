@@ -7,42 +7,41 @@ import { LoginRequest, LoginResponse, AuthError, WorkspaceApiResponse, Workspace
 
 class ApiClient {
   private client: AxiosInstance;
-  private baseURL: string;
+  private baseURL: string | undefined;
 
   constructor() {
-    // Use internal URL for server-side requests, public URL for client-side
-    if (typeof window === 'undefined') {
-      // Server-side: use internal Docker network URL
-      this.baseURL = process.env.DJANGO_SERVER || 'http://proxy:80';
-    } else {
-      // Client-side: use public URL
-      this.baseURL = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
-    }
-    
     this.client = axios.create({
-      baseURL: this.baseURL,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
       },
-      // Add withCredentials for CORS if needed
       withCredentials: false,
     });
 
+    this.initializeClient();
+
     // Request interceptor to add auth token and API key
     this.client.interceptors.request.use(
-      (config) => {
+      async (config) => {
+        // Ensure configuration is loaded before request
+        if (typeof window !== 'undefined' && !this.baseURL) {
+          await this.loadRuntimeConfig();
+        }
+
+        if (this.baseURL) {
+          config.baseURL = this.baseURL;
+        }
+
         const token = this.getStoredToken();
         if (token) {
           config.headers.Authorization = `Token ${token}`;
         }
-        
-        // Add API key for endpoints that require it (not login)
+
         const apiKey = process.env.NEXT_PUBLIC_DJANGO_API_KEY || process.env.DJANGO_API_KEY;
         if (apiKey && config.url !== '/api/login') {
           config.headers['X-API-KEY'] = apiKey;
         }
-        
+
         return config;
       },
       (error) => Promise.reject(error)
@@ -53,13 +52,41 @@ class ApiClient {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          // Token expired or invalid, clear stored auth
           this.clearStoredAuth();
           window.location.href = '/login';
         }
         return Promise.reject(error);
       }
     );
+  }
+
+  private initializeClient() {
+    if (typeof window === 'undefined') {
+      // Server-side: use internal Docker network URL (injected via standard env vars)
+      // This works because Next.js server runtime CAN see Docker env vars
+      this.baseURL = process.env.DJANGO_SERVER || 'http://proxy:80';
+    }
+  }
+
+  private async loadRuntimeConfig() {
+    try {
+      const response = await fetch('/api/config');
+      if (!response.ok) throw new Error('Failed to fetch config');
+      const config = await response.json();
+      if (!config.backendUrl) throw new Error('backendUrl missing in config');
+
+      this.baseURL = config.backendUrl;
+      this.client.defaults.baseURL = this.baseURL; // Update axios defaults
+    } catch (error) {
+      console.error('CRITICAL: Failed to load runtime configuration', error);
+      // User Requirement: Strict No Fallback. Interrupt process.
+      // We redirect to an error page or alert. Since we are inside an interceptor, throwing happens.
+      // But to be "fatal", we might want to panic visible to user.
+      if (typeof window !== 'undefined') {
+        document.body.innerHTML = '<div style="padding: 20px; color: red; font-family: sans-serif;"><h1>Fatal Error: Runtime Configuration Failed</h1><p>Could not load backend URL from /api/config. Please check the deployment configuration.</p></div>';
+      }
+      throw error;
+    }
   }
 
   private getStoredToken(): string | null {
@@ -86,17 +113,17 @@ class ApiClient {
         '/api/login',
         credentials
       );
-      
+
       // Store authentication data
       if (typeof window !== 'undefined') {
         const storage = credentials.remember_me ? localStorage : sessionStorage;
         storage.setItem('thoth_token', response.data.token);
         storage.setItem('thoth_user', JSON.stringify(response.data.user));
-        
+
         // Also store the remember preference
         localStorage.setItem('thoth_remember_me', String(credentials.remember_me));
       }
-      
+
       return response.data;
     } catch (error: any) {
       if (error.response?.data) {
@@ -178,13 +205,13 @@ class ApiClient {
       // Try to fetch user data from the backend
       const response = await this.client.get('/api/user');
       const userData = response.data;
-      
+
       // Store the user data
       if (typeof window !== 'undefined') {
         const storage = localStorage.getItem('thoth_remember_me') === 'true' ? localStorage : sessionStorage;
         storage.setItem('thoth_user', JSON.stringify(userData));
       }
-      
+
       return userData;
     } catch (error) {
       // If API call fails, try to get stored user
@@ -192,7 +219,7 @@ class ApiClient {
       if (storedUser) {
         return storedUser;
       }
-      
+
       // No user data available
       return null;
     }
@@ -209,28 +236,28 @@ export const apiClient = {
     }
     return _apiClient;
   },
-  
+
   // Proxy methods to the instance
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     return this.instance.login(credentials);
   },
-  
+
   async testToken(): Promise<boolean> {
     return this.instance.testToken();
   },
-  
+
   async logout(): Promise<void> {
     return this.instance.logout();
   },
-  
+
   getStoredUser() {
     return this.instance.getStoredUser();
   },
-  
+
   async getWorkspaces(): Promise<WorkspaceApiResponse> {
     return this.instance.getWorkspaces();
   },
-  
+
   async getWorkspacesUserList(): Promise<WorkspaceUserListResponse> {
     return this.instance.getWorkspacesUserList();
   },

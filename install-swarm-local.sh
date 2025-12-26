@@ -3,7 +3,7 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 #
-# Script for deploying ThothAI to a remote Docker Swarm server using images from Docker Hub
+# Script for deploying ThothAI to local Docker Swarm using images from Docker Hub
 
 set -e
 
@@ -24,22 +24,18 @@ show_usage() {
     print_color "Usage: $0 [OPTIONS]" "$BLUE"
     print_color "" "$NC"
     print_color "Options:" "$YELLOW"
-    print_color "  --server <SSH_CONNECTION_STRING>  Deploy to remote server via SSH (REQUIRED)" "$NC"
-    print_color "  --port <SSH_PORT>                 SSH port (default: 22)" "$NC"
-    print_color "  --key <SSH_KEY_PATH>              Path to SSH private key (default: ~/.ssh/id_rsa)" "$NC"
+    print_color "  --help                            Show this help message" "$NC"
     print_color "  --skip-pull                       Skip pulling images from Docker Hub" "$NC"
     print_color "  --skip-secrets                    Skip creating secrets and configs" "$NC"
-    print_color "  --help                            Show this help message" "$NC"
-    echo ""
+    print_color "" "$NC"
     print_color "Description:" "$GREEN"
-    print_color "  Deploys ThothAI to a remote Docker Swarm server using pre-built images from Docker Hub." "$NC"
+    print_color "  Deploys ThothAI to local Docker Swarm using pre-built images from Docker Hub." "$NC"
     print_color "  No local build is required - images are pulled directly from Docker Hub." "$NC"
-    print_color "  Manages SSH connection to the remote server for deployment." "$NC"
     print_color "" "$NC"
     print_color "Examples:" "$GREEN"
-    print_color "  $0 --server user@192.168.1.100" "$NC"
-    print_color "  $0 --server user@swarm.example.com --port 2222 --key ~/.ssh/custom_key" "$NC"
-    print_color "  $0 --server admin@10.0.0.50 --skip-pull" "$NC"
+    print_color "  $0                                # Full deployment" "$NC"
+    print_color "  $0 --skip-pull                    # Deploy without pulling images" "$NC"
+    print_color "  $0 --skip-secrets                 # Deploy without recreating secrets" "$NC"
     echo ""
 }
 
@@ -50,49 +46,6 @@ check_command() {
         return 1
     fi
     return 0
-}
-
-# Function to prompt for server if not provided
-prompt_for_server() {
-    print_color "No server specified. Please enter the SSH connection string:" "$YELLOW"
-    print_color "Format: user@hostname or user@ip_address" "$NC"
-    read -p "SSH connection string: " SSH_SERVER_INPUT
-    
-    if [ -z "$SSH_SERVER_INPUT" ]; then
-        print_color "Error: SSH connection string is required" "$RED"
-        exit 1
-    fi
-    
-    echo "$SSH_SERVER_INPUT"
-}
-
-# Function to test SSH connection
-test_ssh_connection() {
-    local ssh_server="$1"
-    local ssh_port="$2"
-    local ssh_key="$3"
-    
-    print_color "Testing SSH connection to $ssh_server:$ssh_port..." "$YELLOW"
-    
-    local ssh_cmd="ssh"
-    if [ -n "$ssh_key" ] && [ -f "$ssh_key" ]; then
-        ssh_cmd="ssh -i $ssh_key -p $ssh_port -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
-    else
-        ssh_cmd="ssh -p $ssh_port -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
-    fi
-    
-    if $ssh_cmd "$ssh_server" "echo 'Connection successful'" > /dev/null 2>&1; then
-        print_color "✓ SSH connection successful" "$GREEN"
-        return 0
-    else
-        print_color "✗ SSH connection failed" "$RED"
-        print_color "Please check:" "$YELLOW"
-        print_color "  - Server address and user are correct" "$NC"
-        print_color "  - SSH key path is correct (if using key auth)" "$NC"
-        print_color "  - SSH key is loaded in ssh-agent or password is correct" "$NC"
-        print_color "  - Server is reachable and SSH service is running" "$NC"
-        return 1
-    fi
 }
 
 # Function to load swarm configuration
@@ -137,25 +90,24 @@ validate_config() {
     # Set defaults for optional variables
     STACK_NAME=${STACK_NAME:-thothai-swarm}
     FRONTEND_PORT=${FRONTEND_PORT:-7001}
-    BACKEND_PROXY_PORT=${BACKEND_PROXY_PORT:-7000}
-    SQL_GENERATOR_PORT=${SQL_GENERATOR_PORT:-7003}
-    QDRANT_PORT=${QDRANT_PORT:-7005}
-    MERMAID_SERVICE_PORT=${MERMAID_SERVICE_PORT:-7004}
-    WEB_PORT=${WEB_PORT:-7000}
     BACKEND_PORT=${BACKEND_PORT:-7002}
+    SQL_GENERATOR_PORT=${SQL_GENERATOR_PORT:-7003}
+    MERMAID_SERVICE_PORT=${MERMAID_SERVICE_PORT:-7004}
+    QDRANT_PORT=${QDRANT_PORT:-7005}
+    WEB_PORT=${WEB_PORT:-7010}
+    BACKEND_PROXY_PORT=${BACKEND_PROXY_PORT:-$WEB_PORT}
     VERSION=${VERSION:-latest}
     
     print_color "Configuration validated:" "$GREEN"
     print_color "  DOCKER_USERNAME:         $DOCKER_USERNAME" "$NC"
     print_color "  STACK_NAME:              $STACK_NAME" "$NC"
     print_color "  VERSION:                 $VERSION" "$NC"
-    print_color "  FRONTEND_PORT:           $FRONTEND_PORT" "$NC"
-    print_color "  BACKEND_PROXY_PORT:      $BACKEND_PROXY_PORT" "$NC"
-    print_color "  SQL_GENERATOR_PORT:      $SQL_GENERATOR_PORT" "$NC"
-    print_color "  QDRANT_PORT:             $QDRANT_PORT" "$NC"
-    print_color "  MERMAID_SERVICE_PORT:    $MERMAID_SERVICE_PORT" "$NC"
     print_color "  WEB_PORT:                $WEB_PORT" "$NC"
+    print_color "  FRONTEND_PORT:           $FRONTEND_PORT" "$NC"
     print_color "  BACKEND_PORT:            $BACKEND_PORT" "$NC"
+    print_color "  SQL_GENERATOR_PORT:      $SQL_GENERATOR_PORT" "$NC"
+    print_color "  MERMAID_SERVICE_PORT:    $MERMAID_SERVICE_PORT" "$NC"
+    print_color "  QDRANT_PORT:             $QDRANT_PORT" "$NC"
 }
 
 # Function to pull images from Docker Hub
@@ -183,7 +135,7 @@ pull_images() {
             print_color "✓ Pulled $full_tag" "$GREEN"
         else
             print_color "✗ Failed to pull $full_tag" "$RED"
-            print_color "Note: Make sure images exist on Docker Hub at $registry_url/$image_name:$VERSION" "$YELLOW"
+            print_color "Note: Make sure the images exist on Docker Hub at $registry_url/$image_name:$VERSION" "$YELLOW"
             exit 1
         fi
     done
@@ -216,49 +168,36 @@ prepare_stack_file() {
     export SQL_GENERATOR_PORT="$SQL_GENERATOR_PORT"
     export MERMAID_SERVICE_PORT="$MERMAID_SERVICE_PORT"
     export WEB_PORT="$WEB_PORT"
+    export BACKEND_PROXY_PORT="$WEB_PORT"
+    export APP_HOST="${STACK_NAME}_backend"
+    export APP_PORT="8000"
+    export FRONTEND_HOST="${STACK_NAME}_frontend"
+    export SQL_GEN_HOST="${STACK_NAME}_sql-generator"
+    export SQL_GEN_PORT="8020"
+    export DEBUG="False"
     
     # Create docker-stack-swarm.yml with substituted values
     print_color "Creating docker-stack-swarm.yml with port substitutions..." "$YELLOW"
     if envsubst < docker-stack.yml > docker-stack-swarm.yml; then
         print_color "✓ docker-stack-swarm.yml created" "$GREEN"
+        
+        # Update docker-stack-swarm.yml with stack-specific secret/config names
+        print_color "Updating docker-stack-swarm.yml with stack-specific names..." "$YELLOW"
+        sed -i.tmp "s/thoth_env_config/${STACK_NAME}_thoth_env_config/g" docker-stack-swarm.yml
+        sed -i.tmp "s/thoth_config_yml/${STACK_NAME}_thoth_config_yml/g" docker-stack-swarm.yml
+        sed -i.tmp "s/thoth_env_docker/${STACK_NAME}_thoth_env_docker/g" docker-stack-swarm.yml
+        rm -f docker-stack-swarm.yml.tmp
+        print_color "✓ Updated docker-stack-swarm.yml (names substituted)" "$GREEN"
     else
         print_color "✗ Failed to create docker-stack-swarm.yml" "$RED"
         exit 1
     fi
 }
 
-# Function to deploy stack to remote Swarm
-deploy_stack_remote() {
-    local ssh_server="$1"
-    local ssh_port="$2"
-    local ssh_key="$3"
-    
-    print_color "=== Deploying to remote Docker Swarm ===" "$BLUE"
+# Function to create secrets and configs
+create_secrets_and_configs() {
+    print_color "=== Creating secrets and configs ===" "$BLUE"
     echo ""
-    
-    # Set DOCKER_HOST for SSH connection
-    local docker_host="ssh://$ssh_server:$ssh_port"
-    print_color "Setting DOCKER_HOST=$docker_host" "$YELLOW"
-    export DOCKER_HOST="$docker_host"
-    
-    # Add SSH key to agent if specified
-    if [ -n "$ssh_key" ] && [ -f "$ssh_key" ]; then
-        print_color "Adding SSH key to agent..." "$YELLOW"
-        ssh-add "$ssh_key" 2>/dev/null || print_color "Warning: Could not add SSH key to agent" "$YELLOW"
-    fi
-    
-    # Check if Swarm is active on remote
-    print_color "Checking Swarm status on remote host..." "$YELLOW"
-    if ! docker info | grep -q "Swarm: active"; then
-        print_color "Error: Docker Swarm is not active on the remote host" "$RED"
-        print_color "Please initialize Swarm on the remote host: docker swarm init" "$YELLOW"
-        exit 1
-    fi
-    print_color "✓ Swarm is active on remote host" "$GREEN"
-    echo ""
-    
-    # Create secrets and configs on remote
-    print_color "Creating secrets and configs on remote Swarm..." "$YELLOW"
     
     # Remove old secrets/configs if they exist
     docker secret rm "${STACK_NAME}_thoth_env_config" 2>/dev/null || true
@@ -298,17 +237,28 @@ deploy_stack_remote() {
     fi
     echo ""
     
-    # Update docker-stack-swarm.yml with stack-specific secret/config names
-    print_color "Updating docker-stack-swarm.yml with stack-specific names..." "$YELLOW"
-    sed -i.tmp "s/thoth_env_config/${STACK_NAME}_thoth_env_config/g" docker-stack-swarm.yml
-    sed -i.tmp "s/thoth_config_yml/${STACK_NAME}_thoth_config_yml/g" docker-stack-swarm.yml
-    sed -i.tmp "s/thoth_env_docker/${STACK_NAME}_thoth_env_docker/g" docker-stack-swarm.yml
     rm -f docker-stack-swarm.yml.tmp
     print_color "✓ Updated docker-stack-swarm.yml" "$GREEN"
     echo ""
+}
+
+# Function to deploy stack to local Swarm
+deploy_stack() {
+    print_color "=== Deploying to local Docker Swarm ===" "$BLUE"
+    echo ""
+    
+    # Check if Swarm is active locally
+    print_color "Checking Swarm status..." "$YELLOW"
+    if ! docker info | grep -q "Swarm: active"; then
+        print_color "Error: Docker Swarm is not active" "$RED"
+        print_color "Please initialize Swarm: docker swarm init" "$YELLOW"
+        exit 1
+    fi
+    print_color "✓ Swarm is active" "$GREEN"
+    echo ""
     
     # Deploy stack
-    print_color "Deploying stack '$STACK_NAME' to remote Swarm..." "$YELLOW"
+    print_color "Deploying stack '$STACK_NAME' to local Swarm..." "$YELLOW"
     if docker stack deploy -c docker-stack-swarm.yml "$STACK_NAME"; then
         print_color "✓ Stack deployment initiated" "$GREEN"
     else
@@ -367,6 +317,15 @@ show_deployment_status() {
     print_color "=== Deployment Status ===" "$BLUE"
     echo ""
     
+    print_color "Port Configuration:" "$YELLOW"
+    print_color "  Web (Proxy):        $WEB_PORT" "$NC"
+    print_color "  Frontend:           $FRONTEND_PORT" "$NC"
+    print_color "  Backend:            $BACKEND_PORT" "$NC"
+    print_color "  SQL Generator:      $SQL_GENERATOR_PORT" "$NC"
+    print_color "  Mermaid Service:    $MERMAID_SERVICE_PORT" "$NC"
+    print_color "  Qdrant:             $QDRANT_PORT" "$NC"
+    echo ""
+    
     print_color "Stack services:" "$YELLOW"
     docker stack services "$STACK_NAME" 2>/dev/null || print_color "Could not retrieve services" "$RED"
     echo ""
@@ -376,24 +335,19 @@ show_deployment_status() {
     echo ""
 }
 
-# Function to show access URLs for remote deployment
-show_access_urls_remote() {
-    local ssh_server="$1"
-    
-    # Extract IP/hostname from SSH connection string
-    local server_address=$(echo "$ssh_server" | cut -d'@' -f2)
-    
+# Function to show access URLs
+show_access_urls() {
     print_color "=== Access URLs ===" "$GREEN"
     echo ""
     
     print_color "The following services should be accessible at:" "$NC"
-    print_color "  Frontend (Next.js):     http://$server_address:$FRONTEND_PORT" "$YELLOW"
-    print_color "  Backend (Django):       http://$server_address:$BACKEND_PROXY_PORT/api" "$YELLOW"
-    print_color "  Admin Panel:             http://$server_address:$BACKEND_PROXY_PORT/admin" "$YELLOW"
-    print_color "  SQL Generator:          http://$server_address:$SQL_GENERATOR_PORT" "$YELLOW"
-    print_color "  Mermaid Service:        http://$server_address:$MERMAID_SERVICE_PORT" "$YELLOW"
-    print_color "  Qdrant Dashboard:       http://$server_address:$QDRANT_PORT/dashboard" "$YELLOW"
-    print_color "  Web (Proxy):            http://$server_address:$WEB_PORT" "$YELLOW"
+    print_color "  Frontend (Next.js):     http://localhost:$FRONTEND_PORT" "$YELLOW"
+    print_color "  Backend (Django):       http://localhost:$BACKEND_PROXY_PORT/api" "$YELLOW"
+    print_color "  Admin Panel:             http://localhost:$BACKEND_PROXY_PORT/admin" "$YELLOW"
+    print_color "  SQL Generator:          http://localhost:$SQL_GENERATOR_PORT" "$YELLOW"
+    print_color "  Mermaid Service:        http://localhost:$MERMAID_SERVICE_PORT" "$YELLOW"
+    print_color "  Qdrant Dashboard:       http://localhost:$QDRANT_PORT/dashboard" "$YELLOW"
+    print_color "  Web (Proxy):            http://localhost:$WEB_PORT" "$YELLOW"
     echo ""
     
     print_color "Useful commands:" "$YELLOW"
@@ -407,26 +361,11 @@ show_access_urls_remote() {
 # Main execution
 main() {
     # Parse command line arguments
-    SSH_SERVER=""
-    SSH_PORT="22"
-    SSH_KEY="$HOME/.ssh/id_rsa"
     SKIP_PULL=false
     SKIP_SECRETS=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --server)
-                SSH_SERVER="$2"
-                shift 2
-                ;;
-            --port)
-                SSH_PORT="$2"
-                shift 2
-                ;;
-            --key)
-                SSH_KEY="$2"
-                shift 2
-                ;;
             --skip-pull)
                 SKIP_PULL=true
                 shift
@@ -447,21 +386,10 @@ main() {
         esac
     done
     
-    # Prompt for server if not provided
-    if [ -z "$SSH_SERVER" ]; then
-        SSH_SERVER=$(prompt_for_server)
-    fi
-    
     print_color "============================================" "$BLUE"
-    print_color "  ThothAI - Remote Docker Swarm Deployment" "$BLUE"
+    print_color "  ThothAI - Local Docker Swarm Deployment" "$BLUE"
     print_color "  Using images from Docker Hub" "$BLUE"
     print_color "============================================" "$BLUE"
-    echo ""
-    
-    print_color "Remote Server:" "$YELLOW"
-    print_color "  Server:  $SSH_SERVER" "$NC"
-    print_color "  Port:    $SSH_PORT" "$NC"
-    print_color "  SSH Key: $SSH_KEY" "$NC"
     echo ""
     
     # Check prerequisites
@@ -472,23 +400,12 @@ main() {
         exit 1
     fi
     
-    if ! check_command ssh; then
-        print_color "Error: SSH client is not installed" "$RED"
-        exit 1
-    fi
-    
     if ! check_command envsubst; then
         print_color "Error: envsubst is not available" "$RED"
         exit 1
     fi
     
     print_color "✓ Prerequisites OK" "$GREEN"
-    echo ""
-    
-    # Test SSH connection
-    if ! test_ssh_connection "$SSH_SERVER" "$SSH_PORT" "$SSH_KEY"; then
-        exit 1
-    fi
     echo ""
     
     # Load and validate configuration
@@ -507,9 +424,18 @@ main() {
     
     # Prepare stack file
     prepare_stack_file
+    echo ""
     
-    # Deploy to remote Swarm
-    deploy_stack_remote "$SSH_SERVER" "$SSH_PORT" "$SSH_KEY"
+    # Create secrets and configs
+    if [ "$SKIP_SECRETS" = false ]; then
+        create_secrets_and_configs
+    else
+        print_color "Skipping secrets and configs creation" "$YELLOW"
+        echo ""
+    fi
+    
+    # Deploy to local Swarm
+    deploy_stack
     echo ""
     
     # Wait for services
@@ -522,11 +448,12 @@ main() {
         echo ""
         
         # Show access URLs
-        show_access_urls_remote "$SSH_SERVER"
+        show_access_urls
         
         print_color "============================================" "$GREEN"
-        print_color "  Remote deployment completed!" "$GREEN"
+        print_color "  Local deployment completed!" "$GREEN"
         print_color "============================================" "$GREEN"
+        rm -f docker-stack-swarm.yml
         echo ""
     else
         print_color "✗ Services failed to start within timeout" "$RED"

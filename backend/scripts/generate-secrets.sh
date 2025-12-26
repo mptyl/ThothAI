@@ -12,7 +12,7 @@ LOCK_FILE="$SECRETS_DIR/.initialized"
 
 # Create secrets directory if it doesn't exist
 mkdir -p "$SECRETS_DIR"
-chmod 700 "$SECRETS_DIR"
+chmod 755 "$SECRETS_DIR"
 
 # Function to generate Django SECRET_KEY
 generate_django_secret() {
@@ -49,15 +49,15 @@ if [ ! -f "$LOCK_FILE" ]; then
     if [ ! -f "$SECRETS_DIR/django_secret_key" ]; then
         echo "Generating Django SECRET_KEY..."
         generate_django_secret > "$SECRETS_DIR/django_secret_key"
-        chmod 600 "$SECRETS_DIR/django_secret_key"
+        chmod 644 "$SECRETS_DIR/django_secret_key"
         echo "Django SECRET_KEY generated successfully"
     fi
     
     # Generate API_KEY for internal communication
-    if [ ! -f "$SECRETS_DIR/api_key" ]; then
+    if [ ! -f "$SECRETS_DIR/django_api_key" ]; then
         echo "Generating API_KEY..."
-        generate_api_key > "$SECRETS_DIR/api_key"
-        chmod 600 "$SECRETS_DIR/api_key"
+        generate_api_key > "$SECRETS_DIR/django_api_key"
+        chmod 644 "$SECRETS_DIR/django_api_key"
         echo "API_KEY generated successfully"
     fi
     
@@ -65,7 +65,7 @@ if [ ! -f "$LOCK_FILE" ]; then
     if [ ! -f "$SECRETS_DIR/nextauth_secret" ]; then
         echo "Generating NextAuth secret..."
         generate_nextauth_secret > "$SECRETS_DIR/nextauth_secret"
-        chmod 600 "$SECRETS_DIR/nextauth_secret"
+        chmod 644 "$SECRETS_DIR/nextauth_secret"
         echo "NextAuth secret generated successfully"
     fi
     
@@ -81,8 +81,8 @@ if [ -f "$SECRETS_DIR/django_secret_key" ]; then
     export SECRET_KEY=$(cat "$SECRETS_DIR/django_secret_key")
 fi
 
-if [ -f "$SECRETS_DIR/api_key" ]; then
-    export DJANGO_API_KEY=$(cat "$SECRETS_DIR/api_key")
+if [ -f "$SECRETS_DIR/django_api_key" ]; then
+    export DJANGO_API_KEY=$(cat "$SECRETS_DIR/django_api_key")
 fi
 
 if [ -f "$SECRETS_DIR/nextauth_secret" ]; then

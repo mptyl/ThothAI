@@ -12,16 +12,24 @@ export DJANGO_SETTINGS_MODULE=Thoth.settings
 # Set DB_ROOT_PATH for evidence and Gold SQL loading
 export DB_ROOT_PATH=/app/data
 
+# Load .env.docker if available (injected by Swarm Configs)
+if [ -f "/app/.env.docker" ]; then
+    echo "Loading environment from /app/.env.docker..."
+    set -a
+    . /app/.env.docker
+    set +a
+fi
+
 echo "=== Starting Thoth Application ==="
 
 # Load secrets from Docker volume if available
-if [ -f "/secrets/django_secret_key" ]; then
-    export SECRET_KEY=$(cat /secrets/django_secret_key)
+if [ -f "/vol/secrets/django_secret_key" ]; then
+    export SECRET_KEY=$(cat /vol/secrets/django_secret_key)
     echo "SECRET_KEY loaded from Docker secrets volume"
 fi
 
-if [ -f "/secrets/django_api_key" ]; then
-    export DJANGO_API_KEY=$(cat /secrets/django_api_key)
+if [ -f "/vol/secrets/django_api_key" ]; then
+    export DJANGO_API_KEY=$(cat /vol/secrets/django_api_key)
     echo "DJANGO_API_KEY loaded from Docker secrets volume"
 fi
 
@@ -269,7 +277,12 @@ else:
     echo "=========================================="
     
     # Check if any LLM API key is configured
-    if [ -n "$OPENAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ] || [ -n "$MISTRAL_API_KEY" ] || [ -n "$DEEPSEEK_API_KEY" ]; then
+    if [ -n "$OPENAI_API_KEY" ] || \
+       [ -n "$ANTHROPIC_API_KEY" ] || \
+       [ -n "$GOOGLE_API_KEY" ] || \
+       [ -n "$MISTRAL_API_KEY" ] || \
+       [ -n "$DEEPSEEK_API_KEY" ] || \
+       [ -n "$OPENROUTER_API_KEY" ]; then
         echo "AI provider configured. Running automated analysis for demo database..."
         echo ""
         
