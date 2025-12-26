@@ -34,7 +34,7 @@
 - **SQL Generator**: 8180 (Local) / 8020 (Docker internal)
 - **Qdrant**: 6334 (Local) / 6333 (Docker internal)
 - **Mermaid Service**: Self-hosted diagram generation (Docker)
-- **Docker Swarm Ports**: Configurable range 7000-7020 (default: Proxy=7000, Frontend=7001, Backend=7002, SQL-Gen=7003, Mermaid=7004, Qdrant=7005)
+- **Docker Swarm Ports**: Configurable range 7000-7020 (default: Proxy=7010, Frontend=7001, Backend=7002, SQL-Gen=7003, Mermaid=7004, Qdrant=7005)
 
 ## Development Workflow
 

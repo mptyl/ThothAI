@@ -95,7 +95,7 @@ main() {
     if [ "$BUILD_LOCALLY" = true ]; then
         print_color "Local build requested. Skipping Docker Hub pull." "$YELLOW"
         COMPOSE_FILE="docker-compose.yml"
-        if docker compose -f docker-compose.yml build; then
+        if docker compose --env-file .env.docker -f docker-compose.yml build; then
             print_color "✓ Images built locally" "$GREEN"
         else
             print_color "Error: Local build failed. Please check your setup." "$RED"
@@ -105,12 +105,12 @@ main() {
         # Default behavior: try to pull, fallback to build
         COMPOSE_FILE="docker-compose-hub.yml"
         print_color "Attempting to pull images from Docker Hub..." "$YELLOW"
-        if docker compose -f docker-compose-hub.yml pull; then
+        if docker compose --env-file .env.docker -f docker-compose-hub.yml pull; then
             print_color "✓ Images pulled successfully from Docker Hub" "$GREEN"
         else
             print_color "WARNING: Docker Hub pull failed. Falling back to local build..." "$YELLOW"
             COMPOSE_FILE="docker-compose.yml"
-            if docker compose -f docker-compose.yml build; then
+            if docker compose --env-file .env.docker -f docker-compose.yml build; then
                 print_color "✓ Images built locally" "$GREEN"
             else
                 print_color "Error: Local build failed. Please check your setup." "$RED"
@@ -147,7 +147,7 @@ main() {
         echo ""
     fi
     
-    docker compose -f $COMPOSE_FILE up -d
+    docker compose --env-file .env.docker -f $COMPOSE_FILE up -d
 
     # Wait for backend to be healthy
     print_color "⏳ Waiting for backend to be ready..." "$YELLOW"

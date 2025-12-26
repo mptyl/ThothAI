@@ -307,6 +307,17 @@ deploy_stack_remote() {
     print_color "✓ Updated docker-stack-swarm.yml" "$GREEN"
     echo ""
     
+    # Create network if it doesn't exist
+    print_color "Ensuring network exists..." "$YELLOW"
+    if ! docker network ls | grep -q "${STACK_NAME}_thoth-network"; then
+        print_color "Creating network ${STACK_NAME}_thoth-network..." "$YELLOW"
+        docker network create --driver overlay --attachable "${STACK_NAME}_thoth-network"
+        print_color "✓ Network created" "$GREEN"
+    else
+        print_color "✓ Network already exists" "$GREEN"
+    fi
+    echo ""
+
     # Deploy stack
     print_color "Deploying stack '$STACK_NAME' to remote Swarm..." "$YELLOW"
     if docker stack deploy -c docker-stack-swarm.yml "$STACK_NAME"; then

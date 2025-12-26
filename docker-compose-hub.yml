@@ -55,6 +55,8 @@ services:
       - HOST_IP=host.docker.internal
       - NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT:-8040}
       - NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-8020}
+      - RUNTIME_BACKEND_URL=http://localhost:${WEB_PORT:-8040}
+      - RUNTIME_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT:-8020}
     networks:
       - thoth-network
     extra_hosts:

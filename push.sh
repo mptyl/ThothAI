@@ -141,27 +141,46 @@ echo ""
 # Check if logged in to registry
 print_color "Checking registry login..." "$YELLOW"
 
-# For Docker Hub, use special login handling
+# Determine if we are pushing to Docker Hub or a custom registry
+# Docker Hub is implied if URL contains "docker.io" or has no dots/colons (e.g. just a username)
+IS_DOCKER_HUB=false
 if [[ "$REGISTRY_URL" == *"docker.io"* ]]; then
-    # Extract organization from registry URL (e.g., docker.io/tylconsulting/thothai -> tylconsulting)
-    ORG=$(echo "$REGISTRY_URL" | cut -d'/' -f2)
-    print_color "Docker Hub detected. Using organization: $ORG" "$NC"
+    IS_DOCKER_HUB=true
+elif [[ "$REGISTRY_URL" != *"."* ]] && [[ "$REGISTRY_URL" != *":"* ]] && [[ "$REGISTRY_URL" != "localhost" ]]; then
+    IS_DOCKER_HUB=true
+fi
+
+if [ "$IS_DOCKER_HUB" = true ]; then
+    print_color "Docker Hub detected." "$NC"
     
-    # Check if already logged in to Docker Hub
-    if ! docker info 2>/dev/null | grep -q "Username: $ORG"; then
-        print_color "Execute login to Docker Hub with organization account:" "$YELLOW"
-        if ! docker login -u "$ORG"; then
+    # Check if we have an active session for Docker Hub
+    # "docker info" containing a Username indicates a valid login to the default registry
+    if docker info 2>/dev/null | grep -q "Username"; then
+        CURRENT_USER=$(docker info 2>/dev/null | grep "Username" | cut -d':' -f2 | xargs)
+        print_color "✓ Already logged in as $CURRENT_USER" "$GREEN"
+    else
+        print_color "No active Docker Hub session found. Executing login:" "$YELLOW"
+        if ! docker login; then
             print_color "✗ Login failed" "$RED"
-            print_color "" "$NC"
-            print_color "Note: If using a Personal Access Token, ensure it has 'Read & Write' scope." "$YELLOW"
-            print_color "PATs with 'Read Only' scope will cause 'insufficient_scope' errors." "$YELLOW"
             exit 1
         fi
     fi
 else
-    # For custom registries, use standard login
-    if ! docker login "$REGISTRY_URL" 2>/dev/null; then
-        print_color "Execute login to registry:" "$YELLOW"
+    # For custom registries
+    print_color "Custom registry detected: $REGISTRY_URL" "$NC"
+    
+    # Check if credentials exist in config.json to avoid unnecessary login prompts
+    LOGGED_IN=false
+    if [ -f "$HOME/.docker/config.json" ]; then
+        if grep -q "$REGISTRY_URL" "$HOME/.docker/config.json"; then
+            LOGGED_IN=true
+        fi
+    fi
+
+    if [ "$LOGGED_IN" = true ]; then
+        print_color "✓ Found credentials for $REGISTRY_URL in config" "$GREEN"
+    else
+        print_color "No credentials found for $REGISTRY_URL. Executing login:" "$YELLOW"
         if ! docker login "$REGISTRY_URL"; then
             print_color "✗ Login failed" "$RED"
             exit 1
@@ -208,7 +227,7 @@ print_color "  Configure secrets and deploy stack with:" "$NC"
 print_color "  ./deploy-swarm.sh" "$GREEN"
 echo ""
 print_color "Note: Default ports for Swarm are 7000-7050" "$YELLOW"
-print_color "  - Proxy (Web):     7000" "$NC"
+print_color "  - Proxy (Web):     7010" "$NC"
 print_color "  - Frontend:        7001" "$NC"
 print_color "  - Backend:         7002 (via proxy)" "$NC"
 print_color "  - SQL Generator:   7003" "$NC"

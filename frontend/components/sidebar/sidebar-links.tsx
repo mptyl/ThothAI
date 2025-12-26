@@ -7,9 +7,13 @@
 import React from 'react';
 import Link from 'next/link';
 
-export function SidebarLinks() {
-  // Use build-time embedded value from NEXT_PUBLIC_DJANGO_SERVER
-  const baseUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
+interface SidebarLinksProps {
+  backendUrl?: string;
+}
+
+export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProps) {
+  // Use runtime value if provided, otherwise fallback to build-time embedded value
+  const baseUrl = runtimeBackendUrl || process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
 
   // Function to handle admin link click with token passing
   const handleAdminClick = (e: React.MouseEvent) => {

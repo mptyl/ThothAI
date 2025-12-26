@@ -8,17 +8,21 @@ import { ProtectedRoute } from '@/components/protected-route';
 import { WorkspaceProvider } from '@/lib/contexts/workspace-context';
 import { SidebarProvider } from '@/lib/contexts/sidebar-context';
 
+export const dynamic = 'force-dynamic';
+
 export default function DocumentationLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const backendUrl = process.env.RUNTIME_BACKEND_URL;
+
   return (
     <ProtectedRoute>
       <WorkspaceProvider>
         <SidebarProvider>
           <div className="flex h-screen bg-background">
-            <Sidebar />
+            <Sidebar backendUrl={backendUrl} />
             <div className="flex-1 flex flex-col">
               {children}
             </div>

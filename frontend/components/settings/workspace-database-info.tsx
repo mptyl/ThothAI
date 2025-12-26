@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useWorkspace } from '@/lib/contexts/workspace-context'
+import { apiClient } from '@/lib/api'
 import { Loader2, Database, Server, Globe, Layers, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
 export function WorkspaceDatabaseInfo() {
@@ -59,7 +60,7 @@ export function WorkspaceDatabaseInfo() {
 
     setIsTestingVectorDb(true)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200'
+      const baseUrl = await apiClient.getBaseUrl()
       const token = localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token')
 
       const response = await fetch(`${baseUrl}/api/workspace/${fullWorkspaceData.id}/test-vector-db/`, {
@@ -89,7 +90,7 @@ export function WorkspaceDatabaseInfo() {
 
     setIsDiagnosing(true)
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200'
+      const baseUrl = await apiClient.getBaseUrl()
       const token = localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token')
 
       const response = await fetch(`${baseUrl}/api/workspace/${fullWorkspaceData.id}/check-embedding/`, {

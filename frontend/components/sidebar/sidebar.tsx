@@ -12,7 +12,11 @@ import { SidebarFlags } from './sidebar-flags';
 import { StrategySelector } from './strategy-selector';
 import { SidebarLinks } from './sidebar-links';
 
-export function Sidebar() {
+interface SidebarProps {
+  backendUrl?: string;
+}
+
+export function Sidebar({ backendUrl }: SidebarProps) {
   return (
     <div className="w-64 bg-gray-900 h-full border-r border-gray-700 flex flex-col">
       <div className="flex-1 overflow-y-auto p-4">
@@ -20,30 +24,30 @@ export function Sidebar() {
         <div className="mt-12">
           <WorkspaceSelector />
         </div>
-        
+
         {/* Divider */}
         <SidebarDivider />
-        
+
         {/* Reset Button */}
         <ResetButton />
-        
+
         {/* Divider */}
         <SidebarDivider />
-        
+
         {/* Sidebar Flags */}
         <SidebarFlags />
-        
+
         {/* Divider */}
         <SidebarDivider />
-        
+
         {/* Strategy Selector */}
         <StrategySelector />
-        
+
         {/* Divider */}
         <SidebarDivider />
-        
+
         {/* Navigation Links */}
-        <SidebarLinks />
+        <SidebarLinks backendUrl={backendUrl} />
       </div>
     </div>
   );

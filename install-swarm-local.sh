@@ -411,6 +411,18 @@ main() {
     # Load and validate configuration
     load_swarm_config
     validate_config
+    
+    # Generate .env.docker from config.yml.local to ensure secrets are up to date
+    print_color "Generating application configuration..." "$YELLOW"
+    if [ -f "scripts/installer.py" ]; then
+        if python3 scripts/installer.py --generate-env-only; then
+            print_color "✓ Generated .env.docker from config.yml.local" "$GREEN"
+        else
+            print_color "Warning: Failed to generate .env.docker. Secrets might be outdated." "$YELLOW"
+        fi
+    else
+        print_color "Warning: scripts/installer.py not found. Skipping config generation." "$YELLOW"
+    fi
     echo ""
     
     # Pull images from Docker Hub
@@ -434,6 +446,17 @@ main() {
         echo ""
     fi
     
+    # Create network if it doesn't exist
+    print_color "=== Ensuring Network Exists ===" "$BLUE"
+    if ! docker network ls | grep -q "${STACK_NAME}_thoth-network"; then
+        print_color "Creating network ${STACK_NAME}_thoth-network..." "$YELLOW"
+        docker network create --driver overlay --attachable "${STACK_NAME}_thoth-network"
+        print_color "✓ Network created" "$GREEN"
+    else
+        print_color "✓ Network already exists" "$GREEN"
+    fi
+    echo ""
+
     # Deploy to local Swarm
     deploy_stack
     echo ""

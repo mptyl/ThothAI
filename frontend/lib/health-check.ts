@@ -2,6 +2,8 @@
 // This file is part of ThothAI and is released under the Apache License 2.0.
 // See the LICENSE.md file in the project root for full license information.
 
+import { apiClient } from '@/lib/api';
+
 export interface HealthCheckResult {
   isHealthy: boolean;
   error?: string;
@@ -9,12 +11,17 @@ export interface HealthCheckResult {
 }
 
 export async function checkBackendHealth(): Promise<HealthCheckResult> {
-  // Server-side: use DJANGO_SERVER from environment
-  // Client-side: use NEXT_PUBLIC_DJANGO_SERVER
-  const serverUrl = typeof window === 'undefined' 
-    ? process.env.DJANGO_SERVER!
-    : process.env.NEXT_PUBLIC_DJANGO_SERVER!;
-  
+  let serverUrl = '';
+  try {
+    serverUrl = await apiClient.getBaseUrl();
+  } catch (e) {
+    // If we can't get base URL, likely config failure
+    return {
+      isHealthy: false,
+      error: 'Failed to determine backend URL configuration',
+    };
+  }
+
   try {
     const response = await fetch(`${serverUrl}/api/test_token`, {
       method: 'GET',
@@ -36,9 +43,9 @@ export async function checkBackendHealth(): Promise<HealthCheckResult> {
     };
 
   } catch (error: any) {
-    
+
     let errorMessage = 'Unable to connect to backend server';
-    
+
     if (error.name === 'TimeoutError') {
       errorMessage = 'Backend server is not responding (timeout)';
     } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {

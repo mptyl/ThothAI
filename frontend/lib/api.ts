@@ -224,6 +224,13 @@ class ApiClient {
       return null;
     }
   }
+
+  async getBaseUrl(): Promise<string> {
+    if (typeof window !== 'undefined' && !this.baseURL) {
+      await this.loadRuntimeConfig();
+    }
+    return this.baseURL || 'http://localhost:8200';
+  }
 }
 
 // Export a function that creates the client to ensure environment variables are loaded
@@ -268,5 +275,9 @@ export const apiClient = {
 
   async getCurrentUser() {
     return this.instance.getCurrentUser();
+  },
+
+  async getBaseUrl(): Promise<string> {
+    return this.instance.getBaseUrl();
   }
 };
