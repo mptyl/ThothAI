@@ -46,39 +46,31 @@ class ThothInstaller:
         if not self.get_admin_password():
             return False
             
-        # Step 3: Generate pyproject.toml.local files
-        if not self.generate_pyproject_locals():
-            return False
-            
-        # Step 4: Merge pyproject.toml files
-        if not self.merge_pyprojects():
-            return False
-            
-        # Step 5: Generate .env.docker
+        # Step 3: Generate .env.docker
         if not self.generate_env_docker():
             return False
             
-        # Step 6: Create Docker network if needed
+        # Step 4: Create Docker network if needed
         if not self.create_docker_network():
             return False
             
-        # Step 7: Create Docker volumes if needed
+        # Step 5: Create Docker volumes if needed
         if not self.create_docker_volumes():
             return False
             
-        # Step 8: Generate Django secrets if needed
+        # Step 6: Generate Django secrets if needed
         if not self.generate_django_secrets():
             return False
             
-        # Step 9: Build and start Docker containers
+        # Step 7: Build and start Docker containers
         if not self.docker_compose_up():
             return False
             
-        # Step 10: Wait for backend to be ready
+        # Step 8: Wait for backend to be ready
         if not self.wait_for_backend():
             return False
             
-        # Step 11: Run initial setup commands if greenfield
+        # Step 9: Run initial setup commands if greenfield
         if not self.run_initial_setup_commands():
             return False
             
@@ -207,113 +199,6 @@ class ThothInstaller:
             print("Password configured")
             return True
     
-    def generate_pyproject_locals(self) -> bool:
-        """Generate pyproject.toml.local files based on database configuration"""
-        print("\nGenerating dependency configurations...")
-        
-        databases = self.config.get('databases', {})
-        
-        # Build database extras list
-        db_extras = ['sqlite']  # Always include sqlite
-        if databases.get('postgresql'):
-            db_extras.append('postgresql')
-        if databases.get('mysql'):
-            db_extras.append('mysql')
-        if databases.get('mariadb'):
-            db_extras.append('mariadb')
-        if databases.get('sqlserver'):
-            db_extras.append('sqlserver')
-        
-        # Generate or update backend pyproject.toml.local without clobbering existing overrides
-        backend_path = self.base_dir / 'backend' / 'pyproject.toml.local'
-        backend_path.parent.mkdir(exist_ok=True)
-        if backend_path.exists():
-            backend_local = toml.load(backend_path)
-        else:
-            backend_local = {'tool': {'uv': {'sources': {}}}, 'project': {'dependencies': []}}
-
-        # Ensure thoth-dbmanager dependency with correct extras is present (dedupe any existing)
-        deps = backend_local.setdefault('project', {}).setdefault('dependencies', [])
-        deps = [d for d in deps if not (isinstance(d, str) and d.startswith('thoth-dbmanager'))]
-        deps.append(f"thoth-dbmanager[{','.join(db_extras)}]>=0.5.10")
-        backend_local['project']['dependencies'] = deps
-
-        with open(backend_path, 'w') as f:
-            toml.dump(backend_local, f)
-        print(f"Generated/updated {backend_path}")
-        
-        # SQL generator: create local file only if missing; don't overwrite existing overrides
-        sql_gen_path = self.base_dir / 'frontend' / 'sql_generator' / 'pyproject.toml.local'
-        sql_gen_path.parent.mkdir(parents=True, exist_ok=True)
-        if not sql_gen_path.exists():
-            sql_gen_local = {
-                'tool': {'uv': {'sources': {}}},
-                'project': {'dependencies': []}
-            }
-            with open(sql_gen_path, 'w') as f:
-                toml.dump(sql_gen_local, f)
-            print(f"Generated {sql_gen_path}")
-        else:
-            print(f"Preserved existing {sql_gen_path}")
-        
-        return True
-    
-    def merge_pyprojects(self) -> bool:
-        """Merge base and local pyproject.toml files"""
-        print("\nMerging pyproject.toml files...")
-        
-        for project_dir in ['backend', 'frontend/sql_generator']:
-            project_path = self.base_dir / project_dir
-            base_path = project_path / 'pyproject.toml'
-            local_path = project_path / 'pyproject.toml.local'
-            merged_path = project_path / 'pyproject.toml.merged'
-            
-            if not base_path.exists():
-                print(f"Warning: Base pyproject.toml not found in {project_dir}")
-                continue
-            
-            # Load base
-            with open(base_path) as f:
-                base_config = toml.load(f)
-            
-            # Load local if exists
-            if local_path.exists():
-                with open(local_path) as f:
-                    local_config = toml.load(f)
-                
-                # Merge dependencies
-                if 'project' in local_config and 'dependencies' in local_config['project']:
-                    base_deps = base_config.get('project', {}).get('dependencies', [])
-                    local_deps = local_config['project']['dependencies']
-                    
-                    # Remove any existing thoth-dbmanager or thoth-qdrant dependencies
-                    base_deps = [d for d in base_deps if not (isinstance(d, str) and (d.startswith('thoth-dbmanager') or d.startswith('thoth-qdrant')))]
-                    
-                    # Add new dependencies from local
-                    base_deps.extend(local_deps)
-                    
-                    if 'project' not in base_config:
-                        base_config['project'] = {}
-                    base_config['project']['dependencies'] = base_deps
-                
-                # Merge tool.uv.sources if exists
-                if 'tool' in local_config and 'uv' in local_config['tool'] and 'sources' in local_config['tool']['uv']:
-                    if 'tool' not in base_config:
-                        base_config['tool'] = {}
-                    if 'uv' not in base_config['tool']:
-                        base_config['tool']['uv'] = {}
-                    if 'sources' not in base_config['tool']['uv']:
-                        base_config['tool']['uv']['sources'] = {}
-                    base_config['tool']['uv']['sources'].update(local_config['tool']['uv']['sources'])
-            
-            # Write merged
-            with open(merged_path, 'w') as f:
-                toml.dump(base_config, f)
-            
-            print(f"Created {merged_path}")
-        
-        return True
-    
     def generate_env_docker(self) -> bool:
         """Generate .env.docker file from configuration"""
         print("\nGenerating environment configuration...")
@@ -410,6 +295,23 @@ class ThothInstaller:
         frontend_level = str(runtime.get('frontend_log_level', 'INFO')).upper()
         env_lines.append(f"BACKEND_LOGGING_LEVEL={backend_level}")
         env_lines.append(f"FRONTEND_LOGGING_LEVEL={frontend_level}")
+        
+        # Database plugins - generate ENABLED_DATABASES for runtime filtering
+        # This allows using generic Docker images with all drivers while only
+        # exposing databases explicitly enabled in config.yml.local
+        databases = self.config.get('databases', {})
+        enabled_dbs = ['sqlite']  # sqlite is always enabled
+        if databases.get('postgresql'):
+            enabled_dbs.append('postgresql')
+        if databases.get('mysql'):
+            enabled_dbs.append('mysql')
+        if databases.get('mariadb'):
+            enabled_dbs.append('mariadb')
+        if databases.get('sqlserver'):
+            enabled_dbs.append('sqlserver')
+        if databases.get('informix'):
+            enabled_dbs.append('informix')
+        env_lines.append(f"ENABLED_DATABASES={','.join(enabled_dbs)}")
         
         # Additional required environment variables
         env_lines.append('DB_ROOT_PATH=/app/data')

@@ -24,8 +24,9 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     && chmod +x /usr/local/bin/uv
 
 # Copy dependency files first for better caching
-# Use the merged pyproject.toml that includes database driver dependencies
-COPY frontend/sql_generator/pyproject.toml.merged ./pyproject.toml
+# Use base pyproject.toml - all database drivers are included
+# Runtime filtering via ENABLED_DATABASES controls which are available
+COPY frontend/sql_generator/pyproject.toml ./pyproject.toml
 COPY frontend/sql_generator/uv.lock ./
 
 # Copy application code (before installing dependencies to use cache better)

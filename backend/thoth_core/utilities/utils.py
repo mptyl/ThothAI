@@ -573,6 +573,11 @@ def initialize_database_plugins():
     """
     Initialize available database plugins by importing the plugins module
     and discovering which databases have their dependencies installed.
+    
+    Also filters based on ENABLED_DATABASES environment variable if set,
+    allowing runtime control over which database plugins are active.
+    This enables using generic Docker images with all drivers while
+    only exposing databases configured in config.yml.local.
 
     Returns:
         Dict[str, bool]: Dictionary mapping database names to availability status
@@ -589,6 +594,32 @@ def initialize_database_plugins():
 
         # Get available databases based on installed dependencies
         available_databases = get_available_databases()
+        
+        # Apply runtime filtering based on ENABLED_DATABASES env var
+        # Format: comma-separated list, e.g., "sqlite,postgresql,mariadb"
+        enabled_databases_env = os.environ.get("ENABLED_DATABASES", "").strip()
+        
+        if enabled_databases_env:
+            # Parse the enabled databases list
+            enabled_set = {db.strip().lower() for db in enabled_databases_env.split(",") if db.strip()}
+            
+            # sqlite is always required and cannot be disabled
+            enabled_set.add("sqlite")
+            
+            logger.info(f"Runtime database filter active. Enabled databases: {', '.join(sorted(enabled_set))}")
+            
+            # Filter: only keep databases that are both installed AND enabled
+            filtered_databases = {}
+            for db_name, is_available in available_databases.items():
+                if db_name.lower() in enabled_set:
+                    filtered_databases[db_name] = is_available
+                else:
+                    # Mark as unavailable (disabled by config)
+                    filtered_databases[db_name] = False
+                    if is_available:
+                        logger.debug(f"Database plugin '{db_name}' disabled by ENABLED_DATABASES config")
+            
+            available_databases = filtered_databases
 
         # Log available plugins
         available_list = [
@@ -602,7 +633,7 @@ def initialize_database_plugins():
             logger.info(f"Available database plugins: {', '.join(available_list)}")
         if unavailable_list:
             logger.info(
-                f"Unavailable database plugins (missing dependencies): {', '.join(unavailable_list)}"
+                f"Unavailable database plugins (missing dependencies or disabled): {', '.join(unavailable_list)}"
             )
 
         return available_databases

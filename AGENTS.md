@@ -111,6 +111,101 @@ Located in `frontend/sql_generator/agents/`:
 - **SSH Tunnels**: Supported for secure database connections.
 - **Direnv**: Supported via `.envrc`.
 
+## Database Plugin Runtime Configuration
+Docker images contain **all** database drivers for portability, but which databases are actually usable is controlled at **runtime** via configuration.
+
+### Architecture: Wrapper Pattern (No External Library Changes Required)
+
+This solution uses a **wrapper pattern** that filters the output of `thoth_dbmanager` without requiring any modifications to the external library:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│              EXTERNAL LIBRARY (thoth_dbmanager) - UNCHANGED         │
+│                                                                     │
+│  get_available_databases() returns:                                 │
+│    {'sqlite': True, 'postgresql': True, 'mysql': True, ...}        │
+│    (based on which drivers are installed)                          │
+└─────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│              THOTHAI CODE - initialize_database_plugins()           │
+│                                                                     │
+│  1. Calls get_available_databases() from thoth_dbmanager           │
+│  2. Reads ENABLED_DATABASES from environment                        │
+│  3. Filters the dictionary: disabled databases → False              │
+│  4. Returns the filtered dictionary                                 │
+│                                                                     │
+│  Result: {'sqlite': True, 'postgresql': True, 'mysql': FALSE, ...}  │
+│           ↑ MySQL disabled by config, not missing dependencies      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### How It Works
+
+1. **`config.yml.local`** defines which databases are enabled:
+   ```yaml
+   databases:
+     sqlite: true       # Always required, cannot be disabled
+     postgresql: true   # Enable for PostgreSQL support
+     mysql: false       # Disabled - will not be available
+     mariadb: true
+     sqlserver: true
+     informix: true
+   ```
+
+2. **`installer.py`** generates `ENABLED_DATABASES` in `.env.docker`:
+   ```
+   ENABLED_DATABASES=sqlite,postgresql,mariadb,sqlserver,informix
+   ```
+
+3. **At runtime**, our `initialize_database_plugins()` function:
+   - Calls `thoth_dbmanager.get_available_databases()` (unmodified external library)
+   - Reads `ENABLED_DATABASES` from environment variables
+   - Filters the result: databases not in the list are marked as `False`
+   - SQLite is always enabled regardless of configuration
+
+### Implementation Details
+
+The filtering logic in `backend/thoth_core/utilities/utils.py` and `frontend/sql_generator/helpers/main_helpers/main_methods.py`:
+
+```python
+# Get available databases from external library (unchanged)
+available_databases = get_available_databases()
+
+# Apply our runtime filtering
+enabled_databases_env = os.environ.get("ENABLED_DATABASES", "").strip()
+if enabled_databases_env:
+    enabled_set = {db.strip().lower() for db in enabled_databases_env.split(",") if db.strip()}
+    enabled_set.add("sqlite")  # Always enabled
+    
+    for db_name, is_available in available_databases.items():
+        if db_name.lower() not in enabled_set:
+            available_databases[db_name] = False  # Disabled by config
+```
+
+### Benefits
+- **No External Library Changes**: `thoth_dbmanager` remains untouched and can be updated independently
+- **Image Portability**: Pull the same Docker image from Docker Hub for any environment
+- **No Rebuild Required**: Change database support by editing `config.yml.local` and regenerating `.env.docker`
+- **Security**: Only expose the database drivers you actually need
+- **Backward Compatible**: If `ENABLED_DATABASES` is not set, all installed databases remain available
+
+### Build Architecture
+
+**Important**: Docker images are built with **ALL database drivers** installed, regardless of `config.yml.local` settings:
+
+| Component | All Drivers Included |
+|-----------|---------------------|
+| `backend/pyproject.toml` | `thoth-dbmanager[postgresql,sqlite,mariadb,sqlserver,informix]` |
+| `frontend/sql_generator/pyproject.toml` | `thoth-dbmanager[postgresql,sqlite,mariadb,sqlserver,informix]` |
+| `docker/backend.Dockerfile` | `uv sync --frozen --extra mariadb --extra sqlserver --extra all-databases` |
+
+This means:
+- **Build time**: All drivers are installed in the image
+- **Runtime**: Only drivers listed in `ENABLED_DATABASES` are activated
+- **config.yml.local databases section**: Controls **runtime** availability, not build-time installation
+
 ## CURL Testing
 
 **ALWAYS TEST ON DOCKER UNLESS SPECIFICALLY REQUESTED OTHERWISE!**

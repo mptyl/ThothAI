@@ -1,5 +1,4 @@
 name: local-thothai
-version: '3.8'
 
 services:
   # === MERMAID SERVICE ===

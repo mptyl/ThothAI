@@ -49,8 +49,9 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && chmod +x /usr/local/bin/uv
 
 # Copy dependency files first (for better caching)
-# Use the merged pyproject.toml that includes database driver dependencies
-COPY backend/pyproject.toml.merged ./pyproject.toml
+# Use base pyproject.toml - all database drivers are included
+# Runtime filtering via ENABLED_DATABASES controls which are available
+COPY backend/pyproject.toml ./pyproject.toml
 COPY backend/uv.lock ./
 
 # Copy application code (before installing dependencies to use cache better)
@@ -60,8 +61,9 @@ RUN rm -rf /app/.venv || true
 
 # Install Python packages in the container
 # This creates a fresh .venv with all dependencies
-# Include optional database drivers using --extra flags
-RUN uv sync --frozen --extra mariadb --extra sqlserver
+# Include ALL optional database drivers for maximum image portability
+# Runtime filtering via ENABLED_DATABASES env var controls which are actually available
+RUN uv sync --frozen --extra mariadb --extra sqlserver --extra all-databases
 
 # Copy data directory to temporary location for initialization
 # This will be copied to the volume on first run by init-shared-data.sh
@@ -72,7 +74,7 @@ COPY setup_csv/ /setup_csv/
 
 # Ensure scripts are executable and normalized to LF (robust on Windows checkouts)
 RUN if [ -d /app/scripts ]; then \
-      find /app/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + -exec chmod +x {} +; \
+    find /app/scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} + -exec chmod +x {} +; \
     fi || true
 
 # Create necessary directories including secrets
