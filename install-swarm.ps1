@@ -2,13 +2,13 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 #
-# Script for deploying ThothAI to a remote Docker Swarm server using images from Docker Hub
+# Script for deploying ThothAI to Docker Swarm (Local or Remote)
 
 param(
-    [Parameter(Mandatory=$false, HelpMessage="SSH connection string (e.g., user@hostname or user@ip)")]
+    [Parameter(Mandatory=$false, HelpMessage="SSH connection string for remote deployment (e.g., user@hostname)")]
     [string]$Server,
 
-    [Parameter(HelpMessage="SSH port (default: 22)")]
+    [Parameter(HelpMessage="SSH port for remote deploy (default: 22)")]
     [int]$Port = 22,
 
     [Parameter(HelpMessage="Path to SSH private key (default: ~/.ssh/id_rsa)")]
@@ -16,6 +16,7 @@ param(
 
     [switch]$SkipPull,
     [switch]$SkipSecrets,
+    [switch]$Prune,
     [switch]$Help
 )
 
@@ -23,610 +24,283 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# Helper function for colored output
+# Colors for output
 function Write-ColorOutput {
-    param(
-        [string]$Message,
-        [string]$Color = "White"
-    )
+    param([string]$Message, [string]$Color = "White")
     Write-Host $Message -ForegroundColor $Color
 }
 
-# Function to show usage
+function Write-Header {
+    param([string]$Title)
+    Write-Host ""
+    Write-ColorOutput "============================================" "Cyan"
+    Write-ColorOutput "  $Title" "Cyan"
+    Write-ColorOutput "============================================" "Cyan"
+    Write-Host ""
+}
+
 function Show-Usage {
     Write-ColorOutput "Usage: .\install-swarm.ps1 [OPTIONS]" "Cyan"
-    Write-ColorOutput "" "White"
+    Write-Host ""
+    Write-ColorOutput "ThothAI Docker Swarm Installer" "Yellow"
+    Write-Host "Deploys ThothAI to a Docker Swarm cluster (local or remote)."
+    Write-Host ""
     Write-ColorOutput "Options:" "Yellow"
-    Write-ColorOutput "  -Server <SSH_CONNECTION_STRING>  Deploy to remote server via SSH (REQUIRED)" "White"
-    Write-ColorOutput "  -Port <SSH_PORT>                 SSH port (default: 22)" "White"
-    Write-ColorOutput "  -Key <SSH_KEY_PATH>              Path to SSH private key (default: ~/.ssh/id_rsa)" "White"
-    Write-ColorOutput "  -SkipPull                        Skip pulling images from Docker Hub" "White"
-    Write-ColorOutput "  -SkipSecrets                     Skip creating secrets and configs" "White"
-    Write-ColorOutput "  -Help                            Show this help message" "White"
-    Write-ColorOutput "" "White"
-    Write-ColorOutput "Description:" "Green"
-    Write-ColorOutput "  Deploys ThothAI to a remote Docker Swarm server using pre-built images from Docker Hub." "White"
-    Write-ColorOutput "  No local build is required - images are pulled directly from Docker Hub." "White"
-    Write-ColorOutput "  Manages SSH connection to remote server for deployment." "White"
-    Write-ColorOutput "" "White"
-    Write-ColorOutput "Examples:" "Green"
-    Write-ColorOutput "  .\install-swarm.ps1 -Server user@192.168.1.100" "White"
-    Write-ColorOutput "  .\install-swarm.ps1 -Server user@swarm.example.com -Port 2222 -Key C:\Users\user\.ssh\custom_key" "White"
-    Write-ColorOutput "  .\install-swarm.ps1 -Server admin@10.0.0.50 -SkipPull" "White"
-    Write-ColorOutput "" "White"
+    Write-Host "  -Server <SSH_STRING>  Deploy to remote server via SSH (e.g., user@hostname)"
+    Write-Host "  -Port <SSH_PORT>      SSH port for remote deploy (default: 22)"
+    Write-Host "  -Key <SSH_KEY_PATH>   Path to SSH private key (default: ~/.ssh/id_rsa)"
+    Write-Host "  -SkipPull             Skip pulling images from Docker Hub"
+    Write-Host "  -SkipSecrets          Skip creating/recreating secrets and configs"
+    Write-Host "  -Prune                Remove the stack and associated secrets/configs"
+    Write-Host "  -Help                 Show this help message"
+    Write-Host ""
+    Write-ColorOutput "Examples:" "Yellow"
+    Write-Host "  .\install-swarm.ps1                  # Local Swarm deployment"
+    Write-Host "  .\install-swarm.ps1 -Server user@ip   # Remote Swarm deployment"
+    Write-Host "  .\install-swarm.ps1 -Prune            # Remove local stack"
+    Write-Host ""
 }
 
-# Function to check command availability
+# Check command availability
 function Test-Command {
-    param(
-        [string]$Command
-    )
-    try {
-        $null = Get-Command $Command -ErrorAction Stop
-        return $true
-    }
-    catch {
-        return $false
-    }
+    param([string]$Command)
+    try { $null = Get-Command $Command -ErrorAction Stop; return $true }
+    catch { return $false }
 }
 
-# Function to prompt for server if not provided
-function Prompt-ForServer {
-    Write-ColorOutput "No server specified. Please enter SSH connection string:" "Yellow"
-    Write-ColorOutput "Format: user@hostname or user@ip_address" "White"
-    $serverInput = Read-Host "SSH connection string"
-    
-    if ([string]::IsNullOrWhiteSpace($serverInput)) {
-        Write-ColorOutput "Error: SSH connection string is required" "Red"
-        exit 1
-    }
-    
-    return $serverInput
-}
-
-# Function to test SSH connection
-function Test-SSHConnection {
-    param(
-        [string]$SshServer,
-        [int]$SshPort,
-        [string]$SshKey
-    )
-    
-    Write-ColorOutput "Testing SSH connection to $SshServer`:$SshPort..." "Yellow"
-    
-    # Build SSH command
-    $sshCmd = "ssh"
-    if (Test-Path $SshKey) {
-        $sshCmd = "ssh -i $SshKey -p $SshPort -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
-    } else {
-        $sshCmd = "ssh -p $SshPort -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
-    }
-    
-    # Test connection
-    $result = cmd /c "$sshCmd $SshServer echo 'Connection successful' 2>&1"
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-ColorOutput "✓ SSH connection successful" "Green"
-        return $true
-    } else {
-        Write-ColorOutput "✗ SSH connection failed" "Red"
-        Write-ColorOutput "Please check:" "Yellow"
-        Write-ColorOutput "  - Server address and user are correct" "White"
-        Write-ColorOutput "  - SSH key path is correct (if using key auth)" "White"
-        Write-ColorOutput "  - SSH key is loaded in ssh-agent or password is correct" "White"
-        Write-ColorOutput "  - Server is reachable and SSH service is running" "White"
-        return $false
-    }
-}
-
-# Function to load swarm configuration
+# Load swarm configuration
 function Load-SwarmConfig {
     $configFile = "swarm_config.env"
-
     if (-not (Test-Path $configFile)) {
-        Write-ColorOutput "Error: $configFile not found" "Red"
-        Write-ColorOutput "" "White"
-        Write-ColorOutput "Please create $configFile by copying from the template:" "Yellow"
-        Write-ColorOutput "  Copy-Item swarm_config.env.template swarm_config.env" "Green"
-        Write-ColorOutput "" "White"
-        Write-ColorOutput "Then edit $configFile with your configuration:" "Yellow"
-        Write-ColorOutput "  - DOCKER_USERNAME (required for Docker Hub)" "White"
-        Write-ColorOutput "  - STACK_NAME" "White"
-        Write-ColorOutput "  - Service ports (if defaults conflict)" "White"
-        exit 1
+        if (Test-Path "swarm_config.env.template") {
+            Copy-Item "swarm_config.env.template" $configFile
+            Write-ColorOutput "Created $configFile from template. Please edit it and re-run." "Yellow"
+            exit 1
+        } else {
+            Write-ColorOutput "Error: $configFile not found." "Red"
+            exit 1
+        }
     }
 
-    # Parse the configuration file
     $config = @{}
     Get-Content $configFile | ForEach-Object {
         if ($_ -match '^([^#].+?)=(.+)$') {
             $name = $matches[1].Trim()
             $value = $matches[2].Trim()
             $config[$name] = $value
+            # Export to environment for envsubst or tool logic
+            [System.Environment]::SetEnvironmentVariable($name, $value)
         }
     }
-
-    Write-ColorOutput "Configuration loaded from $configFile" "Green"
+    Write-ColorOutput "✓ Configuration loaded from $configFile" "Green"
     return $config
 }
 
-# Function to validate configuration
+# Validate configuration
 function Test-Config {
-    param(
-        [hashtable]$Config
-    )
-
-    if (-not $Config.ContainsKey('DOCKER_USERNAME') -or [string]::IsNullOrWhiteSpace($Config['DOCKER_USERNAME'])) {
-        Write-ColorOutput "Error: DOCKER_USERNAME is not set in swarm_config.env" "Red"
-        Write-ColorOutput "Please set DOCKER_USERNAME to your Docker Hub username" "Yellow"
+    param([hashtable]$Config)
+    
+    $dockerUser = if ($Config.ContainsKey('DOCKER_USERNAME')) { $Config['DOCKER_USERNAME'] } else { "tylconsulting" }
+    if ($dockerUser -eq "your-dockerhub-username") {
+        Write-ColorOutput "Error: Please set DOCKER_USERNAME in swarm_config.env" "Red"
         exit 1
     }
+    
+    $stackName = if ($Config.ContainsKey('STACK_NAME')) { $Config['STACK_NAME'] } else { "thothai-swarm" }
+    $version = if ($Config.ContainsKey('VERSION')) { $Config['VERSION'] } else { "latest" }
 
-    if ($Config['DOCKER_USERNAME'] -eq "your-dockerhub-username") {
-        Write-ColorOutput "Error: DOCKER_USERNAME is still set to the default value" "Red"
-        Write-ColorOutput "Please edit swarm_config.env and set your actual Docker Hub username" "Yellow"
-        exit 1
+    # Setup defaults for ports
+    $ports = @{
+        'FRONTEND_PORT' = if ($Config.ContainsKey('FRONTEND_PORT')) { $Config['FRONTEND_PORT'] } else { '7001' }
+        'BACKEND_PORT' = if ($Config.ContainsKey('BACKEND_PORT')) { $Config['BACKEND_PORT'] } else { '7002' }
+        'SQL_GENERATOR_PORT' = if ($Config.ContainsKey('SQL_GENERATOR_PORT')) { $Config['SQL_GENERATOR_PORT'] } else { '7003' }
+        'MERMAID_SERVICE_PORT' = if ($Config.ContainsKey('MERMAID_SERVICE_PORT')) { $Config['MERMAID_SERVICE_PORT'] } else { '7004' }
+        'QDRANT_PORT' = if ($Config.ContainsKey('QDRANT_PORT')) { $Config['QDRANT_PORT'] } else { '7005' }
+        'WEB_PORT' = if ($Config.ContainsKey('WEB_PORT')) { $Config['WEB_PORT'] } else { '7000' }
     }
+    $ports['BACKEND_PROXY_PORT'] = if ($Config.ContainsKey('BACKEND_PROXY_PORT')) { $Config['BACKEND_PROXY_PORT'] } else { $ports['WEB_PORT'] }
 
-    # Set defaults for optional variables
-    if (-not $Config.ContainsKey('STACK_NAME') -or [string]::IsNullOrWhiteSpace($Config['STACK_NAME'])) {
-        $Config['STACK_NAME'] = 'thothai-swarm'
-    }
-    if (-not $Config.ContainsKey('FRONTEND_PORT')) {
-        $Config['FRONTEND_PORT'] = '7001'
-    }
-    if (-not $Config.ContainsKey('BACKEND_PROXY_PORT')) {
-        $Config['BACKEND_PROXY_PORT'] = '7000'
-    }
-    if (-not $Config.ContainsKey('SQL_GENERATOR_PORT')) {
-        $Config['SQL_GENERATOR_PORT'] = '7003'
-    }
-    if (-not $Config.ContainsKey('QDRANT_PORT')) {
-        $Config['QDRANT_PORT'] = '7005'
-    }
-    if (-not $Config.ContainsKey('MERMAID_SERVICE_PORT')) {
-        $Config['MERMAID_SERVICE_PORT'] = '7004'
-    }
-    if (-not $Config.ContainsKey('WEB_PORT')) {
-        $Config['WEB_PORT'] = '7000'
-    }
-    if (-not $Config.ContainsKey('BACKEND_PORT')) {
-        $Config['BACKEND_PORT'] = '7002'
-    }
-    if (-not $Config.ContainsKey('VERSION')) {
-        $Config['VERSION'] = 'latest'
-    }
-
-    Write-ColorOutput "Configuration validated:" "Green"
-    Write-ColorOutput "  DOCKER_USERNAME:         $($Config['DOCKER_USERNAME'])" "White"
-    Write-ColorOutput "  STACK_NAME:              $($Config['STACK_NAME'])" "White"
-    Write-ColorOutput "  VERSION:                 $($Config['VERSION'])" "White"
-    Write-ColorOutput "  FRONTEND_PORT:           $($Config['FRONTEND_PORT'])" "White"
-    Write-ColorOutput "  BACKEND_PROXY_PORT:      $($Config['BACKEND_PROXY_PORT'])" "White"
-    Write-ColorOutput "  SQL_GENERATOR_PORT:      $($Config['SQL_GENERATOR_PORT'])" "White"
-    Write-ColorOutput "  QDRANT_PORT:             $($Config['QDRANT_PORT'])" "White"
-    Write-ColorOutput "  MERMAID_SERVICE_PORT:    $($Config['MERMAID_SERVICE_PORT'])" "White"
-    Write-ColorOutput "  WEB_PORT:                $($Config['WEB_PORT'])" "White"
-    Write-ColorOutput "  BACKEND_PORT:            $($Config['BACKEND_PORT'])" "White"
+    foreach ($key in $ports.Keys) { [System.Environment]::SetEnvironmentVariable($key, $ports[$key]) }
+    [System.Environment]::SetEnvironmentVariable('DOCKER_USERNAME', $dockerUser)
+    [System.Environment]::SetEnvironmentVariable('STACK_NAME', $stackName)
+    [System.Environment]::SetEnvironmentVariable('VERSION', $version)
 
     return $Config
 }
 
-# Function to pull images from Docker Hub
+# Pull images
 function Pull-Images {
-    param(
-        [hashtable]$Config
-    )
-
-    Write-ColorOutput "=== Pulling images from Docker Hub ===" "Cyan"
-    Write-ColorOutput "" "White"
-
-    $registryUrl = $Config['DOCKER_USERNAME']
-    $version = $Config['VERSION']
-
-    # Images to pull
-    $images = @{
-        "backend" = "thoth-backend"
-        "frontend" = "thoth-frontend"
-        "sql-generator" = "thoth-sql-generator"
-        "proxy" = "thoth-proxy"
-        "mermaid-service" = "thoth-mermaid-service"
+    param([hashtable]$Config)
+    Write-Header "Pulling Images..."
+    $dockerUser = [System.Environment]::GetEnvironmentVariable('DOCKER_USERNAME')
+    $version = [System.Environment]::GetEnvironmentVariable('VERSION')
+    
+    $images = @("thoth-backend", "thoth-frontend", "thoth-sql-generator", "thoth-proxy", "thoth-mermaid-service")
+    foreach ($img in $images) {
+        Write-ColorOutput "Pulling $dockerUser/$img`:$version..." "Yellow"
+        docker pull "$dockerUser/$img`:$version"
     }
-
-    foreach ($localName in $images.Keys) {
-        $imageName = $images[$localName]
-        $fullTag = "$registryUrl/$imageName`:$version"
-
-        Write-ColorOutput "Pulling $fullTag..." "Yellow"
-        docker pull $fullTag
-        if ($LASTEXITCODE -eq 0) {
-            Write-ColorOutput "✓ Pulled $fullTag" "Green"
-        } else {
-            Write-ColorOutput "✗ Failed to pull $fullTag" "Red"
-            Write-ColorOutput "Note: Make sure images exist on Docker Hub at $registryUrl/$imageName`:$version" "Yellow"
-            exit 1
-        }
-    }
-
-    # Pull Qdrant from official registry
-    Write-ColorOutput "Pulling qdrant/qdrant:latest..." "Yellow"
     docker pull qdrant/qdrant:latest
-    if ($LASTEXITCODE -eq 0) {
-        Write-ColorOutput "✓ Pulled qdrant/qdrant:latest" "Green"
-    } else {
-        Write-ColorOutput "✗ Failed to pull qdrant/qdrant:latest" "Red"
-        exit 1
-    }
+    Write-ColorOutput "✓ All images pulled" "Green"
 }
 
-# Function to prepare docker-stack-swarm.yml
+# Prepare stack file
 function Prepare-StackFile {
-    param(
-        [hashtable]$Config
-    )
-
-    Write-ColorOutput "=== Preparing docker-stack-swarm.yml ===" "Cyan"
-    Write-ColorOutput "" "White"
-
-    if (-not (Test-Path "docker-stack.yml")) {
-        Write-ColorOutput "Error: docker-stack.yml not found" "Red"
-        exit 1
-    }
-
-    # Read the stack file
-    $stackContent = Get-Content "docker-stack.yml" -Raw
-
-    # Perform environment variable substitutions
+    param([hashtable]$Config)
+    Write-ColorOutput "Preparing deployment file..." "Yellow"
+    
+    $stackName = [System.Environment]::GetEnvironmentVariable('STACK_NAME')
+    $dockerUser = [System.Environment]::GetEnvironmentVariable('DOCKER_USERNAME')
+    
+    # Export vars for replacements
+    $env:REGISTRY_URL = $dockerUser
+    $env:APP_HOST = "${stackName}_backend"
+    $env:FRONTEND_HOST = "${stackName}_frontend"
+    $env:SQL_GEN_HOST = "${stackName}_sql-generator"
+    
+    # Simple substitution since PowerShell handles variables well in strings
+    $content = Get-Content "docker-stack.yml" -Raw
     $replacements = @{
-        '${REGISTRY_URL}' = $Config['DOCKER_USERNAME']
-        '${VERSION}' = $Config['VERSION']
-        '${FRONTEND_PORT}' = $Config['FRONTEND_PORT']
-        '${BACKEND_PORT}' = $Config['BACKEND_PORT']
-        '${SQL_GENERATOR_PORT}' = $Config['SQL_GENERATOR_PORT']
-        '${MERMAID_SERVICE_PORT}' = $Config['MERMAID_SERVICE_PORT']
-        '${WEB_PORT}' = $Config['WEB_PORT']
+        '${REGISTRY_URL}' = [System.Environment]::GetEnvironmentVariable('DOCKER_USERNAME')
+        '${VERSION}' = [System.Environment]::GetEnvironmentVariable('VERSION')
+        '${FRONTEND_PORT}' = [System.Environment]::GetEnvironmentVariable('FRONTEND_PORT')
+        '${BACKEND_PORT}' = [System.Environment]::GetEnvironmentVariable('BACKEND_PORT')
+        '${SQL_GENERATOR_PORT}' = [System.Environment]::GetEnvironmentVariable('SQL_GENERATOR_PORT')
+        '${MERMAID_SERVICE_PORT}' = [System.Environment]::GetEnvironmentVariable('MERMAID_SERVICE_PORT')
+        '${WEB_PORT}' = [System.Environment]::GetEnvironmentVariable('WEB_PORT')
     }
 
     foreach ($key in $replacements.Keys) {
-        $stackContent = $stackContent -replace [regex]::Escape($key), $replacements[$key]
+        $content = $content.Replace($key, $replacements[$key])
     }
 
-    # Write to docker-stack-swarm.yml
-    Write-ColorOutput "Creating docker-stack-swarm.yml with port substitutions..." "Yellow"
-    $stackContent | Out-File -FilePath "docker-stack-swarm.yml" -Encoding utf8
-    Write-ColorOutput "✓ docker-stack-swarm.yml created" "Green"
+    # Stack specific names
+    $content = $content.Replace('thoth_env_config', "${stackName}_thoth_env_config")
+    $content = $content.Replace('thoth_config_yml', "${stackName}_thoth_config_yml")
+    $content = $content.Replace('thoth_env_docker', "${stackName}_thoth_env_docker")
+
+    $content | Out-File -FilePath "docker-stack-swarm.yml" -Encoding utf8
+    Write-ColorOutput "✓ docker-stack-swarm.yml ready" "Green"
 }
 
-# Function to deploy stack to remote Swarm
-function Deploy-StackRemote {
-    param(
-        [string]$SshServer,
-        [int]$SshPort,
-        [string]$SshKey,
-        [hashtable]$Config
-    )
+# Manage secrets
+function Manage-Secrets {
+    param([hashtable]$Config)
+    Write-Header "Managing Secrets and Configs..."
+    $stackName = [System.Environment]::GetEnvironmentVariable('STACK_NAME')
 
-    Write-ColorOutput "=== Deploying to remote Docker Swarm ===" "Cyan"
-    Write-ColorOutput "" "White"
-
-    # Set DOCKER_HOST for SSH connection
-    $dockerHost = "ssh://$SshServer`:$SshPort"
-    Write-ColorOutput "Setting DOCKER_HOST=$dockerHost" "Yellow"
-    $env:DOCKER_HOST = $dockerHost
-
-    # Add SSH key to agent if specified (requires Pageant for PuTTY or ssh-agent for OpenSSH)
-    if (Test-Path $SshKey) {
-        Write-ColorOutput "SSH key found at $SshKey" "Yellow"
-        Write-ColorOutput "Note: Ensure your SSH key is loaded in ssh-agent or Pageant" "Yellow"
-    } else {
-        Write-ColorOutput "Warning: SSH key not found at $SshKey" "Yellow"
-        Write-ColorOutput "Continuing anyway (assuming SSH agent has the key or password auth)" "Yellow"
+    # Generate .env.docker if script exists
+    if (Test-Path "scripts/installer.py") {
+        python3 scripts/installer.py --generate-env-only
     }
 
-    # Check if Swarm is active on remote
-    Write-ColorOutput "Checking Swarm status on remote host..." "Yellow"
-    $dockerInfo = docker info 2>&1
-    if ($dockerInfo -notmatch "Swarm:\s+active") {
-        Write-ColorOutput "Error: Docker Swarm is not active on the remote host" "Red"
-        Write-ColorOutput "Please initialize Swarm on the remote host: docker swarm init" "Yellow"
-        exit 1
-    }
-    Write-ColorOutput "✓ Swarm is active on remote host" "Green"
-    Write-ColorOutput "" "White"
-
-    # Create secrets and configs on remote
-    Write-ColorOutput "Creating secrets and configs on remote Swarm..." "Yellow"
-
-    $stackName = $Config['STACK_NAME']
-
-    # Remove old secrets/configs if they exist
-    docker secret rm "${stackName}_thoth_env_config" 2>$null | Out-Null
-    docker secret rm "${stackName}_thoth_config_yml" 2>$null | Out-Null
+    # Remove existing
+    docker secret rm "${stackName}_thoth_env_config" "${stackName}_thoth_config_yml" 2>$null | Out-Null
     docker config rm "${stackName}_thoth_env_docker" 2>$null | Out-Null
 
-    # Create new secrets and configs
-    if (Test-Path ".env.docker") {
-        docker secret create "${stackName}_thoth_env_config" .env.docker
-        if ($LASTEXITCODE -eq 0) {
-            Write-ColorOutput "✓ Created secret: ${stackName}_thoth_env_config" "Green"
-        } else {
-            Write-ColorOutput "✗ Failed to create secret" "Red"
-            exit 1
-        }
-    } else {
-        Write-ColorOutput "Warning: .env.docker not found, skipping secret creation" "Yellow"
-    }
-
-    if (Test-Path "config.yml.local") {
-        docker secret create "${stackName}_thoth_config_yml" config.yml.local
-        if ($LASTEXITCODE -eq 0) {
-            Write-ColorOutput "✓ Created secret: ${stackName}_thoth_config_yml" "Green"
-        } else {
-            Write-ColorOutput "✗ Failed to create secret" "Red"
-            exit 1
-        }
-    } else {
-        Write-ColorOutput "Warning: config.yml.local not found, skipping secret creation" "Yellow"
-    }
-
-    if (Test-Path ".env.docker") {
-        docker config create "${stackName}_thoth_env_docker" .env.docker
-        if ($LASTEXITCODE -eq 0) {
-            Write-ColorOutput "✓ Created config: ${stackName}_thoth_env_docker" "Green"
-        } else {
-            Write-ColorOutput "✗ Failed to create config" "Red"
-            exit 1
-        }
-    }
-    Write-ColorOutput "" "White"
-
-    # Update docker-stack-swarm.yml with stack-specific secret/config names
-    Write-ColorOutput "Updating docker-stack-swarm.yml with stack-specific names..." "Yellow"
-    $stackContent = Get-Content "docker-stack-swarm.yml" -Raw
-    $stackContent = $stackContent -replace 'thoth_env_config', "${stackName}_thoth_env_config"
-    $stackContent = $stackContent -replace 'thoth_config_yml', "${stackName}_thoth_config_yml"
-    $stackContent = $stackContent -replace 'thoth_env_docker', "${stackName}_thoth_env_docker"
-    $stackContent | Out-File -FilePath "docker-stack-swarm.yml" -Encoding utf8
-    Write-ColorOutput "✓ Updated docker-stack-swarm.yml" "Green"
-    Write-ColorOutput "" "White"
-
-    # Deploy stack
-    Write-ColorOutput "Deploying stack '$stackName' to remote Swarm..." "Yellow"
-    docker stack deploy -c docker-stack-swarm.yml $stackName
-    if ($LASTEXITCODE -eq 0) {
-        Write-ColorOutput "✓ Stack deployment initiated" "Green"
-    } else {
-        Write-ColorOutput "✗ Stack deployment failed" "Red"
-        exit 1
-    }
+    # Create new
+    if (Test-Path ".env.docker") { docker secret create "${stackName}_thoth_env_config" .env.docker }
+    if (Test-Path "config.yml.local") { docker secret create "${stackName}_thoth_config_yml" config.yml.local }
+    if (Test-Path ".env.docker") { docker config create "${stackName}_thoth_env_docker" .env.docker }
+    
+    Write-ColorOutput "✓ Secrets and configs created" "Green"
 }
 
-# Function to wait for services to start
+# Prune resources
+function Prune-Swarm {
+    param([hashtable]$Config)
+    $stackName = if ($Config.ContainsKey('STACK_NAME')) { $Config['STACK_NAME'] } else { "thothai-swarm" }
+    Write-Header "Pruning Swarm Stack: $stackName"
+    docker stack rm $stackName 2>$null | Out-Null
+    Write-ColorOutput "Stack removal initiated. Cleaning up secrets..." "Yellow"
+    Start-Sleep -Seconds 5
+    docker secret rm "${stackName}_thoth_env_config" "${stackName}_thoth_config_yml" 2>$null | Out-Null
+    docker config rm "${stackName}_thoth_env_docker" 2>$null | Out-Null
+    Write-ColorOutput "✓ Prune completed" "Green"
+}
+
+# Wait for services
 function Wait-ForServices {
-    param(
-        [string]$StackName
-    )
-
-    Write-ColorOutput "=== Waiting for services to start ===" "Cyan"
-    Write-ColorOutput "" "White"
-
-    $maxWait = 600  # 10 minutes
+    param([string]$StackName)
+    Write-Header "Waiting for services to start..."
+    $maxWait = 300
     $elapsed = 0
-
     while ($elapsed -lt $maxWait) {
-        $servicesOutput = docker stack services $StackName --format "{{.Name}} {{.Replicas}}" 2>&1
-
-        if ([string]::IsNullOrWhiteSpace($servicesOutput) -or $servicesOutput -match "error") {
-            Write-ColorOutput "Waiting for services to be created... ($elapsed/$maxWait seconds)" "Yellow"
-            Start-Sleep -Seconds 5
-            $elapsed += 5
-            continue
-        }
-
-        # Check if all services are running
-        $allRunning = $true
-        foreach ($line in $servicesOutput -split "`n") {
-            if (-not [string]::IsNullOrWhiteSpace($line)) {
-                $parts = $line -split '\s+'
-                if ($parts.Length -ge 2) {
-                    $replicas = $parts[1]
-                    if ($replicas -match '^(\d+)/(\d+)$') {
-                        $running = [int]$matches[1]
-                        $total = [int]$matches[2]
-                        if ($running -ne $total) {
-                            $allRunning = $false
-                            break
-                        }
-                    } else {
-                        $allRunning = $false
-                        break
-                    }
-                }
+        $services = docker stack services $StackName --format "{{.Replicas}}" 2>$null | Where-Object { $_ -ne "0/0" -and $_ -ne "" }
+        if ($services) {
+            $allReady = $true
+            foreach ($s in $services) {
+                $parts = $s -split '/'
+                if ($parts[0].Trim() -ne $parts[1].Trim()) { $allReady = $false; break }
+            }
+            if ($allReady) {
+                Write-ColorOutput "✓ All services are running" "Green"
+                return
             }
         }
-
-        if ($allRunning) {
-            Write-ColorOutput "✓ All services are running" "Green"
-            return $true
-        }
-
-        Write-ColorOutput "Waiting for services... ($elapsed/$maxWait seconds)" "Yellow"
-        Write-ColorOutput $servicesOutput "White"
-        Start-Sleep -Seconds 10
-        $elapsed += 10
+        Write-Host -NoNewline "."
+        Start-Sleep -Seconds 5
+        $elapsed += 5
     }
-
-    Write-ColorOutput "Timeout: Services did not start within $maxWait seconds" "Red"
-    return $false
+    Write-ColorOutput "Timeout waiting for services" "Yellow"
 }
 
-# Function to show deployment status
-function Show-DeploymentStatus {
-    param(
-        [string]$StackName
-    )
-
-    Write-ColorOutput "=== Deployment Status ===" "Cyan"
-    Write-ColorOutput "" "White"
-
-    Write-ColorOutput "Stack services:" "Yellow"
-    $services = docker stack services $StackName 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-ColorOutput $services "White"
-    } else {
-        Write-ColorOutput "Could not retrieve services" "Red"
-    }
-    Write-ColorOutput "" "White"
-
-    Write-ColorOutput "Stack tasks:" "Yellow"
-    $tasks = docker stack ps $StackName 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-ColorOutput $tasks "White"
-    } else {
-        Write-ColorOutput "Could not retrieve tasks" "Red"
-    }
-    Write-ColorOutput "" "White"
-}
-
-# Function to show access URLs
-function Show-AccessUrls {
-    param(
-        [string]$SshServer,
-        [hashtable]$Config
-    )
-
-    # Extract IP/hostname from SSH connection string
-    $serverAddress = $SshServer -split '@' | Select-Object -Last 1
-
-    Write-ColorOutput "=== Access URLs ===" "Green"
-    Write-ColorOutput "" "White"
-
-    Write-ColorOutput "The following services should be accessible at:" "White"
-    Write-ColorOutput "  Frontend (Next.js):     http://$serverAddress`:$($Config['FRONTEND_PORT'])" "Yellow"
-    Write-ColorOutput "  Backend (Django):       http://$serverAddress`:$($Config['BACKEND_PROXY_PORT'])/api" "Yellow"
-    Write-ColorOutput "  Admin Panel:             http://$serverAddress`:$($Config['BACKEND_PROXY_PORT'])/admin" "Yellow"
-    Write-ColorOutput "  SQL Generator:          http://$serverAddress`:$($Config['SQL_GENERATOR_PORT'])" "Yellow"
-    Write-ColorOutput "  Mermaid Service:        http://$serverAddress`:$($Config['MERMAID_SERVICE_PORT'])" "Yellow"
-    Write-ColorOutput "  Qdrant Dashboard:       http://$serverAddress`:$($Config['QDRANT_PORT'])/dashboard" "Yellow"
-    Write-ColorOutput "  Web (Proxy):            http://$serverAddress`:$($Config['WEB_PORT'])" "Yellow"
-    Write-ColorOutput "" "White"
-
-    Write-ColorOutput "Useful commands:" "Yellow"
-    Write-ColorOutput "  View stack services:    docker stack services $($Config['STACK_NAME'])" "White"
-    Write-ColorOutput "  View stack tasks:       docker stack ps $($Config['STACK_NAME'])" "White"
-    Write-ColorOutput "  View service logs:      docker service logs $($Config['STACK_NAME'])_backend" "White"
-    Write-ColorOutput "  Remove stack:           docker stack rm $($Config['STACK_NAME'])" "White"
-    Write-ColorOutput "" "White"
-}
-
-# Main execution
+# Main Execution
 try {
-    # Check for help
-    if ($Help) {
-        Show-Usage
-        exit 0
-    }
+    if ($Help) { Show-Usage; exit 0 }
 
-    # Prompt for server if not provided
+    Write-ColorOutput "============================================" "Cyan"
+    Write-ColorOutput "  ThothAI Swarm Deployment" "Cyan"
+    Write-ColorOutput "============================================" "Cyan"
+
+    # 1. Prerequisites
+    if (-not (Test-Command "docker")) { Write-ColorOutput "Error: Docker not found" "Red"; exit 1 }
+
+    # 2. Remote setup
     if ([string]::IsNullOrWhiteSpace($Server)) {
-        $Server = Prompt-ForServer
+        Write-ColorOutput "Target: Local Swarm" "Cyan"
+    } else {
+        Write-ColorOutput "Target: Remote Swarm ($Server)" "Cyan"
+        $env:DOCKER_HOST = "ssh://$Server`:$Port"
+        if (Test-Path $Key) { $env:DOCKER_SSH_CLIENT_KEY = $Key }
     }
 
-    Write-ColorOutput "============================================" "Cyan"
-    Write-ColorOutput "  ThothAI - Remote Docker Swarm Deployment" "Cyan"
-    Write-ColorOutput "  Using images from Docker Hub" "Cyan"
-    Write-ColorOutput "============================================" "Cyan"
-    Write-ColorOutput "" "White"
-
-    Write-ColorOutput "Remote Server:" "Yellow"
-    Write-ColorOutput "  Server:  $Server" "White"
-    Write-ColorOutput "  Port:    $Port" "White"
-    Write-ColorOutput "  SSH Key: $Key" "White"
-    Write-ColorOutput "" "White"
-
-    # Check prerequisites
-    Write-ColorOutput "Checking prerequisites..." "Yellow"
-
-    if (-not (Test-Command "docker")) {
-        Write-ColorOutput "Error: Docker is not installed" "Red"
-        exit 1
-    }
-
-    if (-not (Test-Command "ssh")) {
-        Write-ColorOutput "Error: SSH client is not installed" "Red"
-        exit 1
-    }
-
-    Write-ColorOutput "✓ Prerequisites OK" "Green"
-    Write-ColorOutput "" "White"
-
-    # Test SSH connection
-    if (-not (Test-SSHConnection -SshServer $Server -SshPort $Port -SshKey $Key)) {
-        exit 1
-    }
-    Write-ColorOutput "" "White"
-
-    # Load and validate configuration
+    # 3. Load and validate config
     $config = Load-SwarmConfig
     $config = Test-Config -Config $config
-    Write-ColorOutput "" "White"
 
-    # Pull images from Docker Hub
-    if (-not $SkipPull) {
-        Pull-Images -Config $config
-        Write-ColorOutput "" "White"
-    } else {
-        Write-ColorOutput "Skipping image pull (using cached images)" "Yellow"
-        Write-ColorOutput "" "White"
-    }
+    # 4. Prune if requested
+    if ($Prune) { Prune-Swarm -Config $config; exit 0 }
 
-    # Prepare stack file
+    # 5. Execute deployment
+    if (-not $SkipPull) { Pull-Images -Config $config }
+    if (-not $SkipSecrets) { Manage-Secrets -Config $config }
+
+    # Ensure network exists
+    $stackName = [System.Environment]::GetEnvironmentVariable('STACK_NAME')
+    docker network create --driver overlay --attachable "${stackName}_thoth-network" 2>$null | Out-Null
+
     Prepare-StackFile -Config $config
-    Write-ColorOutput "" "White"
+    
+    Write-ColorOutput "Deploying stack $stackName..." "Yellow"
+    docker stack deploy -c docker-stack-swarm.yml $stackName
 
-    # Deploy to remote Swarm
-    Deploy-StackRemote -SshServer $Server -SshPort $Port -SshKey $Key -Config $config
-    Write-ColorOutput "" "White"
+    Wait-ForServices -StackName $stackName
 
-    # Wait for services
-    if (Wait-ForServices -StackName $config['STACK_NAME']) {
-        Write-ColorOutput "✓ Services started successfully" "Green"
-        Write-ColorOutput "" "White"
-        
-        # Show deployment status
-        Show-DeploymentStatus -StackName $config['STACK_NAME']
-        Write-ColorOutput "" "White"
-        
-        # Show access URLs
-        Show-AccessUrls -SshServer $Server -Config $config
-        
-        Write-ColorOutput "============================================" "Green"
-        Write-ColorOutput "  Remote deployment completed!" "Green"
-        Write-ColorOutput "============================================" "Green"
-        Write-ColorOutput "" "White"
-    } else {
-        Write-ColorOutput "✗ Services failed to start within timeout" "Red"
-        Write-ColorOutput "" "White"
-        
-        Write-ColorOutput "=== Deployment Status ===" "Yellow"
-        Show-DeploymentStatus -StackName $config['STACK_NAME']
-        Write-ColorOutput "" "White"
-        
-        Write-ColorOutput "To debug, check service logs:" "Yellow"
-        Write-ColorOutput "  docker service logs $($config['STACK_NAME'])_backend" "White"
-        Write-ColorOutput "  docker service logs $($config['STACK_NAME'])_proxy" "White"
-        Write-ColorOutput "  docker service logs $($config['STACK_NAME'])_frontend" "White"
-        Write-ColorOutput "" "White"
-        
-        Write-ColorOutput "To remove the failed stack:" "Yellow"
-        Write-ColorOutput "  docker stack rm $($config['STACK_NAME'])" "White"
-        Write-ColorOutput "" "White"
-        
-        exit 1
-    }
-}
-catch {
+    # 6. Show URLs
+    $hostAddr = if ([string]::IsNullOrWhiteSpace($Server)) { "localhost" } else { $Server -split '@' | Select-Object -Last 1 }
+    $webPort = [System.Environment]::GetEnvironmentVariable('WEB_PORT')
+    $frontendPort = [System.Environment]::GetEnvironmentVariable('FRONTEND_PORT')
+    $backendProxyPort = [System.Environment]::GetEnvironmentVariable('BACKEND_PROXY_PORT')
+
+    Write-Header "Deployment Complete!"
+    Write-ColorOutput "Main Access: http://$hostAddr`:$webPort" "Green"
+    Write-ColorOutput "Frontend Service: http://$hostAddr`:$frontendPort" "Green"
+    Write-ColorOutput "Backend Admin: http://$hostAddr`:$backendProxyPort/admin" "Green"
+
+    if (Test-Path "docker-stack-swarm.yml") { Remove-Item "docker-stack-swarm.yml" }
+
+} catch {
     Write-ColorOutput "Error: $($_.Exception.Message)" "Red"
-    Write-ColorOutput $_.ScriptStackTrace "Red"
     exit 1
 }

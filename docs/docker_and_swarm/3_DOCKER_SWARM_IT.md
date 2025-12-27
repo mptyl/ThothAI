@@ -8,45 +8,48 @@ Questo documento guida all'installazione di ThothAI in modalità **Swarm**, con 
 
 ## 1. Introduzione a Swarm in ThothAI
 
-Docker Swarm permette di orchestrare i container su più nodi, offrendo funzionalità di scaling, rolling updates e gestione dei secret non disponibili nel semplice Docker Compose.
+Docker Swarm permette di orchestrare i container su più nodi, offrendo funzionalità di scaling, rolling updates e gestione dei segreti. 
+
+**Nota sulle Immagini**: ThothAI Swarm utilizza esclusivamente immagini pre-compilate. Per i dettagli tecnici sulle immagini e su cosa contengono, consulta la [Guida all'Architettura delle Immagini](./5_DOCKER_BUILD_IMAGES.md).
 
 In ThothAI utilizziamo:
-*   **docker-stack.yml**: La definizione dello stack di servizi (simile al compose ma specifico per Swarm).
-*   **install-swarm-local.sh/ps1**: Script per deployment locale.
-*   **manage-swarm.sh/ps1**: Script per gestione di uno stack già esistente (aggiornamento, rollback, backup, ecc.).
+*   **docker-stack.yml**: La definizione dello stack di servizi.
+*   **install-swarm-local.sh**: Script per deployment locale.
+*   **install-swarm.sh**: Script per deployment remoto via SSH.
 
 ---
 
-## 2. Due Percorsi di Deployment
+## 2. Percorsi di Deployment
 
-ThothAI offre due percorsi distinti per il deployment su Swarm:
+ThothAI offre due percorsi distinti, entrambi basati su immagini ufficiali senza necessità di build locale:
 
 ### 2.1 Deployment Locale
-
-**Script**: [`install-swarm-local.sh`](../../install-swarm-local.sh) (Linux/macOS) o [`install-swarm-local.ps1`](../../install-swarm-local.ps1) (Windows)
-
-**Caratteristiche**:
-- Deployment sulla macchina locale
-- Immagini prelevate da Docker Hub
-- Nessuna build locale richiesta
-- Ideale per sviluppo e test
-
-**Per maggiori dettagli** (per sviluppatori), consulta: [`../developer/DOCKER_SWARM_LOCAL_BUILD_IT.md`](../developer/DOCKER_SWARM_LOCAL_BUILD_IT.md)
+Utilizza [`install-swarm-local.sh`](../../install-swarm-local.sh). Ideale per testare l'orchestrazione sulla propria macchina.
 
 ### 2.2 Deployment Remoto
-
-**Script**: [`install-swarm.sh`](../../install-swarm.sh) (Linux/macOS) o [`install-swarm.ps1`](../../install-swarm.ps1) (Windows)
-
-**Caratteristiche**:
-- Deployment su server remoto via SSH
-- Gestione automatica della connessione SSH
-- Immagini prelevate da Docker Hub
-- Nessuna build locale richiesta
-- Ideale per produzione
+Utilizza [`install-swarm.sh`](../../install-swarm.sh). Gestisce la connessione SSH e il deploy su un server dedicato.
 
 ---
 
-## 3. Sezione A: Deployment Locale
+## 3. Il Processo di Installazione e Avvio
+
+Indipendentemente dal percorso scelto (locale o remoto), il processo segue queste fasi critiche di configurazione a **runtime**:
+
+### 3.1 Configurazione dell'Ambiente
+1.  **Caricamento**: Lo script legge `swarm_config.env` per le impostazioni dell'infrastruttura (porte, nomi stack).
+2.  **Generazione**: Viene eseguito `installer.py` che trasforma `config.yml.local` nel file `.env.docker` finale.
+3.  **Segreti**: I file di configurazione e l'ambiente vengono caricati come **Docker Secrets** e **Configs**, rendendoli disponibili a tutti i nodi del cluster in modo sicuro.
+
+### 3.2 Bootstrap dei Dati (First Run)
+Al primo avvio dello stack in un ambiente pulito, avvengono i seguenti passaggi automatici:
+
+1.  **Popolamento Shared Data**: Il servizio backend rileva se il volume `thoth-shared-data` è vuoto e vi copia i database demo (es. `california_schools`) estratti dall'immagine stessa.
+2.  **Inizializzazione Database**: Vengono eseguite le migrazioni e, se non vengono trovati workspace esistenti, viene creato l'utente `demo` e importata la struttura di default.
+3.  **Analisi AI Automatica**: Se sono presenti le chiavi LLM, il sistema genera automaticamente la documentazione tecnica e lo scope del database, creando gli "artefatti" che l'utente troverà pronti nel pannello di controllo.
+
+---
+
+## 4. Sezione A: Deployment Locale
 
 Questa modalità è utile allo **Sviluppatore** per testare come l'applicazione si comporta in un cluster locale, o all'**Utilizzatore** che vuole sfruttare le feature di Swarm sulla propria macchina.
 
@@ -106,7 +109,7 @@ Dopo il deployment, i servizi saranno accessibili su:
 
 ---
 
-## 4. Sezione B: Deployment Remoto
+## 5. Sezione B: Deployment Remoto
 
 Questa è la modalità standard per il **Deployment di Produzione** su un server VPS o Bare Metal.
 
@@ -218,37 +221,14 @@ Se sei l'amministratore del server e vuoi solo aggiornare o gestire lo stack gi�
 
 ---
 
-## 5. Monitoraggio e Gestione
+## 6. Monitoraggio e Gestione
 
-Una volta deployato su Swarm (locale o remoto):
-
-*   **Vedere i servizi attivi**: `docker stack services thoth`
-*   **Logs**: `docker service logs -f thoth_backend`
-*   **Visualizzare i task**: `docker stack ps thoth`
-*   **Visualizzare i nodi**: `docker node ls`
-
-### 5.1 Comuni per Entrambi i Percorsi
-
-```bash
-# Visualizza i servizi
-docker stack services thoth
-
-# Visualizza i task
-docker stack ps thoth
-
-# Visualizza i logs di un servizio
-docker service logs thoth_backend --tail 100
-
-# Visualizza i logs in tempo reale
-docker service logs -f thoth_backend
-
-# Rimuovi lo stack
-docker stack rm thoth
-```
+Per la gestione avanzata dello stack, dei volumi e per le operazioni di backup/restore o caricamento di nuovi database, consulta la guida dedicata:
+👉 **[6_DOCKER_MANAGEMENT.md](./6_DOCKER_MANAGEMENT.md)**
 
 ---
 
-## 6. Pulizia
+## 7. Pulizia
 
 Per rimuovere lo stack:
 
@@ -277,7 +257,7 @@ docker volume rm frontend-cache
 
 ---
 
-## 7. Approfondimento Tecnico: Porte e Volumi
+## 8. Approfondimento Tecnico: Porte e Volumi
 
 ### 7.1 Rimappatura delle Porte
 
@@ -331,7 +311,7 @@ I servizi stateful (Backend, DB, Qdrant) hanno un vincolo di piazzamento (`node.
 
 ---
 
-## 8. Workflow Completo Cross-Platform
+## 9. Workflow Completo Cross-Platform
 
 Dal momento che lo sviluppo avviene su **macOS** (environment Unix-like) e il deploy può avvenire su **Linux** o **Windows** (se supporta Docker Swarm Mode), ecco il riepilogo dei comandi con il contesto esplicito.
 
@@ -371,7 +351,7 @@ Verificare che le porte siano aperte come da configurazione scelta.
 
 ---
 
-## 9. Confronto dei Percorsi
+## 10. Confronto dei Percorsi
 
 | Caratteristica | Locale | Remoto |
 |---------------|---------|--------|
@@ -386,7 +366,7 @@ Verificare che le porte siano aperte come da configurazione scelta.
 
 ---
 
-## 10. Troubleshooting Comune
+## 11. Troubleshooting Comune
 
 ### 10.1 Problema: Connessione SSH Fallita
 
@@ -428,7 +408,7 @@ docker swarm init
 
 ---
 
-## 11. Riferimenti
+## 12. Riferimenti
 
 - **Deployment Locale** (per sviluppatori): [`../developer/DOCKER_SWARM_LOCAL_BUILD_IT.md`](../developer/DOCKER_SWARM_LOCAL_BUILD_IT.md)
 - **Gestione Stack** (aggiornamento/rollback): [`../developer/MANAGE_SWARM_IT.md`](../developer/MANAGE_SWARM_IT.md)

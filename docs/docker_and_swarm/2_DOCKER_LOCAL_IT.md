@@ -20,7 +20,7 @@ Indipendentemente dal ruolo, il tuo sistema deve avere:
 
 ## 3. Punto di Vista dell'Utilizzatore (Consumer)
 
-L'utilizzatore finale ha l'obiettivo di avviare l'applicazione il più velocemente possibile, utilizzando immagini stabili o costruendole automaticamente tramite gli script forniti.
+L'utilizzatore finale ha l'obiettivo di avviare l'applicazione utilizzando le immagini ufficiali. Per informazioni su come sono costruite le immagini e cosa contengono, consulta la [Guida all'Architettura delle Immagini](./5_DOCKER_BUILD_IMAGES.md).
 
 ### 3.1 Setup Iniziale
 
@@ -31,16 +31,15 @@ L'utilizzatore finale ha l'obiettivo di avviare l'applicazione il più velocemen
     ```
 
 2.  **Configurazione**:
-    Copia il file di template e configuraslo.
+    Copia il file di template e configuralo.
     ```bash
     cp config.yml config.yml.local
     ```
     Modifica `config.yml.local` inserendo le tue API Key (OpenAI, Anthropic, Gemini) e le preferenze per il database vettoriale.
-    > **Nota**: `config.yml.local` è il tuo file personale e non verrà tracciato da Git.
 
 ### 3.2 Installazione e Avvio
 
-ThothAI fornisce uno script `install.sh` (interattivo) che gestisce tutto il processo.
+ThothAI fornisce uno script `install.sh` che gestisce tutto il processo di configurazione a **runtime**.
 
 *   **Linux/macOS**:
     ```bash
@@ -51,83 +50,40 @@ ThothAI fornisce uno script `install.sh` (interattivo) che gestisce tutto il pro
     .\install.ps1
     ```
 
-Lo script eseguirà:
-1.  **Stop dei servizi locali**: Arresta eventuali servizi di sviluppo (`docker-compose-local.yml`) per evitare conflitti di porta.
-2.  **Validazione Configurazione**: Controlla la presenza di `config.yml.local`.
-3.  **Scelta Build/Pull**: Ti chiederà se vuoi scaricare le immagini da Docker Hub (default) o costruirle localmente (utile se hai modificato il codice ma vuoi testare in full-docker).
-4.  **Setup Ambiente**: Genera `.env.docker` e crea i volumi necessari (es. `thoth-secrets`).
-5.  **Avvio**: Lancia lo stack con `docker compose up -d` (usando `docker-compose-hub.yml` o `docker-compose.yml` a seconda della scelta).
+Lo script eseguirà le seguenti azioni di configurazione e preparazione:
+1.  **Validazione**: Controlla la presenza di `config.yml.local`.
+2.  **Generazione Ambiente**: Esegue `installer.py` per generare il file `.env.docker` partendo da `config.yml.local`. Questo file contiene tutte le variabili che istruiranno i container a runtime (es. porte, database abilitati via `ENABLED_DATABASES`, etc.).
+3.  **Setup Volumi**: Crea i volumi Docker persistenti e i segreti necessari.
+4.  **Avvio**: Lancia lo stack con `docker compose up -d` utilizzando le immagini pre-build.
 
-> **Nota per Sviluppatori (Hybrid Mode)**: Se vuoi sviluppare con codice nativo su host (hot-reload) e servizi di supporto su Docker, NON usare `install.sh`. Usa invece `start-all.sh`. Vedi la guida [LOCAL_INSTALLATION_DEV_IT](../thothai_install/LOCAL_INSTALLATION_DEV_IT.md).
+### 3.3 Cosa succede al primo avvio?
 
-### 3.3 Accesso all'Applicazione
+Al primo avvio dei container, vengono eseguiti automaticamente degli script di bootstrap:
 
-Una volta terminato lo script, i servizi sono attivi su:
-
-| Servizio | URL | Descrizione |
-|----------|-----|-------------|
-| **Frontend** | `http://localhost:3040` | L'interfaccia principale dell'applicazione. |
-| **Backend API** | `http://localhost:8040` | API Rest accessibili tramite Proxy. |
-| **Admin Panel** | `http://localhost:8040/admin` | Pannello di amministrazione Django. |
-| **Qdrant** | `http://localhost:6333/dashboard` | Dashboard del DB vettoriale. |
+- **Inizializzazione Dati (`init-shared-data.sh`)**: Se i volumi sono nuovi, i database demo inclusi nell'immagine vengono copiati nel volume persistente `thoth-shared-data`.
+- **Inizializzazione Applicazione (`start.sh`)**: Il backend rileva l'assenza di dati precedenti e:
+    - Crea gli utenti `admin` e `demo` con le password definite in `config.yml.local`.
+    - Inizializza il workspace demo.
+    - Se le API Key sono presenti, avvia l'analisi AI (scope, documentazione) e il caricamento nel DB Vettoriale.
 
 ---
 
 ## 4. Punto di Vista dello Sviluppatore (Producer)
 
-Lo sviluppatore deve poter modificare il codice, testare le modifiche rapidamente e preparare le immagini per la distribuzione (Docker Hub).
+Lo sviluppatore deve poter gestire il ciclo di vita dei container e i dati ad essi associati. Per i dettagli tecnici sulla build delle immagini, fare riferimento al documento [5_DOCKER_BUILD_IMAGES.md](./5_DOCKER_BUILD_IMAGES.md).
 
-### 4.1 Workflow di Sviluppo Locale con Docker
+### 4.1 Workflow di Sviluppo e Gestione Dati
 
-Se stai sviluppando una nuova feature e vuoi testarla in un ambiente containerizzato simile alla produzione:
-
-1.  **Applica le modifiche** al codice in `backend/` o `frontend/`.
-2.  **Ricostruisci i container** interessati. Non è necessario reinstallare tutto da zero.
-    ```bash
-    # Ricostruisce e riavvia solo il backend
-    docker compose up -d --build backend
-    
-    # Ricostruisce e riavvia solo il frontend
-    docker compose up -d --build frontend
-    ```
-3.  **Logs**: Monitora i log per debuggare.
-    ```bash
-    docker compose logs -f backend
-    ```
+Per gestire container, volumi e scambio dati, fare riferimento alla guida [6_DOCKER_MANAGEMENT.md](./6_DOCKER_MANAGEMENT.md).
 
 ### 4.2 Pulizia e Reset
 
-Durante lo sviluppo potresti aver bisogno di pulire l'ambiente:
-
-*   **Pulizia Cache Build**:
-    ```bash
-    ./install.sh --clean-cache
-    ```
-*   **Reset Completo** (Rimuove volumi, immagini e container Thoth):
+In caso di necessità di reset completo:
+*   **Reset Completo** (Rimuove volumi e container):
     ```bash
     ./install.sh --prune-all
     ```
-    *Attenzione: Questo cancella anche i dati nel DB locale.*
-
-### 4.3 Pubblicazione su Docker Hub
-
-Quando una feature è stabile e vuoi distribuirla (es. per il deploy su Swarm), devi creare le immagini e pusharle sul Registry.
-
-Prerequisiti:
-*   Account su Docker Hub.
-*   Login effettuato: `docker login`.
-
-Procedura:
-1.  Verifica che il file `swarm_config.env` abbia il tuo `DOCKER_USERNAME` corretto.
-2.  Usa lo script di deploy che include la fase di push (oppure pusha manualmente).
-    *Vedi `DOCKER_SWARM.md` per i dettagli sul push e deploy remoto.*
-
-Se vuoi pushare manualmente le immagini locali taggate:
-```bash
-# Esempio manuale
-docker tag thoth-backend:latest tuo-user/thoth-backend:latest
-docker push tuo-user/thoth-backend:latest
-```
+    *Attenzione: Questo cancella tutti i dati salvati nei volumi persistenti.*
 
 ---
 

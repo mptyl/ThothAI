@@ -24,13 +24,14 @@ import toml
 import json
 
 class ThothInstaller:
-    def __init__(self, config_path: str = "config.yml.local", no_cache: bool = False):
+    def __init__(self, config_path: str = "config.yml.local", no_cache: bool = False, build_locally: bool = False):
         self.base_dir = Path.cwd()
         self.config_path = Path(config_path)
         self.config = None
         self.errors = []
         self.password_file = self.base_dir / '.admin_password.hash'
         self.no_cache = no_cache
+        self.build_locally = build_locally
         
     def run(self) -> bool:
         """Main installation pipeline"""
@@ -454,39 +455,136 @@ class ThothInstaller:
         return True
     
     def docker_compose_up(self) -> bool:
-        """Build and start Docker containers"""
-        print("\nBuilding and starting Docker containers...")
-        print("This may take several minutes on first run...\n")
+        """Prepare images and start Docker containers"""
+        print("\nPreparing Docker images...")
         
-        compose_file = self.config.get('docker', {}).get('compose_file', 'docker-compose.yml')
-        
-        # Check if docker-compose file exists
-        if not Path(compose_file).exists():
-            print(f"Error: {compose_file} not found")
-            return False
-        
-        # Build with cache option
-        build_args = ['docker', 'compose', '-f', compose_file, 'build']
-        # Use --no-cache if explicitly requested via CLI or if config says no cache
-        if self.no_cache or not self.config.get('docker', {}).get('build_cache', True):
-            build_args.append('--no-cache')
-        
-        print("Building Docker images...")
-        result = subprocess.run(build_args)
-        if result.returncode != 0:
-            print("Error: Docker build failed")
-            return False
-        
+        # Determine which compose file to use and if we should pull
+        if self.build_locally:
+            compose_file = self.config.get('docker', {}).get('compose_file', 'docker-compose.yml')
+            print(f"Local build requested. Using {compose_file}")
+            
+            # Build with cache option
+            build_args = ['docker', 'compose', '-f', compose_file, 'build']
+            if self.no_cache or not self.config.get('docker', {}).get('build_cache', True):
+                build_args.append('--no-cache')
+            
+            print("Building Docker images...")
+            result = subprocess.run(build_args)
+            if result.returncode != 0:
+                print("Error: Docker build failed")
+                return False
+        else:
+            # Default behavior: pull from hub
+            hub_compose = 'docker-compose-hub.yml'
+            if not Path(hub_compose).exists():
+                print(f"Error: {hub_compose} not found. Cannot pull images.")
+                return False
+                
+            print(f"Attempting to pull images from Docker Hub using {hub_compose}...")
+            # We need DOCKER_USERNAME for the hub compose file
+            docker_username = self.config.get('docker', {}).get('username', 'tylconsulting')
+            env = os.environ.copy()
+            env['DOCKER_USERNAME'] = docker_username
+            
+            result = subprocess.run(['docker', 'compose', '-f', hub_compose, 'pull'], env=env)
+            if result.returncode != 0:
+                print("\n" + "!" * 60)
+                print("  ERROR: Failed to pull images from Docker Hub.")
+                print("  Please check your internet connection or Docker login.")
+                print("  To build images locally instead, use the --build flag.")
+                print("!" * 60 + "\n")
+                return False
+            
+            print("✓ Images pulled successfully")
+            compose_file = hub_compose
+
         # Start containers
-        print("Starting containers...")
+        print(f"\nStarting containers using {compose_file}...")
+        env = os.environ.copy()
+        env['DOCKER_USERNAME'] = self.config.get('docker', {}).get('username', 'tylconsulting')
+        
         result = subprocess.run(
-            ['docker', 'compose', '-f', compose_file, 'up', '-d']
+            ['docker', 'compose', '-f', compose_file, 'up', '-d'],
+            env=env
         )
         if result.returncode != 0:
             print("Error: Failed to start containers")
             return False
         
         print("All services started successfully")
+        return True
+    
+    def clean_cache(self) -> bool:
+        """Clean Docker build cache"""
+        print("\nCleaning Docker build cache...")
+        result = subprocess.run(['docker', 'builder', 'prune', '-a', '-f'])
+        if result.returncode == 0:
+            print("✓ Docker build cache cleaned")
+            return True
+        print("Error: Failed to clean Docker build cache")
+        return False
+
+    def prune_resources(self, force: bool = False) -> bool:
+        """Remove all ThothAI resources"""
+        if not force:
+            print("\n" + "!" * 60)
+            print("  WARNING: This will remove all ThothAI containers, images, volumes, and networks!")
+            confirm = input("  Are you sure you want to continue? (y/N): ").strip().lower()
+            if confirm not in ['y', 'yes']:
+                print("  Aborted.")
+                return True
+        
+        print("\nPruning ThothAI resources...")
+        
+        # 1. Stop and remove containers
+        print("Stopping and removing containers...")
+        container_filter = 'name=thoth-'
+        result = subprocess.run(['docker', 'ps', '-a', '--filter', container_filter, '--format', '{{.ID}}'], capture_output=True, text=True)
+        containers = result.stdout.strip().split('\n')
+        if containers and containers[0]:
+            subprocess.run(['docker', 'rm', '-f'] + containers)
+            print(f"✓ Removed {len(containers)} containers")
+        else:
+            print("No matching containers found.")
+
+        # 2. Remove volumes
+        print("Removing volumes...")
+        volume_filter = 'name=thoth-'
+        result = subprocess.run(['docker', 'volume', 'ls', '-q', '--filter', volume_filter], capture_output=True, text=True)
+        volumes = result.stdout.strip().split('\n')
+        if volumes and volumes[0]:
+            subprocess.run(['docker', 'volume', 'rm'] + volumes)
+            print(f"✓ Removed {len(volumes)} volumes")
+        else:
+            print("No matching volumes found.")
+
+        # 3. Remove networks
+        print("Removing networks...")
+        network_filter = 'name=thoth-'
+        result = subprocess.run(['docker', 'network', 'ls', '-q', '--filter', network_filter], capture_output=True, text=True)
+        networks = result.stdout.strip().split('\n')
+        # Filter out built-in networks if they somehow match
+        networks = [n for n in networks if n]
+        if networks:
+            subprocess.run(['docker', 'network', 'rm'] + networks)
+            print(f"✓ Removed {len(networks)} networks")
+        else:
+            print("No matching networks found.")
+
+        # 4. Remove images
+        print("Removing images...")
+        # Get all images and filter manually for better pattern matching
+        result = subprocess.run(['docker', 'images', '--format', '{{.Repository}}:{{.Tag}}'], capture_output=True, text=True)
+        all_images = result.stdout.strip().split('\n')
+        thoth_images = [img for img in all_images if img.startswith('thoth-') or img.startswith('tylconsulting/thoth-')]
+        
+        if thoth_images:
+            subprocess.run(['docker', 'rmi', '-f'] + thoth_images)
+            print(f"✓ Removed {len(thoth_images)} images")
+        else:
+            print("No matching images found.")
+
+        print("\n✓ Prune completed.")
         return True
     
     def wait_for_backend(self) -> bool:
@@ -657,6 +755,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Thoth AI Installer')
     parser.add_argument('--no-cache', action='store_true',
                         help='Build Docker images without cache')
+    parser.add_argument('--build', action='store_true',
+                        help='Build images locally instead of pulling from Docker Hub')
+    parser.add_argument('--pull', action='store_true',
+                        help='Pull images from Docker Hub (default)')
+    parser.add_argument('--prune', action='store_true',
+                        help='Remove all ThothAI resources (containers, volumes, images, networks)')
+    parser.add_argument('--clean-cache', action='store_true',
+                        help='Clean Docker build cache')
+    parser.add_argument('--force', action='store_true',
+                        help='Skip confirmation for prune')
     parser.add_argument('--generate-env-only', action='store_true',
                         help='Generate .env.docker and exit (no Docker actions)')
     parser.add_argument('--config', default='config.yml.local',
@@ -664,12 +772,27 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Create installer with parsed arguments
-    installer = ThothInstaller(config_path=args.config, no_cache=args.no_cache)
+    installer = ThothInstaller(
+        config_path=args.config, 
+        no_cache=args.no_cache,
+        build_locally=args.build
+    )
 
     if args.generate_env_only:
         if not installer.load_config():
             sys.exit(1)
         if not installer.generate_env_docker():
+            sys.exit(1)
+        sys.exit(0)
+
+    if args.clean_cache:
+        if not installer.clean_cache():
+            sys.exit(1)
+        if not args.prune: # If only clean-cache, exit here
+            sys.exit(0)
+
+    if args.prune:
+        if not installer.prune_resources(force=args.force):
             sys.exit(1)
         sys.exit(0)
 
