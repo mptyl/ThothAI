@@ -1,4 +1,4 @@
-# thoth-data-cli - Developer Manual
+# thothai-data-cli - Developer Manual
 
 ## Table of Contents
 
@@ -29,13 +29,13 @@
 cd /path/to/ThothAI
 
 # Navigate to CLI package
-cd cli/thoth-data-cli
+cd cli/thothai-data-cli
 
 # Install dependencies with uv
 uv sync
 
 # Verify installation
-uv run thoth-data --help
+uv run thothai-data --help
 ```
 
 ---
@@ -55,7 +55,7 @@ This starts ThothAI in Docker Compose mode with:
 - Backend on port 8040
 - Frontend on port 3040
 - SQL Generator on port 8020
-- Volumes: `thoth-data-exchange`, `thoth-shared-data`
+- Volumes: `thothai-data-exchange`, `thoth-shared-data`
 
 ### Option 2: Docker Swarm (Production-like)
 
@@ -74,13 +74,13 @@ This deploys ThothAI as a Docker Stack with:
 ## Project Structure
 
 ```
-cli/thoth-data-cli/
+cli/thothai-data-cli/
 ├── pyproject.toml          # Package configuration
 ├── README.md               # Package readme
 ├── LICENSE.md              # Apache 2.0 license
 ├── uv.lock                 # Dependency lock file
 ├── src/
-│   └── thoth_data_cli/
+│   └── thothai_data_cli/
 │       ├── __init__.py     # Package metadata
 │       ├── cli.py          # Click commands
 │       ├── config.py       # YAML config management
@@ -98,24 +98,24 @@ cli/thoth-data-cli/
 ### Build with uv
 
 ```bash
-cd cli/thoth-data-cli
+cd cli/thothai-data-cli
 
 # Build distribution packages
 uv build
 ```
 
 This creates:
-- `dist/thoth_data_cli-1.0.0.tar.gz` (source distribution)
-- `dist/thoth_data_cli-1.0.0-py3-none-any.whl` (wheel)
+- `dist/thothai_data_cli-1.0.0.tar.gz` (source distribution)
+- `dist/thothai_data_cli-1.0.0-py3-none-any.whl` (wheel)
 
 ### Verify Build
 
 ```bash
 # List contents
-tar -tzf dist/thoth_data_cli-1.0.0.tar.gz
+tar -tzf dist/thothai_data_cli-1.0.0.tar.gz
 
 # Install locally to test
-uv pip install dist/thoth_data_cli-1.0.0-py3-none-any.whl
+uv pip install dist/thothai_data_cli-1.0.0-py3-none-any.whl
 ```
 
 ---
@@ -127,12 +127,12 @@ uv pip install dist/thoth_data_cli-1.0.0-py3-none-any.whl
 Run CLI directly from source:
 
 ```bash
-cd cli/thoth-data-cli
+cd cli/thothai-data-cli
 
 # Run CLI commands
-uv run thoth-data csv list
-uv run thoth-data config show
-uv run thoth-data config test
+uv run thothai-data csv list
+uv run thothai-data config show
+uv run thothai-data config test
 ```
 
 ### Install from Wheel
@@ -144,11 +144,11 @@ uv venv
 source .venv/bin/activate
 
 # Install from local wheel
-uv pip install /path/to/ThothAI/cli/thoth-data-cli/dist/thoth_data_cli-1.0.0-py3-none-any.whl
+uv pip install /path/to/ThothAI/cli/thothai-data-cli/dist/thothai_data_cli-1.0.0-py3-none-any.whl
 
 # Test
-thoth-data --help
-thoth-data csv list
+thothai-data --help
+thothai-data csv list
 ```
 
 ---
@@ -164,7 +164,7 @@ thoth-data csv list
 ### Publish to TestPyPI (Recommended First)
 
 ```bash
-cd cli/thoth-data-cli
+cd cli/thothai-data-cli
 
 # Build
 uv build
@@ -173,13 +173,13 @@ uv build
 uv publish --repository testpypi
 
 # Test installation from TestPyPI
-uv pip install --index-url https://test.pypi.org/simple/ thoth-data-cli
+uv pip install --index-url https://test.pypi.org/simple/ thothai-data-cli
 ```
 
 ### Publish to PyPI (Production)
 
 ```bash
-cd cli/thoth-data-cli
+cd cli/thothai-data-cli
 
 # Ensure clean build
 rm -rf dist/
@@ -189,8 +189,8 @@ uv build
 uv publish
 
 # Verify
-uv pip install thoth-data-cli
-thoth-data --version
+uv pip install thothai-data-cli
+thothai-data --version
 ```
 
 ### PyPI Credentials
@@ -216,7 +216,7 @@ Store credentials in `~/.pypirc`:
 1. **Edit `pyproject.toml`**:
    ```toml
    [project]
-   name = "thoth-data-cli"
+   name = "thothai-data-cli"
    version = "1.1.0"  # Update here
    ```
 
@@ -247,7 +247,7 @@ Follow semver (https://semver.org/):
 
 ### Adding New Commands
 
-1. **Edit `src/thoth_data_cli/cli.py`**:
+1. **Edit `src/thothai_data_cli/cli.py`**:
    ```python
    @main.command()
    def new_command():
@@ -259,7 +259,7 @@ Follow semver (https://semver.org/):
 
 3. **Test**:
    ```bash
-   uv run thoth-data new-command
+   uv run thothai-data new-command
    ```
 
 4. **Document** in `USER_MANUAL.md`
@@ -267,7 +267,7 @@ Follow semver (https://semver.org/):
 ### Adding Dependencies
 
 ```bash
-cd cli/thoth-data-cli
+cd cli/thothai-data-cli
 
 # Add dependency
 uv add requests
@@ -305,7 +305,7 @@ uv build
 **Solution**: Check package structure
 ```bash
 # Verify wheel contents
-unzip -l dist/thoth_data_cli-1.0.0-py3-none-any.whl
+unzip -l dist/thothai_data_cli-1.0.0-py3-none-any.whl
 ```
 
 ### uv publish fails
@@ -321,7 +321,7 @@ Before publishing a new version:
 - [ ] Update version in `pyproject.toml` and `__init__.py`
 - [ ] Update `README.md` if needed
 - [ ] Update documentation in `docs/`
-- [ ] Test locally with `uv run thoth-data`
+- [ ] Test locally with `uv run thothai-data`
 - [ ] Test installation from wheel
 - [ ] Clean build: `rm -rf dist/ && uv build`
 - [ ] Publish to TestPyPI first

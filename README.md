@@ -16,9 +16,41 @@ Full documentation is available at: [https://thoth-ai.readthedocs.io](https://th
 
 ## 🚀 Quick Start
 
-### Docker Installation (Recommended)
+### ⚡ Lightning Quick Start (Recommended - No Repository Clone)
 
-For the complete step-by-step guide, see: [Docker Installation Guide](docs/DOCKER_INSTALLATION.md). On Windows, refer also to [Windows Installation (WSL-based)](docs/WINDOWS_INSTALLATION.md).
+Install and run ThothAI in minutes without cloning the repository:
+
+```bash
+# 1. Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Create project directory
+mkdir my-thothai && cd my-thothai
+uv venv && source .venv/bin/activate
+
+# 3. Install thothai-cli
+uv pip install thothai-cli
+
+# 4. Initialize project
+uv run thothai init
+
+# 5. Configure (edit config.yml.local with your API keys)
+nano config.yml.local
+
+# 6. Deploy
+uv run thothai up
+
+# 7. Access the application
+# http://localhost:8040
+```
+
+📖 **Full Guide**: [docs/thothai_install/LIGHTWEIGHT_INSTALLATION.md](docs/thothai_install/LIGHTWEIGHT_INSTALLATION.md)
+
+---
+
+### 🐳 Docker Installation (For Developers)
+
+For development or customization, clone the repository:
 
 ```bash
 # 1. Clone the repository

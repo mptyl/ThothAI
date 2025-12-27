@@ -1,4 +1,4 @@
-# thoth-data-cli - Testing Guide
+# thothai-data-cli - Testing Guide
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@
 
 ## Overview
 
-This guide provides comprehensive testing procedures for `thoth-data-cli` in different deployment scenarios:
+This guide provides comprehensive testing procedures for `thothai-data-cli` in different deployment scenarios:
 
 1. **Local Docker Compose** - Development environment
 2. **Local Docker Swarm** - Production-like local testing
@@ -35,13 +35,13 @@ This guide provides comprehensive testing procedures for `thoth-data-cli` in dif
 
 ```bash
 # Option 1: Install from local wheel
-cd cli/thoth-data-cli
+cd cli/thothai-data-cli
 uv build
-uv pip install dist/thoth_data_cli-1.0.0-py3-none-any.whl
+uv pip install dist/thothai_data_cli-1.0.0-py3-none-any.whl
 
 # Option 2: Run from source
 uv sync
-alias thoth-data="uv run thoth-data"
+alias thothai-data="uv run thothai-data"
 ```
 
 ---
@@ -64,7 +64,7 @@ Wait for services to start (check with `docker ps`).
 Run first command to create config:
 
 ```bash
-thoth-data csv list
+thothai-data csv list
 ```
 
 Configuration prompts:
@@ -72,7 +72,7 @@ Configuration prompts:
 - Docker mode: `compose`
 - Stack/project name: `thothai` (or check with `docker ps` for actual prefix)
 
-Alternatively, manually create `~/.thoth-data.yml`:
+Alternatively, manually create `~/.thothai-data.yml`:
 
 ```yaml
 docker:
@@ -92,7 +92,7 @@ paths:
 #### Connection Test
 
 ```bash
-thoth-data config test
+thothai-data config test
 ```
 
 Expected output:
@@ -111,16 +111,16 @@ echo "id,name,value" > test_data.csv
 echo "1,Test,100" >> test_data.csv
 
 # Upload
-thoth-data csv upload test_data.csv
+thothai-data csv upload test_data.csv
 # Expected: ✓ Uploaded: test_data.csv
 
 # List
-thoth-data csv list
+thothai-data csv list
 # Expected: Shows test_data.csv in listing
 
 # Download
 mkdir downloads
-thoth-data csv download test_data.csv -o downloads/
+thothai-data csv download test_data.csv -o downloads/
 # Expected: ✓ Downloaded to: downloads/test_data.csv
 
 # Verify download
@@ -128,11 +128,11 @@ diff test_data.csv downloads/test_data.csv
 # Expected: No output (files identical)
 
 # Delete
-thoth-data csv delete test_data.csv
+thothai-data csv delete test_data.csv
 # Expected: ✓ Deleted: test_data.csv
 
 # Verify deletion
-thoth-data csv list
+thothai-data csv list
 # Expected: test_data.csv no longer listed
 ```
 
@@ -146,20 +146,20 @@ INSERT INTO users VALUES (1, 'Test User');
 EOF
 
 # Insert
-thoth-data db insert test_db.sqlite
+thothai-data db insert test_db.sqlite
 # Expected: ✓ Database inserted: test_db
 #           Location: /app/data/test_db/test_db.sqlite
 
 # List
-thoth-data db list
+thothai-data db list
 # Expected: Shows test_db directory
 
 # Remove
-thoth-data db remove test_db
+thothai-data db remove test_db
 # Expected: ✓ Database removed: test_db
 
 # Verify removal
-thoth-data db list
+thothai-data db list
 # Expected: test_db no longer listed
 ```
 
@@ -187,7 +187,7 @@ docker stack ps thothai-swarm
 
 ### Configure CLI
 
-Create/edit `~/.thoth-data.yml`:
+Create/edit `~/.thothai-data.yml`:
 
 ```yaml
 docker:
@@ -208,15 +208,15 @@ Run same test commands as Scenario 1:
 
 ```bash
 # Connection test
-thoth-data config test
+thothai-data config test
 # Expected: Shows thothai-swarm_backend.1.xxx containers
 
 # CSV tests
-thoth-data csv list
+thothai-data csv list
 # ... (same as Scenario 1)
 
 # Database tests
-thoth-data db list
+thothai-data db list
 # ... (same as Scenario 1)
 ```
 
@@ -231,7 +231,7 @@ docker ps --filter "name=thothai-swarm_backend"
 docker service scale thothai-swarm_backend=2
 
 # CLI should still work (connects to any replica)
-thoth-data csv list
+thothai-data csv list
 ```
 
 ---
@@ -247,7 +247,7 @@ Requirements:
 
 ### Configure CLI
 
-Create/edit `~/.thoth-data.yml`:
+Create/edit `~/.thothai-data.yml`:
 
 ```yaml
 docker:
@@ -275,7 +275,7 @@ paths:
 ssh user@production.example.com docker ps
 
 # Test CLI connection
-thoth-data config test
+thothai-data config test
 ```
 
 Expected output:
@@ -296,15 +296,15 @@ Run same test commands as previous scenarios. Note:
 
 ```bash
 # CSV tests
-thoth-data csv upload test_data.csv
-thoth-data csv list
-thoth-data csv download test_data.csv -o ./
-thoth-data csv delete test_data.csv
+thothai-data csv upload test_data.csv
+thothai-data csv list
+thothai-data csv download test_data.csv -o ./
+thothai-data csv delete test_data.csv
 
 # Database tests
-thoth-data db insert test_db.sqlite
-thoth-data db list
-thoth-data db remove test_db
+thothai-data db insert test_db.sqlite
+thothai-data db list
+thothai-data db remove test_db
 ```
 
 ---
@@ -363,7 +363,7 @@ docker stack ps thothai-swarm
 # Check stack_name in config matches deployment
 ```
 
-**Solution**: Update `stack_name` in `~/.thoth-data.yml`.
+**Solution**: Update `stack_name` in `~/.thothai-data.yml`.
 
 ### Permission denied on SSH
 
@@ -406,7 +406,7 @@ ssh -vvv -i ~/.ssh/key user@host
 **Solution**:
 - Check key file permissions: `chmod 600 ~/.ssh/key`
 - Verify key is added: `ssh-add ~/.ssh/key`
-- Check config path: `key_file` in `~/.thoth-data.yml`
+- Check config path: `key_file` in `~/.thothai-data.yml`
 
 ---
 
@@ -432,7 +432,7 @@ Create `test-all.sh`:
 
 ```bash
 #!/bin/bash
-# Automated test script for thoth-data-cli
+# Automated test script for thothai-data-cli
 
 set -e
 
@@ -440,20 +440,20 @@ echo "=== Testing CSV Operations ==="
 echo "id,name" > test.csv
 echo "1,Test" >> test.csv
 
-thoth-data csv upload test.csv
-thoth-data csv list | grep test.csv
-thoth-data csv download test.csv -o ./downloaded.csv
+thothai-data csv upload test.csv
+thothai-data csv list | grep test.csv
+thothai-data csv download test.csv -o ./downloaded.csv
 diff test.csv downloaded.csv
-thoth-data csv delete test.csv
+thothai-data csv delete test.csv
 
 echo "✓ CSV tests passed"
 
 echo "=== Testing Database Operations ==="
 sqlite3 test.sqlite "CREATE TABLE t(id INT);"
 
-thoth-data db insert test.sqlite
-thoth-data db list | grep test
-thoth-data db remove test
+thothai-data db insert test.sqlite
+thothai-data db list | grep test
+thothai-data db remove test
 
 echo "✓ Database tests passed"
 

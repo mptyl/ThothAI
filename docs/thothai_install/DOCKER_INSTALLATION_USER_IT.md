@@ -1,14 +1,59 @@
 # Installazione ThothAI su Docker (Utente)
 
-Questa è la procedura standard consigliata per l'**utilizzo** di ThothAI. È progettata per essere semplice, rapida e non richiede competenze di programmazione.
+Questa guida presenta due modalità di installazione:
+1. **Installazione Lightweight** (consigliata): senza clonare il repository
+2. **Installazione Standard**: con clone del repository
 
-## 1. Prerequisiti
+---
+
+## ⚡ Modalità 1: Installazione Lightweight (Consigliata)
+
+La modalità più rapida per utilizzare ThothAI. Non richiede il clone del repository.
+
+### Prerequisiti
+
+*   **Python 3.9+**
+*   **uv** package manager
+*   **Docker Desktop** installato e attivo
+
+### Procedura Rapida
+
+```bash
+# 1. Installa uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 2. Crea progetto
+mkdir my-thothai && cd my-thothai
+uv venv && source .venv/bin/activate
+
+# 3. Installa CLI
+uv pip install thothai-cli
+
+# 4. Inizializza
+uv run thothai init
+
+# 5. Configura (edita config.yml.local)
+nano config.yml.local
+
+# 6. Deploy
+uv run thothai up
+```
+
+📖 **Guida Completa**: [LIGHTWEIGHT_INSTALLATION_IT.md](LIGHTWEIGHT_INSTALLATION_IT.md)
+
+---
+
+## 🐳 Modalità 2: Installazione Standard (Per Sviluppatori)
+
+Per sviluppo o personalizzazione, clona il repository completo.
+
+### 1. Prerequisiti
 
 *   **Docker Desktop** (o Docker Engine su Linux) installato e attivo.
 *   **Connessione Internet** per scaricare le immagini da Docker Hub.
 *   **Python 3.9+** (opzionale ma consigliato per script di utilità, altrimenti lo script `install.sh` proverà a usare quello di sistema).
 
-## 2. Preparazione Configurazione
+### 2. Preparazione Configurazione
 
 1.  Scarica/Clona la cartella del progetto (o ottieni il pacchetto di installazione).
 2.  Copia il file di configurazione template:
@@ -20,7 +65,7 @@ Questa è la procedura standard consigliata per l'**utilizzo** di ThothAI. È pr
     *   Configura eventuali preferenze di porta se quelle di default sono occupate.
     *   Imposta username e password (o lasciali di default per il primo avvio).
 
-## 3. Installazione e Avvio
+### 3. Installazione e Avvio
 
 Abbiamo semplificato il processo in un unico script che scarica tutto il necessario.
 
@@ -49,14 +94,14 @@ graph TD
     linkStyle default stroke:#fff,stroke-width:2px;
 ```
 
-## 4. Accesso
+### 4. Accesso
 
 Una volta completato lo script, l'applicazione è disponibile a:
 
 *   **Interfaccia Principale (Frontend):** `http://localhost:3040`
 *   **Pannello Admin:** `http://localhost:8040/admin`
 
-## 5. Aggiornamento
+### 5. Aggiornamento
 
 Per aggiornare ThothAI all'ultima versione disponibile:
 

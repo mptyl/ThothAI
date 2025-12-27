@@ -2,7 +2,7 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-"""Configuration management for thoth-data-cli."""
+"""Configuration management for thothai-data-cli."""
 
 import os
 import yaml
@@ -13,7 +13,7 @@ from rich.prompt import Prompt, Confirm
 
 console = Console()
 
-DEFAULT_CONFIG_PATH = Path.home() / '.thoth-data.yml'
+DEFAULT_CONFIG_PATH = Path.home() / '.thothai-data.yml'
 
 
 def get_default_config() -> Dict[str, Any]:

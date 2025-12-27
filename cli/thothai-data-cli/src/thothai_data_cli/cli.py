@@ -2,7 +2,7 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-"""CLI commands for thoth-data-cli."""
+"""CLI commands for thothai-data-cli."""
 
 import click
 from pathlib import Path

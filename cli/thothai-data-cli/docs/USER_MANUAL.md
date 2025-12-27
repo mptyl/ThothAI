@@ -1,4 +1,4 @@
-# thoth-data-cli - User Manual
+# thothai-data-cli - User Manual
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@
 
 ## Introduction
 
-`thoth-data-cli` is a command-line tool for managing CSV files and SQLite databases in ThothAI Docker deployments. It supports both local and remote Docker instances running in either Docker Compose or Docker Swarm mode.
+`thothai-data-cli` is a command-line tool for managing CSV files and SQLite databases in ThothAI Docker deployments. It supports both local and remote Docker instances running in either Docker Compose or Docker Swarm mode.
 
 ---
 
@@ -35,7 +35,7 @@
 
 ```bash
 # Create a directory for the CLI
-mkdir thoth-data && cd thoth-data
+mkdir thothai-data && cd thothai-data
 
 # Create virtual environment with uv
 uv venv
@@ -48,13 +48,13 @@ source .venv/bin/activate  # Linux/macOS
 ### Step 2: Install CLI
 
 ```bash
-uv pip install thoth-data-cli
+uv pip install thothai-data-cli
 ```
 
 ### Step 3: Verify Installation
 
 ```bash
-thoth-data --help
+thothai-data --help
 ```
 
 ---
@@ -66,18 +66,18 @@ thoth-data --help
 On first use, if no configuration file exists, the CLI will guide you through creating one:
 
 ```bash
-thoth-data csv list
+thothai-data csv list
 
 # Output:
-# Config file not found: ~/.thoth-data.yml
+# Config file not found: ~/.thothai-data.yml
 # Create configuration file? [y/N]: y
 # Docker connection type [local/ssh]: local
 # Docker mode [compose/swarm]: swarm
 # Stack/project name [thothai-swarm]: thothai-swarm
-# ✓ Configuration saved to ~/.thoth-data.yml
+# ✓ Configuration saved to ~/.thothai-data.yml
 ```
 
-### Configuration File: `~/.thoth-data.yml`
+### Configuration File: `~/.thothai-data.yml`
 
 ```yaml
 docker:
@@ -112,12 +112,12 @@ paths:
 
 ## CSV Commands
 
-CSV files are stored in the `thoth-data-exchange` Docker volume.
+CSV files are stored in the `thothai-data-exchange` Docker volume.
 
 ### List Files
 
 ```bash
-thoth-data csv list
+thothai-data csv list
 ```
 
 Example output:
@@ -133,7 +133,7 @@ drwxr-xr-x 1 root root 4.0K Dec 27 09:55 ..
 ### Upload File
 
 ```bash
-thoth-data csv upload myfile.csv
+thothai-data csv upload myfile.csv
 ```
 
 Output: `✓ Uploaded: myfile.csv`
@@ -142,10 +142,10 @@ Output: `✓ Uploaded: myfile.csv`
 
 ```bash
 # Download to current directory
-thoth-data csv download export_2024.csv
+thothai-data csv download export_2024.csv
 
 # Download to specific directory
-thoth-data csv download export_2024.csv -o ./downloads/
+thothai-data csv download export_2024.csv -o ./downloads/
 ```
 
 Output: `✓ Downloaded to: ./export_2024.csv`
@@ -153,7 +153,7 @@ Output: `✓ Downloaded to: ./export_2024.csv`
 ### Delete File
 
 ```bash
-thoth-data csv delete old_data.csv
+thothai-data csv delete old_data.csv
 ```
 
 Output: `✓ Deleted: old_data.csv`
@@ -167,7 +167,7 @@ SQLite databases are stored in the `thoth-shared-data` Docker volume with the st
 ### List Databases
 
 ```bash
-thoth-data db list
+thothai-data db list
 ```
 
 Example output:
@@ -183,7 +183,7 @@ drwxr-xr-x 3 root root 4.0K Dec 27 10:00 hr_database
 ### Insert Database
 
 ```bash
-thoth-data db insert ./mydb.sqlite
+thothai-data db insert ./mydb.sqlite
 ```
 
 This creates:
@@ -201,7 +201,7 @@ Output:
 ### Remove Database
 
 ```bash
-thoth-data db remove mydb
+thothai-data db remove mydb
 ```
 
 This removes the entire directory `/app/data/mydb/`.
@@ -215,7 +215,7 @@ Output: `✓ Database removed: mydb`
 ### Show Configuration
 
 ```bash
-thoth-data config show
+thothai-data config show
 ```
 
 Example output:
@@ -234,7 +234,7 @@ Example output:
 ### Test Connection
 
 ```bash
-thoth-data config test
+thothai-data config test
 ```
 
 Example output:
@@ -251,7 +251,7 @@ Testing Docker connection...
 
 ### Remote Docker via SSH
 
-Edit `~/.thoth-data.yml`:
+Edit `~/.thothai-data.yml`:
 
 ```yaml
 docker:
@@ -268,7 +268,7 @@ ssh:
 
 Then use commands normally:
 ```bash
-thoth-data csv list  # Executes on remote server
+thothai-data csv list  # Executes on remote server
 ```
 
 ### Docker Compose Mode
@@ -288,7 +288,7 @@ docker:
 
 ### Config file not found
 
-**Solution**: Run any command to create it interactively, or manually create `~/.thoth-data.yml`.
+**Solution**: Run any command to create it interactively, or manually create `~/.thothai-data.yml`.
 
 ### Container not found
 
@@ -322,40 +322,40 @@ docker:
 
 ```bash
 # List current files
-thoth-data csv list
+thothai-data csv list
 
 # Upload new export
-thoth-data csv upload ./exports/monthly_report.csv
+thothai-data csv upload ./exports/monthly_report.csv
 
 # Download for analysis
-thoth-data csv download monthly_report.csv -o ./analysis/
+thothai-data csv download monthly_report.csv -o ./analysis/
 
 # Clean up old files
-thoth-data csv delete old_export.csv
+thothai-data csv delete old_export.csv
 ```
 
 ### Database Management
 
 ```bash
 # Check existing databases
-thoth-data db list
+thothai-data db list
 
 # Add new database alongside california_schools
-thoth-data db insert ./hr_system.sqlite
+thothai-data db insert ./hr_system.sqlite
 
 # Later, remove if not needed
-thoth-data db remove hr_system
+thothai-data db remove hr_system
 ```
 
 ### Remote Server Management
 
 ```bash
 # Configure for remote production server
-# Edit ~/.thoth-data.yml with ssh settings
+# Edit ~/.thothai-data.yml with ssh settings
 
 # Verify connection
-thoth-data config test
+thothai-data config test
 
 # Upload data to production
-thoth-data csv upload production_data.csv
+thothai-data csv upload production_data.csv
 ```
