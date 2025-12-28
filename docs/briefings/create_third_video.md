@@ -1,0 +1,5 @@
+modifica il @VIDEO_3_DOCKER_SETUP.md che contiene il testo  di un tutorial su ThothAI  riguardante l'installazione. Mantieni la struttura del documento in termini di tono, struttura, titoli, ecc. Però cambia il contenuto spiegando che ci sono due modi per installare ThothAI:
+1) Il primo, il più semplice, prevede l'installazione di una  CLI con pochi comandi tramite i quali si potrà installare l'applicazione su docker sia in locale, sia su un docker remoto. Inoltre, sempre tramite CLI, si potrà installare su tramite un simgolo compose o su swarm
+2) il secondo prevede il clone del progetto da github con possibilità, a partire dal sorgente, di installare localmente, oppure su docker, ma permette una più ampia possibilità di personalizzazione. Per questo tipo di installazione andare su Github e leggere la documentazione ufficiale del progetto dove si troverà tutto il necessario.
+
+Dopo questa spiegazione sviluppa il testo a supporto dell'installazione tramite CLI basandoti sul contenuto dei due manuali che trovi sotto docs/cli (@DATA_MANAGEMENT_MANUAL.md e @LIGHT_INSTALLATION_MANUAL.md)

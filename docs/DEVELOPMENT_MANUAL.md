@@ -1,0 +1,609 @@
+# ThothAI - Development & Deployment Manual
+
+This manual provides a comprehensive, "in-action" guide for developers and system administrators working with ThothAI. It covers the entire lifecycle from local development to production deployment on Docker Swarm.
+
+---
+
+## 🏗️ Architecture Overview
+
+ThothAI is designed as a microservices architecture:
+- **Backend**: Django (Python) - Core API and business logic.
+- **Frontend**: Next.js (Node.js/React) - User interface.
+- **SQL Generator**: FastAPI (Python/PydanticAI) - Dedicated AI agent service.
+- **Mermaid Service**: Standalone service for diagram generation.
+- **Infrastructure**: Qdrant (Vector DB), Postgres (App DB - optional), Nginx (Proxy).
+
+The project uses a **hybrid deployment model**:
+1.  **Local Dev**: Services run natively (Python/Node) for speed, with infrastructure (DBs) in Docker.
+2.  **Single Docker**: All services run in containers via Docker Compose.
+3.  **Swarm**: Distributed deployment with replicas, secrets, and overlay networks.
+
+---
+
+## 📋 Prerequisites
+
+### Required Software
+- **Python**: 3.9+ (Python 3.11+ recommended)
+- **Node.js**: 20+ (with npm)
+- **uv**: Python package manager ([Installation](https://docs.astral.sh/uv/getting-started/))
+- **Docker**: Desktop or Engine (for Docker and Swarm deployments)
+
+### Recommended Tools
+- **Git**: For version control
+- **docker-compose**: Usually bundled with Docker Desktop
+
+---
+
+## 🛠️ Part 1: Local Development (Hybrid Mode)
+
+This is the standard mode for writing code. The application logic runs on your host machine (fast iterations, debugging), while databases run in Docker containers.
+
+### Prerequisites Verification
+Ensure you have:
+- Python 3.9+ (`python3 --version`)
+- Node.js 20+ (`node --version`)
+- uv package manager (`uv --version`)
+- Docker running (`docker ps`)
+
+### Step 1: Initial Setup
+
+The fastest way to set up local development is using the `start-all` script, which automatically handles dependency installation and service startup.
+
+> [!IMPORTANT]
+> **Automatic Infrastructure Management**: The `start-all` script automatically ensures that **Qdrant** (Vector Database) and **Mermaid Service** (Diagram Generation) containers are running via Docker. You don't need to start these containers manually – the script checks if they're running and starts them automatically via `docker-compose-local.yml` if needed.
+
+**Mac/Linux:**
+```bash
+# Automatic setup and start all services
+# This will:
+# 1. Start Qdrant container (if not already running)
+# 2. Start Mermaid Service container (if not already running)
+# 3. Start Backend, Frontend, and SQL Generator natively
+./start-all.sh
+```
+
+**Windows:**
+```powershell
+# Automatic setup and start all services
+.\start-all.ps1
+```
+
+**Manual Setup (Alternative):**
+
+If you prefer to set up dependencies manually:
+
+**Mac/Linux:**
+```bash
+# Backend dependencies
+cd backend && uv sync && cd ..
+
+# Frontend dependencies
+cd frontend && npm install && cd ..
+
+# SQL Generator dependencies
+cd frontend/sql_generator && uv sync && cd ../..
+```
+
+**Windows:**
+```powershell
+# Backend dependencies
+cd backend; uv sync; cd ..
+
+# Frontend dependencies
+cd frontend; npm install; cd ..
+
+# SQL Generator dependencies
+cd frontend/sql_generator; uv sync; cd ../..
+```
+
+### Step 2: Configuration
+
+Before starting services, ensure `config.yml.local` exists in the project root:
+
+```bash
+# If config.yml.local doesn't exist, copy from template
+cp config.yml config.yml.local
+
+# Edit with your API keys and settings
+nano config.yml.local  # or use your preferred editor
+```
+
+**Required Configuration:**
+- AI provider API keys (OpenAI, Gemini, Anthropic, or OpenRouter)
+- Embedding provider settings
+- Database connection settings (if using external databases)
+
+### Step 3: Running the Application
+
+The `start-all` script intelligently manages your hybrid development environment:
+
+**What Runs in Docker Containers:**
+- 🐳 **Qdrant** (Vector Database) - Port 6333
+- 🐳 **Mermaid Service** (Diagram Generation) - Port 8003
+
+**What Runs Natively on Your Machine:**
+- 🐍 **Backend** (Django) - Port 8200
+- ⚛️ **Frontend** (Next.js) - Port 3200  
+- 🤖 **SQL Generator** (FastAPI) - Port 8180
+
+**Script Behavior:**
+1. ✅ Checks if ports are free
+2. ✅ **Automatically starts Qdrant container** if not running (via `docker-compose-local.yml`)
+3. ✅ **Automatically starts Mermaid container** if not running (via `docker-compose-local.yml`)
+4. ✅ Starts Backend, Frontend, and SQL Generator natively
+
+**Mac/Linux:**
+```bash
+./start-all.sh
+```
+
+**Windows:**
+```powershell
+.\start-all.ps1
+```
+
+### Step 4: Development Workflow
+
+Once all services are running:
+
+- **Frontend**: Edit files in `frontend/`. Hot-reloading active at `http://localhost:3200`
+- **Backend**: Edit files in `backend/`. Django auto-reloads at `http://localhost:8200`
+- **Django Admin**: Access at `http://localhost:8200/admin`
+- **SQL Generator**: Edit `frontend/sql_generator/`. Service auto-reloads at `http://localhost:8180`
+- **API Docs**: Interactive docs at `http://localhost:8180/docs`
+
+### Stopping Services
+
+Press `Ctrl+C` in the terminal where `start-all` is running. 
+
+The script will:
+1. ✅ Stop all native services (Backend, Frontend, SQL Generator)
+2. ❓ **Prompt you** about stopping Docker containers (Qdrant, Mermaid)
+
+> [!TIP]
+> **Keep Containers Running**: You can choose to leave Qdrant and Mermaid containers running between development sessions. This speeds up subsequent `start-all.sh` launches since the containers don't need to restart.
+
+---
+
+## 📦 Part 2: Working with Docker Images
+
+Before deploying to production (Swarm) or testing a full containerized setup, you must build the Docker images.
+
+### Understanding Docker Configuration Files
+
+- **`docker-compose.yml`**: Builds images from local source (`build: .`). Used for standard deployments.
+- **`docker-compose-hub.yml`**: Uses pre-built images from registry (`image: ...`). Used for pulling from Docker Hub.
+- **`docker-compose-local.yml`**: Contains infrastructure services (Qdrant, Mermaid) for local development.
+
+### Building and Pushing Images
+
+We use unified scripts to handle multi-platform builds and registry authentication.
+
+#### Command Syntax
+
+**Bash:**
+```
+./push.sh <REGISTRY_URL> <VERSION> [OPTIONS]
+```
+
+**PowerShell:**
+```
+.\push.ps1 -RegistryUrl <REGISTRY_URL> -Version <VERSION> [OPTIONS]
+```
+
+#### Available Options
+
+| Option | Bash | PowerShell | Description |
+|--------|------|------------|-------------|
+| No cache | `--no-cache` | `-NoCache` | Build without using cache |
+| Push only | `--push-only` | `-PushOnly` | Skip build, push existing images only |
+| Help | `--help` | N/A | Show usage information |
+
+#### Examples
+
+**Mac/Linux:**
+```bash
+# Standard: Build AND Push to registry
+./push.sh registry.example.com/my-org/thothai 1.0.0
+
+# Build with no cache (clean build)
+./push.sh registry.example.com/my-org/thothai 1.0.0 --no-cache
+
+# Push only (images already built locally)
+./push.sh registry.example.com/my-org/thothai 1.0.0 --push-only
+
+# For local Swarm testing (no registry push needed)
+docker compose build
+```
+
+**Windows:**
+```powershell
+# Standard: Build AND Push to registry
+.\push.ps1 -RegistryUrl "registry.example.com/my-org/thothai" -Version "1.0.0"
+
+# Build with no cache
+.\push.ps1 -RegistryUrl "registry.example.com/my-org/thothai" -Version "1.0.0" -NoCache
+
+# Push only (images already built)
+.\push.ps1 -RegistryUrl "registry.example.com/my-org/thothai" -Version "1.0.0" -PushOnly
+```
+
+---
+
+## 🚀 Part 3: Single-Node Deployment (Docker Compose)
+
+This approach runs the entire stack in containers on a single machine. Ideal for staging servers or simple deployments.
+
+### When to Use Each Option
+
+- **`--pull`** (default): Pull pre-built images from Docker Hub - **recommended for production-like testing**
+- **`--build`**: Build images locally - use when testing local code changes
+- **`--clean-cache`**: Force clean build - use after major dependency changes
+
+### Option A: Deploy from Docker Hub (Recommended)
+
+This pulls efficient, pre-built images and simulates the exact user experience.
+
+**Mac/Linux:**
+```bash
+# Standard installation (pulls from Docker Hub)
+./install.sh
+
+# Or explicitly specify pull
+./install.sh --pull
+```
+
+**Windows:**
+```powershell
+# Standard installation
+.\install.ps1
+
+# Or explicitly specify pull
+.\install.ps1 -Pull
+```
+
+### Option B: Deploy from Local Source
+
+This builds images on the fly. Good for verifying that your local changes work in containers.
+
+**Mac/Linux:**
+```bash
+# Build images locally
+./install.sh --build
+
+# Clean build (rebuild from scratch)
+./install.sh --build --clean-cache
+```
+
+**Windows:**
+```powershell
+# Build images locally
+.\install.ps1 -Build
+
+# Clean build
+.\install.ps1 -Build -CleanCache
+```
+
+### Additional Options
+
+**Remove All Resources:**
+
+**Mac/Linux:**
+```bash
+# Remove all ThothAI Docker resources
+./install.sh --prune
+
+# Force prune (skip confirmation)
+./install.sh --prune --force
+```
+
+**Windows:**
+```powershell
+# Remove all resources
+.\install.ps1 -Prune
+
+# Force prune
+.\install.ps1 -Prune -Force
+```
+
+### Access Points
+
+After successful deployment:
+- **Frontend**: `http://localhost:3040`
+- **Backend Admin**: `http://localhost:8040/admin`
+- **SQL Generator API**: `http://localhost:8020`
+- **Qdrant**: `http://localhost:6334`
+
+---
+
+## 🐝 Part 4: Docker Swarm Deployment (Production)
+
+Swarm is the target for production. It supports secrets, configs, rolling updates, and multi-node scaling.
+
+### Key Concepts
+
+- **Stack**: Defined in `docker-stack.yml`
+- **Secrets**: API keys (from `config.yml.local`) are injected securely as Docker Secrets
+- **Configs**: Environmental configs (`.env.docker`) are injected as Docker Configs
+- **Swarm Config**: Port mappings and settings defined in `swarm_config.env`
+
+### Scenario A: Local Swarm (Testing Production)
+
+You can run a single-node Swarm on your laptop to test production deployment.
+
+**Mac/Linux:**
+```bash
+# 1. Initialize Swarm (if not already done)
+docker swarm init
+
+# 2. Build and tag images locally (Swarm can see them)
+docker compose build
+
+# 3. Deploy Stack
+./install-swarm.sh
+```
+
+**Windows:**
+```powershell
+# 1. Initialize Swarm
+docker swarm init
+
+# 2. Build images locally
+docker compose build
+
+# 3. Deploy Stack
+.\install-swarm.ps1
+```
+
+### Scenario B: Remote Swarm (Production Server)
+
+Deploy to a remote Swarm cluster directly from your local machine using SSH tunneling.
+
+**Prerequisites:**
+- SSH access to the manager node (`user@server-ip`)
+- Docker images must be pushed to a registry accessible by the server
+- SSH key file (default: `~/.ssh/id_rsa`)
+
+**Mac/Linux:**
+```bash
+# 1. Push images to registry accessible by server
+./push.sh my-registry.com/thothai 1.0.0
+
+# 2. Deploy to Remote Server
+# This automatically:
+# - Connects via SSH
+# - Copies config.yml.local related secrets
+# - Deploys the stack
+./install-swarm.sh --server user@192.168.1.100
+
+# With custom SSH settings
+./install-swarm.sh --server user@192.168.1.100 --port 2222 --key ~/.ssh/custom_key
+```
+
+**Windows:**
+```powershell
+# 1. Push images to registry
+.\push.ps1 -RegistryUrl "my-registry.com/thothai" -Version "1.0.0"
+
+# 2. Deploy to Remote Server
+.\install-swarm.ps1 -Server "user@192.168.1.100"
+
+# With custom SSH settings
+.\install-swarm.ps1 -Server "user@192.168.1.100" -Port 2222 -Key "$env:USERPROFILE\.ssh\custom_key"
+```
+
+### Advanced Options
+
+| Option | Bash | PowerShell | Description |
+|--------|------|------------|-------------|
+| Remote deploy | `--server <SSH_STRING>` | `-Server <SSH_STRING>` | Deploy to remote via SSH |
+| SSH port | `--port <PORT>` | `-Port <PORT>` | Custom SSH port (default: 22) |
+| SSH key | `--key <PATH>` | `-Key <PATH>` | Path to SSH private key |
+| Skip pull | `--skip-pull` | `-SkipPull` | Don't pull images from registry |
+| Skip secrets | `--skip-secrets` | `-SkipSecrets` | Don't recreate secrets/configs |
+| Remove stack | `--prune` | `-Prune` | Remove stack and resources |
+
+### Managing the Swarm
+
+Common operations for maintenance:
+
+```bash
+# Check stack status
+docker stack ps thothai-swarm
+
+# View service logs
+docker service logs -f thothai-swarm_backend
+
+# Scale a service
+docker service scale thothai-swarm_sql-generator=3
+
+# Update a service
+docker service update --image my-registry.com/thothai/thoth-backend:1.1.0 thothai-swarm_backend
+```
+
+**Remove Stack:**
+
+**Mac/Linux:**
+```bash
+./install-swarm.sh --prune
+```
+
+**Windows:**
+```powershell
+.\install-swarm.ps1 -Prune
+```
+
+---
+
+## 🔧 Port Reference
+
+Different deployment modes use different port configurations:
+
+| Service | Local Dev | Docker Compose | Docker Swarm |
+|---------|-----------|----------------|--------------|
+| **Frontend** | 3200 | 3040 | 7001 |
+| **Backend** | 8200 | 8040 | 7002 |
+| **SQL Generator** | 8180 | 8020 | 7003 |
+| **Mermaid Service** | 8003 | 8004 | 7004 |
+| **Qdrant** | 6333 | 6334 | 7005 |
+| **Web Proxy** | - | - | 7000 |
+
+**Notes:**
+- Local Dev uses higher ports to avoid conflicts with system services
+- Docker Compose uses 30xx/80xx ranges
+- Docker Swarm uses 70xx range (configurable in `swarm_config.env`)
+- Web Proxy (Nginx) is only used in Swarm deployments
+
+---
+
+## 🩺 Troubleshooting
+
+### Port Conflicts
+
+**Problem**: Service fails to start due to port already in use.
+
+**Solution:**
+```bash
+# Mac/Linux - Find process using port
+lsof -i :8200
+
+# Kill the process
+kill -9 <PID>
+
+# Windows
+netstat -ano | findstr :8200
+taskkill /PID <PID> /F
+```
+
+### Docker Login Issues
+
+**Problem**: `push.sh` or `push.ps1` fails with authentication error.
+
+**Solution:**
+```bash
+# Login to Docker Hub
+docker login
+
+# Login to custom registry
+docker login registry.example.com
+```
+
+### Permission Errors (Linux)
+
+**Problem**: Docker commands require sudo.
+
+**Solution:**
+```bash
+# Add user to docker group
+sudo usermod -aG docker $USER
+
+# Logout and login again, or run:
+newgrp docker
+```
+
+### Service Not Starting
+
+**Problem**: Backend/Frontend/SQL Generator doesn't start.
+
+**Check logs:**
+```bash
+# Local development - check terminal output
+# Docker Compose
+docker compose logs backend
+docker compose logs frontend
+
+# Docker Swarm
+docker service logs thothai-swarm_backend
+```
+
+**Common causes:**
+- Missing `config.yml.local`
+- Invalid API keys
+- Port conflicts
+- Missing dependencies (run `uv sync` or `npm install`)
+
+### Database Connection Errors
+
+**Problem**: Backend can't connect to Qdrant or Postgres.
+
+**Solution:**
+```bash
+# Check if Qdrant is running
+docker ps | grep qdrant
+
+# Check Qdrant health
+curl http://localhost:6333/health  # Local dev
+curl http://localhost:6334/health  # Docker Compose
+curl http://localhost:7005/health  # Swarm
+```
+
+### Clean Slate Restart
+
+If everything seems broken:
+
+```bash
+# Stop all services
+docker compose down
+docker compose -f docker-compose-local.yml down
+
+# Remove all ThothAI containers and volumes
+./install.sh --prune --force  # Docker Compose
+./install-swarm.sh --prune    # Swarm
+
+# Restart from scratch
+./start-all.sh  # Local dev
+./install.sh    # Docker Compose
+```
+
+---
+
+## 📄 Reference: Script Map
+
+| Task | Mac/Linux | Windows | Notes |
+|------|-----------|---------|-------|
+| **Local Dev Setup & Start** | `./start-all.sh` | `.\start-all.ps1` | Handles all local dependencies |
+| **Docker Compose Deploy** | `./install.sh` | `.\install.ps1` | Use `--build` for local images |
+| **Build & Push Images** | `./push.sh` | `.\push.ps1` | Required before Swarm deploy |
+| **Deploy Swarm** | `./install-swarm.sh` | `.\install-swarm.ps1` | Use `--server` for remote |
+| **Remove Stack** | `./install-swarm.sh --prune` | `.\install-swarm.ps1 -Prune` | Clean removal |
+| **Data Management** | `python scripts/data-exchange-cli.py` | `python scripts/data-exchange-cli.py` | Volume management |
+
+---
+
+## 🎯 Quick Start Cheat Sheet
+
+### First Time Setup
+```bash
+# 1. Clone repository
+git clone <repo-url> && cd ThothAI
+
+# 2. Configure
+cp config.yml config.yml.local
+# Edit config.yml.local with your API keys
+
+# 3. Start local development
+./start-all.sh
+```
+
+### Docker Compose Deployment
+```bash
+# Pull and deploy
+./install.sh
+
+# Or build locally
+./install.sh --build
+```
+
+### Production Swarm Deployment
+```bash
+# 1. Build and push images
+./push.sh my-registry.com/thothai 1.0.0
+
+# 2. Deploy to production server
+./install-swarm.sh --server user@production-server
+```
+
+---
+
+*Copyright (c) 2025 Marco Pancotti*
+*This file is part of ThothAI and is released under the Apache License 2.0.*

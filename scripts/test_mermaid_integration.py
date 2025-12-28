@@ -9,7 +9,8 @@ import requests
 import time
 
 # Add the backend directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
+# Add the backend directory to the path (relative to scripts/ directory)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../backend')))
 
 # Import the mermaid_utils module
 from thoth_ai_backend.mermaid_utils import (
