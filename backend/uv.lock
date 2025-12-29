@@ -2299,7 +2299,7 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "tabulate" },
     { name = "tenacity" },
-    { name = "thoth-dbmanager", extra = ["postgresql"] },
+    { name = "thoth-dbmanager", extra = ["informix", "mariadb", "postgresql", "sqlserver"] },
     { name = "thoth-qdrant", extra = ["cohere"] },
     { name = "toml" },
     { name = "uvicorn" },
@@ -2391,7 +2391,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = "==2.0.40" },
     { name = "tabulate", specifier = "==0.9.0" },
     { name = "tenacity", specifier = ">=8.0.0" },
-    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite"], specifier = "==0.7.4" },
+    { name = "thoth-dbmanager", extras = ["postgresql", "sqlite", "mariadb", "sqlserver", "informix"], specifier = "==0.7.4" },
     { name = "thoth-qdrant", extras = ["cohere"], specifier = "==0.1.11" },
     { name = "toml", specifier = "==0.10.2" },
     { name = "uvicorn", specifier = "==0.34.0" },
@@ -2421,8 +2421,18 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+informix = [
+    { name = "paramiko" },
+    { name = "pyodbc" },
+]
+mariadb = [
+    { name = "mariadb" },
+]
 postgresql = [
     { name = "psycopg2-binary" },
+]
+sqlserver = [
+    { name = "pyodbc" },
 ]
 
 [[package]]

@@ -344,7 +344,8 @@ class ThothInstaller:
             'thoth-backend-media',
             'thoth-frontend-cache',
             'thoth-qdrant-data',
-            'thoth-shared-data'
+            'thoth-shared-data',
+            'thoth-data-exchange'
         ]
         
         for volume_name in volumes:

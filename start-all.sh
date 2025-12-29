@@ -86,9 +86,53 @@ fi
 
 if [ "$SYNC_BACKEND" = "true" ]; then
     echo "Synchronizing backend dependencies (uv lock --refresh && uv sync)..."
-    if ! (cd backend && uv lock --refresh && uv sync); then
-        echo -e "${RED}Failed to synchronize backend dependencies. Check the output above.${NC}"
-        exit 1
+    
+    # Configure MariaDB Connector/C path (cross-platform)
+    MARIADB_CONFIG_PATH=""
+    
+    # Detect MariaDB Connector/C based on OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: Check Homebrew installation
+        if command -v brew &> /dev/null; then
+            BREW_MARIADB_PREFIX=$(brew --prefix mariadb-connector-c 2>/dev/null || echo "")
+            if [ -n "$BREW_MARIADB_PREFIX" ] && [ -d "$BREW_MARIADB_PREFIX/bin" ]; then
+                MARIADB_CONFIG_PATH="$BREW_MARIADB_PREFIX/bin"
+                echo "Detected MariaDB Connector/C at: $MARIADB_CONFIG_PATH (Homebrew)"
+            fi
+        fi
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux: Check pkg-config first, then standard paths
+        if command -v pkg-config &> /dev/null && pkg-config --exists mariadb 2>/dev/null; then
+            MARIADB_CONFIG_CMD=$(pkg-config --variable=mariadb_config mariadb 2>/dev/null || echo "")
+            if [ -n "$MARIADB_CONFIG_CMD" ]; then
+                MARIADB_CONFIG_PATH=$(dirname "$MARIADB_CONFIG_CMD")
+                echo "Detected MariaDB Connector/C at: $MARIADB_CONFIG_PATH (pkg-config)"
+            fi
+        fi
+        
+        # Fallback: check standard Linux paths
+        if [ -z "$MARIADB_CONFIG_PATH" ]; then
+            for std_path in /usr/bin /usr/local/bin /usr/local/mariadb/bin; do
+                if [ -f "$std_path/mariadb_config" ]; then
+                    MARIADB_CONFIG_PATH="$std_path"
+                    echo "Detected MariaDB Connector/C at: $MARIADB_CONFIG_PATH (standard path)"
+                    break
+                fi
+            done
+        fi
+    fi
+    
+    # Run uv sync with MariaDB config in PATH if available
+    if [ -n "$MARIADB_CONFIG_PATH" ]; then
+        if ! (cd backend && PATH="$MARIADB_CONFIG_PATH:$PATH" uv lock --refresh && PATH="$MARIADB_CONFIG_PATH:$PATH" uv sync); then
+            echo -e "${RED}Failed to synchronize backend dependencies. Check the output above.${NC}"
+            exit 1
+        fi
+    else
+        if ! (cd backend && uv lock --refresh && uv sync); then
+            echo -e "${RED}Failed to synchronize backend dependencies. Check the output above.${NC}"
+            exit 1
+        fi
     fi
 else
     echo "Backend dependencies already up to date."
@@ -96,9 +140,53 @@ fi
 
 if [ "$SYNC_SQL_GENERATOR" = "true" ]; then
     echo "Synchronizing SQL Generator dependencies (uv lock --refresh && uv sync)..."
-    if ! (cd frontend/sql_generator && uv lock --refresh && uv sync); then
-        echo -e "${RED}Failed to synchronize SQL Generator dependencies. Check the output above.${NC}"
-        exit 1
+    
+    # Configure MariaDB Connector/C path (cross-platform)
+    MARIADB_CONFIG_PATH=""
+    
+    # Detect MariaDB Connector/C based on OS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS: Check Homebrew installation
+        if command -v brew &> /dev/null; then
+            BREW_MARIADB_PREFIX=$(brew --prefix mariadb-connector-c 2>/dev/null || echo "")
+            if [ -n "$BREW_MARIADB_PREFIX" ] && [ -d "$BREW_MARIADB_PREFIX/bin" ]; then
+                MARIADB_CONFIG_PATH="$BREW_MARIADB_PREFIX/bin"
+                echo "Detected MariaDB Connector/C at: $MARIADB_CONFIG_PATH (Homebrew)"
+            fi
+        fi
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux: Check pkg-config first, then standard paths
+        if command -v pkg-config &> /dev/null && pkg-config --exists mariadb 2>/dev/null; then
+            MARIADB_CONFIG_CMD=$(pkg-config --variable=mariadb_config mariadb 2>/dev/null || echo "")
+            if [ -n "$MARIADB_CONFIG_CMD" ]; then
+                MARIADB_CONFIG_PATH=$(dirname "$MARIADB_CONFIG_CMD")
+                echo "Detected MariaDB Connector/C at: $MARIADB_CONFIG_PATH (pkg-config)"
+            fi
+        fi
+        
+        # Fallback: check standard Linux paths
+        if [ -z "$MARIADB_CONFIG_PATH" ]; then
+            for std_path in /usr/bin /usr/local/bin /usr/local/mariadb/bin; do
+                if [ -f "$std_path/mariadb_config" ]; then
+                    MARIADB_CONFIG_PATH="$std_path"
+                    echo "Detected MariaDB Connector/C at: $MARIADB_CONFIG_PATH (standard path)"
+                    break
+                fi
+            done
+        fi
+    fi
+    
+    # Run uv sync with MariaDB config in PATH if available
+    if [ -n "$MARIADB_CONFIG_PATH" ]; then
+        if ! (cd frontend/sql_generator && PATH="$MARIADB_CONFIG_PATH:$PATH" uv lock --refresh && PATH="$MARIADB_CONFIG_PATH:$PATH" uv sync); then
+            echo -e "${RED}Failed to synchronize SQL Generator dependencies. Check the output above.${NC}"
+            exit 1
+        fi
+    else
+        if ! (cd frontend/sql_generator && uv lock --refresh && uv sync); then
+            echo -e "${RED}Failed to synchronize SQL Generator dependencies. Check the output above.${NC}"
+            exit 1
+        fi
     fi
 else
     echo "SQL Generator dependencies already up to date."

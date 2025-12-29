@@ -276,6 +276,17 @@ try {
     if (-not $SkipPull) { Pull-Images -Config $config }
     if (-not $SkipSecrets) { Manage-Secrets -Config $config }
 
+    # Ensure required volumes exist
+    Write-ColorOutput "Ensuring required volumes exist..." "Yellow"
+    $volumes = @("thoth-secrets", "thoth-backend-static", "thoth-backend-media", "thoth-frontend-cache", "thoth-qdrant-data", "thoth-shared-data", "thoth-data-exchange")
+    $existingVolumes = docker volume ls --format '{{.Name}}'
+    foreach ($vol in $volumes) {
+        if ($existingVolumes -notcontains $vol) {
+            docker volume create $vol 2>$null | Out-Null
+            Write-ColorOutput "  Created volume '$vol'" "Green"
+        }
+    }
+    
     # Ensure network exists
     $stackName = [System.Environment]::GetEnvironmentVariable('STACK_NAME')
     docker network create --driver overlay --attachable "${stackName}_thoth-network" 2>$null | Out-Null

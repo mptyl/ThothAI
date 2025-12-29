@@ -100,12 +100,22 @@ cd frontend/sql_generator; uv sync; cd ../..
 
 Before starting services, ensure `config.yml.local` exists in the project root:
 
+**Mac/Linux:**
 ```bash
 # If config.yml.local doesn't exist, copy from template
 cp config.yml config.yml.local
 
 # Edit with your API keys and settings
-nano config.yml.local  # or use your preferred editor
+nano config.yml.local
+```
+
+**Windows:**
+```powershell
+# Copy from template
+Copy-Item config.yml config.yml.local
+
+# Edit with your preferred editor
+notepad config.yml.local
 ```
 
 **Required Configuration:**
@@ -327,19 +337,22 @@ Swarm is the target for production. It supports secrets, configs, rolling update
 - **Configs**: Environmental configs (`.env.docker`) are injected as Docker Configs
 - **Swarm Config**: Port mappings and settings defined in `swarm_config.env`
 
+> [!IMPORTANT]
+> **Re-deploying Swarm**: If you already have an active swarm stack, before running `./install-swarm` (or `.ps1`), you **must** remove the existing stack:
+> `docker stack rm thothai-swarm`
+
 ### Scenario A: Local Swarm (Testing Production)
 
-You can run a single-node Swarm on your laptop to test production deployment.
+You can run a single-node Swarm on your laptop to test production deployment using either official images or local builds.
+
+**Method 1: Using Official Images (Fastest)**
 
 **Mac/Linux:**
 ```bash
-# 1. Initialize Swarm (if not already done)
+# 1. Initialize Swarm
 docker swarm init
 
-# 2. Build and tag images locally (Swarm can see them)
-docker compose build
-
-# 3. Deploy Stack
+# 2. Deploy (script will pull images automatically)
 ./install-swarm.sh
 ```
 
@@ -348,49 +361,86 @@ docker compose build
 # 1. Initialize Swarm
 docker swarm init
 
+# 2. Deploy
+.\install-swarm.ps1
+```
+
+**Method 2: Using Local Builds (For Development)**
+```bash
+# 1. Initialize Swarm
+docker swarm init
+
+# 2. Build and tag images locally
+docker compose build
+
+# 3. Deploy
+./install-swarm.sh --skip-pull
+```
+
+**Windows (Method 2 Example):**
+```powershell
+# 1. Initialize Swarm
+docker swarm init
+
 # 2. Build images locally
 docker compose build
 
 # 3. Deploy Stack
-.\install-swarm.ps1
+.\install-swarm.ps1 -SkipPull
 ```
 
 ### Scenario B: Remote Swarm (Production Server)
 
-Deploy to a remote Swarm cluster directly from your local machine using SSH tunneling.
+Deploy to a remote Swarm cluster directly from your local machine using SSH tunneling. You can either use official images from Docker Hub or your own custom-built images.
 
 **Prerequisites:**
 - SSH access to the manager node (`user@server-ip`)
-- Docker images must be pushed to a registry accessible by the server
+- `swarm_config.env` configured with the correct `DOCKER_USERNAME`
 - SSH key file (default: `~/.ssh/id_rsa`)
+
+#### Path 1: Using Official Images (Recommended for Quick Installation)
+If you want to install ThothAI using the official images from Docker Hub, you do **not** need to build or push anything locally. 
 
 **Mac/Linux:**
 ```bash
-# 1. Push images to registry accessible by server
-./push.sh my-registry.com/thothai 1.0.0
-
+# 1. Ensure DOCKER_USERNAME=tylconsulting in swarm_config.env
 # 2. Deploy to Remote Server
-# This automatically:
-# - Connects via SSH
-# - Copies config.yml.local related secrets
-# - Deploys the stack
 ./install-swarm.sh --server user@192.168.1.100
-
-# With custom SSH settings
-./install-swarm.sh --server user@192.168.1.100 --port 2222 --key ~/.ssh/custom_key
 ```
 
 **Windows:**
+```powershell
+# 1. Ensure DOCKER_USERNAME=tylconsulting in swarm_config.env
+# 2. Deploy to Remote Server
+.\install-swarm.ps1 -Server "user@192.168.1.100"
+```
+
+#### Path 2: Using Custom Images (For Developers)
+If you have modified the code and want to deploy your own version, you must build and push the images to a registry reachable by the server.
+
+**Mac/Linux:**
+```bash
+# 1. Build and Push images to your registry
+# Ensure DOCKER_USERNAME in swarm_config.env matches your registry namespace
+./push.sh my-registry.com/thothai 1.0.0
+
+# 2. Deploy to Remote Server
+./install-swarm.sh --server user@192.168.1.100
+```
+
+**Windows (Custom Images Example):**
 ```powershell
 # 1. Push images to registry
 .\push.ps1 -RegistryUrl "my-registry.com/thothai" -Version "1.0.0"
 
 # 2. Deploy to Remote Server
 .\install-swarm.ps1 -Server "user@192.168.1.100"
-
-# With custom SSH settings
-.\install-swarm.ps1 -Server "user@192.168.1.100" -Port 2222 -Key "$env:USERPROFILE\.ssh\custom_key"
 ```
+
+> [!TIP]
+> **DOCKER_USERNAME**: In `swarm_config.env`, this variable determines which images are pulled. 
+> - For official images, use `tylconsulting`.
+> - For custom images, use your Docker Hub username or your private registry URL/namespace.
 
 ### Advanced Options
 
@@ -405,7 +455,7 @@ Deploy to a remote Swarm cluster directly from your local machine using SSH tunn
 
 ### Managing the Swarm
 
-Common operations for maintenance:
+Common operations for maintenance (Standard Docker commands work on all platforms):
 
 ```bash
 # Check stack status
@@ -506,8 +556,19 @@ newgrp docker
 **Problem**: Backend/Frontend/SQL Generator doesn't start.
 
 **Check logs:**
+
+**Mac/Linux:**
 ```bash
-# Local development - check terminal output
+# Docker Compose
+docker compose logs backend
+docker compose logs frontend
+
+# Docker Swarm
+docker service logs thothai-swarm_backend
+```
+
+**Windows:**
+```powershell
 # Docker Compose
 docker compose logs backend
 docker compose logs frontend
@@ -527,6 +588,8 @@ docker service logs thothai-swarm_backend
 **Problem**: Backend can't connect to Qdrant or Postgres.
 
 **Solution:**
+
+**Mac/Linux:**
 ```bash
 # Check if Qdrant is running
 docker ps | grep qdrant
@@ -535,6 +598,15 @@ docker ps | grep qdrant
 curl http://localhost:6333/health  # Local dev
 curl http://localhost:6334/health  # Docker Compose
 curl http://localhost:7005/health  # Swarm
+```
+
+**Windows:**
+```powershell
+# Check if Qdrant is running
+docker ps | Select-String qdrant
+
+# Check Qdrant health
+Invoke-WebRequest -Uri http://localhost:6333/health
 ```
 
 ### Clean Slate Restart
@@ -573,19 +645,34 @@ docker compose -f docker-compose-local.yml down
 ## 🎯 Quick Start Cheat Sheet
 
 ### First Time Setup
+
+**Mac/Linux:**
 ```bash
 # 1. Clone repository
 git clone <repo-url> && cd ThothAI
 
 # 2. Configure
 cp config.yml config.yml.local
-# Edit config.yml.local with your API keys
 
 # 3. Start local development
 ./start-all.sh
 ```
 
+**Windows:**
+```powershell
+# 1. Clone repository
+git clone <repo-url>; cd ThothAI
+
+# 2. Configure
+Copy-Item config.yml config.yml.local
+
+# 3. Start local development
+.\start-all.ps1
+```
+
 ### Docker Compose Deployment
+
+**Mac/Linux:**
 ```bash
 # Pull and deploy
 ./install.sh
@@ -594,13 +681,33 @@ cp config.yml config.yml.local
 ./install.sh --build
 ```
 
+**Windows:**
+```powershell
+# Pull and deploy
+.\install.ps1
+
+# Or build locally
+.\install.ps1 -Build
+```
+
 ### Production Swarm Deployment
+
+**Mac/Linux:**
 ```bash
 # 1. Build and push images
 ./push.sh my-registry.com/thothai 1.0.0
 
 # 2. Deploy to production server
 ./install-swarm.sh --server user@production-server
+```
+
+**Windows:**
+```powershell
+# 1. Build and push images
+.\push.ps1 -RegistryUrl "my-registry.com/thothai" -Version "1.0.0"
+
+# 2. Deploy to production server
+.\install-swarm.ps1 -Server "user@production-server"
 ```
 
 ---

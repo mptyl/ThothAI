@@ -236,6 +236,16 @@ main() {
     [ "$SKIP_PULL" = false ] && pull_images
     [ "$SKIP_SECRETS" = false ] && manage_secrets
     
+    # Ensure required volumes exist
+    print_color "Ensuring required volumes exist..." "$YELLOW"
+    local volumes=("thoth-secrets" "thoth-backend-static" "thoth-backend-media" "thoth-frontend-cache" "thoth-qdrant-data" "thoth-shared-data" "thoth-data-exchange")
+    for vol in "${volumes[@]}"; do
+        if ! docker volume ls --format '{{.Name}}' | grep -q "^${vol}$"; then
+            docker volume create "$vol" >/dev/null 2>&1
+            print_color "  Created volume '$vol'" "$GREEN"
+        fi
+    done
+    
     # Ensure network exists
     docker network create --driver overlay --attachable "${STACK_NAME}_thoth-network" 2>/dev/null || true
     

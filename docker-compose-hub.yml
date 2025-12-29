@@ -7,7 +7,7 @@ services:
     volumes:
       - thoth-backend-db:/app/backend_db
       - thoth-shared-data:/app/data
-      - ./data_exchange:/app/data_exchange
+      - thoth-data-exchange:/app/data_exchange
       - thoth-logs:/app/logs
       - backend-static:/vol/static
       - backend-media:/vol/media
@@ -43,7 +43,7 @@ services:
     volumes:
       - frontend-cache:/app/.next/cache
       - thoth-secrets:/secrets
-      - ./data_exchange:/app/data_exchange:ro
+      - thoth-data-exchange:/app/data_exchange:ro
     env_file: .env.docker
     environment:
       - NODE_ENV=production
@@ -74,7 +74,7 @@ services:
       - "${SQL_GENERATOR_PORT:-8020}:8020"
     volumes:
       - thoth-shared-data:/app/data
-      - ./data_exchange:/app/data_exchange
+      - thoth-data-exchange:/app/data_exchange
       - thoth-logs:/app/logs
       - thoth-secrets:/secrets
     env_file: .env.docker
@@ -104,7 +104,7 @@ services:
     volumes:
       - backend-static:/vol/static:ro
       - backend-media:/vol/media:ro
-      - ./data_exchange:/vol/data_exchange:ro
+      - thoth-data-exchange:/vol/data_exchange:ro
     environment:
       - APP_HOST=backend
       - APP_PORT=8000
@@ -178,6 +178,9 @@ volumes:
     name: thoth-logs
   thoth-shared-data:
     name: thoth-shared-data
+    external: true
+  thoth-data-exchange:
+    name: thoth-data-exchange
     external: true
 
 networks:

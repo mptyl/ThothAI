@@ -170,6 +170,15 @@ def build_env_lines(config: Dict[str, Any], existing_env: Dict[str, str]) -> lis
 
     env_lines.append(f"DJANGO_API_URL={django_api_url}")
     env_lines.append(f"QDRANT_URL={qdrant_url}")
+    
+    # Runtime URLs for Next.js frontend API config endpoint
+    sql_generator_url = urls_cfg.get("sql_generator") or f"http://localhost:{sql_generator_port}"
+    frontend_url = urls_cfg.get("frontend") or f"http://localhost:{frontend_port}"
+    env_lines.append(f"RUNTIME_BACKEND_URL={django_api_url}")
+    env_lines.append(f"RUNTIME_SQL_GENERATOR_URL={sql_generator_url}")
+    env_lines.append(f"FRONTEND_URL={frontend_url}")
+    # Also export as NEXT_PUBLIC_* for Next.js client-side access
+    env_lines.append(f"NEXT_PUBLIC_SQL_GENERATOR_URL={sql_generator_url}")
 
     paths_cfg = local_cfg.get("paths", {}) or {}
     add_if_present(env_lines, "EXPORTS_DIR", paths_cfg.get("exports_dir", "./exports"))

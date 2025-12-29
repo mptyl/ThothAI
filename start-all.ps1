@@ -157,8 +157,39 @@ if ($SyncRequired) {
 
 if ($SyncBackend) {
     Write-ColorOutput "Synchronizing backend dependencies (uv lock --refresh && uv sync)..." "Cyan"
+    
+    # Configure MariaDB Connector/C path for Windows
+    $MariaDBConfigPath = $null
+    
+    # Check environment variable first
+    if ($env:MARIADB_CONFIG_PATH -and (Test-Path $env:MARIADB_CONFIG_PATH)) {
+        $MariaDBConfigPath = $env:MARIADB_CONFIG_PATH
+        Write-ColorOutput "Detected MariaDB Connector/C at: $MariaDBConfigPath (Environment Variable)" "Cyan"
+    } else {
+        # Check standard Windows installation paths
+        $possiblePaths = @(
+            "${env:ProgramFiles}\MariaDB\MariaDB Connector C 64-bit\bin",
+            "${env:ProgramFiles(x86)}\MariaDB\MariaDB Connector C\bin",
+            "C:\Program Files\MariaDB\MariaDB Connector C 64-bit\bin",
+            "C:\Program Files (x86)\MariaDB\MariaDB Connector C\bin"
+        )
+        
+        foreach ($path in $possiblePaths) {
+            if (Test-Path "$path\mariadb_config.exe") {
+                $MariaDBConfigPath = $path
+                Write-ColorOutput "Detected MariaDB Connector/C at: $MariaDBConfigPath (Standard Path)" "Cyan"
+                break
+            }
+        }
+    }
+    
     Push-Location backend
     try {
+        # Add MariaDB to PATH if found
+        if ($MariaDBConfigPath) {
+            $env:PATH = "$MariaDBConfigPath;$env:PATH"
+        }
+        
         uv lock --refresh
         if ($LASTEXITCODE -ne 0) { throw "uv lock --refresh failed" }
         uv sync
@@ -176,8 +207,39 @@ if ($SyncBackend) {
 
 if ($SyncSqlGen) {
     Write-ColorOutput "Synchronizing SQL Generator dependencies (uv lock --refresh && uv sync)..." "Cyan"
+    
+    # Configure MariaDB Connector/C path for Windows
+    $MariaDBConfigPath = $null
+    
+    # Check environment variable first
+    if ($env:MARIADB_CONFIG_PATH -and (Test-Path $env:MARIADB_CONFIG_PATH)) {
+        $MariaDBConfigPath = $env:MARIADB_CONFIG_PATH
+        Write-ColorOutput "Detected MariaDB Connector/C at: $MariaDBConfigPath (Environment Variable)" "Cyan"
+    } else {
+        # Check standard Windows installation paths
+        $possiblePaths = @(
+            "${env:ProgramFiles}\MariaDB\MariaDB Connector C 64-bit\bin",
+            "${env:ProgramFiles(x86)}\MariaDB\MariaDB Connector C\bin",
+            "C:\Program Files\MariaDB\MariaDB Connector C 64-bit\bin",
+            "C:\Program Files (x86)\MariaDB\MariaDB Connector C\bin"
+        )
+        
+        foreach ($path in $possiblePaths) {
+            if (Test-Path "$path\mariadb_config.exe") {
+                $MariaDBConfigPath = $path
+                Write-ColorOutput "Detected MariaDB Connector/C at: $MariaDBConfigPath (Standard Path)" "Cyan"
+                break
+            }
+        }
+    }
+    
     Push-Location frontend/sql_generator
     try {
+        # Add MariaDB to PATH if found
+        if ($MariaDBConfigPath) {
+            $env:PATH = "$MariaDBConfigPath;$env:PATH"
+        }
+        
         uv lock --refresh
         if ($LASTEXITCODE -ne 0) { throw "uv lock --refresh failed" }
         uv sync

@@ -22,41 +22,63 @@ interface PaginationResponse {
   error?: string;
 }
 
-// Validate environment variable at module load time - fail fast
-const SQL_GENERATOR_URL = process.env.NEXT_PUBLIC_SQL_GENERATOR_URL;
-if (!SQL_GENERATOR_URL) {
-  const errorMsg = `
-    ⚠️ CRITICAL CONFIGURATION ERROR ⚠️
-    
-    NEXT_PUBLIC_SQL_GENERATOR_URL environment variable is NOT SET!
-    
-    The application cannot function without this configuration.
-    Please ensure the .env.local file in the project root contains:
-    NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:8180
-    
-    Then restart the application.
-  `;
-  console.error(errorMsg);
-  throw new Error('FATAL: NEXT_PUBLIC_SQL_GENERATOR_URL is required but not configured');
+// Runtime configuration cache
+let cachedConfig: { sqlGeneratorUrl: string } | null = null;
+
+async function getRuntimeConfig(): Promise<{ sqlGeneratorUrl: string }> {
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  // Try build-time env var first (for backwards compatibility)
+  const buildTimeUrl = process.env.NEXT_PUBLIC_SQL_GENERATOR_URL;
+  if (buildTimeUrl) {
+    cachedConfig = { sqlGeneratorUrl: buildTimeUrl };
+    return cachedConfig;
+  }
+
+  // Fetch runtime config from API
+  try {
+    const response = await fetch('/api/config');
+    if (!response.ok) {
+      throw new Error(`Failed to fetch config: ${response.status}`);
+    }
+    const config = await response.json();
+    if (!config.sqlGeneratorUrl) {
+      throw new Error('sqlGeneratorUrl not found in runtime config');
+    }
+    cachedConfig = { sqlGeneratorUrl: config.sqlGeneratorUrl };
+    return cachedConfig;
+  } catch (error) {
+    console.error('Failed to load runtime config for SQL Generator:', error);
+    // Fallback to default local URL
+    cachedConfig = { sqlGeneratorUrl: 'http://localhost:8180' };
+    return cachedConfig;
+  }
 }
 
 export class QueryExecutorAPI {
-  private baseURL: string;
+  private baseURL: string | null = null;
   private retryCount: number = 3;
   private retryDelay: number = 1000;
 
-  constructor() {
-    this.baseURL = SQL_GENERATOR_URL as string; // Type assertion since we've validated above
+  private async ensureBaseURL(): Promise<string> {
+    if (!this.baseURL) {
+      const config = await getRuntimeConfig();
+      this.baseURL = config.sqlGeneratorUrl;
+    }
+    return this.baseURL;
   }
 
   /**
    * Execute a paginated SQL query
    */
   async executeQuery(request: PaginationRequest): Promise<PaginationResponse> {
-    const url = `${this.baseURL}/execute-query`;
-    
+    const baseUrl = await this.ensureBaseURL();
+    const url = `${baseUrl}/execute-query`;
+
     let lastError: Error | null = null;
-    
+
     for (let attempt = 0; attempt < this.retryCount; attempt++) {
       try {
         const response = await fetch(url, {
@@ -74,18 +96,18 @@ export class QueryExecutorAPI {
 
         const data: PaginationResponse = await response.json();
         return data;
-        
+
       } catch (error) {
         lastError = error as Error;
         console.error(`Query execution attempt ${attempt + 1} failed:`, error);
-        
+
         // If this isn't the last attempt, wait before retrying
         if (attempt < this.retryCount - 1) {
           await this.delay(this.retryDelay * (attempt + 1));
         }
       }
     }
-    
+
     // If all retries failed, return an error response
     return {
       data: [],
@@ -112,7 +134,7 @@ export class QueryExecutorAPI {
   }): Promise<PaginationResponse> {
     const pageSize = params.endRow - params.startRow;
     const page = Math.floor(params.startRow / pageSize);
-    
+
     return this.executeQuery({
       workspace_id: params.workspaceId,
       sql: params.sql,
@@ -138,7 +160,7 @@ export class QueryExecutorAPI {
       page: 0,
       page_size: 1
     });
-    
+
     return {
       totalRows: response.total_rows,
       columns: response.columns,
@@ -156,7 +178,7 @@ export class QueryExecutorAPI {
   /**
    * Get the base URL for debugging
    */
-  getBaseURL(): string {
-    return this.baseURL;
+  async getBaseURL(): Promise<string> {
+    return await this.ensureBaseURL();
   }
 }
