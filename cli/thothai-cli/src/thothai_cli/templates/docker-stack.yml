@@ -29,11 +29,11 @@ services:
       - DOCKER_CONTAINER=true
       - AUTO_GENERATE_SECRETS=true
     secrets:
-      - thoth_env_config
-      - source: thoth_config_yml
+      - ${STACK_NAME:-thothai-swarm}_thoth_env_config
+      - source: ${STACK_NAME:-thothai-swarm}_thoth_config_yml
         target: /app/config.yml.local
     configs:
-      - source: thoth_env_docker
+      - source: ${STACK_NAME:-thothai-swarm}_thoth_env_docker
         target: /app/.env.docker
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
@@ -97,9 +97,9 @@ services:
       - RUNTIME_BACKEND_URL=http://localhost:${WEB_PORT}
       - RUNTIME_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT}
     secrets:
-      - thoth_env_config
+      - ${STACK_NAME:-thothai-swarm}_thoth_env_config
     configs:
-      - source: thoth_env_docker
+      - source: ${STACK_NAME:-thothai-swarm}_thoth_env_docker
         target: /app/.env.docker
     deploy:
       labels:
@@ -146,9 +146,9 @@ services:
       - VECTOR_DB_PORT=6333
       - DB_ROOT_PATH=/app/data
     secrets:
-      - thoth_env_config
+      - ${STACK_NAME:-thothai-swarm}_thoth_env_config
     configs:
-      - source: thoth_env_docker
+      - source: ${STACK_NAME:-thothai-swarm}_thoth_env_docker
         target: /app/.env.docker
     deploy:
       labels:
@@ -306,11 +306,11 @@ networks:
     name: ${STACK_NAME:-thothai-swarm}_thoth-network
 
 secrets:
-  thoth_env_config:
+  ${STACK_NAME:-thothai-swarm}_thoth_env_config:
     external: true
-  thoth_config_yml:
+  ${STACK_NAME:-thothai-swarm}_thoth_config_yml:
     external: true
 
 configs:
-  thoth_env_docker:
+  ${STACK_NAME:-thothai-swarm}_thoth_env_docker:
     external: true

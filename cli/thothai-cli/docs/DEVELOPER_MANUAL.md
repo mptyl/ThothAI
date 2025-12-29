@@ -59,11 +59,8 @@ cli/thothai-cli/
 ### Build Locale
 
 ```bash
-# Installa build tools
-uv pip install build
-
-# Build distribuzione
-python -m build
+# Build distribuzione con uv
+uv build
 
 # Output in dist/:
 # - thothai_cli-1.0.0-py3-none-any.whl
@@ -140,6 +137,12 @@ chmod 600 ~/.pypirc
 
 ### Pubblicazione
 
+### Pubblicazione
+
+#### Opzione A: UV (Raccomandato)
+
+Il metodo più immediato, integrato nel toolchain.
+
 ```bash
 cd cli/thothai-cli
 
@@ -148,16 +151,26 @@ nano pyproject.toml
 # version = "1.0.1"
 
 # 2. Build
-python -m build
+uv build
 
-# 3. Installa twine
+# 3. Upload su PyPI
+# Nota: Usa un token con scope "Entire account" se è il primo rilascio del pacchetto
+uv publish --token <IL_TUO_TOKEN>
+```
+
+#### Opzione B: Twine (Alternativa)
+
+Utile per debug o se preferisci il tool classico.
+
+```bash
+# 1. Installa twine
 uv pip install twine
 
-# 4. Test upload su TestPyPI (opzionale)
-twine upload --repository testpypi dist/*
+# 2. Test upload su TestPyPI (opzionale)
+uv run twine upload --repository testpypi dist/*
 
-# 5. Upload su PyPI
-twine upload dist/*
+# 3. Upload su PyPI
+uv run twine upload dist/*
 ```
 
 ### Verifica Pubblicazione

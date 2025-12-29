@@ -168,12 +168,21 @@ BACKEND_PORT=7002
 
 ### Deploy
 
-```bash
-# Locale
-uv run thothai swarm deploy
+Il `thothai-cli` rileva automaticamente la modalità scelta durante l'`init`.
 
-# Remoto (SSH)
-uv run thothai swarm deploy --server ssh://user@my-server.com
+```bash
+# Se inizializzato con --mode swarm, questi comandi gestiscono lo stack Swarm
+uv run thothai up
+uv run thothai status
+uv run thothai down
+
+# Oppure usa i comandi espliciti
+uv run thothai swarm deploy
+uv run thothai swarm status
+uv run thothai swarm down
+
+# Deploy su server remoto via SSH
+uv run thothai swarm deploy --server user@my-server.com
 ```
 
 ## Troubleshooting
@@ -231,6 +240,11 @@ uv run thothai up
 | `thothai config show` | Mostra configurazione |
 | `thothai config validate` | Valida configurazione |
 | `thothai config test` | Testa Docker |
+| `thothai swarm deploy` | Deploy stack Swarm |
+| `thothai swarm down` | Rimuovi stack Swarm |
+| `thothai swarm status` | Stato servizi Swarm |
+| `thothai swarm update` | Aggiorna stack Swarm |
+| `thothai swarm rollback` | Rollback stack Swarm |
 
 ## Best Practices
 

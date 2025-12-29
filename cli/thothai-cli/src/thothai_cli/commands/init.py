@@ -55,7 +55,13 @@ def init_cmd(ctx, directory, mode):
                 console.print(f"[yellow]⚠ {target_name} already exists, skipping[/yellow]")
                 continue
             
-            shutil.copy(source, target)
+            if template_name == 'config.yml':
+                # Customize deployment mode in config.yml.local
+                content = source.read_text()
+                content = content.replace('deployment_mode: "compose"', f'deployment_mode: "{mode}"')
+                target.write_text(content)
+            else:
+                shutil.copy(source, target)
             console.print(f"[green]✓[/green] Created {target_name}")
         
         # Create .gitignore
