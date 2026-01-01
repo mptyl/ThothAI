@@ -24,14 +24,13 @@ import toml
 import json
 
 class ThothInstaller:
-    def __init__(self, config_path: str = "config.yml.local", no_cache: bool = False, build_locally: bool = False):
+    def __init__(self, config_path: str = "config.yml.local", no_cache: bool = False):
         self.base_dir = Path.cwd()
         self.config_path = Path(config_path)
         self.config = None
         self.errors = []
         self.password_file = self.base_dir / '.admin_password.hash'
         self.no_cache = no_cache
-        self.build_locally = build_locally
         
     def run(self) -> bool:
         """Main installation pipeline"""
@@ -47,31 +46,39 @@ class ThothInstaller:
         if not self.get_admin_password():
             return False
             
-        # Step 3: Generate .env.docker
+        # Step 3: Generate pyproject.toml.local files
+        if not self.generate_pyproject_locals():
+            return False
+            
+        # Step 4: Merge pyproject.toml files
+        if not self.merge_pyprojects():
+            return False
+            
+        # Step 5: Generate .env.docker
         if not self.generate_env_docker():
             return False
             
-        # Step 4: Create Docker network if needed
+        # Step 6: Create Docker network if needed
         if not self.create_docker_network():
             return False
             
-        # Step 5: Create Docker volumes if needed
+        # Step 7: Create Docker volumes if needed
         if not self.create_docker_volumes():
             return False
             
-        # Step 6: Generate Django secrets if needed
+        # Step 8: Generate Django secrets if needed
         if not self.generate_django_secrets():
             return False
             
-        # Step 7: Build and start Docker containers
+        # Step 9: Build and start Docker containers
         if not self.docker_compose_up():
             return False
             
-        # Step 8: Wait for backend to be ready
+        # Step 10: Wait for backend to be ready
         if not self.wait_for_backend():
             return False
             
-        # Step 9: Run initial setup commands if greenfield
+        # Step 11: Run initial setup commands if greenfield
         if not self.run_initial_setup_commands():
             return False
             
@@ -200,6 +207,113 @@ class ThothInstaller:
             print("Password configured")
             return True
     
+    def generate_pyproject_locals(self) -> bool:
+        """Generate pyproject.toml.local files based on database configuration"""
+        print("\nGenerating dependency configurations...")
+        
+        databases = self.config.get('databases', {})
+        
+        # Build database extras list
+        db_extras = ['sqlite']  # Always include sqlite
+        if databases.get('postgresql'):
+            db_extras.append('postgresql')
+        if databases.get('mysql'):
+            db_extras.append('mysql')
+        if databases.get('mariadb'):
+            db_extras.append('mariadb')
+        if databases.get('sqlserver'):
+            db_extras.append('sqlserver')
+        
+        # Generate or update backend pyproject.toml.local without clobbering existing overrides
+        backend_path = self.base_dir / 'backend' / 'pyproject.toml.local'
+        backend_path.parent.mkdir(exist_ok=True)
+        if backend_path.exists():
+            backend_local = toml.load(backend_path)
+        else:
+            backend_local = {'tool': {'uv': {'sources': {}}}, 'project': {'dependencies': []}}
+
+        # Ensure thoth-dbmanager dependency with correct extras is present (dedupe any existing)
+        deps = backend_local.setdefault('project', {}).setdefault('dependencies', [])
+        deps = [d for d in deps if not (isinstance(d, str) and d.startswith('thoth-dbmanager'))]
+        deps.append(f"thoth-dbmanager[{','.join(db_extras)}]>=0.5.10")
+        backend_local['project']['dependencies'] = deps
+
+        with open(backend_path, 'w') as f:
+            toml.dump(backend_local, f)
+        print(f"Generated/updated {backend_path}")
+        
+        # SQL generator: create local file only if missing; don't overwrite existing overrides
+        sql_gen_path = self.base_dir / 'frontend' / 'sql_generator' / 'pyproject.toml.local'
+        sql_gen_path.parent.mkdir(parents=True, exist_ok=True)
+        if not sql_gen_path.exists():
+            sql_gen_local = {
+                'tool': {'uv': {'sources': {}}},
+                'project': {'dependencies': []}
+            }
+            with open(sql_gen_path, 'w') as f:
+                toml.dump(sql_gen_local, f)
+            print(f"Generated {sql_gen_path}")
+        else:
+            print(f"Preserved existing {sql_gen_path}")
+        
+        return True
+    
+    def merge_pyprojects(self) -> bool:
+        """Merge base and local pyproject.toml files"""
+        print("\nMerging pyproject.toml files...")
+        
+        for project_dir in ['backend', 'frontend/sql_generator']:
+            project_path = self.base_dir / project_dir
+            base_path = project_path / 'pyproject.toml'
+            local_path = project_path / 'pyproject.toml.local'
+            merged_path = project_path / 'pyproject.toml.merged'
+            
+            if not base_path.exists():
+                print(f"Warning: Base pyproject.toml not found in {project_dir}")
+                continue
+            
+            # Load base
+            with open(base_path) as f:
+                base_config = toml.load(f)
+            
+            # Load local if exists
+            if local_path.exists():
+                with open(local_path) as f:
+                    local_config = toml.load(f)
+                
+                # Merge dependencies
+                if 'project' in local_config and 'dependencies' in local_config['project']:
+                    base_deps = base_config.get('project', {}).get('dependencies', [])
+                    local_deps = local_config['project']['dependencies']
+                    
+                    # Remove any existing thoth-dbmanager or thoth-qdrant dependencies
+                    base_deps = [d for d in base_deps if not (isinstance(d, str) and (d.startswith('thoth-dbmanager') or d.startswith('thoth-qdrant')))]
+                    
+                    # Add new dependencies from local
+                    base_deps.extend(local_deps)
+                    
+                    if 'project' not in base_config:
+                        base_config['project'] = {}
+                    base_config['project']['dependencies'] = base_deps
+                
+                # Merge tool.uv.sources if exists
+                if 'tool' in local_config and 'uv' in local_config['tool'] and 'sources' in local_config['tool']['uv']:
+                    if 'tool' not in base_config:
+                        base_config['tool'] = {}
+                    if 'uv' not in base_config['tool']:
+                        base_config['tool']['uv'] = {}
+                    if 'sources' not in base_config['tool']['uv']:
+                        base_config['tool']['uv']['sources'] = {}
+                    base_config['tool']['uv']['sources'].update(local_config['tool']['uv']['sources'])
+            
+            # Write merged
+            with open(merged_path, 'w') as f:
+                toml.dump(base_config, f)
+            
+            print(f"Created {merged_path}")
+        
+        return True
+    
     def generate_env_docker(self) -> bool:
         """Generate .env.docker file from configuration"""
         print("\nGenerating environment configuration...")
@@ -297,23 +411,6 @@ class ThothInstaller:
         env_lines.append(f"BACKEND_LOGGING_LEVEL={backend_level}")
         env_lines.append(f"FRONTEND_LOGGING_LEVEL={frontend_level}")
         
-        # Database plugins - generate ENABLED_DATABASES for runtime filtering
-        # This allows using generic Docker images with all drivers while only
-        # exposing databases explicitly enabled in config.yml.local
-        databases = self.config.get('databases', {})
-        enabled_dbs = ['sqlite']  # sqlite is always enabled
-        if databases.get('postgresql'):
-            enabled_dbs.append('postgresql')
-        if databases.get('mysql'):
-            enabled_dbs.append('mysql')
-        if databases.get('mariadb'):
-            enabled_dbs.append('mariadb')
-        if databases.get('sqlserver'):
-            enabled_dbs.append('sqlserver')
-        if databases.get('informix'):
-            enabled_dbs.append('informix')
-        env_lines.append(f"ENABLED_DATABASES={','.join(enabled_dbs)}")
-        
         # Additional required environment variables
         env_lines.append('DB_ROOT_PATH=/app/data')
         env_lines.append('DB_NAME_DOCKER=/app/backend_db/db.sqlite3')
@@ -344,8 +441,7 @@ class ThothInstaller:
             'thoth-backend-media',
             'thoth-frontend-cache',
             'thoth-qdrant-data',
-            'thoth-shared-data',
-            'thoth-data-exchange'
+            'thoth-shared-data'
         ]
         
         for volume_name in volumes:
@@ -387,8 +483,8 @@ class ThothInstaller:
         # Check if secrets already exist in the volume
         check_cmd = [
             'docker', 'run', '--rm', 
-            '-v', 'thoth-secrets:/vol/secrets',
-            'alpine', 'ls', '/vol/secrets/'
+            '-v', 'thoth-secrets:/secrets',
+            'alpine', 'ls', '/secrets/'
         ]
         
         result = subprocess.run(check_cmd, capture_output=True, text=True)
@@ -414,9 +510,9 @@ class ThothInstaller:
         for filename, content in secrets_to_generate:
             write_cmd = [
                 'docker', 'run', '--rm',
-                '-v', 'thoth-secrets:/vol/secrets',
+                '-v', 'thoth-secrets:/secrets',
                 'alpine', 'sh', '-c',
-                f'echo "{content}" > /vol/secrets/{filename} && chmod 640 /vol/secrets/{filename}'
+                f'echo "{content}" > /secrets/{filename} && chmod 640 /secrets/{filename}'
             ]
             
             result = subprocess.run(write_cmd, capture_output=True, text=True)
@@ -456,136 +552,39 @@ class ThothInstaller:
         return True
     
     def docker_compose_up(self) -> bool:
-        """Prepare images and start Docker containers"""
-        print("\nPreparing Docker images...")
+        """Build and start Docker containers"""
+        print("\nBuilding and starting Docker containers...")
+        print("This may take several minutes on first run...\n")
         
-        # Determine which compose file to use and if we should pull
-        if self.build_locally:
-            compose_file = self.config.get('docker', {}).get('compose_file', 'docker-compose.yml')
-            print(f"Local build requested. Using {compose_file}")
-            
-            # Build with cache option
-            build_args = ['docker', 'compose', '-f', compose_file, 'build']
-            if self.no_cache or not self.config.get('docker', {}).get('build_cache', True):
-                build_args.append('--no-cache')
-            
-            print("Building Docker images...")
-            result = subprocess.run(build_args)
-            if result.returncode != 0:
-                print("Error: Docker build failed")
-                return False
-        else:
-            # Default behavior: pull from hub
-            hub_compose = 'docker-compose-hub.yml'
-            if not Path(hub_compose).exists():
-                print(f"Error: {hub_compose} not found. Cannot pull images.")
-                return False
-                
-            print(f"Attempting to pull images from Docker Hub using {hub_compose}...")
-            # We need DOCKER_USERNAME for the hub compose file
-            docker_username = self.config.get('docker', {}).get('username', 'tylconsulting')
-            env = os.environ.copy()
-            env['DOCKER_USERNAME'] = docker_username
-            
-            result = subprocess.run(['docker', 'compose', '-f', hub_compose, 'pull'], env=env)
-            if result.returncode != 0:
-                print("\n" + "!" * 60)
-                print("  ERROR: Failed to pull images from Docker Hub.")
-                print("  Please check your internet connection or Docker login.")
-                print("  To build images locally instead, use the --build flag.")
-                print("!" * 60 + "\n")
-                return False
-            
-            print("✓ Images pulled successfully")
-            compose_file = hub_compose
-
+        compose_file = self.config.get('docker', {}).get('compose_file', 'docker-compose.yml')
+        
+        # Check if docker-compose file exists
+        if not Path(compose_file).exists():
+            print(f"Error: {compose_file} not found")
+            return False
+        
+        # Build with cache option
+        build_args = ['docker', 'compose', '-f', compose_file, 'build']
+        # Use --no-cache if explicitly requested via CLI or if config says no cache
+        if self.no_cache or not self.config.get('docker', {}).get('build_cache', True):
+            build_args.append('--no-cache')
+        
+        print("Building Docker images...")
+        result = subprocess.run(build_args)
+        if result.returncode != 0:
+            print("Error: Docker build failed")
+            return False
+        
         # Start containers
-        print(f"\nStarting containers using {compose_file}...")
-        env = os.environ.copy()
-        env['DOCKER_USERNAME'] = self.config.get('docker', {}).get('username', 'tylconsulting')
-        
+        print("Starting containers...")
         result = subprocess.run(
-            ['docker', 'compose', '-f', compose_file, 'up', '-d'],
-            env=env
+            ['docker', 'compose', '-f', compose_file, 'up', '-d']
         )
         if result.returncode != 0:
             print("Error: Failed to start containers")
             return False
         
         print("All services started successfully")
-        return True
-    
-    def clean_cache(self) -> bool:
-        """Clean Docker build cache"""
-        print("\nCleaning Docker build cache...")
-        result = subprocess.run(['docker', 'builder', 'prune', '-a', '-f'])
-        if result.returncode == 0:
-            print("✓ Docker build cache cleaned")
-            return True
-        print("Error: Failed to clean Docker build cache")
-        return False
-
-    def prune_resources(self, force: bool = False) -> bool:
-        """Remove all ThothAI resources"""
-        if not force:
-            print("\n" + "!" * 60)
-            print("  WARNING: This will remove all ThothAI containers, images, volumes, and networks!")
-            confirm = input("  Are you sure you want to continue? (y/N): ").strip().lower()
-            if confirm not in ['y', 'yes']:
-                print("  Aborted.")
-                return True
-        
-        print("\nPruning ThothAI resources...")
-        
-        # 1. Stop and remove containers
-        print("Stopping and removing containers...")
-        container_filter = 'name=thoth-'
-        result = subprocess.run(['docker', 'ps', '-a', '--filter', container_filter, '--format', '{{.ID}}'], capture_output=True, text=True)
-        containers = result.stdout.strip().split('\n')
-        if containers and containers[0]:
-            subprocess.run(['docker', 'rm', '-f'] + containers)
-            print(f"✓ Removed {len(containers)} containers")
-        else:
-            print("No matching containers found.")
-
-        # 2. Remove volumes
-        print("Removing volumes...")
-        volume_filter = 'name=thoth-'
-        result = subprocess.run(['docker', 'volume', 'ls', '-q', '--filter', volume_filter], capture_output=True, text=True)
-        volumes = result.stdout.strip().split('\n')
-        if volumes and volumes[0]:
-            subprocess.run(['docker', 'volume', 'rm'] + volumes)
-            print(f"✓ Removed {len(volumes)} volumes")
-        else:
-            print("No matching volumes found.")
-
-        # 3. Remove networks
-        print("Removing networks...")
-        network_filter = 'name=thoth-'
-        result = subprocess.run(['docker', 'network', 'ls', '-q', '--filter', network_filter], capture_output=True, text=True)
-        networks = result.stdout.strip().split('\n')
-        # Filter out built-in networks if they somehow match
-        networks = [n for n in networks if n]
-        if networks:
-            subprocess.run(['docker', 'network', 'rm'] + networks)
-            print(f"✓ Removed {len(networks)} networks")
-        else:
-            print("No matching networks found.")
-
-        # 4. Remove images
-        print("Removing images...")
-        # Get all images and filter manually for better pattern matching
-        result = subprocess.run(['docker', 'images', '--format', '{{.Repository}}:{{.Tag}}'], capture_output=True, text=True)
-        all_images = result.stdout.strip().split('\n')
-        thoth_images = [img for img in all_images if img.startswith('thoth-') or img.startswith('tylconsulting/thoth-')]
-        
-        if thoth_images:
-            subprocess.run(['docker', 'rmi', '-f'] + thoth_images)
-            print(f"✓ Removed {len(thoth_images)} images")
-        else:
-            print("No matching images found.")
-
-        print("\n✓ Prune completed.")
         return True
     
     def wait_for_backend(self) -> bool:
@@ -756,16 +755,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Thoth AI Installer')
     parser.add_argument('--no-cache', action='store_true',
                         help='Build Docker images without cache')
-    parser.add_argument('--build', action='store_true',
-                        help='Build images locally instead of pulling from Docker Hub')
-    parser.add_argument('--pull', action='store_true',
-                        help='Pull images from Docker Hub (default)')
-    parser.add_argument('--prune', action='store_true',
-                        help='Remove all ThothAI resources (containers, volumes, images, networks)')
-    parser.add_argument('--clean-cache', action='store_true',
-                        help='Clean Docker build cache')
-    parser.add_argument('--force', action='store_true',
-                        help='Skip confirmation for prune')
     parser.add_argument('--generate-env-only', action='store_true',
                         help='Generate .env.docker and exit (no Docker actions)')
     parser.add_argument('--config', default='config.yml.local',
@@ -773,27 +762,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Create installer with parsed arguments
-    installer = ThothInstaller(
-        config_path=args.config, 
-        no_cache=args.no_cache,
-        build_locally=args.build
-    )
+    installer = ThothInstaller(config_path=args.config, no_cache=args.no_cache)
 
     if args.generate_env_only:
         if not installer.load_config():
             sys.exit(1)
         if not installer.generate_env_docker():
-            sys.exit(1)
-        sys.exit(0)
-
-    if args.clean_cache:
-        if not installer.clean_cache():
-            sys.exit(1)
-        if not args.prune: # If only clean-cache, exit here
-            sys.exit(0)
-
-    if args.prune:
-        if not installer.prune_resources(force=args.force):
             sys.exit(1)
         sys.exit(0)
 

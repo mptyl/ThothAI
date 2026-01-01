@@ -15,7 +15,7 @@
 - Core flow: User question → context retrieval (vector DB) → multi-agent SQL generation → validation → execution → optional explanation → results + CSV export.
 
 ## Key Paths
-- Root: [README.md](file:///Users/mp/ThothAI/README.md), [docker-compose.yml](file:///Users/mp/ThothAI/docker-compose.yml), [start-all.sh](file:///Users/mp/ThothAI/start-all.sh), [install.sh](file:///Users/mp/ThothAI/install.sh), [config.yml.local](file:///Users/mp/ThothAI/config.yml.local).
+- Root: [README.md](file:///Users/mp/ThothAI/README.md), [docker-compose.yml](file:///Users/mp/ThothAI/docker-compose.yml), [install.sh](file:///Users/mp/ThothAI/install.sh), [config.yml.local](file:///Users/mp/ThothAI/config.yml.local).
 - Backend (Django): [manage.py](file:///Users/mp/ThothAI/backend/manage.py), [settings.py](file:///Users/mp/ThothAI/backend/Thoth/settings.py), [thoth_core](file:///Users/mp/ThothAI/backend/thoth_core), [thoth_ai_backend](file:///Users/mp/ThothAI/backend/thoth_ai_backend).
 - Frontend (Next.js): [app](file:///Users/mp/ThothAI/frontend/app), [components](file:///Users/mp/ThothAI/frontend/components), [next.config.js](file:///Users/mp/ThothAI/frontend/next.config.js).
 - SQL Generator (FastAPI + agents): [main.py](file:///Users/mp/ThothAI/frontend/sql_generator/main.py), [agent_manager.py](file:///Users/mp/ThothAI/frontend/sql_generator/agents/core/agent_manager.py), [agent_initializer.py](file:///Users/mp/ThothAI/frontend/sql_generator/agents/core/agent_initializer.py), [agent_ai_model_factory.py](file:///Users/mp/ThothAI/frontend/sql_generator/agents/core/agent_ai_model_factory.py).
@@ -38,10 +38,9 @@
 ## Development Workflow
 
 ### Configuration
-- Two parallel config flows:
-  - Docker: `config.yml.local` → `scripts/installer.py` → `.env.docker` + merged `pyproject.toml.local` → `docker-compose.yml` env.
-  - Local dev: `config.yml.local` → `scripts/generate_env_local.py` → `.env.local`
-- Required env:
+- **Source of Truth**: `config.yml.local` (Gitignored).
+- **Docker Config**: `.env.docker` (Generated from `config.yml.local`).
+- **Required Env**:
   - LLMs: at least one of `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
   - Embeddings: `EMBEDDING_PROVIDER`, `EMBEDDING_API_KEY`, `EMBEDDING_MODEL`.
 
@@ -60,9 +59,6 @@ docker-compose down            # Stop all services
 # Docker Swarm setup
 ./install-swarm.sh             # Install Swarm
 ./deploy-swarm.sh              # Deploy Stack
-
-# Local development (with uv)
-./start-all.sh                 # Start all services locally
 ```
 
 #### Backend Development

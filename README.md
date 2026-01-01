@@ -65,7 +65,7 @@ cp config.yml config.yml.local
 ./install.sh                 # Linux/macOS
 # Windows (CMD or PowerShell): .\install.bat  (or .\install.ps1)
 
-# 4. Start all services (if not already started by installer)
+# 4. Start all services
 docker compose up -d
 
 # 5. Access the application
@@ -79,7 +79,6 @@ docker compose up -d
 ## 📋 Prerequisites
 
 - Docker & Docker Compose v2 (for Docker installation)
-- Python 3.13+ with uv (for local development)
 - At least one LLM API key (OpenAI, Gemini, or Anthropic)
 - 4GB RAM minimum
 - 5GB disk space
@@ -246,23 +245,8 @@ ThothAI uses a multi-level configuration system to manage different deployment e
    - Contains environment variables for Docker Compose
    - Regenerated on each run of `install.sh`
 
-3. **`.env.local`** – Configuration for local development
-   - Used by `start-all.sh` for local development
-   - Contains the same settings but with local ports
-   - Variables exported into the environment for all services
-
-4. **`.env.template`** – Sample template
-   - Reference file with all required variables
-   - Copy and customize to create `.env.local`
-
-#### Configuration Flows
-
-#### Docker Deploy (install.sh)
-
-```
-config.yml.local → installer.py → .env.docker → docker-compose.yml
-                ↓                      ↓
-         pyproject.toml.local      Container environment variables
+                 ↓                      ↓
+          pyproject.toml.local      Container environment variables
 ```
 
 The process:

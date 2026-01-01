@@ -31,18 +31,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         source = options.get("source", "local")
         
-        # setup_csv is part of the project, copied during Docker build
-        from django.conf import settings
-        io_dir = os.path.join(settings.BASE_DIR.parent, "setup_csv")
-        file_path = os.path.join(io_dir, "users.csv")
-
-        # Check for source-specific file
-        source_specific_path = os.path.join(io_dir, source, "users.csv")
-        if os.path.exists(source_specific_path):
-            file_path = source_specific_path
-            self.stdout.write(f"Using source-specific file: {file_path}")
-        else:
-            self.stdout.write(f"Using default file: {file_path}")
+        # Use helper to locate CSV
+        from thoth_core.management.helpers import get_setup_csv_path
+        
+        file_path = get_setup_csv_path("users.csv", source)
+        self.stdout.write(f"Using CSV file at: {file_path}")
 
         if not os.path.exists(file_path):
             self.stdout.write(self.style.ERROR(f"File not found: {file_path}"))

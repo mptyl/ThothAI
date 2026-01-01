@@ -10,7 +10,7 @@ set -e
  
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-# Determine source directory. If DB_ROOT_PATH is provided (e.g., via .env.local), use it.
+# Determine source directory. If DB_ROOT_PATH is provided (e.g., via .env.docker), use it.
 if [ -n "$DB_ROOT_PATH" ]; then
     SOURCE_DIR="$DB_ROOT_PATH/dev_databases"
 else

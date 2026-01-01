@@ -30,20 +30,23 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Explicitly load .env.local from the project root to ensure correct settings.
+# Explicitly load .env.docker from the project root to ensure correct settings.
 # This overrides any variables set by the shell, making it reliable for both
 # local and Docker environments.
-dotenv_path = BASE_DIR.parent / '.env.local'
+import sys
+
+dotenv_path = BASE_DIR.parent / '.env.docker'
 if dotenv_path.exists():
     load_dotenv(dotenv_path=dotenv_path, override=True)
     # Verify DB_ROOT_PATH is loaded (critical for preprocessing)
     db_root = os.getenv('DB_ROOT_PATH')
     if db_root:
-        print(f"✓ Loaded .env.local: DB_ROOT_PATH={db_root}")
+        # Print to stderr to capture in logs but not pollute stdout (crucial for scripts)
+        sys.stderr.write(f"✓ Loaded .env.docker: DB_ROOT_PATH={db_root}\n")
     else:
-        print(f"⚠ Warning: .env.local loaded but DB_ROOT_PATH not found")
+        sys.stderr.write(f"⚠ Warning: .env.docker loaded but DB_ROOT_PATH not found\n")
 else:
-    print(f"⚠ Warning: .env.local not found at {dotenv_path}")
+    sys.stderr.write(f"⚠ Warning: .env.docker not found at {dotenv_path}\n")
 
 APPEND_SLASH = True
 

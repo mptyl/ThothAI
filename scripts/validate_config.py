@@ -187,7 +187,7 @@ class ConfigValidator:
                     json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
                     timeout=timeout,
                 )
-                return r.status_code in [200, 400, 422]
+                return r.status_code in [200, 400]
             if provider == 'ollama':
                 api_base = cfg.get('api_base') or 'http://127.0.0.1:11434'
                 r = requests.post(
@@ -244,7 +244,7 @@ class ConfigValidator:
             self.errors.append("SQLite support cannot be disabled")
         
         # Check valid database names
-        valid_dbs = ['sqlite', 'postgresql', 'mysql', 'mariadb', 'sqlserver', 'informix']
+        valid_dbs = ['sqlite', 'postgresql', 'mysql', 'mariadb', 'sqlserver']
         for db_name, enabled in databases.items():
             if db_name not in valid_dbs:
                 self.warnings.append(f"Unknown database type: {db_name}")

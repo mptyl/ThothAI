@@ -37,17 +37,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Starting Workspace CSV import"))
 
         source = options.get("source", "local")
-        # setup_csv is part of the project root, copied during Docker build
-        csv_path = os.path.join(settings.BASE_DIR.parent, "setup_csv", "workspace.csv")
-        source_specific_path = os.path.join(
-            settings.BASE_DIR.parent, "setup_csv", source, "workspace.csv"
-        )
-
-        if os.path.exists(source_specific_path):
-            csv_path = source_specific_path
-            self.stdout.write(f"Using source-specific file: {csv_path}")
-        else:
-            self.stdout.write(f"Using default file: {csv_path}")
+        # Use helper to locate CSV
+        from thoth_core.management.helpers import get_setup_csv_path
+        csv_path = get_setup_csv_path("workspace.csv", source)
+        
+        self.stdout.write(f"Using CSV file at: {csv_path}")
 
         if not os.path.exists(csv_path):
             self.stdout.write(

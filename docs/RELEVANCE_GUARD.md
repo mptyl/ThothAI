@@ -31,7 +31,7 @@
     - Morphology test (hu): verifies structural anchors promote STRICT.
   - **Manual Smoke**  
     1. Prepare a workspace where the question language differs from the database language.  
-    2. Run the pipeline (`./start-all.sh` locally or Docker stack).  
+    2. Run the pipeline (Docker stack).  
     3. Inspect the log (`frontend/sql_generator/logs/relevance.jsonl` or `/app/logs/relevance.jsonl`) to confirm language metadata and correct strict/weak/irrelevant counts.
   - **Env Tuning**  
     - `RELEVANCE_W_BM25`, `RELEVANCE_W_STRUCT` remain configurable; the dynamic adjustment only overrides them for the targeted language set when structural anchors are present.

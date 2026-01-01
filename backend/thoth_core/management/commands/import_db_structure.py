@@ -47,28 +47,20 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # setup_csv is part of the project root, copied during Docker build
-        import_dir = os.path.join(settings.BASE_DIR.parent, options["import_dir"])
         source = options.get("source", "local")
-        self.stdout.write(
-            self.style.SUCCESS(f"Starting database structure import from {import_dir}")
-        )
-
-        # Check if the import directory exists
-        if not os.path.exists(import_dir):
-            self.stdout.write(
-                self.style.ERROR(f"Import directory not found: {import_dir}")
-            )
-            return
-
-        # Read the selected_dbs.csv file
-        selected_dbs_file = os.path.join(import_dir, "selected_dbs.csv")
-        source_specific_file = os.path.join(import_dir, source, "selected_dbs.csv")
-
-        if os.path.exists(source_specific_file):
-            selected_dbs_file = source_specific_file
-            self.stdout.write(f"Using source-specific file: {selected_dbs_file}")
-        else:
-            self.stdout.write(f"Using default file: {selected_dbs_file}")
+        
+        # Use helper for selected_dbs.csv
+        from thoth_core.management.helpers import get_setup_csv_path
+        selected_dbs_file = get_setup_csv_path("selected_dbs.csv", source)
+        
+        self.stdout.write(f"Using CSV file at: {selected_dbs_file}")
+        
+        # Determine base directory for subsequent files
+        # We need the parent directory of selected_dbs.csv to find other files
+        # get_setup_csv_path returns the full path including filename
+        # so we take the parent to get the directory
+        resolved_import_dir = os.path.dirname(selected_dbs_file)
+        self.stdout.write(f"Base import directory resolved to: {resolved_import_dir}")
 
         if not os.path.exists(selected_dbs_file):
             self.stdout.write(
@@ -168,14 +160,14 @@ class Command(BaseCommand):
                         )
 
                 # Import tables, columns, and relationships for this database
-                tables_count = self.import_tables(import_dir, db_name, sql_db, source)
+                tables_count = self.import_tables(resolved_import_dir, db_name, sql_db, source)
                 imported_tables_count += tables_count
 
-                columns_count = self.import_columns(import_dir, db_name, sql_db, source)
+                columns_count = self.import_columns(resolved_import_dir, db_name, sql_db, source)
                 imported_columns_count += columns_count
 
                 relationships_count = self.import_relationships(
-                    import_dir, db_name, source
+                    resolved_import_dir, db_name, source
                 )
                 imported_relationships_count += relationships_count
 
@@ -189,14 +181,12 @@ class Command(BaseCommand):
 
     def import_tables(self, import_dir, db_name, sql_db, source="local"):
         """Import tables for a specific database, preserving original IDs"""
+        # We already resolved the directory in handle(), so just construct the filename
+        # Note: In handle() we resolved to the specific source directory (e.g. setup_csv/docker)
+        # So we don't need to try source-specific vs default logic again here if we trust import_dir
+        
         tables_file = os.path.join(import_dir, f"{db_name}_tables.csv")
-        source_specific_file = os.path.join(import_dir, source, f"{db_name}_tables.csv")
-
-        if os.path.exists(source_specific_file):
-            tables_file = source_specific_file
-            self.stdout.write(f"Using source-specific file: {tables_file}")
-        else:
-            self.stdout.write(f"Using default file: {tables_file}")
+        self.stdout.write(f"Looking for tables file at: {tables_file}")
 
         if not os.path.exists(tables_file):
             self.stdout.write(
@@ -262,15 +252,7 @@ class Command(BaseCommand):
     def import_columns(self, import_dir, db_name, sql_db, source="local"):
         """Import columns for a specific database, preserving original IDs"""
         columns_file = os.path.join(import_dir, f"{db_name}_columns.csv")
-        source_specific_file = os.path.join(
-            import_dir, source, f"{db_name}_columns.csv"
-        )
-
-        if os.path.exists(source_specific_file):
-            columns_file = source_specific_file
-            self.stdout.write(f"Using source-specific file: {columns_file}")
-        else:
-            self.stdout.write(f"Using default file: {columns_file}")
+        self.stdout.write(f"Looking for columns file at: {columns_file}")
 
         if not os.path.exists(columns_file):
             self.stdout.write(
@@ -375,15 +357,7 @@ class Command(BaseCommand):
     def import_relationships(self, import_dir, db_name, source="local"):
         """Import relationships for a specific database, preserving original IDs"""
         relationships_file = os.path.join(import_dir, f"{db_name}_relationships.csv")
-        source_specific_file = os.path.join(
-            import_dir, source, f"{db_name}_relationships.csv"
-        )
-
-        if os.path.exists(source_specific_file):
-            relationships_file = source_specific_file
-            self.stdout.write(f"Using source-specific file: {relationships_file}")
-        else:
-            self.stdout.write(f"Using default file: {relationships_file}")
+        self.stdout.write(f"Looking for relationships file at: {relationships_file}")
 
         if not os.path.exists(relationships_file):
             self.stdout.write(

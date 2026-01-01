@@ -116,7 +116,7 @@ Puoi aggiungere suffissi per versioni non definitive:
 
 ## 3. Workflow Tipico di Rilascio
 
-1.  **Test Locale:** Verifica che tutto funzioni con `docker-compose-local.yml` o build locale.
+1.  **Test Locale:** Verifica che tutto funzioni con build locale o in ambiente di staging.
 2.  **Commit & Tag Git:**
     ```bash
     git commit -m "Release 0.5.0"

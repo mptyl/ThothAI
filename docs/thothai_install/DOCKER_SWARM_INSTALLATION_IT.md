@@ -10,27 +10,16 @@ Questa guida dettaglia l'installazione di ThothAI in un cluster **Docker Swarm**
 
 ThothAI offre un percorso di deployment remoto su Docker Swarm:
 
-### 1.1 Deployment Remoto
+### 1.1 Deployment Remoto (e Locale)
 
 **Script**: [`install-swarm.sh`](../../install-swarm.sh) (Linux/macOS) o [`install-swarm.ps1`](../../install-swarm.ps1) (Windows)
 
 **Caratteristiche**:
-- Deployment su server remoto via SSH
-- Gestione automatica della connessione SSH
+- Deployment locale o su server remoto via SSH
+- Gestione automatica della connessione SSH per deployment remoto
 - Immagini prelevate da Docker Hub
 - Nessuna build locale richiesta
-- Ideale per produzione
-
-### 1.2 Deployment Remoto
-
-**Script**: [`install-swarm.sh`](../../install-swarm.sh) (Linux/macOS) o [`install-swarm.ps1`](../../install-swarm.ps1) (Windows)
-
-**Caratteristiche**:
-- Deployment su server remoto via SSH
-- Gestione automatica della connessione SSH
-- Immagini prelevate da Docker Hub
-- Nessuna build locale richiesta
-- Ideale per produzione
+- Ideale per produzione o test Swarm locali
 
 ---
 
@@ -52,18 +41,21 @@ ThothAI su Swarm utilizza:
 
 ```mermaid
 graph TB
-    subgraph "Deployment Locale"
-        Local[install-swarm-local.sh/ps1]
-        LocalSwarm[Local Docker Swarm]
-        Local --> LocalSwarm
+    subgraph "Deployment Host"
+        Deploy[install-swarm.sh/ps1]
     end
     
-    subgraph "Deployment Remoto"
-        Remote[install-swarm.sh/ps1]
+    subgraph "Local Swarm"
+        LocalSwarm[Local Docker Swarm]
+    end
+    
+    subgraph "Remote Swarm"
         SSH[SSH Connection]
         RemoteSwarm[Remote Docker Swarm]
-        Remote --> SSH --> RemoteSwarm
     end
+    
+    Deploy -->|Local| LocalSwarm
+    Deploy -->|--server| SSH --> RemoteSwarm
     
     subgraph Docker Hub
         Images[Pre-built Images]
@@ -72,10 +64,11 @@ graph TB
     LocalSwarm --> Images
     RemoteSwarm --> Images
 
-    style Local fill:#e3f2fd,stroke:#1a237e
-    style Remote fill:#fff3e0,stroke:#e65100
+    style Deploy fill:#e3f2fd,stroke:#1a237e
+    style LocalSwarm fill:#fff3e0,stroke:#e65100
+    style RemoteSwarm fill:#f3e5f5,stroke:#4a148c
     style Images fill:#f3e5f5,stroke:#4a148c
-    linkStyle default stroke:#fff,stroke-width:1px;
+    linkStyle default stroke:#000,stroke-width:1px;
 ```
 
 ---
@@ -261,7 +254,7 @@ Per aggiornare i servizi:
 2.  Riesegui lo script di deployment appropriato:
     ```bash
     # Locale
-    ./install-swarm-local.sh
+    ./install-swarm.sh
     
     # Remoto
     ./install-swarm.sh --server user@server
@@ -357,6 +350,5 @@ docker swarm init
 - **Documentazione Swarm Locale**: [`../docker_and_swarm/DOCKER_SWARM_LOCAL_BUILD_IT.md`](../docker_and_swarm/DOCKER_SWARM_LOCAL_BUILD_IT.md)
 - **Guida Swarm Completa**: [`../docker_and_swarm/3_DOCKER_SWARM_IT.md`](../docker_and_swarm/3_DOCKER_SWARM_IT.md)
 - **Docker Stack**: `docker-stack.yml`
-- **Script deploy locale**: `install-swarm-local.sh`, `install-swarm-local.ps1`
-- **Script deploy remoto**: `install-swarm.sh`, `install-swarm.ps1`
+- **Script deploy**: `install-swarm.sh`, `install-swarm.ps1`
 - **Script gestione**: `deploy-swarm.sh`, `deploy-swarm.ps1`

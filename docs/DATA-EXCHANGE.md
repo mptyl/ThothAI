@@ -6,13 +6,8 @@ ThothAI's data exchange system enables file transfer between external systems an
 
 ## Deployment Scenarios
 
-### 1. Local Development (No Docker)
-
-Direct filesystem access to `./data_exchange` directory.
-
-**Access Methods:**
-- Direct file access (edit files in `./data_exchange/`)
-- API endpoints (optional, for testing)
+### 1. Unified Configuration flow (Recommended)
+Use `config.yml.local` and `install.sh` for local Docker deployment.
 
 ### 2. Single Docker (docker-compose)
 
@@ -89,10 +84,10 @@ python scripts/data-exchange-cli.py delete old_data.csv
 
 ## Deployment
 
-### Local Development
+### Local Docker Setup
 ```bash
 # Start services
-./start-all.sh
+./install.sh
 
 # Access files directly
 ls ./data_exchange/

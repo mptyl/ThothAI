@@ -13,10 +13,8 @@ ThothAI is designed as a microservices architecture:
 - **Mermaid Service**: Standalone service for diagram generation.
 - **Infrastructure**: Qdrant (Vector DB), Postgres (App DB - optional), Nginx (Proxy).
 
-The project uses a **hybrid deployment model**:
-1.  **Local Dev**: Services run natively (Python/Node) for speed, with infrastructure (DBs) in Docker.
-2.  **Single Docker**: All services run in containers via Docker Compose.
-3.  **Swarm**: Distributed deployment with replicas, secrets, and overlay networks.
+1.  **Single Docker**: All services run in containers via Docker Compose.
+2.  **Swarm**: Distributed deployment with replicas, secrets, and overlay networks.
 
 ---
 
@@ -34,146 +32,11 @@ The project uses a **hybrid deployment model**:
 
 ---
 
-## 🛠️ Part 1: Local Development (Hybrid Mode)
-
-This is the standard mode for writing code. The application logic runs on your host machine (fast iterations, debugging), while databases run in Docker containers.
-
-### Prerequisites Verification
-Ensure you have:
-- Python 3.9+ (`python3 --version`)
-- Node.js 20+ (`node --version`)
-- uv package manager (`uv --version`)
-- Docker running (`docker ps`)
-
-### Step 1: Initial Setup
-
-The fastest way to set up local development is using the `start-all` script, which automatically handles dependency installation and service startup.
-
-> [!IMPORTANT]
-> **Automatic Infrastructure Management**: The `start-all` script automatically ensures that **Qdrant** (Vector Database) and **Mermaid Service** (Diagram Generation) containers are running via Docker. You don't need to start these containers manually – the script checks if they're running and starts them automatically via `docker-compose-local.yml` if needed.
-
-**Mac/Linux:**
-```bash
-# Automatic setup and start all services
-# This will:
-# 1. Start Qdrant container (if not already running)
-# 2. Start Mermaid Service container (if not already running)
-# 3. Start Backend, Frontend, and SQL Generator natively
-./start-all.sh
-```
-
-**Windows:**
-```powershell
-# Automatic setup and start all services
-.\start-all.ps1
-```
-
-**Manual Setup (Alternative):**
-
-If you prefer to set up dependencies manually:
-
-**Mac/Linux:**
-```bash
-# Backend dependencies
-cd backend && uv sync && cd ..
-
-# Frontend dependencies
-cd frontend && npm install && cd ..
-
-# SQL Generator dependencies
-cd frontend/sql_generator && uv sync && cd ../..
-```
-
-**Windows:**
-```powershell
-# Backend dependencies
-cd backend; uv sync; cd ..
-
-# Frontend dependencies
-cd frontend; npm install; cd ..
-
-# SQL Generator dependencies
-cd frontend/sql_generator; uv sync; cd ../..
-```
-
-### Step 2: Configuration
-
-Before starting services, ensure `config.yml.local` exists in the project root:
-
-**Mac/Linux:**
-```bash
-# If config.yml.local doesn't exist, copy from template
-cp config.yml config.yml.local
-
-# Edit with your API keys and settings
-nano config.yml.local
-```
-
-**Windows:**
-```powershell
-# Copy from template
-Copy-Item config.yml config.yml.local
-
-# Edit with your preferred editor
-notepad config.yml.local
-```
-
-**Required Configuration:**
-- AI provider API keys (OpenAI, Gemini, Anthropic, or OpenRouter)
-- Embedding provider settings
-- Database connection settings (if using external databases)
-
-### Step 3: Running the Application
-
-The `start-all` script intelligently manages your hybrid development environment:
-
-**What Runs in Docker Containers:**
-- 🐳 **Qdrant** (Vector Database) - Port 6333
-- 🐳 **Mermaid Service** (Diagram Generation) - Port 8003
-
-**What Runs Natively on Your Machine:**
-- 🐍 **Backend** (Django) - Port 8200
-- ⚛️ **Frontend** (Next.js) - Port 3200  
-- 🤖 **SQL Generator** (FastAPI) - Port 8180
-
-**Script Behavior:**
-1. ✅ Checks if ports are free
-2. ✅ **Automatically starts Qdrant container** if not running (via `docker-compose-local.yml`)
-3. ✅ **Automatically starts Mermaid container** if not running (via `docker-compose-local.yml`)
-4. ✅ Starts Backend, Frontend, and SQL Generator natively
-
-**Mac/Linux:**
-```bash
-./start-all.sh
-```
-
-**Windows:**
-```powershell
-.\start-all.ps1
-```
-
-### Step 4: Development Workflow
-
-Once all services are running:
-
-- **Frontend**: Edit files in `frontend/`. Hot-reloading active at `http://localhost:3200`
-- **Backend**: Edit files in `backend/`. Django auto-reloads at `http://localhost:8200`
-- **Django Admin**: Access at `http://localhost:8200/admin`
-- **SQL Generator**: Edit `frontend/sql_generator/`. Service auto-reloads at `http://localhost:8180`
-- **API Docs**: Interactive docs at `http://localhost:8180/docs`
-
-### Stopping Services
-
-Press `Ctrl+C` in the terminal where `start-all` is running. 
-
-The script will:
-1. ✅ Stop all native services (Backend, Frontend, SQL Generator)
-2. ❓ **Prompt you** about stopping Docker containers (Qdrant, Mermaid)
-
-> [!TIP]
-> **Keep Containers Running**: You can choose to leave Qdrant and Mermaid containers running between development sessions. This speeds up subsequent `start-all.sh` launches since the containers don't need to restart.
-
 ---
+
+## 🛠️ Local Development (Docker-based)
+
+For development, we use Docker Compose to run the entire stack. This ensures environment parity and simplifies setup.
 
 ## 📦 Part 2: Working with Docker Images
 
@@ -183,7 +46,6 @@ Before deploying to production (Swarm) or testing a full containerized setup, yo
 
 - **`docker-compose.yml`**: Builds images from local source (`build: .`). Used for standard deployments.
 - **`docker-compose-hub.yml`**: Uses pre-built images from registry (`image: ...`). Used for pulling from Docker Hub.
-- **`docker-compose-local.yml`**: Contains infrastructure services (Qdrant, Mermaid) for local development.
 
 ### Building and Pushing Images
 
@@ -617,14 +479,12 @@ If everything seems broken:
 ```bash
 # Stop all services
 docker compose down
-docker compose -f docker-compose-local.yml down
 
 # Remove all ThothAI containers and volumes
 ./install.sh --prune --force  # Docker Compose
 ./install-swarm.sh --prune    # Swarm
 
 # Restart from scratch
-./start-all.sh  # Local dev
 ./install.sh    # Docker Compose
 ```
 

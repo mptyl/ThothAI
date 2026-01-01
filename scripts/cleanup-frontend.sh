@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
 # ThothAI - Frontend housekeeping script
-# Moves legacy files, removes redundant artifacts, and ensures logs/.gitkeep exists.
+# Moves legacy files (including old local-only flow files), removes redundant artifacts, and ensures logs/.gitkeep exists.
 # Safe by default (no git mutations). Use --git to stage deletions/moves.
 
 set -euo pipefail

@@ -21,11 +21,19 @@ from dotenv import load_dotenv
 
 def main():
     """Run administrative tasks."""
-    # Load .env.local if it exists, otherwise load .env
+    # Load .env.docker if it exists, otherwise load .env
     from pathlib import Path
-    env_local = Path(__file__).parent.parent / '.env.local'
-    if env_local.exists():
-        load_dotenv(env_local)
+    
+    # Check for .env.docker in common locations
+    # 1. Root relative to this file (Local dev: backend/../.env.docker -> project_root/.env.docker)
+    local_env_docker = Path(__file__).resolve().parent.parent / '.env.docker'
+    # 2. Docker container root (Standard Docker run: /app/.env.docker)
+    docker_env_docker = Path('/app/.env.docker')
+    
+    if docker_env_docker.exists():
+        load_dotenv(docker_env_docker)
+    elif local_env_docker.exists():
+        load_dotenv(local_env_docker)
     else:
         load_dotenv()
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Thoth.settings")
