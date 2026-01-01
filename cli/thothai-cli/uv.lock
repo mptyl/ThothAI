@@ -359,7 +359,7 @@ wheels = [
 
 [[package]]
 name = "thothai-cli"
-version = "1.1.4"
+version = "1.1.11"
 source = { editable = "." }
 dependencies = [
     { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -367,6 +367,7 @@ dependencies = [
     { name = "docker" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "thothai-cli-core" },
 ]
 
 [package.metadata]
@@ -375,6 +376,22 @@ requires-dist = [
     { name = "docker", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.0" },
+    { name = "thothai-cli-core" },
+]
+
+[[package]]
+name = "thothai-cli-core"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "click", version = "8.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pyyaml" },
+    { name = "rich" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/07/413afbb508334995616faf7e9e6289ef3c2bf51fcbe55ed3412704b36d8b/thothai_cli_core-1.0.0.tar.gz", hash = "sha256:d71eacc5867bb8dc2d224d4ee3bfef1c8bd828f8970e149081760b4afd339da3", size = 7696, upload-time = "2025-12-30T18:04:18.77Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/c7/8c7ff71280e884a928e7308530643dec2219e4a98dc0937638a2adf63b1d/thothai_cli_core-1.0.0-py3-none-any.whl", hash = "sha256:6c7ef4a3c86c3ada9f117aa29cbb51af06da18d95aa58c80454d6f071a1d4e39", size = 7801, upload-time = "2025-12-30T18:04:17.799Z" },
 ]
 
 [[package]]

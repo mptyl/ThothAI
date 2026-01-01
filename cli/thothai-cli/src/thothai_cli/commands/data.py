@@ -26,12 +26,21 @@ def get_docker_ops():
         config_mgr = ConfigManager(config_path)
         raw_config = config_mgr.config
         
+        # Determine deployment mode and stack name
+        deployment_mode = raw_config.get('docker', {}).get('deployment_mode', 'swarm')
+        
+        # Default stack name logic matches init command defaults
+        default_stack = 'thothai-swarm' if deployment_mode == 'swarm' else 'thothai'
+        
+        # Allow override from config, otherwise use default
+        stack_name = raw_config.get('docker', {}).get('stack_name', default_stack)
+        
         # Map thothai-cli config to what DockerOperations expects
         docker_ops_config = {
             'docker': {
                 'connection': 'local',  # thothai-cli is primarily local for now
-                'mode': raw_config.get('docker', {}).get('deployment_mode', 'swarm'),
-                'stack_name': 'thothai-swarm' if raw_config.get('docker', {}).get('deployment_mode') == 'swarm' else 'thothai',
+                'mode': deployment_mode,
+                'stack_name': stack_name,
                 'service': 'backend',
                 'db_service': 'sql-generator'
             },
@@ -71,7 +80,7 @@ def csv_upload(file):
 
 @csv_group.command('download')
 @click.argument('filename')
-@click.option('-o', '--output', default='.', help='Output directory')
+@click.option('-o', '--output', default='data_exchange', help='Output directory')
 def csv_download(filename, output):
     """Download CSV file from data_exchange volume."""
     ops = get_docker_ops()

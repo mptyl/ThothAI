@@ -623,3 +623,25 @@ class DockerManager:
         console.print("\n[bold]Login Credentials:[/bold]")
         console.print(f"  Username: {admin.get('username', 'admin')}")
         console.print(f"  Password: [as configured in config.yml.local]")
+
+    def swarm_logs(self, service: str = 'backend', tail: int = 50, follow: bool = False, server: Optional[str] = None) -> None:
+        """View Swarm service logs."""
+        swarm_env = self._get_swarm_env()
+        stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
+        
+        # If the user passed a full service name (e.g., thothai-swarm_backend), use it.
+        # Otherwise, assume it's a short name and prepend stack name.
+        if service.startswith(stack_name + '_'):
+             full_service_name = service
+        else:
+             full_service_name = f"{stack_name}_{service}"
+
+        cmd = ['docker', 'service', 'logs']
+        if follow:
+            cmd.append('-f')
+        else:
+            cmd.extend(['--tail', str(tail)])
+            
+        cmd.append(full_service_name)
+        
+        self._run_cmd(cmd, server=server)

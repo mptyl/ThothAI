@@ -141,30 +141,30 @@ La CLI `thothai` è progettata per gestire deployment in quattro scenari princip
 
 #### 1. Locale + Compose (Default)
 L'approccio più semplice. La CLI comunica direttamente con il demone Docker locale.
-- **Avvio**: `thothai up`
-- **Stop**: `thothai down`
-- **Log**: `thothai logs -f`
-- **Stato**: `thothai status`
+- **Avvio**: `uv run thothai up`
+- **Stop**: `uv run thothai down`
+- **Log**: `uv run thothai logs -f`
+- **Stato**: `uv run thothai status`
 
 #### 2. Locale + Swarm
 Richiede che Docker Desktop (o Engine) abbia lo Swarm attivo (`docker swarm init`).
-- **Avvio**: `thothai swarm deploy`
-- **Stop**: `thothai swarm down`
+- **Avvio**: `uv run thothai swarm deploy`
+- **Stop**: `uv run thothai swarm down`
 - **Log**: `docker service logs -f thothai-swarm_backend` (o tramite visualizzatori esterni)
-- **Stato**: `thothai swarm status`
+- **Stato**: `uv run thothai swarm status`
 
 #### 3. Remoto + Compose
 La CLI usa il tunneling SSH per inviare comandi al demone Docker remoto.
-- **Avvio**: `thothai up --server ssh://user@ip`
-- **Stop**: `thothai down --server ssh://user@ip`
+- **Avvio**: `uv run thothai up --server ssh://user@ip`
+- **Stop**: `uv run thothai down --server ssh://user@ip`
 - **Nota**: I file di configurazione (`config.yml.local`) risiedono **in locale**, ma vengono usati per configurare il container remoto.
 
 #### 4. Remoto + Swarm
 Gestione professionale di un cluster di produzione.
-- **Avvio**: `thothai swarm deploy --server ssh://user@ip`
-- **Stop**: `thothai swarm down --server ssh://user@ip`
-- **Update**: `thothai swarm update --server ssh://user@ip` (Rolling update senza downtime)
-- **Rollback**: `thothai swarm rollback --server ssh://user@ip`
+- **Avvio**: `uv run thothai swarm deploy --server ssh://user@ip`
+- **Stop**: `uv run thothai swarm down --server ssh://user@ip`
+- **Update**: `uv run thothai swarm update --server ssh://user@ip` (Rolling update senza downtime)
+- **Rollback**: `uv run thothai swarm rollback --server ssh://user@ip`
 
 ---
 
@@ -183,28 +183,29 @@ Al termine dell'avvio, l'applicazione sarà raggiungibile ai seguenti indirizzi 
 
 ### Comandi di Gestione Ciclo di Vita
 
-- **`thothai init`**: Inizializza il tuo spazio di lavoro. Crea i file di configurazione `config.yml.local` e i file Docker necessari. Usa `--mode swarm` se prevedi un deployment su cluster.
-- **`thothai up`**: Il comando principale per l'avvio. Valida la configurazione, crea i volumi necessari e avvia tutti i microservizi di ThothAI (Frontend, Backend, AI Generator, Database). Supporta l'opzione `--server ssh://...` per deploy remoti.
-- **`thothai down`**: Ferma l'esecuzione e rimuove i container e le reti virtuali. I tuoi dati nei volumi persistenti rimangono intatti.
-- **`thothai status`**: Fornisce una panoramica immediata dello stato di salute dei servizi, elencando i container attivi e le porte occupate.
-- **`thothai logs [-f]`**: Aggrega i log di tutti i microservizi. Fondamentale per il debugging in fase di configurazione dei provider AI. Use `-f` per seguire i log in tempo reale.
-- **`thothai update`**: Sincronizza il tuo sistema con le ultime versioni ufficiali delle immagini Docker di ThothAI, applicando patch e nuove funzionalità.
-- **`thothai config validate`**: Verifica analitica di `config.yml.local`. Assicura che le chiavi API siano formattate correttamente e che i modelli scelti siano supportati dai provider attivi.
-- **`thothai config test`**: Verifica la comunicazione con il motore Docker locale o remoto per prevenire errori di avvio dovuti a permessi o conflitti.
+- **`uv run thothai init`**: Inizializza il tuo spazio di lavoro. Crea i file di configurazione `config.yml.local` e i file Docker necessari. Usa `--mode swarm` se prevedi un deployment su cluster.
+- **`uv run thothai up`**: Il comando principale per l'avvio. Valida la configurazione, crea i volumi necessari e avvia tutti i microservizi di ThothAI (Frontend, Backend, AI Generator, Database). Supporta l'opzione `--server ssh://...` per deploy remoti.
+- **`uv run thothai down`**: Ferma l'esecuzione e rimuove i container e le reti virtuali. I tuoi dati nei volumi persistenti rimangono intatti.
+- **`uv run thothai status`**: Fornisce una panoramica immediata dello stato di salute dei servizi, elencando i container attivi e le porte occupate.
+- **`uv run thothai logs [-f]`**: Aggrega i log di tutti i microservizi. Fondamentale per il debugging in fase di configurazione dei provider AI. Use `-f` per seguire i log in tempo reale.
+- **`uv run thothai update`**: Sincronizza il tuo sistema con le ultime versioni ufficiali delle immagini Docker di ThothAI, applicando patch e nuove funzionalità.
+- **`uv run thothai config validate`**: Verifica analitica di `config.yml.local`. Assicura che le chiavi API siano formattate correttamente e che i modelli scelti siano supportati dai provider attivi.
+- **`uv run thothai config test`**: Verifica la comunicazione con il motore Docker locale o remoto per prevenire errori di avvio dovuti a permessi o conflitti.
 
 ### Comandi Dati e Database
 
-- **`thothai csv <command>`**: Gestione completa dei file CSV nel volume di scambio (`list`, `upload`, `download`, `delete`).
-- **`thothai db <command>`**: Gestione dei database SQLite dinamici (`list`, `insert`, `remove`).
+- **`uv run thothai csv <command>`**: Gestione completa dei file CSV nel volume di scambio (`list`, `upload`, `download`, `delete`).
+- **`uv run thothai db <command>`**: Gestione dei database SQLite dinamici (`list`, `insert`, `remove`).
 
 ### Comandi Specifici Swarm
 | Comando | Descrizione |
 |---------|-------------|
-| `thothai swarm deploy` | Deploy dello stack su Swarm |
-| `thothai swarm down` | Rimuove lo stack ThothAI da Swarm. Elimina tutti i servizi in esecuzione e pulisce i segreti e le configurazioni associate, mantenendo intatti i volumi con i dati persistenti. |
-| `thothai swarm status` | Stato dei servizi nello stack Swarm |
-| `thothai swarm update` | Rolling update dei servizi Swarm |
-| `thothai swarm rollback` | Ripristina la versione precedente dello stack |
+| `uv run thothai swarm deploy` | Deploy dello stack su Swarm |
+| `uv run thothai swarm down` | Rimuove lo stack ThothAI da Swarm. Elimina tutti i servizi in esecuzione e pulisce i segreti e le configurazioni associate, mantenendo intatti i volumi con i dati persistenti. |
+| `uv run thothai swarm status` | Stato dei servizi nello stack Swarm |
+| `uv run thothai swarm update` | Rolling update dei servizi Swarm |
+| `uv run thothai swarm rollback` | Ripristina la versione precedente dello stack |
+| `uv run thothai swarm logs [service]` | Visualizza i log di un servizio Swarm (default: backend). Opzioni: `-f` (follow), `--tail N`. |
 
 ---
 
@@ -212,20 +213,20 @@ Al termine dell'avvio, l'applicazione sarà raggiungibile ai seguenti indirizzi 
 
 ThothAI utilizza un'architettura a volumi Docker per garantire la persistenza e la condivisione dei dati tra i servizi. La CLI fornisce strumenti avanzati per manipolare questi dati in modo sicuro e veloce.
 
-### 7.1 Gestione File CSV (`thothai csv`)
+### 7.1 Gestione File CSV (`uv run thothai csv`)
 I file CSV sono fondamentali per l'importazione di dati strutturati e per il recupero dei risultati delle analisi. Tutti i file sono archiviati nel volume Docker `thothai-data-exchange`.
 
 - **`list`**: Fornisce un inventario dettagliato di tutti i file CSV residenti nel volume di scambio `thothai-data-exchange`. Non si limita ad elencare i nomi, ma include metadati vitali come la dimensione del file e l'ultimo timestamp di modifica. Questo è il comando fondamentale per confermare che un'esportazione complessa richiesta dall'interfaccia web sia stata completata con successo sul server prima di procedere al download, o per assicurarsi che un file appena caricato sia nella posizione corretta per essere elaborato dagli agenti AI.
 - **`upload <file_locale>`**: Il punto di ingresso primario per i tuoi dati nell'ecosistema ThothAI. Questo comando gestisce in modo intelligente il trasferimento di file strutturati (CSV) dalla tua macchina locale all'infrastruttura Docker, sia che si tratti di un'installazione locale che di un server remoto via SSH. Una volta caricato, il file "alimenta" il sistema, permettendo al backend di mappare le nuove colonne e righe, rendendole immediatamente disponibili per le interrogazioni in linguaggio naturale.
 - **`download <nome_file> [-o directory]`**: Rappresenta il canale di uscita ufficiale per i risultati delle tue analisi. Quando ThothAI conclude un'operazione di export o genera un report basato sui tuoi dati, questo comando ti permette di portarlo fuori dal container Docker e salvarlo fisicamente sulla tua macchina. L'opzione `--output` (`-o`) ti offre la flessibilità di organizzare i tuoi file in cartelle dedicate, facilitando la gestione di flussi di lavoro BI o l'archiviazione di report periodici.
-- **`delete <nome_file>`**: Svolge un ruolo cruciale nella gestione della privacy e nell'ottimizzazione delle risorse. Consente di rimuovere permanentemente file obsoleti, set di dati di test o informazioni sensibili che non devono più risiedere sul server una volta concluso il ciclo di analisi. È uno strumento di governance essenziale per mantenere il volume di scambio ordinato ed evitare l'accumulo di dati non necessari che potrebbero generare confusione o rischi di sicurezza.
+- **`delete <nome_file>`**: Svolge un ruolo cruciale nella gestione della privacy e nell'ottimizzazione delle risorse. Consente di rimuovere permanentemente file obsoleti. Supporta il comando `delete all` per rimuovere tutti i file nel volume, oppure una lista separata da virgola (es. `file1.csv,file2.csv`). È uno strumento di governance essenziale per mantenere il volume di scambio ordinato ed evitare l'accumulo di dati non necessari.
 
-### 7.2 Gestione Database SQLite (`thothai db`)
+### 7.2 Gestione Database SQLite (`uv run thothai db`)
 ThothAI permette di interrogare database SQLite aggiuntivi. Questi database devono seguire una struttura specifica nel volume `thoth-shared-data` per essere riconosciuti automaticamente.
 
-- **`list`**: Visualizza la libreria completa dei database SQLite "vivi" all'interno del sistema ThothAI (volume `thoth-shared-data`). Mostra non solo i database di esempio (come `california_schools`), ma ogni singola sorgente dati aggiunta dagli utenti. È lo strumento di monitoraggio principale per capire quali contesti informativi sono attualmente a disposizione dell'AI per generare query SQL e fornire risposte basate sui dati.
-- **`insert <percorso_file_sqlite>`**: Trasforma un semplice file SQLite in una risorsa attiva e interrogabile. Questo comando non esegue una banale copia: esso crea un'architettura gerarchica specifica (`/app/data/{nome_db}/{nome_db}.sqlite`) che permette a ThothAI di isolare ermeticamente ogni database. Questo isolamento è fondamentale per evitare conflitti tra tabelle con nomi simili e per garantire che gli agenti AI abbiano una visione chiara e univoca dello schema su cui stanno lavorando. Al termine, il database appare istantaneamente nel selettore della console web.
-- **`remove <nome_database>`**: Provvede allo smantellamento sicuro di una sorgente dati. Quando un database non è più rilevante o deve essere sostituito, questo comando elimina l'intero spazio di lavoro dedicato nel volume Docker, inclusi tutti i file associati. È l'operazione di pulizia finale che assicura che l'intelligenza artificiale non tenti di fare riferimento a dati obsoleti o non più validi, mantenendo l'integrità del sistema di conoscenza.
+- **`list`**: Visualizza la libreria completa dei database SQLite "vivi" all'interno del sistema ThothAI, situati nella directory `dev_databases` del volume condiviso. Mostra i database disponibili per l'AI, escludendo file di sistema come `dev.json`. È lo strumento di monitoraggio principale per capire quali contesti informativi sono attualmente a disposizione.
+- **`insert <percorso_file_sqlite>`**: Trasforma un semplice file SQLite in una risorsa attiva e interrogabile. Questo comando posiziona il file database direttamente nella directory `dev_databases` (`/app/data/dev_databases/{nome_file}.sqlite`), rendendolo immediatamente disponibile per le interrogazioni. Assicura che il file non sovrascriva configurazioni protette come `dev.json`. Al termine, il database appare nel selettore della console web.
+- **`remove <nome_database>`**: Provvede alla rimozione sicura di una sorgente dati dalla directory `dev_databases`. Elimina il file specificato, impedendo la rimozione accidentale di file di sistema critici. È l'operazione di pulizia per mantenere l'integrità del sistema di conoscenza.
 
 ---
 

@@ -22,6 +22,19 @@ def get_docker_manager() -> DockerManager:
         raise click.Abort()
     
     config_mgr = ConfigManager(config_path)
+    
+    # Ensure consistent stack name default
+    raw_config = config_mgr.config
+    deployment_mode = raw_config.get('docker', {}).get('deployment_mode', 'swarm')
+    default_stack = 'thothai-swarm' if deployment_mode == 'swarm' else 'thothai'
+    
+    # Update config object with explicit stack name if not present
+    if 'docker' not in raw_config:
+        raw_config['docker'] = {}
+    
+    if 'stack_name' not in raw_config['docker']:
+        raw_config['docker']['stack_name'] = default_stack
+        
     return DockerManager(config_mgr)
 
 
@@ -111,6 +124,22 @@ def rollback(server):
         else:
             console.print("\n[bold red]✗ Rollback failed[/bold red]")
             raise click.Abort()
+            raise click.Abort()
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        raise click.Abort()
+
+
+@swarm_group.command('logs')
+@click.argument('service', required=False, default='backend')
+@click.option('--tail', default=50, help='Number of lines to show')
+@click.option('-f', '--follow', is_flag=True, help='Follow log output')
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+def logs(service, tail, follow, server):
+    """View Swarm service logs (default: backend)."""
+    try:
+        docker_mgr = get_docker_manager()
+        docker_mgr.swarm_logs(service=service, tail=tail, follow=follow, server=server)
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")
         raise click.Abort()
