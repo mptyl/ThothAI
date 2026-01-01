@@ -1,0 +1,7 @@
+# ThothAI
+config.yml.local
+.env.docker
+swarm_config.env
+data/
+data_exchange/
+*.log

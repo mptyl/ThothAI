@@ -1,0 +1,23 @@
+id,name,db_host,db_type,db_name,db_port,schema,user_name,password,db_mode,vector_db,language,scope,scope_json,directives,erd
+1,california_schools,,SQLite,california_schools,,,,,dev,1,English,"## Overview
+This database system provides a comprehensive collection of educational data, focusing on schools, their demographics, academic performance, and student meal program participation. It integrates various aspects of K-12 education, allowing for detailed analysis of school characteristics, student support, and academic outcomes within specific counties and districts.
+
+## Main Entities
+The primary entities managed by this database are 'schools', which includes their general information, location, and administrative details; 'frpm' (Free or Reduced Price Meal Program) statistics, capturing enrollment and meal eligibility data; and 'satscores', detailing standardized test performance metrics for schools.
+
+## Business Purpose
+The system serves to support educational analysis, resource allocation, and policy evaluation by providing a centralized repository for school-related data. It enables stakeholders to track enrollment trends, assess the impact of meal programs, evaluate academic achievement through SAT scores, and understand the operational status and type of educational institutions across different regions.
+
+## Key Relationships
+Key relationships exist between the 'schools', 'frpm', and 'satscores' tables primarily through unique identification codes such as 'CDSCode' and school/district names. These common identifiers link school information with their Free or Reduced Price Meal program participation data and their SAT test performance, allowing for cross-sectional analysis.
+
+## Data Scope
+The database contains extensive information, including detailed school demographics (e.g., type, status, address, contact), student enrollment figures, K-12 and age-specific free and reduced-price meal counts and percentages, and SAT performance metrics (number of test takers, average scores in reading, math, and writing, and counts of high-achieving students). It also records various educational classifications like charter status, funding types, ownership codes, educational options, and grade spans offered and served.","{
+  ""overview"": ""This database system provides a comprehensive collection of educational data, focusing on schools, their demographics, academic performance, and student meal program participation. It integrates various aspects of K-12 education, allowing for detailed analysis of school characteristics, student support, and academic outcomes within specific counties and districts."",
+  ""main_entities"": ""The primary entities managed by this database are 'schools', which includes their general information, location, and administrative details; 'frpm' (Free or Reduced Price Meal Program) statistics, capturing enrollment and meal eligibility data; and 'satscores', detailing standardized test performance metrics for schools."",
+  ""business_purpose"": ""The system serves to support educational analysis, resource allocation, and policy evaluation by providing a centralized repository for school-related data. It enables stakeholders to track enrollment trends, assess the impact of meal programs, evaluate academic achievement through SAT scores, and understand the operational status and type of educational institutions across different regions."",
+  ""key_relationships"": ""Key relationships exist between the 'schools', 'frpm', and 'satscores' tables primarily through unique identification codes such as 'CDSCode' and school/district names. These common identifiers link school information with their Free or Reduced Price Meal program participation data and their SAT test performance, allowing for cross-sectional analysis."",
+  ""data_scope"": ""The database contains extensive information, including detailed school demographics (e.g., type, status, address, contact), student enrollment figures, K-12 and age-specific free and reduced-price meal counts and percentages, and SAT performance metrics (number of test takers, average scores in reading, math, and writing, and counts of high-achieving students). It also records various educational classifications like charter status, funding types, ownership codes, educational options, and grade spans offered and served.""
+}","If there is a column with the exact name of a required information, use that column in the SQL generation","erDiagram
+    schools ||--o{ frpm : has
+    schools ||--o{ satscores : has"

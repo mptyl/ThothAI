@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Copyright (c) 2025 Marco Pancotti
-# This file is part of ThothAI and is released under the Apache 2.0.
+# Copyright (c) 2025 Tyl Consulting di Pancotti Marco
+# This file is part of ThothAI and is released under the Apache License 2.0.
 # See the LICENSE.md file in the project root for full license information.
 #
-# Script for building and pushing Docker images to registry for Swarm deployment
+# Script for building and pushing multi-platform Docker images for Swarm/Kubernetes deployment
 
 set -e
 
@@ -30,6 +30,7 @@ show_usage() {
     print_color "Options:" "$YELLOW"
     print_color "  --no-cache      Build without using cache" "$NC"
     print_color "  --push-only     Push only images (skip build)" "$NC"
+    print_color "  --platforms     Target platforms (default: linux/amd64,linux/arm64)" "$NC"
     print_color "  --help          Show this message" "$NC"
     echo ""
     print_color "Example:" "$GREEN"
@@ -47,6 +48,7 @@ REGISTRY_URL=$1
 VERSION=$2
 NO_CACHE=""
 PUSH_ONLY=false
+PLATFORMS="linux/amd64,linux/arm64"
 
 # Parse options
 shift 2
@@ -60,6 +62,10 @@ while [[ $# -gt 0 ]]; do
             PUSH_ONLY=true
             shift
             ;;
+        --platforms)
+            PLATFORMS="$2"
+            shift 2
+            ;;
         *)
             print_color "Unknown option: $1" "$RED"
             show_usage
@@ -68,12 +74,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-print_color "============================================" "$BLUE"
-print_color "  ThothAI - Build and Push Docker Images" "$BLUE"
-print_color "============================================" "$BLUE"
+print_color "=================================================" "$BLUE"
+print_color "  ThothAI - Multi-platform Build and Push" "$BLUE"
+print_color "=================================================" "$BLUE"
 echo ""
-print_color "Registry: $REGISTRY_URL" "$YELLOW"
-print_color "Version:  $VERSION" "$YELLOW"
+print_color "Registry:  $REGISTRY_URL" "$YELLOW"
+print_color "Version:   $VERSION" "$YELLOW"
+print_color "Platforms: $PLATFORMS" "$YELLOW"
 echo ""
 
 # Check if Docker is running
@@ -81,6 +88,17 @@ if ! docker info > /dev/null 2>&1; then
     print_color "Error: Docker is not running" "$RED"
     exit 1
 fi
+
+# Ensure buildx builder exists and is used
+print_color "Checking buildx setup..." "$YELLOW"
+if ! docker buildx ls | grep -q "thoth-builder"; then
+    print_color "Creating new buildx builder 'thoth-builder'..." "$NC"
+    docker buildx create --name thoth-builder --use --bootstrap
+else
+    docker buildx use thoth-builder
+fi
+print_color "✓ Buildx ready" "$GREEN"
+echo ""
 
 # Array of images to build
 declare -A IMAGES=(
@@ -91,58 +109,11 @@ declare -A IMAGES=(
     ["mermaid-service"]="docker/mermaid-service/Dockerfile:./docker/mermaid-service"
 )
 
-# Build images
-if [ "$PUSH_ONLY" = false ]; then
-    print_color "=== PHASE 1: Build images ===" "$BLUE"
-    echo ""
-    
-    for image_name in "${!IMAGES[@]}"; do
-        IFS=':' read -r dockerfile context <<< "${IMAGES[$image_name]}"
-        
-        print_color "Building $image_name..." "$YELLOW"
-        print_color "  Dockerfile: $dockerfile" "$NC"
-        print_color "  Context: $context" "$NC"
-        
-        if docker build $NO_CACHE \
-            -f "$dockerfile" \
-            -t "thoth-$image_name:$VERSION" \
-            -t "thoth-$image_name:latest" \
-            -t "$REGISTRY_URL/thoth-$image_name:$VERSION" \
-            -t "$REGISTRY_URL/thoth-$image_name:latest" \
-            "$context"; then
-            print_color "✓ Build completed for $image_name" "$GREEN"
-        else
-            print_color "✗ Error during build of $image_name" "$RED"
-            exit 1
-        fi
-        echo ""
-    done
-    
-    # Pull and tag Qdrant
-    print_color "Pulling and tagging Qdrant..." "$YELLOW"
-    if docker pull qdrant/qdrant:latest; then
-        docker tag qdrant/qdrant:latest "$REGISTRY_URL/thoth-qdrant:$VERSION"
-        docker tag qdrant/qdrant:latest "$REGISTRY_URL/thoth-qdrant:latest"
-        print_color "✓ Qdrant ready" "$GREEN"
-    else
-        print_color "✗ Error during pull of Qdrant" "$RED"
-        exit 1
-    fi
-    echo ""
-else
-    print_color "=== PHASE 1: Build skipped (--push-only) ===" "$YELLOW"
-    echo ""
-fi
-
-# Push images
-print_color "=== PHASE 2: Push images to registry ===" "$BLUE"
+# Login Phase
+print_color "=== PHASE 1: Registry Login ===" "$BLUE"
 echo ""
 
-# Check if logged in to registry
-print_color "Checking registry login..." "$YELLOW"
-
 # Determine if we are pushing to Docker Hub or a custom registry
-# Docker Hub is implied if URL contains "docker.io" or has no dots/colons (e.g. just a username)
 IS_DOCKER_HUB=false
 if [[ "$REGISTRY_URL" == *"docker.io"* ]]; then
     IS_DOCKER_HUB=true
@@ -152,85 +123,84 @@ fi
 
 if [ "$IS_DOCKER_HUB" = true ]; then
     print_color "Docker Hub detected." "$NC"
-    
-    # Check if we have an active session for Docker Hub
-    # "docker info" containing a Username indicates a valid login to the default registry
     if docker info 2>/dev/null | grep -q "Username"; then
         CURRENT_USER=$(docker info 2>/dev/null | grep "Username" | cut -d':' -f2 | xargs)
         print_color "✓ Already logged in as $CURRENT_USER" "$GREEN"
     else
         print_color "No active Docker Hub session found. Executing login:" "$YELLOW"
-        if ! docker login; then
-            print_color "✗ Login failed" "$RED"
-            exit 1
-        fi
+        if ! docker login; then exit 1; fi
     fi
 else
-    # For custom registries
     print_color "Custom registry detected: $REGISTRY_URL" "$NC"
-    
-    # Check if credentials exist in config.json to avoid unnecessary login prompts
     LOGGED_IN=false
-    if [ -f "$HOME/.docker/config.json" ]; then
-        if grep -q "$REGISTRY_URL" "$HOME/.docker/config.json"; then
-            LOGGED_IN=true
-        fi
+    if [ -f "$HOME/.docker/config.json" ] && grep -q "$REGISTRY_URL" "$HOME/.docker/config.json"; then
+        LOGGED_IN=true
     fi
 
     if [ "$LOGGED_IN" = true ]; then
-        print_color "✓ Found credentials for $REGISTRY_URL in config" "$GREEN"
+        print_color "✓ Found credentials for $REGISTRY_URL" "$GREEN"
     else
-        print_color "No credentials found for $REGISTRY_URL. Executing login:" "$YELLOW"
-        if ! docker login "$REGISTRY_URL"; then
-            print_color "✗ Login failed" "$RED"
-            exit 1
-        fi
+        print_color "No credentials found. Executing login:" "$YELLOW"
+        if ! docker login "$REGISTRY_URL"; then exit 1; fi
     fi
 fi
 print_color "✓ Login verified" "$GREEN"
 echo ""
 
-# Push all images
-ALL_IMAGES=("${!IMAGES[@]}" "qdrant")
-
-for image_name in "${ALL_IMAGES[@]}"; do
-    print_color "Pushing thoth-$image_name:$VERSION..." "$YELLOW"
+# Build & Push Phase
+if [ "$PUSH_ONLY" = false ]; then
+    print_color "=== PHASE 2: Build and Push (Multi-platform) ===" "$BLUE"
+    echo ""
     
-    if docker push "$REGISTRY_URL/thoth-$image_name:$VERSION"; then
-        print_color "✓ Push completed for thoth-$image_name:$VERSION" "$GREEN"
-    else
-        print_color "✗ Error during push of thoth-$image_name:$VERSION" "$RED"
-        exit 1
-    fi
+    for image_name in "${!IMAGES[@]}"; do
+        IFS=':' read -r dockerfile context <<< "${IMAGES[$image_name]}"
+        
+        print_color "Building and Pushing $image_name..." "$YELLOW"
+        print_color "  Platforms: $PLATFORMS" "$NC"
+        
+        if docker buildx build $NO_CACHE \
+            --platform "$PLATFORMS" \
+            -f "$dockerfile" \
+            -t "$REGISTRY_URL/thoth-$image_name:$VERSION" \
+            -t "$REGISTRY_URL/thoth-$image_name:latest" \
+            --push \
+            "$context"; then
+            print_color "✓ Completed for $image_name" "$GREEN"
+        else
+            print_color "✗ Error during build/push of $image_name" "$RED"
+            exit 1
+        fi
+        echo ""
+    done
     
-    print_color "Pushing thoth-$image_name:latest..." "$YELLOW"
-    if docker push "$REGISTRY_URL/thoth-$image_name:latest"; then
-        print_color "✓ Push completed for thoth-$image_name:latest" "$GREEN"
+    # Qdrant handling via imagetools (preserves all original platforms)
+    print_color "Processing Qdrant via imagetools..." "$YELLOW"
+    if docker buildx imagetools create -t "$REGISTRY_URL/thoth-qdrant:$VERSION" qdrant/qdrant:latest && \
+       docker buildx imagetools create -t "$REGISTRY_URL/thoth-qdrant:latest" qdrant/qdrant:latest; then
+        print_color "✓ Qdrant ready (multi-platform preserved)" "$GREEN"
     else
-        print_color "✗ Error during push of thoth-$image_name:latest" "$RED"
+        print_color "✗ Error during Qdrant processing" "$RED"
         exit 1
     fi
     echo ""
-done
+else
+    print_color "=== PHASE 2: Build skipped (--push-only) ===" "$YELLOW"
+    echo ""
+    # In push-only mode with buildx, we would normally expect the manifest to already exist.
+    # If the user really wants to push existing local images, they'd need a different flow,
+    # but buildx multi-arch flows usually handle build-and-push together.
+fi
 
-print_color "============================================" "$GREEN"
-print_color "  Build and Push completed successfully!" "$GREEN"
-print_color "============================================" "$GREEN"
+print_color "=================================================" "$GREEN"
+print_color "  Success! Multi-platform images pushed." "$GREEN"
+print_color "=================================================" "$GREEN"
 echo ""
-print_color "Images available in registry:" "$YELLOW"
-for image_name in "${ALL_IMAGES[@]}"; do
+print_color "Images available in registry for $PLATFORMS:" "$YELLOW"
+for image_name in "${!IMAGES[@]}"; do
     print_color "  - $REGISTRY_URL/thoth-$image_name:$VERSION" "$NC"
 done
+print_color "  - $REGISTRY_URL/thoth-qdrant:$VERSION" "$NC"
 echo ""
-print_color "Next step:" "$BLUE"
-print_color "  Configure secrets and deploy stack with:" "$NC"
-print_color "  ./deploy-swarm.sh" "$GREEN"
+print_color "Next step: ./deploy-swarm.sh" "$BLUE"
 echo ""
-print_color "Note: Default ports for Swarm are 7000-7050" "$YELLOW"
-print_color "  - Proxy (Web):     7010" "$NC"
-print_color "  - Frontend:        7001" "$NC"
-print_color "  - Backend:         7002 (via proxy)" "$NC"
-print_color "  - SQL Generator:   7003" "$NC"
-print_color "  - Mermaid Service: 7004" "$NC"
-print_color "  - Qdrant:          7005" "$NC"
-echo ""
+

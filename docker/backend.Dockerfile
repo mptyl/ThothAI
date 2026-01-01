@@ -9,24 +9,29 @@ FROM python:3.13-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DOCKER_ENV=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    # Ensure MariaDB build tools can find the config utility
+    MARIADB_CONFIG="/usr/bin/mariadb_config"
 
 WORKDIR /app
 
 # Install build and runtime dependencies
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     curl \
+    gnupg \
+    pkg-config \
     build-essential \
-    cron \
+    python3-dev \
+    libssl-dev \
+    # Helper for MariaDB/MySQL build tools (mariadb_config)
+    libmariadb-dev \
+    libmariadb-dev-compat \
+    # Helper for SQL Server / ODBC
     unixodbc \
     unixodbc-dev \
-    freetds-bin \
-    freetds-dev \
-    pkg-config \
     tdsodbc \
-    libmariadb3 \
-    libmariadb-dev \
-    gnupg \
+    # Other utilities
+    cron \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

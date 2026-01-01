@@ -27,9 +27,10 @@ All functions accept a single string message.
 
 from __future__ import annotations
 
-from typing import Callable
-
-import logfire
+try:
+    import logfire
+except ImportError:
+    logfire = None
 
 from .logging_config import app_logger as logger
 

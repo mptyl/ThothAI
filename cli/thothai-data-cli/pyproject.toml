@@ -1,6 +1,6 @@
 [project]
 name = "thothai-data-cli"
-version = "1.0.0"
+version = "1.0.1"
 description = "CLI for ThothAI data exchange - CSV and SQLite database management"
 readme = "README.md"
 license = {file = "LICENSE.md"}
@@ -28,6 +28,7 @@ dependencies = [
     "click>=8.0",
     "pyyaml>=6.0",
     "rich>=13.0",
+    "thothai-cli-core",
 ]
 
 [project.urls]
@@ -43,3 +44,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/thothai_data_cli"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"docs" = "thothai_data_cli/docs"

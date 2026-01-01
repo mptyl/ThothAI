@@ -29,29 +29,25 @@ uv pip install -e ".[dev]"
 ## Struttura Progetto
 
 ```
-cli/thothai-cli/
-├── src/thothai_cli/
-│   ├── __init__.py           # Package info
-│   ├── cli.py                # Entry point
-│   ├── commands/             # CLI commands
-│   │   ├── init.py
-│   │   ├── deploy.py
-│   │   ├── swarm.py
-│   │   ├── data.py
-│   │   └── config.py
-│   ├── core/                 # Core modules
-│   │   ├── config_manager.py
-│   │   ├── docker_manager.py
-│   │   └── swarm_manager.py
-│   └── templates/            # Embedded templates
-│       ├── config.yml
-│       ├── docker-compose.yml
-│       ├── docker-stack.yml
-│       └── swarm_config.env
-├── docs/
-├── tests/
-├── pyproject.toml
-└── README.md
+cli/                  # Directory principale CLI
+├── thothai_cli_core/     # Pacchetto core condiviso [NUOVO]
+│   ├── src/thothai_cli_core/
+│   │   └── docker_ops.py # Operazioni Docker condivise
+│   └── pyproject.toml
+├── thothai-cli/          # CLI principale (dipende da core)
+│   ├── src/thothai_cli/
+│   │   ├── cli.py
+│   │   ├── commands/     # Comandi integrati
+│   │   │   ├── data.py   # Implementa csv e db tramite core
+│   │   │   └── ...
+│   │   ├── core/
+│   │   │   └── config_manager.py
+│   │   └── templates/
+│   ├── pyproject.toml
+│   └── README.md
+├── thothai-data-cli/     # CLI dati standalone (dipende da core)
+│   ├── src/thothai_data_cli/
+│   └── pyproject.toml
 ```
 
 ## Build del Pacchetto
@@ -229,15 +225,30 @@ jobs:
         run: twine upload dist/*
 ```
 
+## Logica "Smart Commands"
+
+I comandi principali (`up`, `down`, `status`, `logs`, `update`) implementano una logica di dispatch automatico:
+
+1.  **ConfigManager** legge `docker.deployment_mode` da `config.yml.local`.
+2.  **DockerManager** verifica il valore:
+    *   Se `compose`: esegue i comandi standard `docker compose`.
+    *   Se `swarm`: esegue i metodi `swarm_*` (es. `swarm_up`, `swarm_status`).
+
+Questo permette all'utente di usare la stessa interfaccia di comandi indipendentemente dall'architettura scelta in fase di `init`.
+
 ## Aggiornamento Templates
 
 I template embedded devono essere aggiornati quando cambiano i file sorgente:
 
 ```bash
-# Quando aggiorni config.yml o docker-compose-hub.yml
+# Quando aggiorni config.yml o docker-compose-hub.yml dalla root del progetto
 cp ../../config.yml src/thothai_cli/templates/config.yml
 cp ../../docker-compose-hub.yml src/thothai_cli/templates/docker-compose.yml
 cp ../../docker-stack.yml src/thothai_cli/templates/docker-stack.yml
+
+# IMPORTANTE: Dopo aver copiato config.yml, rimuovere la sezione 'local' 
+# e aggiungere 'deployment_mode' nella sezione 'docker' per mantenere
+# il template coerente con la filosofia lightweight.
 ```
 
 ## Best Practices
@@ -247,6 +258,7 @@ cp ../../docker-stack.yml src/thothai_cli/templates/docker-stack.yml
 3. **Versionamento chiaro**: documenta breaking changes
 4. **Changelog**: mantieni CHANGELOG.md aggiornato
 5. **Security**: mai committare credenziali PyPI
+6. **Docker Images**: Per compilare e caricare le immagini multi-architettura, consulta `docs/PUSH_INSTRUCTIONS.md` nella root del progetto.
 
 ## Contatti
 

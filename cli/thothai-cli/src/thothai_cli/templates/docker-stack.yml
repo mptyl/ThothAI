@@ -19,7 +19,7 @@ services:
       - thoth-logs:/app/logs
       - backend-static:/vol/static
       - backend-media:/vol/media
-      - thothai-data-exchange:/app/data_exchange
+      - thoth-data-exchange:/app/data_exchange
       - thoth-backend-secrets:/vol/secrets
     environment:
       - HOST_IP=host.docker.internal
@@ -78,8 +78,8 @@ services:
         mode: ingress
     volumes:
       - frontend-cache:/app/.next/cache
-      - thothai-data-exchange:/app/data_exchange:ro
-      - thoth-backend-secrets:/secrets:ro
+      - thoth-data-exchange:/app/data_exchange:ro
+      - thoth-backend-secrets:/vol/secrets:ro
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -109,8 +109,8 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        delay: 30s
+        max_attempts: 10
       update_config:
         parallelism: 1
         delay: 10s
@@ -136,8 +136,8 @@ services:
     volumes:
       - thoth-shared-data:/app/data
       - thoth-logs:/app/logs
-      - thothai-data-exchange:/app/data_exchange
-      - thoth-backend-secrets:/secrets:ro
+      - thoth-data-exchange:/app/data_exchange
+      - thoth-backend-secrets:/vol/secrets:ro
     environment:
       - DOCKER_CONTAINER=true
       - PORT=8020
@@ -161,8 +161,8 @@ services:
           - node.role == manager
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        delay: 30s
+        max_attempts: 10
       update_config:
         parallelism: 1
         delay: 10s
@@ -176,6 +176,7 @@ services:
           memory: 1G
 
   # === PROXY SERVICE ===
+  # Nginx reverse proxy for Django (required for static files in production)
   proxy:
     image: ${DOCKER_USERNAME}/thoth-proxy:${VERSION:-latest}
     networks:
@@ -188,7 +189,7 @@ services:
     volumes:
       - backend-static:/vol/static:ro
       - backend-media:/vol/media:ro
-      - thothai-data-exchange:/vol/data_exchange:ro
+      - thoth-data-exchange:/vol/data_exchange:ro
     environment:
       - APP_HOST=backend
       - APP_PORT=8000
@@ -205,8 +206,8 @@ services:
       replicas: 2
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
+        delay: 30s
+        max_attempts: 10
       update_config:
         parallelism: 1
         delay: 10s
@@ -297,13 +298,13 @@ volumes:
     driver: local
   thoth-shared-data:
     driver: local
-  thothai-data-exchange:
+  thoth-data-exchange:
     driver: local
 
 networks:
   thoth-network:
-    external: true
-    name: ${STACK_NAME:-thothai-swarm}_thoth-network
+    driver: overlay
+    attachable: true
 
 secrets:
   ${STACK_NAME:-thothai-swarm}_thoth_env_config:

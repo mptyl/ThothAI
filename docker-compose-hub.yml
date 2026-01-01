@@ -11,7 +11,7 @@ services:
       - thoth-logs:/app/logs
       - backend-static:/vol/static
       - backend-media:/vol/media
-      - thoth-secrets:/secrets
+      - thoth-secrets:/vol/secrets
       - ./config.yml.local:/app/config.yml.local:ro
     env_file: .env.docker
     environment:
@@ -42,7 +42,7 @@ services:
       - "${FRONTEND_PORT:-3040}:3000"
     volumes:
       - frontend-cache:/app/.next/cache
-      - thoth-secrets:/secrets
+      - thoth-secrets:/vol/secrets
       - thoth-data-exchange:/app/data_exchange:ro
     env_file: .env.docker
     environment:
@@ -76,7 +76,7 @@ services:
       - thoth-shared-data:/app/data
       - thoth-data-exchange:/app/data_exchange
       - thoth-logs:/app/logs
-      - thoth-secrets:/secrets
+      - thoth-secrets:/vol/secrets
     env_file: .env.docker
     environment:
       - DOCKER_CONTAINER=true

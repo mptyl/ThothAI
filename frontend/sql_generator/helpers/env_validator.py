@@ -111,7 +111,7 @@ class EnvironmentValidator:
             value = os.getenv(var)
             if not value:
                 if var == 'LOGFIRE_TOKEN':
-                    self.warnings.append(f"'{var}' not set - telemetry will be disabled")
+                    self.warnings.append(f"'{var}' not set - Logfire telemetry will be disabled (this is normal if you don't have a token)")
                 else:
                     # AI provider keys - we'll check at least one is set later
                     pass

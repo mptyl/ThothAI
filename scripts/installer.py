@@ -387,8 +387,8 @@ class ThothInstaller:
         # Check if secrets already exist in the volume
         check_cmd = [
             'docker', 'run', '--rm', 
-            '-v', 'thoth-secrets:/secrets',
-            'alpine', 'ls', '/secrets/'
+            '-v', 'thoth-secrets:/vol/secrets',
+            'alpine', 'ls', '/vol/secrets/'
         ]
         
         result = subprocess.run(check_cmd, capture_output=True, text=True)
@@ -414,9 +414,9 @@ class ThothInstaller:
         for filename, content in secrets_to_generate:
             write_cmd = [
                 'docker', 'run', '--rm',
-                '-v', 'thoth-secrets:/secrets',
+                '-v', 'thoth-secrets:/vol/secrets',
                 'alpine', 'sh', '-c',
-                f'echo "{content}" > /secrets/{filename} && chmod 640 /secrets/{filename}'
+                f'echo "{content}" > /vol/secrets/{filename} && chmod 640 /vol/secrets/{filename}'
             ]
             
             result = subprocess.run(write_cmd, capture_output=True, text=True)

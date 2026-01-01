@@ -187,7 +187,7 @@ Before deploying to production (Swarm) or testing a full containerized setup, yo
 
 ### Building and Pushing Images
 
-We use unified scripts to handle multi-platform builds and registry authentication.
+We use unified scripts to handle **multi-platform builds** (linux/amd64 and linux/arm64) using **Docker Buildx**. This ensures that images built on a Mac ARM work perfectly on Windows Intel servers and vice-versa.
 
 #### Command Syntax
 
@@ -207,6 +207,7 @@ We use unified scripts to handle multi-platform builds and registry authenticati
 |--------|------|------------|-------------|
 | No cache | `--no-cache` | `-NoCache` | Build without using cache |
 | Push only | `--push-only` | `-PushOnly` | Skip build, push existing images only |
+| Platforms | `--platforms` | `-Platforms` | Target platforms (default: `linux/amd64,linux/arm64`) |
 | Help | `--help` | N/A | Show usage information |
 
 #### Examples

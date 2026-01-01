@@ -55,6 +55,25 @@
     <script src="{% static 'js/vendor/lucide.min.js' %}"></script>
     {# HTMX Script #}
     <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+    
+    {# HTMX CSRF Token Configuration #}
+    <script>
+    document.body.addEventListener('htmx:configRequest', (event) => {
+        // Helper function to get cookie value
+        const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        };
+        
+        // Add CSRF token from cookie to all HTMX requests
+        const csrfToken = getCookie('thoth_csrftoken') || getCookie('csrftoken');
+        if (csrfToken) {
+            event.detail.headers['X-CSRFToken'] = csrfToken;
+        }
+    });
+    </script>
+    
     <script src="{% static 'js/app.min.js' %}"></script>
 {% endblock javascript %}
 </body>

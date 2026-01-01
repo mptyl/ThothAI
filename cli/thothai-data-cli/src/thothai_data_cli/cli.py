@@ -7,7 +7,11 @@
 import click
 from pathlib import Path
 from .config import load_config, show_config
-from .docker_ops import DockerOperations
+from thothai_cli_core.docker_ops import DockerOperations
+from rich.console import Console
+from rich.markdown import Markdown
+
+console = Console()
 
 
 @click.group()
@@ -116,6 +120,19 @@ def config_show(ctx):
 def config_test(ctx):
     """Test Docker connection."""
     ctx.obj['docker'].test_connection()
+
+
+@main.command('manual')
+def show_manual():
+    """Mostra il manuale utente completo."""
+    manual_path = Path(__file__).parent / "docs" / "USER_MANUAL_IT.md"
+    if manual_path.exists():
+        with open(manual_path, 'r') as f:
+            content = f.read()
+        
+        console.print(Markdown(content))
+    else:
+        console.print("[red]Errore: Manuale utente non trovato.[/red]")
 
 
 if __name__ == '__main__':

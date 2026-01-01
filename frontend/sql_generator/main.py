@@ -20,7 +20,7 @@ import logging
 import os
 import time
 import json
-import logfire
+# logfire imported conditionally below if token is present
 
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
@@ -74,14 +74,19 @@ else:
     else:
         config_source = "No .env.local file found - using system environment variables"
 
-# Configure logfire and instrument PydanticAI at startup
-logfire.configure(
-    send_to_logfire="if-token-present",
-    scrubbing=False,
-)
-# Instrument PydanticAI immediately after configuring logfire
-# This ensures ALL PydanticAI agent activity is tracked from the beginning
-logfire.instrument_pydantic_ai()
+# Configure logfire and instrument PydanticAI at startup if token is present
+if os.getenv('LOGFIRE_TOKEN'):
+    try:
+        import logfire
+        logfire.configure(
+            send_to_logfire="if-token-present",
+            scrubbing=False,
+        )
+        # Instrument PydanticAI immediately after configuring logfire
+        # This ensures ALL PydanticAI agent activity is tracked from the beginning
+        logfire.instrument_pydantic_ai()
+    except ImportError:
+        pass
 
 # Logfire configuration will be confirmed after logging is set up
 

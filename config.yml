@@ -108,7 +108,7 @@ demo:
 # Monitoring Configuration
 monitoring:
   enabled: true  # Enable application monitoring
-  logfire_token: ""  # Logfire.io token (required if monitoring enabled)
+  logfire_token: ""  # Logfire.io token (optional, for advanced monitoring only)
 
 # Service Ports Configuration
 ports:

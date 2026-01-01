@@ -27,13 +27,14 @@ def get_docker_manager() -> DockerManager:
 
 
 @click.command()
-def up():
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+def up(server):
     """Pull images and start Docker containers."""
     try:
         console.print("\n[bold blue]Starting ThothAI deployment...[/bold blue]\n")
         docker_mgr = get_docker_manager()
         
-        success = docker_mgr.up()
+        success = docker_mgr.up(server=server)
         
         if success:
             console.print("\n[bold green]✓ ThothAI is running![/bold green]")
@@ -48,13 +49,14 @@ def up():
 
 
 @click.command()
-def down():
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+def down(server):
     """Stop and remove Docker containers."""
     try:
         console.print("\n[bold yellow]Stopping ThothAI...[/bold yellow]\n")
         docker_mgr = get_docker_manager()
         
-        success = docker_mgr.down()
+        success = docker_mgr.down(server=server)
         
         if success:
             console.print("\n[bold green]✓ ThothAI stopped[/bold green]")
@@ -68,11 +70,12 @@ def down():
 
 
 @click.command()
-def status():
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+def status(server):
     """Show running container status."""
     try:
         docker_mgr = get_docker_manager()
-        docker_mgr.status()
+        docker_mgr.status(server=server)
     
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")
@@ -83,7 +86,8 @@ def status():
 @click.argument('service', required=False)
 @click.option('--tail', default=50, help='Number of lines to show')
 @click.option('--follow', '-f', is_flag=True, help='Follow log output')
-def logs(service, tail, follow):
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+def logs(service, tail, follow, server):
     """View container logs.
     
     \b
@@ -94,7 +98,7 @@ def logs(service, tail, follow):
     """
     try:
         docker_mgr = get_docker_manager()
-        docker_mgr.logs(service, tail, follow)
+        docker_mgr.logs(service, tail, follow, server=server)
     
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")
@@ -102,7 +106,8 @@ def logs(service, tail, follow):
 
 
 @click.command()
-def update():
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+def update(server):
     """Update containers to latest images.
     
     Pulls the latest images from Docker Hub and recreates containers.
@@ -112,7 +117,7 @@ def update():
         console.print("\n[bold blue]Updating ThothAI to latest version...[/bold blue]\n")
         docker_mgr = get_docker_manager()
         
-        success = docker_mgr.update()
+        success = docker_mgr.update(server=server)
         
         if success:
             console.print("\n[bold green]✓ Update complete![/bold green]")

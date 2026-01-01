@@ -2,6 +2,7 @@
 
 ## Prerequisites
 - Docker installed and running
+- **Docker Buildx** (included with Docker Desktop, or available as plugin)
 - Docker Hub account with `tylconsulting` organization access
 
 ## Login to Docker Hub
@@ -14,24 +15,29 @@ docker login -u tylconsulting
 
 Enter the password or access token for the `tylconsulting` organization account when prompted.
 
-## Push Images to Docker Hub
+## Push Images (Multi-platform)
 
-Use the `push.sh` script to build and push all images to Docker Hub. **Important**: You must use `docker.io/tylconsulting` as the registry URL.
+ThothAI uses **Docker Buildx** to create multi-platform images (`linux/amd64` for Windows/Linux Intel, `linux/arm64` for Mac Silicon). This ensures that the same image tag works everywhere.
+
+Use the `push.sh` script to build and push all images.
 
 ### Basic Usage
 
 ```bash
-./push.sh docker.io/tylconsulting VERSION
+./push.sh <REGISTRY_URL> <VERSION> [OPTIONS]
 ```
 
 ### Examples
 
 ```bash
-# Push version 1.0
+# Push version 1.0 (Builds for both Intel and Mac ARM automatically)
 ./push.sh docker.io/tylconsulting 1.0
 
 # Push version 2.1 without cache
 ./push.sh docker.io/tylconsulting 2.1 --no-cache
+
+# Target only a specific platform
+./push.sh docker.io/tylconsulting 1.0 --platforms linux/amd64
 
 # Push only (skip build if images already exist)
 ./push.sh docker.io/tylconsulting 1.0 --push-only
@@ -41,6 +47,7 @@ Use the `push.sh` script to build and push all images to Docker Hub. **Important
 
 - `--no-cache`: Build images without using Docker cache
 - `--push-only`: Push only existing images, skip the build phase
+- `--platforms`: Comma-separated list of target platforms (default: `linux/amd64,linux/arm64`)
 - `--help`: Show usage information
 
 ## What Gets Pushed

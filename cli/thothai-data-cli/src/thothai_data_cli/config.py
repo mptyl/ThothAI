@@ -43,6 +43,15 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     """Load configuration from YAML file, create interactively if missing."""
     path = config_path or DEFAULT_CONFIG_PATH
     
+    # Ensure local data_exchange directory exists in CWD
+    data_exchange_local = Path.cwd() / 'data_exchange'
+    if not data_exchange_local.exists():
+        try:
+            data_exchange_local.mkdir(exist_ok=True)
+            console.print(f"[green]✓ Created local directory: {data_exchange_local}[/green]")
+        except Exception as e:
+            console.print(f"[yellow]! Could not create local data_exchange directory: {e}[/yellow]")
+
     if not path.exists():
         console.print(f"[yellow]Config file not found: {path}[/yellow]")
         if Confirm.ask("Create configuration file?", default=True):

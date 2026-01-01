@@ -9,17 +9,39 @@ FROM python:3.13-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DOCKER_CONTAINER=true \
-    UV_SYSTEM_PYTHON=1
+    UV_SYSTEM_PYTHON=1 \
+    # Ensure MariaDB build tools can find the config utility
+    MARIADB_CONFIG="/usr/bin/mariadb_config"
 
 WORKDIR /app
 
 # Install runtime dependencies and uv
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     curl \
+    gnupg \
     bash \
+    pkg-config \
+    build-essential \
+    python3-dev \
+    libssl-dev \
+    # Helper for MariaDB/MySQL build tools (mariadb_config)
+    libmariadb-dev \
+    libmariadb-dev-compat \
+    # Helper for SQL Server / ODBC
+    unixodbc \
+    unixodbc-dev \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Microsoft SQL Server ODBC drivers (17 + 18) for pyodbc compatibility when available
+COPY docker/install-msodbc.sh /tmp/install-msodbc.sh
+RUN /tmp/install-msodbc.sh \
+    && rm -f /tmp/install-msodbc.sh \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast package installation
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && mv /root/.local/bin/uv /usr/local/bin/uv \
     && chmod +x /usr/local/bin/uv
 

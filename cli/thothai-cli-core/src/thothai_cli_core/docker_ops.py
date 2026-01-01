@@ -5,11 +5,10 @@
 """Docker operations for CSV and SQLite management."""
 
 import subprocess
-import sys
+import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from rich.console import Console
-from rich.table import Table
 
 console = Console()
 
@@ -20,23 +19,26 @@ class DockerOperations:
     def __init__(self, config: Dict[str, Any]):
         """Initialize with configuration."""
         self.config = config
-        self.connection = config['docker']['connection']
-        self.mode = config['docker']['mode']
-        self.stack_name = config['docker']['stack_name']
-        self.service = config['docker']['service']
-        self.db_service = config['docker']['db_service']
-        self.paths = config['paths']
+        self.connection = config.get('docker', {}).get('connection', 'local')
+        self.mode = config.get('docker', {}).get('mode', 'swarm')
+        self.stack_name = config.get('docker', {}).get('stack_name', 'thothai-swarm')
+        self.service = config.get('docker', {}).get('service', 'backend')
+        self.db_service = config.get('docker', {}).get('db_service', 'sql-generator')
+        self.paths = config.get('paths', {
+            'data_exchange': '/app/data_exchange',
+            'shared_data': '/app/data'
+        })
     
     def _run_command(self, cmd: List[str], capture_output: bool = True) -> subprocess.CompletedProcess:
         """Execute command locally or via SSH."""
         if self.connection == 'ssh':
-            ssh_config = self.config['ssh']
-            ssh_cmd = ['ssh', '-p', str(ssh_config['port'])]
+            ssh_config = self.config.get('ssh', {})
+            ssh_cmd = ['ssh', '-p', str(ssh_config.get('port', 22))]
             
             if ssh_config.get('key_file'):
                 ssh_cmd.extend(['-i', ssh_config['key_file']])
             
-            ssh_cmd.append(f"{ssh_config['user']}@{ssh_config['host']}")
+            ssh_cmd.append(f"{ssh_config.get('user')}@{ssh_config.get('host')}")
             ssh_cmd.append(' '.join(cmd))
             cmd = ssh_cmd
         
@@ -123,14 +125,14 @@ class DockerOperations:
         
         if self.connection == 'ssh':
             # SCP to remote, then docker cp
-            ssh_config = self.config['ssh']
-            host = f"{ssh_config['user']}@{ssh_config['host']}"
+            ssh_config = self.config.get('ssh', {})
+            host = f"{ssh_config.get('user')}@{ssh_config.get('host')}"
             
             # SCP to /tmp on remote
             scp_cmd = ['scp']
             if ssh_config.get('key_file'):
                 scp_cmd.extend(['-i', ssh_config['key_file']])
-            scp_cmd.extend(['-P', str(ssh_config['port'])])
+            scp_cmd.extend(['-P', str(ssh_config.get('port', 22))])
             scp_cmd.extend([str(local_path), f"{host}:/tmp/{filename}"])
             
             result = subprocess.run(scp_cmd, capture_output=True, text=True)
@@ -161,8 +163,8 @@ class DockerOperations:
         
         if self.connection == 'ssh':
             # Docker cp to /tmp on remote, then SCP to local
-            ssh_config = self.config['ssh']
-            host = f"{ssh_config['user']}@{ssh_config['host']}"
+            ssh_config = self.config.get('ssh', {})
+            host = f"{ssh_config.get('user')}@{ssh_config.get('host')}"
             
             # Docker cp on remote
             cmd = ['docker', 'cp', f'{container}:{remote_path}', f'/tmp/{filename}']
@@ -175,7 +177,7 @@ class DockerOperations:
             scp_cmd = ['scp']
             if ssh_config.get('key_file'):
                 scp_cmd.extend(['-i', ssh_config['key_file']])
-            scp_cmd.extend(['-P', str(ssh_config['port'])])
+            scp_cmd.extend(['-P', str(ssh_config.get('port', 22))])
             scp_cmd.extend([f"{host}:/tmp/{filename}", str(local_path)])
             
             result = subprocess.run(scp_cmd, capture_output=True, text=True)
@@ -245,14 +247,14 @@ class DockerOperations:
         
         # Copy database
         if self.connection == 'ssh':
-            ssh_config = self.config['ssh']
-            host = f"{ssh_config['user']}@{ssh_config['host']}"
+            ssh_config = self.config.get('ssh', {})
+            host = f"{ssh_config.get('user')}@{ssh_config.get('host')}"
             
             # SCP to remote
             scp_cmd = ['scp']
             if ssh_config.get('key_file'):
                 scp_cmd.extend(['-i', ssh_config['key_file']])
-            scp_cmd.extend(['-P', str(ssh_config['port'])])
+            scp_cmd.extend(['-P', str(ssh_config.get('port', 22))])
             scp_cmd.extend([str(local_path), f"{host}:/tmp/{db_name}.sqlite"])
             
             result = subprocess.run(scp_cmd, capture_output=True, text=True)

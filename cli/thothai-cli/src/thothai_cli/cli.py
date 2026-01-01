@@ -38,5 +38,19 @@ main.add_command(data.db_group)
 main.add_command(config.config_group)
 
 
+@main.command('manual')
+def show_manual():
+    """Mostra il manuale utente completo."""
+    manual_path = Path(__file__).parent / "docs" / "USER_MANUAL_IT.md"
+    if manual_path.exists():
+        with open(manual_path, 'r') as f:
+            content = f.read()
+        
+        from rich.markdown import Markdown
+        console.print(Markdown(content))
+    else:
+        console.print("[red]Errore: Manuale utente non trovato.[/red]")
+
+
 if __name__ == '__main__':
     main()

@@ -79,7 +79,7 @@ services:
     volumes:
       - frontend-cache:/app/.next/cache
       - thoth-data-exchange:/app/data_exchange:ro
-      - thoth-backend-secrets:/secrets:ro
+      - thoth-backend-secrets:/vol/secrets:ro
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -137,7 +137,7 @@ services:
       - thoth-shared-data:/app/data
       - thoth-logs:/app/logs
       - thoth-data-exchange:/app/data_exchange
-      - thoth-backend-secrets:/secrets:ro
+      - thoth-backend-secrets:/vol/secrets:ro
     environment:
       - DOCKER_CONTAINER=true
       - PORT=8020

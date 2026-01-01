@@ -23,6 +23,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -35,8 +36,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_path = BASE_DIR.parent / '.env.local'
 if dotenv_path.exists():
     load_dotenv(dotenv_path=dotenv_path, override=True)
+    # Verify DB_ROOT_PATH is loaded (critical for preprocessing)
+    db_root = os.getenv('DB_ROOT_PATH')
+    if db_root:
+        print(f"✓ Loaded .env.local: DB_ROOT_PATH={db_root}")
+    else:
+        print(f"⚠ Warning: .env.local loaded but DB_ROOT_PATH not found")
+else:
+    print(f"⚠ Warning: .env.local not found at {dotenv_path}")
 
-APPEND_SLASH = False
+APPEND_SLASH = True
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -187,8 +196,8 @@ else:  # Running locally
     }
 
 # Secrets directories for sensitive uploads (e.g., SSH private keys)
-# In Docker, prefer the mounted secrets volume at /secrets; locally, use project ./secrets
-SECRETS_BASE_DIR = "/secrets" if DOCKER_ENV else str(BASE_DIR / "secrets")
+# In Docker, prefer the mounted secrets volume at /vol/secrets; locally, use project ./secrets
+SECRETS_BASE_DIR = "/vol/secrets" if DOCKER_ENV else str(BASE_DIR / "secrets")
 SSH_KEYS_DIR = os.path.join(SECRETS_BASE_DIR, "ssh_keys")
 try:
     os.makedirs(SSH_KEYS_DIR, exist_ok=True)
@@ -354,7 +363,7 @@ API_KEY = os.environ.get("DJANGO_API_KEY")
 if not API_KEY:
     try:
         # Try to load from secrets volume if in Docker
-        api_key_file = "/secrets/django_api_key"
+        api_key_file = "/vol/secrets/django_api_key"
         if os.path.exists(api_key_file):
             with open(api_key_file, "r") as f:
                 API_KEY = f.read().strip()

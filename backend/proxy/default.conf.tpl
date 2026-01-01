@@ -1,12 +1,23 @@
-# Main web server on port 80
+# Main web server on port 80 (Backend-only mode)
+# This port serves the Django backend with static files
 server {
     listen 80;
     server_name localhost;
     
-    # Static files
+    # Static files - served directly by nginx (required for Django production)
     location /static {
         alias /vol/static/;
-        autoindex on;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    # Media files
+    location /media {
+        alias /vol/media/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
     }
     
     # Export files
@@ -15,14 +26,14 @@ server {
         autoindex on;
     }
     
-    # Backend Django API
-    location /api {
+    # Django admin
+    location /admin {
         proxy_pass http://${APP_HOST}:${APP_PORT};
         include /etc/nginx/proxy_params;
     }
     
-    # Django admin
-    location /admin {
+    # Backend Django API
+    location /api {
         proxy_pass http://${APP_HOST}:${APP_PORT};
         include /etc/nginx/proxy_params;
     }
@@ -34,7 +45,7 @@ server {
         add_header Content-Type text/plain;
     }
     
-    # Default to backend
+    # Default: all other requests to Django backend
     location / {
         proxy_pass http://${APP_HOST}:${APP_PORT};
         include /etc/nginx/proxy_params;

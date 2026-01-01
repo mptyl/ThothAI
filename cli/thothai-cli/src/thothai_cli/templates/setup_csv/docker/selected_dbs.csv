@@ -1,0 +1,12 @@
+id,name,db_host,db_type,db_name,db_port,schema,user_name,password,db_mode,vector_db,language,scope,scope_json,directives,erd
+1,california_schools,,SQLite,california_schools,,,,,dev,1,English,"```json
+{
+  ""overview"": ""This database, 'california_schools', serves as a comprehensive repository for information related to educational institutions across California. It integrates data on school demographics, student enrollment, eligibility for free and reduced-price meal programs, and SAT performance metrics."",
+  ""main_entities"": ""The primary entities managed within this database are individual schools, school districts, and counties within California. Key data points include unique identifiers for each entity (CDSCode), their names (School Name, District Name, County Name), and various descriptive attributes like school type, district type, and educational options offered."",
+  """"business_purpose"": ""The database supports analyses related to educational performance and socio-economic factors in California schools. It enables users to evaluate student eligibility for meal programs, assess SAT score trends, and understand the characteristics of different school types, including charter schools. This information is crucial for policymakers, researchers, and educational administrators to make informed decisions and allocate resources effectively."",
+  ""key_relationships"": ""The tables are interconnected primarily through the 'CDSCode', which uniquely identifies each educational entity. The 'frpm' table provides detailed Free and Reduced-Price Meal (FRPM) program eligibility and enrollment data per school and academic year. The 'satscores' table links SAT performance data to schools via the 'cds' column. The 'schools' table offers extensive demographic, location, and administrative details for each school, serving as a central reference for school attributes which can be joined with statistical data from 'frpm' and 'satscores'."",
+  ""data_scope"": ""The database encompasses a wide range of data points including geographic coordinates, contact information, operational status (e.g., Active, Closed), funding types, and detailed administrative contacts. It also captures numerical data such as student enrollment, free meal counts, FRPM counts, and SAT scores (Reading, Math, Writing), allowing for the calculation of various percentages and rates, such as eligible free and FRPM rates, and SAT excellence rates.""
+}
+```",,,"erDiagram
+    frpm ||--o{ schools : ""CDSCode""
+    satscores ||--o{ schools : ""cds"""

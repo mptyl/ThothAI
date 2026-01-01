@@ -283,8 +283,8 @@ echo -e "${BLUE}ThothAI Service Startup Script${NC}"
 echo "==============================="
 
 # Step 0: Stop any base Docker services to avoid conflicts
-echo -e "${YELLOW}Stopping base Docker services (docker-compose.yml)...${NC}"
-docker compose -f docker-compose.yml down 2>/dev/null || true
+# echo -e "${YELLOW}Stopping base Docker services (docker-compose.yml)...${NC}"
+# docker compose -f docker-compose.yml down 2>/dev/null || true
 
 # Step 0.1: Ensure local Django port is clear
 echo -e "${YELLOW}Ensuring port $BACKEND_PORT is clear...${NC}"

@@ -34,6 +34,8 @@ def init_cmd(ctx, directory, mode):
     templates_to_copy = [
         ('config.yml', 'config.yml.local'),
         ('docker-compose.yml', 'docker-compose.yml'),
+        ('data', 'data'),
+        ('setup_csv', 'setup_csv'),
     ]
     
     if mode == 'swarm':
@@ -45,41 +47,67 @@ def init_cmd(ctx, directory, mode):
     try:
         # Access embedded templates
         from .. import templates as templates_module
-        templates_path = Path(importlib.resources.files(templates_module))
+        templates_root = importlib.resources.files(templates_module)
         
         for template_name, target_name in templates_to_copy:
-            source = templates_path / template_name
+            source = templates_root / template_name
             target = target_dir / target_name
             
             if target.exists():
                 console.print(f"[yellow]⚠ {target_name} already exists, skipping[/yellow]")
                 continue
             
-            if template_name == 'config.yml':
-                # Customize deployment mode in config.yml.local
-                content = source.read_text()
-                content = content.replace('deployment_mode: "compose"', f'deployment_mode: "{mode}"')
-                target.write_text(content)
-            else:
-                shutil.copy(source, target)
-            console.print(f"[green]✓[/green] Created {target_name}")
+            # Use importlib.resources.as_file to get a real Path for shutil
+            with importlib.resources.as_file(source) as source_path:
+                if source_path.is_dir():
+                    shutil.copytree(source_path, target)
+                    console.print(f"[green]✓[/green] Created {target_name}/ directory")
+                else:
+                    if template_name == 'config.yml':
+                        # Customize deployment mode in config.yml.local
+                        content = source_path.read_text(encoding='utf-8')
+                        content = content.replace('deployment_mode: "compose"', f'deployment_mode: "{mode}"')
+                        target.write_text(content, encoding='utf-8')
+                    else:
+                        shutil.copy(source_path, target)
+                    console.print(f"[green]✓[/green] Created {target_name}")
+        
+        # Copy docs directory with user manual only
+        # The file is included via force-include in pyproject.toml
+        import thothai_cli
+        package_dir = Path(thothai_cli.__file__).parent
+        docs_source = package_dir / 'docs' / 'CLI_USER_MANUAL_IT.md'
+        docs_target = target_dir / 'docs'
+        
+        if docs_target.exists():
+            console.print(f"[yellow]⚠ docs already exists, skipping[/yellow]")
+        elif docs_source.exists():
+            docs_target.mkdir(parents=True, exist_ok=True)
+            shutil.copy(docs_source, docs_target / 'CLI_USER_MANUAL_IT.md')
+            console.print(f"[green]✓[/green] Created docs/ directory")
+        else:
+            console.print(f"[yellow]⚠ docs source not found, skipping[/yellow]")
+
         
         # Create .gitignore
         gitignore_content = """# ThothAI
 config.yml.local
 .env.docker
 swarm_config.env
+data/
 data_exchange/
 *.log
 """
         gitignore_path = target_dir / '.gitignore'
         if not gitignore_path.exists():
-            gitignore_path.write_text(gitignore_content)
+            gitignore_path.write_text(gitignore_content, encoding='utf-8')
             console.print(f"[green]✓[/green] Created .gitignore")
         
         # Create data_exchange directory
         data_exchange = target_dir / 'data_exchange'
         data_exchange.mkdir(exist_ok=True)
+        if not (data_exchange / '.gitkeep').exists():
+            (data_exchange / '.gitkeep').touch()
         console.print(f"[green]✓[/green] Created data_exchange/ directory")
         
         console.print("\n[bold green]✓ Initialization complete![/bold green]\n")

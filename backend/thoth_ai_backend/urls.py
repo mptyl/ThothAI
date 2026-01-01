@@ -11,6 +11,7 @@
 # limitations under the License.
 
 from django.urls import path
+from django.views.generic.base import RedirectView
 from . import views
 
 # Import the new delete views along with existing ones
@@ -27,7 +28,22 @@ from . import views_progress
 
 app_name = "thoth_ai_backend"
 
+# Helper: redirect views for URLs without trailing slash
+def redirect_append_slash(pattern_name):
+    """Create a redirect view that appends trailing slash."""
+    return RedirectView.as_view(pattern_name=pattern_name, permanent=False)
+
 urlpatterns = [
+    # Redirect URLs without trailing slash
+    path("erd", redirect_append_slash("thoth_ai_backend:erd")),
+    path("gdpr-report", redirect_append_slash("thoth_ai_backend:gdpr_report")),
+    path("db-docs", redirect_append_slash("thoth_ai_backend:db_docs")),
+    path("evidence", redirect_append_slash("thoth_ai_backend:evidence")),
+    path("questions", redirect_append_slash("thoth_ai_backend:questions")),
+    path("columns", redirect_append_slash("thoth_ai_backend:columns")),
+    path("preprocess", redirect_append_slash("thoth_ai_backend:preprocess")),
+    
+    # Main URL patterns (with trailing slash)
     path("evidence/", EvidenceView.as_view(), name="evidence"),
     path(
         "evidence/create/", views.manage_evidence, name="create_evidence"
