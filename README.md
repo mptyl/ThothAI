@@ -74,30 +74,7 @@ docker compose up -d
 # API: http://localhost:8040/api
 ```
 
-### Local Development Setup
 
-```bash
-# 1. Prerequisites
-# Install uv for Python management
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 2. Copy and configure the unified config (if you haven't done it yet)
-cp config.yml config.yml.local
-# Edit config.yml.local with your API keys, embeddings, database flags, and ports.
-# This file is now the single source of truth for BOTH Docker and local development.
-
-# 3. (Optional) Override DB root path for the current shell
-export DB_ROOT_PATH=/absolute/path/to/your/dev_databases  # Directory containing BIRD test databases
-
-# 4. Start all services locally (auto-generates .env.local and syncs Python deps)
-./start-all.sh
-
-# 5. Access services
-# Frontend: http://localhost:3200
-# Backend: http://localhost:8200
-# SQL Generator: http://localhost:8180
-# Qdrant: http://localhost:6334
-```
 
 ## 📋 Prerequisites
 
@@ -138,13 +115,7 @@ ThothAI/
 backend/
 ├── thoth_core/          # Core models, admin interface
 ├── thoth_ai_backend/    # AI workflow implementation
-├── tests/               # Test suites
-└── logs/               # Backend logs (local only)
 
-frontend/
-├── sql_generator/       # FastAPI SQL generation service
-│   ├── agents/         # PydanticAI agents (Core, Tools, Validators)
-│   └── logs/          # SQL generator logs (local only)
 ├── src/                # Next.js application source
 └── public/            # Static assets
 ```
@@ -190,30 +161,24 @@ frontend/
 - **Persistence**: Logs maintained by Docker daemon
 - **Rotation**: Automatic based on Docker configuration
 
-### Local Development
-- **Backend logs**: `backend/logs/`
-- **SQL Generator logs**: `frontend/sql_generator/logs/`
-- **Frontend logs**: Console output
-- **Qdrant logs**: Console output
-- **Access**: Direct file access or terminal output
+
 
 ## 🔧 Services
 
 ### Core Services
 
-| Service | Purpose | Port (Docker) | Port (Local) |
-|---------|---------|---------------|--------------|
-| Backend | Django REST API & Admin | 8000 (internal) | 8200 |
-| Frontend | Next.js web interface | 3040 | 3200 |
-| SQL Generator | FastAPI with PydanticAI | 8020 | 8180 |
-| PostgreSQL | Main database | 5432 | 5433 |
-| Qdrant | Vector database | 6333 | 6334 |
+| Service | Purpose | Port (Docker) |
+|---------|---------|---------------|
+| Backend | Django REST API & Admin | 8000 (internal) |
+| Frontend | Next.js web interface | 3040 |
+| SQL Generator | FastAPI with PydanticAI | 8020 |
+| PostgreSQL | Main database | 5432 |
+| Qdrant | Vector database | 6333 |
 | Nginx Proxy | Reverse proxy | 8040 (external) | - |
 
 ### Service Communication
 - **Docker**: Services communicate via Docker network
-- **Local**: Direct HTTP calls to localhost ports
-- **API Gateway**: Nginx proxy (Docker) or direct access (local)
+- **API Gateway**: Nginx proxy (Docker)
 
 ## 🤖 SQL Generation Process
 
@@ -307,31 +272,9 @@ The process:
    - `pyproject.toml.local` for database extras
 3. Docker Compose uses `.env.docker` to configure containers
 
-#### Local Development (start-all.sh)
 
-```
-config.yml.local → generate_env_local.py → .env.local
-                ↓                  ↓
-      update_local_db_dependencies.py → backend/frontend pyproject.toml.local
-                ↓
-        uv lock --refresh && uv sync (per directory)
-                ↓
-.env.local → env validation → export variables → Processes inherit environment
-           ↓                   ↓                      ↓
-   BACKEND_AI_* check       (filter out PORT=)     Django, SQL Gen, Frontend
-```
 
-The process:
-1. `start-all.sh` regenerates `.env.local` from `config.yml.local` via `scripts/generate_env_local.py`
-2. Database support extras are resolved by `scripts/update_local_db_dependencies.py`, which updates both `backend/pyproject.toml.local` and `frontend/sql_generator/pyproject.toml.local`
-3. Whenever dependencies change, `start-all.sh` runs `uv lock --refresh && uv sync` inside `backend/` and `frontend/sql_generator/`
-4. `.env.local` is loaded (excluding the generic PORT) and validated via `scripts/validate_backend_ai.py --from-env`
-5. Each service inherits the environment variables:
-   - Django: uses the variables directly
-   - SQL Generator: receives a specific PORT (8180)
-   - Frontend: receives a specific PORT (3200)
 
-Important: keep `config.yml.local` as the authoritative configuration. `start-all.sh` will regenerate `.env.local` and sync Python dependencies automatically whenever the YAML changes.
 
 ### Python Management with uv
 
@@ -344,7 +287,7 @@ The project uses `uv` to manage Python consistently:
 ### Best Practices
 
 1. **Never commit** files containing credentials (`.env*`, `config.yml.local`)
-2. **Use `config.yml.local`** for Docker, `.env.local` for local development
+2. **Use `config.yml.local`** for configuration
 3. **Do not modify** `.env.docker` manually (it is regenerated automatically)
 4. **Back up configurations** before major upgrades
 
@@ -358,8 +301,7 @@ The project uses `uv` to manage Python consistently:
 - **Python Version**: Managed by uv, not system Python
 - **Log Files**: Local logs not shared with Docker containers
 
-### Common Issues
-- **Port conflicts**: Update ports in config.yml.local or .env.local
+- **Port conflicts**: Update ports in config.yml.local
 - **API key errors**: Ensure at least one LLM provider configured
 - **Docker build fails**: Check Docker daemon is running
 - **Qdrant connection**: Verify port 6333/6334 is available
