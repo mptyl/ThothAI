@@ -26,6 +26,10 @@ services:
       - backend-media:/vol/media
       - thoth-secrets:/vol/secrets
       - ./config.yml.local:/app/config.yml.local:ro
+      # Development mounts to ensure code is up to date
+      - ./backend/thoth_ai_backend:/app/thoth_ai_backend
+      - ./backend/thoth_core:/app/thoth_core
+      - ./backend/manage.py:/app/manage.py
     env_file: .env.docker
     environment:
       - HOST_IP=host.docker.internal

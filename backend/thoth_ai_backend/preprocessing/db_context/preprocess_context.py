@@ -27,7 +27,7 @@ class DuplicatePolicy(Enum):
 
 
 # Import new vector store plugin architecture
-from thoth_qdrant import ColumnNameDocument
+from thoth_qdrant import ColumnNameDocument, ThothType
 from thoth_ai_backend.utils.progress_tracker import ProgressTracker
 
 from .load_table_description import load_tables_description
@@ -80,10 +80,22 @@ def make_db_context_vec_db(document_store, db_params, **kwargs) -> int:
 
     # First get all existing Column_name documents to delete them
     # Use the interface method instead of the implementation-specific method
-    existing_docs = document_store.get_all_column_documents()
-    if existing_docs:
-        doc_ids = [doc.id for doc in existing_docs]
-        document_store.delete_documents(doc_ids)
+    # First get all existing Column_name documents to delete them
+    # Use the delete_collection method which is supported by the adapter
+    try:
+        document_store.delete_collection(thoth_type=ThothType.COLUMN_NAME)
+    except AttributeError:
+        # Fallback for adapters that might support delete_documents but not delete_collection (unlikely given the error)
+        existing_docs = document_store.get_all_column_documents()
+        if existing_docs:
+            doc_ids = [doc.id for doc in existing_docs]
+            # Use delete if delete_documents is missing (common alias)
+            if hasattr(document_store, "delete_documents"):
+                document_store.delete_documents(doc_ids)
+            elif hasattr(document_store, "delete"):
+                document_store.delete(doc_ids)
+            else:
+                 logging.warning("Could not delete existing documents: No delete method found on adapter.")
 
     # Extract workspace_id from kwargs if provided
     workspace_id = kwargs.get("workspace_id", None)
