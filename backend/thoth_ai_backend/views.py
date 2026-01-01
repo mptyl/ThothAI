@@ -1079,7 +1079,15 @@ def upload_questions(request, workspace_id):
 def update_database_columns(request, workspace_id):
     """
     View to handle the HTMX request for updating database columns.
+    
+    This function:
+    1. Updates column descriptions in the Django database from CSV files
+    2. Syncs the updated columns to the vector store for search functionality
     """
+    from thoth_ai_backend.preprocessing.db_context.preprocess_context import (
+        make_db_context_vec_db,
+    )
+    
     workspace = get_object_or_404(Workspace, id=workspace_id)
     context = {
         "container_id": "update-columns-container",
@@ -1103,11 +1111,53 @@ def update_database_columns(request, workspace_id):
                 f"Workspace '{workspace.name}' has no SQL database configured."
             )
 
+        # Step 1: Update column descriptions in Django database from CSV files
         update_database_columns_description(workspace_id=workspace_id)
+        
+        # Step 2: Sync updated columns to vector store
+        sql_db = workspace.sql_db
+        sql_db_params = {
+            "id": sql_db.id,
+            "name": sql_db.name,
+            "db_host": sql_db.db_host,
+            "db_type": sql_db.db_type,
+            "db_name": sql_db.db_name,
+            "db_port": sql_db.db_port,
+            "schema": sql_db.schema,
+            "user_name": sql_db.user_name,
+            "password": sql_db.password,
+            "db_mode": sql_db.db_mode,
+            "language": sql_db.language,
+        }
+        
+        # Add vector_db info if available
+        if sql_db.vector_db:
+            sql_db_params["vector_db"] = {
+                "name": sql_db.vector_db.name,
+                "vect_type": sql_db.vector_db.vect_type,
+                "host": sql_db.vector_db.host,
+                "port": sql_db.vector_db.port,
+                "username": sql_db.vector_db.username,
+                "password": sql_db.vector_db.password,
+                "tenant": sql_db.vector_db.tenant,
+            }
+        
+        # Get vector store connection using the existing utility function
+        from thoth_ai_backend.backend_utils.vector_store_utils import get_vector_store
+        vector_store = get_vector_store(request)
+        
+        # Sync columns to vector store
+        columns_processed = make_db_context_vec_db(
+            vector_store,
+            sql_db_params,
+            use_value_description=True,
+        )
+        
+        logger.info(f"Synced {columns_processed} columns to vector store")
 
         workspace.refresh_from_db()
 
-        context["success_message"] = "Database columns updated successfully!"
+        context["success_message"] = f"Database columns updated and synced to vector store! ({columns_processed} columns)"
         context["db"] = workspace.sql_db
         context["last_run"] = workspace.sql_db.last_columns_update
 
