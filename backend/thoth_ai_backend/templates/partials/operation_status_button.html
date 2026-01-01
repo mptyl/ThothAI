@@ -22,35 +22,37 @@ Context variables:
 
 <div id="{{ container_id }}">
     {% if success_message or error_message or special_message %}
-    {% if success_message %}
-    <div class="alert alert-success" role="alert">
-        {{ success_message }}
-    </div>
-    {% elif error_message %}
-    <div class="alert alert-danger" role="alert">
-        {{ error_message }}
-    </div>
-    {% elif special_message %}
-    <div class="alert alert-info" role="alert">
-        {{ special_message }}
-    </div>
-    {% endif %}
+        {% if success_message %}
+            <div class="alert alert-success" role="alert">
+                {{ success_message }}
+            </div>
+        {% elif error_message %}
+            <div class="alert alert-danger" role="alert">
+                {{ error_message }}
+            </div>
+        {% elif special_message %}
+            <div class="alert alert-info" role="alert">
+                {{ special_message }}
+            </div>
+        {% endif %}
     {% endif %}
 
-    <button hx-post="{{ hx_url }}" {% if confirm_message %}hx-confirm="{{ confirm_message }}" {% endif %}
-        hx-target="#{{ container_id }}" hx-swap="outerHTML" hx-indicator="#{{ hx_indicator_id }}"
-        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' class="btn {{ button_class|default:'btn-primary' }} w-100">
+    <button hx-post="{{ hx_url }}"
+            hx-target="#{{ container_id }}"
+            hx-swap="outerHTML"
+            hx-indicator="#{{ hx_indicator_id }}"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            class="btn {{ button_class|default:'btn-primary' }} w-100">
         <i class="{{ icon_class }} me-1"></i>
         {{ button_text }}
         {% if last_run %}
-        - {{ last_run_text }} {{ last_run|date:"d/m/Y H:i:s" }}
+            - {{ last_run_text }} {{ last_run|date:"d/m/Y H:i:s" }}
         {% else %}
-        - {{ never_run_text }}
+            - {{ never_run_text }}
         {% endif %}
     </button>
-
-    <div id="{{ hx_indicator_id }}" class="htmx-indicator"
-        style="margin-left: 10px; display: inline-flex; align-items: center;">
+    
+    <div id="{{ hx_indicator_id }}" class="htmx-indicator" style="margin-left: 10px; display: inline-flex; align-items: center;">
         <div class="spinner-border text-primary" role="status" style="margin-right: 8px;"></div>
         <span>{{ spinner_text }}</span>
     </div>
