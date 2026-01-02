@@ -45,5 +45,5 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/thothai_data_cli"]
 
-[tool.hatch.build.targets.wheel.shared-data]
-"docs" = "thothai_data_cli/docs"
+[tool.hatch.build.targets.wheel.force-include]
+"docs/DATA_CLI_USER_MANUAL_IT.md" = "thothai_data_cli/docs/DATA_CLI_USER_MANUAL_IT.md"

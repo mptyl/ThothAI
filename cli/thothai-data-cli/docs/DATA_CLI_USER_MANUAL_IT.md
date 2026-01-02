@@ -56,7 +56,7 @@ uv pip install thothai-data-cli
 ### Passo 3: Verifica dell'Installazione
 
 ```bash
-thothai-data --help
+uv run thothai-data --help
 ```
 
 ---
@@ -68,7 +68,7 @@ thothai-data --help
 Al primo utilizzo, se non esiste alcun file di configurazione, la CLI ti guiderà nella creazione:
 
 ```bash
-thothai-data csv list
+uv run thothai-data csv list
 
 # Output:
 # ✓ Created local directory: /path/to/cwd/data_exchange
@@ -121,14 +121,14 @@ I file CSV sono fondamentali in ThothAI per l'importazione di dati strutturati e
 Fornisce un inventario dettagliato di tutti i file CSV residenti nel volume di scambio `thothai-data-exchange`. Non si limita ad elencare i nomi, ma include metadati vitali come la dimensione del file e l'ultimo timestamp di modifica. Questo è il comando fondamentale per confermare che un'esportazione complessa richiesta dall'interfaccia web sia stata completata con successo sul server prima di procedere al download, o per assicurarsi che un file appena caricato sia nella posizione corretta per essere elaborato dagli agenti AI.
 
 ```bash
-thothai-data csv list
+uv run thothai-data csv list
 ```
 
 ### 5.2 Carica File (`upload`)
 Il punto di ingresso primario per i tuoi dati nell'ecosistema ThothAI. Questo comando gestisce in modo intelligente il trasferimento di file strutturati (CSV) dalla tua macchina locale all'infrastruttura Docker, sia che si tratti di un'installazione locale che di un server remoto via SSH. Una volta caricato, il file "alimenta" il sistema, permettendo al backend di mappare le nuove colonne e righe, rendendole immediatamente disponibili per le interrogazioni in linguaggio naturale.
 
 ```bash
-thothai-data csv upload myfile.csv
+uv run thothai-data csv upload myfile.csv
 ```
 
 ### 5.3 Scarica File (`download`)
@@ -136,17 +136,17 @@ Rappresenta il canale di uscita ufficiale per i risultati delle tue analisi. Qua
 
 ```bash
 # Scarica nella directory corrente
-thothai-data csv download report_finale.csv
+uv run thothai-data csv download report_finale.csv
 
 # Scarica in una directory specifica
-thothai-data csv download report_finale.csv -o ./exports/
+uv run thothai-data csv download report_finale.csv -o ./exports/
 ```
 
 ### 5.4 Elimina File (`delete`)
 Svolge un ruolo cruciale nella gestione della privacy e nell'ottimizzazione delle risorse. Consente di rimuovere permanentemente file obsoleti, set di dati di test o informazioni sensibili che non devono più risiedere sul server una volta concluso il ciclo di analisi. È uno strumento di governance essenziale per mantenere il volume di scambio ordinato ed evitare l'accumulo di dati non necessari che potrebbero generare confusione o rischi di sicurezza.
 
 ```bash
-thothai-data csv delete dati_temporanei.csv
+uv run thothai-data csv delete dati_temporanei.csv
 ```
 
 ---
@@ -159,7 +159,7 @@ ThothAI permette l'analisi di database SQLite aggiuntivi oltre a quelli predefin
 Visualizza la libreria completa dei database SQLite "vivi" all'interno del sistema ThothAI (volume `thoth-shared-data`). Mostra non solo i database di esempio (come `california_schools`), ma ogni singola sorgente dati aggiunta dagli utenti. È lo strumento di monitoraggio principale per capire quali contesti informativi sono attualmente a disposizione dell'AI per generare query SQL e fornire risposte basate sui dati.
 
 ```bash
-thothai-data db list
+uv run thothai-data db list
 ```
 
 ### 6.2 Inserisci Database (`insert`)
@@ -169,14 +169,14 @@ Trasforma un semplice file SQLite in una risorsa attiva e interrogabile. Questo 
 Questa organizzazione garantisce che gli agenti AI possano isolare le interrogazioni ed evitare collisioni tra database diversi. Una volta completato, il database è immediatamente selezionabile nel portale web.
 
 ```bash
-thothai-data db insert ./nuovo_database.sqlite
+uv run thothai-data db insert ./nuovo_database.sqlite
 ```
 
 ### 6.3 Rimuovi Database (`remove`)
 Provvede allo smantellamento sicuro di una sorgente dati. Quando un database non è più rilevante o deve essere sostituito, questo comando elimina l'intero spazio di lavoro dedicato nel volume Docker, inclusi tutti i file associati. È l'operazione di pulizia finale che assicura che l'intelligenza artificiale non tenti di fare riferimento a dati obsoleti o non più validi, mantenendo l'integrità del sistema di conoscenza.
 
 ```bash
-thothai-data db remove vecchio_db
+uv run thothai-data db remove vecchio_db
 ```
 
 ---
@@ -189,14 +189,14 @@ Questi comandi servono a gestire il comportamento della CLI stessa e la sua conn
 Visualizza le impostazioni correnti salvate in `~/.thothai-data.yml`, inclusi i parametri Docker (mode, stack name) e le credenziali SSH se presenti.
 
 ```bash
-thothai-data config show
+uv run thothai-data config show
 ```
 
 ### 7.2 Test Connessione (`test`)
 Verifica che la CLI sia in grado di parlare con il demone Docker (locale o remoto) e, cosa più importante, che riesca a identificare correttamente i container del backend e del generatore SQL di ThothAI. Senza un test positivo, le operazioni sui file e sui database falliranno.
 
 ```bash
-thothai-data config test
+uv run thothai-data config test
 ```
 
 ---
@@ -222,7 +222,7 @@ ssh:
 
 Poi usa i comandi normalmente:
 ```bash
-thothai-data csv list  # Esegue sul server remoto
+uv run thothai-data csv list  # Esegue sul server remoto
 ```
 
 ### Modalità Docker Compose
@@ -276,29 +276,29 @@ docker:
 
 ```bash
 # Elenca file correnti
-thothai-data csv list
+uv run thothai-data csv list
 
 # Carica nuovo export
-thothai-data csv upload ./exports/monthly_report.csv
+uv run thothai-data csv upload ./exports/monthly_report.csv
 
 # Scarica per analisi
-thothai-data csv download monthly_report.csv -o ./analysis/
+uv run thothai-data csv download monthly_report.csv -o ./analysis/
 
 # Pulisci vecchi file
-thothai-data csv delete old_export.csv
+uv run thothai-data csv delete old_export.csv
 ```
 
 ### Gestione Database
 
 ```bash
 # Controlla database esistenti
-thothai-data db list
+uv run thothai-data db list
 
 # Aggiungi nuovo database accanto a california_schools
-thothai-data db insert ./hr_system.sqlite
+uv run thothai-data db insert ./hr_system.sqlite
 
 # In seguito, rimuovi se non necessario
-thothai-data db remove hr_system
+uv run thothai-data db remove hr_system
 ```
 
 ### Gestione Server Remoto
@@ -308,8 +308,8 @@ thothai-data db remove hr_system
 # Modifica ~/.thothai-data.yml con impostazioni ssh
 
 # Verifica connessione
-thothai-data config test
+uv run thothai-data config test
 
 # Carica dati in produzione
-thothai-data csv upload production_data.csv
+uv run thothai-data csv upload production_data.csv
 ```
