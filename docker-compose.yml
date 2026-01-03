@@ -132,7 +132,8 @@ services:
     container_name: thoth-proxy
     restart: always
     ports:
-      - "${WEB_PORT:-8040}:80"
+      - "0.0.0.0:${WEB_PORT:-8040}:80"
+      - "[::]:${WEB_PORT:-8040}:80"
     volumes:
       - backend-static:/vol/static:ro
       - backend-media:/vol/media:ro
@@ -144,6 +145,7 @@ services:
       - FRONTEND_PORT=3000
       - SQL_GEN_HOST=sql-generator
       - SQL_GEN_PORT=8020
+      - SERVER_NAME=${SERVER_NAME:-localhost}
       - DEBUG=False
     networks:
       - thoth-network

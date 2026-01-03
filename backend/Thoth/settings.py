@@ -102,6 +102,13 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
 ]
 
+# Add ALLOWED_HOSTS from environment variables
+env_allowed_hosts = os.environ.get("ALLOWED_HOSTS", "").split(",")
+for host in env_allowed_hosts:
+    host = host.strip()
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+
 # Application definition
 
 INSTALLED_APPS = [

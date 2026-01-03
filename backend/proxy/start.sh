@@ -15,6 +15,6 @@ for host in "$APP_HOST" "$FRONTEND_HOST" "$SQL_GEN_HOST"; do
     fi
 done
 
-envsubst '$APP_HOST $APP_PORT $FRONTEND_HOST $FRONTEND_PORT $SQL_GEN_HOST $SQL_GEN_PORT' < /etc/nginx/conf.d/default.conf.tpl > /etc/nginx/conf.d/default.conf
+envsubst '$APP_HOST $APP_PORT $FRONTEND_HOST $FRONTEND_PORT $SQL_GEN_HOST $SQL_GEN_PORT $SERVER_NAME' < /etc/nginx/conf.d/default.conf.tpl > /etc/nginx/conf.d/default.conf
 
 nginx -g "daemon off;"

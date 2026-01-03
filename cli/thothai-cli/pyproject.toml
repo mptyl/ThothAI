@@ -1,6 +1,6 @@
 [project]
 name = "thothai-cli"
-version = "1.2.3"
+version = "1.2.19"
 description = "ThothAI unified CLI - Deploy and manage ThothAI without cloning the repository"
 readme = "README.md"
 license = {file = "LICENSE.md"}

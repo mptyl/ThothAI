@@ -12,6 +12,8 @@ import importlib.resources
 
 console = Console()
 
+from ..core.config_manager import ConfigManager
+
 
 @click.command('init')
 @click.option('--dir', 'directory', type=click.Path(), default='.',
@@ -108,7 +110,22 @@ data_exchange/
         data_exchange.mkdir(exist_ok=True)
         if not (data_exchange / '.gitkeep').exists():
             (data_exchange / '.gitkeep').touch()
+        if not (data_exchange / '.gitkeep').exists():
+            (data_exchange / '.gitkeep').touch()
         console.print(f"[green]✓[/green] Created data_exchange/ directory")
+        
+        # Generate .env.docker immediately to allow user inspection/editing
+        try:
+            config_path = target_dir / 'config.yml.local'
+            if config_path.exists():
+                console.print("[dim]Generating initial .env.docker...[/dim]")
+                # We need to ensure we don't crash if config is invalid (default template should be valid enough)
+                # But ConfigManager might validate?? No, generate_env_docker just reads values.
+                cm = ConfigManager(config_path)
+                if cm.generate_env_docker():
+                    console.print(f"[green]✓[/green] Generated .env.docker")
+        except Exception as e:
+            console.print(f"[yellow]⚠ Could not generate .env.docker: {e}[/yellow]")
         
         console.print("\n[bold green]✓ Initialization complete![/bold green]\n")
         console.print("[bold]Next steps:[/bold]")

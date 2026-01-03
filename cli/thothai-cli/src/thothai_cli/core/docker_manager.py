@@ -21,6 +21,212 @@ class DockerManager:
         self.config_mgr = config_mgr
         self.base_dir = config_mgr.config_path.parent
         self.compose_file = 'docker-compose.yml'
+
+    def _create_nginx_files(self) -> bool:
+        """Create custom nginx configuration files for server name support."""
+        
+        # Create custom nginx template (Always overwrite to ensure latest config)
+        try:
+            nginx_template_path = self.base_dir / '.nginx-custom.conf.tpl'
+            template_content = """# Auto-generated nginx template with SERVER_NAME support
+# Main web server on port 80 (Backend-only mode)
+server {
+    listen 80;
+    server_name ${SERVER_NAME};
+    
+    # Static files
+    location /static {
+        alias /vol/static/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    # Media files
+    location /media {
+        alias /vol/media/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    # Export files
+    location /exports {
+        alias /vol/data_exchange/;
+        autoindex on;
+    }
+    
+    # Django admin
+    location /admin {
+        proxy_pass http://${APP_HOST}:${APP_PORT};
+        include /etc/nginx/proxy_params;
+    }
+    
+    # Backend Django API
+    location /api {
+        proxy_pass http://${APP_HOST}:${APP_PORT};
+        include /etc/nginx/proxy_params;
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\\n";
+        add_header Content-Type text/plain;
+    }
+    
+    # Default: all other requests to Django backend
+    location / {
+        proxy_pass http://${APP_HOST}:${APP_PORT};
+        include /etc/nginx/proxy_params;
+    }
+}
+
+# Backend API on port 8040
+server {
+    listen 8040;
+    server_name ${SERVER_NAME};
+    
+    # Static files
+    location /static {
+        alias /vol/static/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    # Media files
+    location /media {
+        alias /vol/media/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+    
+    # Export files
+    location /exports {
+        alias /vol/data_exchange/;
+        autoindex on;
+    }
+    
+    # Django admin with static files
+    location /admin {
+        proxy_pass http://${APP_HOST}:${APP_PORT};
+        include /etc/nginx/proxy_params;
+    }
+    
+    # API endpoints
+    location /api {
+        proxy_pass http://${APP_HOST}:${APP_PORT};
+        include /etc/nginx/proxy_params;
+    }
+    
+    # Health check
+    location /health {
+        access_log off;
+        return 200 "healthy\\n";
+        add_header Content-Type text/plain;
+    }
+    
+    # All other requests to Django
+    location / {
+        proxy_pass http://${APP_HOST}:${APP_PORT};
+        include /etc/nginx/proxy_params;
+    }
+}
+"""
+            nginx_template_path.write_text(template_content)
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not create nginx template: {e}[/yellow]")
+
+        # Create custom entrypoint script (Always overwrite)
+        try:
+            entrypoint_path = self.base_dir / '.nginx-custom-entrypoint.sh'
+            entrypoint_content = """#!/bin/sh
+set -e
+
+# Wait for backend (simple sleep/check if needed, but usually compose handles startup order)
+# Main goal: envsubst with SERVER_NAME
+
+if [ -f /etc/nginx/conf.d/default.conf.tpl ]; then
+    # We are using the mounted template which includes SERVER_NAME
+    envsubst '$APP_HOST $APP_PORT $FRONTEND_HOST $FRONTEND_PORT $SQL_GEN_HOST $SQL_GEN_PORT $SERVER_NAME' < /etc/nginx/conf.d/default.conf.tpl > /etc/nginx/conf.d/default.conf
+else
+    # Fallback if something is wrong
+    echo "Warning: Template not found at /etc/nginx/conf.d/default.conf.tpl"
+fi
+
+exec nginx -g "daemon off;"
+"""
+            entrypoint_path.write_text(entrypoint_content)
+            entrypoint_path.chmod(0o755)
+        except Exception as e:
+             console.print(f"[yellow]Warning: Could not create nginx entrypoint: {e}[/yellow]")
+        
+        return True
+
+    def _create_server_compose_file(self) -> bool:
+        """Create a custom docker-compose file with nginx configuration mounts."""
+        try:
+            import yaml
+            
+            # Load original compose file
+            if not (self.base_dir / self.compose_file).exists():
+                return False
+
+            with open(self.base_dir / self.compose_file) as f:
+                compose_data = yaml.safe_load(f)
+            
+            # Modify proxy service
+            if 'services' in compose_data and 'proxy' in compose_data['services']:
+                proxy_service = compose_data['services']['proxy']
+                
+                # Ensure volumes exist
+                if 'volumes' not in proxy_service:
+                    proxy_service['volumes'] = []
+                
+                # Add nginx configuration mounts
+                # We mount our custom template to the location where the container expects the template
+                # AND we mount our entrypoint
+                nginx_volumes = [
+                    './.nginx-custom.conf.tpl:/etc/nginx/conf.d/default.conf.tpl:ro',
+                    './.nginx-custom-entrypoint.sh:/custom-entrypoint.sh:ro'
+                ]
+                
+                # Add volumes only if they don't exist
+                for volume in nginx_volumes:
+                    if volume not in proxy_service['volumes']:
+                        proxy_service['volumes'].append(volume)
+                
+                # Add SERVER_NAME environment variable (only if not already present)
+                if 'environment' not in proxy_service:
+                    proxy_service['environment'] = []
+                
+                # Check if SERVER_NAME is already in env list
+                has_server_name = False
+                if isinstance(proxy_service['environment'], list):
+                    has_server_name = any('SERVER_NAME' in str(env) for env in proxy_service['environment'])
+                elif isinstance(proxy_service['environment'], dict):
+                    has_server_name = 'SERVER_NAME' in proxy_service['environment']
+                
+                if not has_server_name:
+                    if isinstance(proxy_service['environment'], list):
+                        proxy_service['environment'].append('SERVER_NAME=${SERVER_NAME:-localhost}')
+                    elif isinstance(proxy_service['environment'], dict):
+                        proxy_service['environment']['SERVER_NAME'] = '${SERVER_NAME:-localhost}'
+                
+                # Add custom entrypoint
+                proxy_service['entrypoint'] = ["/custom-entrypoint.sh"]
+            
+            # Write modified compose file
+            with open(self.base_dir / '.docker-compose.server.yml', 'w') as f:
+                yaml.dump(compose_data, f, default_flow_style=False)
+            
+            return True
+            
+        except Exception as e:
+            console.print(f"[red]Error creating server compose file: {e}[/red]")
+            return False
     
     def _ensure_env_docker(self) -> bool:
         """Ensure .env.docker exists and is up-to-date."""
@@ -90,8 +296,46 @@ class DockerManager:
         
         return True
     
+    def check_connection(self, server: Optional[str] = None) -> bool:
+        """Establish SSH connection and verify access.
+        
+        This also sets up the ControlMaster socket for subsequent commands
+        to reuse the connection without re-authenticating.
+        """
+        if not server:
+            return True
+            
+        console.print(f"[dim]Verifying connection to {server}...[/dim]")
+        
+        # We run a simple command to establish the connection.
+        # We DO NOT capture output so the user can interactively enter password if needed.
+        # This first connection creates the ControlMaster socket.
+        ssh_cmd = [
+            'ssh',
+            '-o', 'ControlMaster=auto',
+            '-o', 'ControlPath=~/.ssh/thothai-%C',
+            '-o', 'ControlPersist=600',
+            server,
+            'echo "Connection established"'
+        ]
+        
+        try:
+            result = subprocess.run(ssh_cmd, text=True)
+            if result.returncode == 0:
+                return True
+            else:
+                console.print("[red]Failed to connect to server.[/red]")
+                return False
+        except Exception as e:
+            console.print(f"[red]Connection error: {e}[/red]")
+            return False
+
     def up(self, server: Optional[str] = None) -> bool:
         """Pull images and start containers."""
+        # Establish connection first (handles auth once)
+        if server and not self.check_connection(server):
+            return False
+
         mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
         if mode == 'swarm':
             return self.swarm_up(server=server)
@@ -104,7 +348,21 @@ class DockerManager:
         # Generate .env.docker
         if not self._ensure_env_docker():
             return False
-        
+            
+        # Check for SERVER_NAME in .env.docker to trigger custom Nginx setup
+        use_custom_compose = False
+        env_docker_path = self.base_dir / '.env.docker'
+        if env_docker_path.exists():
+            with open(env_docker_path) as f:
+                if 'SERVER_NAME=' in f.read():
+                    console.print("[dim]Creating nginx configuration files for server name support...[/dim]")
+                    if self._create_nginx_files():
+                         if self._create_server_compose_file():
+                             use_custom_compose = True
+                             console.print("[dim]Using custom server configuration...[/dim]")
+                    else:
+                        console.print("[yellow]Warning: Failed to create nginx files, using defaults[/yellow]")
+
         # Create network and volumes
         if not self._create_network(server=server):
             return False
@@ -126,8 +384,130 @@ class DockerManager:
         console.print("\n[bold]Starting containers...[/bold]")
         # Note: Binder mounts don't work well over remote SSH with Docker Compose unless they exist on the target.
         # However, we are assuming the user knows what they are doing if they use --server with Compose.
+        
+        compose_file_to_use = '.docker-compose.server.yml' if use_custom_compose else self.compose_file
+        
+        # If using custom compose and deploying to remote server, we MUST copy the generated files
+        if use_custom_compose and server:
+             # Extract host/user from ssh connection string (ssh://user@host or user@host)
+             remote_dest = server.replace('ssh://', '')
+             
+             console.print(f"[dim]Copying configuration files to remote server {remote_dest}...[/dim]")
+             
+             # Files to copy
+             files_to_copy = [
+                 '.nginx-custom.conf.tpl',
+                 '.nginx-custom-entrypoint.sh',
+                 '.docker-compose.server.yml'
+             ]
+             
+             for filename in files_to_copy:
+                 local_path = self.base_dir / filename
+                 if local_path.exists():
+                     # We assume the remote path mirrors the current directory structure if possible,
+                     # OR simpler: copy to home directory or a temp dir?
+                     # Docker Compose usually expects relative paths to work from where the compose file is.
+                     # So if we copy docker-compose.server.yml to remote, we should put it in a folder 
+                     # and run compose FROM THERE.
+                     # BUT `docker -H ssh://... compose -f local_file up` uses the LOCAL file for definition,
+                     # but mounts are relative to the REMOTE filesystem.
+                     # So we need to put the mounted files on the remote filesystem at the SAME relative path 
+                     # as defined in the compose file.
+                     # The compose file says: `./.nginx-custom.conf.tpl`.
+                     # So we need to put them in the "working directory" of the remote compose execution.
+                     # When using `docker -H ... compose ...`, where is the "remote working directory"? 
+                     # It doesn't really have one in the context of the host filesystem unless we specify it?
+                     # Actually, `docker compose` resolves paths locally. So `./` becomes absolute local path?
+                     # NO. `docker compose` sends the build context. But for bind mounts, it passes the path as is.
+                     # If I run `docker -H ... compose -f file.yml up`, and file.yml has `./foo:/foo`, 
+                     # Docker daemon receives absolute path of `./foo`?
+                     # If I use `docker compose`, it converts relative paths to absolute paths ON THE CLIENT.
+                     # So `/Users/mp/ThothAI/.nginx...` is sent to the remote daemon. The remote daemon looks for that path on the Linux server.
+                     # Obviously that fails.
+                     
+                     # SOLUTION:
+                     # We need to pick a stable path on the remote server, copy files there, 
+                     # AND update the docker-compose file to point to those remote paths?
+                     # OR simpler:
+                     # Deploy to a specific folder on remote server (e.g. ~/thothai_deploy)
+                     # and DO NOT use `docker -H ... compose -f local ...`.
+                     # Instead, use `ssh remote "docker compose -f ... up"`.
+                     # BUT `thothai-cli` is designed to run locally against remote daemon.
+                     
+                     # Compromise:
+                     # 1. Copy files to `/tmp/thothai_config/` on remote server.
+                     # 2. Modify the *local* `docker-compose.server.yml` (in memory or temp file) 
+                     #    to point valid mounts to `/tmp/thothai_config/` instead of `./`.
+                     # 3. Use that modified compose file to run against remote daemon.
+                     
+                     # Better yet:
+                     # Just assume a standard deployment path on remote: `/opt/thothai` or `~/thothai`.
+                     # Since we don't know the remote user's home easily without a query...
+                     # `/tmp` is inconsistent across reboots.
+                     
+                     # Let's try to copy to `/tmp/thothai_deploy/` and use that for now.
+                     # It's robust enough for a "fix".
+                     
+                     pass
+        
+        # ACTUALLY, simpler approach:
+        # Just use scp to copy to a fixed path, say `/tmp/thothai_generated/`
+        # And we need to Update the compose file we use to point to that.
+        
+        # Let's refine the logic.
+        if use_custom_compose and server:
+            remote_base_dir = "/tmp/thothai_generated"
+            remote_dest_conn = server.replace('ssh://', '')
+            
+            # 1. Create remote directory
+            self._run_cmd(['mkdir', '-p', remote_base_dir], server=server, capture=True)
+            
+            # 2. Copy files
+            files_to_copy = ['.nginx-custom.conf.tpl', '.nginx-custom-entrypoint.sh']
+            import shutil
+            
+            for f in files_to_copy:
+                # Use scp command directly
+                # scp local_file user@host:/tmp/thothai_generated/
+                subprocess.run(['scp', str(self.base_dir / f), f"{remote_dest_conn}:{remote_base_dir}/{f}"], 
+                             check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # 3. Modify compose file locally to point to remote paths
+            # We need to make a copy of .docker-compose.server.yml
+            # replace ./foo with /tmp/thothai_generated/foo
+            try:
+                import yaml
+                with open(self.base_dir / '.docker-compose.server.yml') as f:
+                    data = yaml.safe_load(f)
+                
+                if 'services' in data and 'proxy' in data['services']:
+                     volumes = data['services']['proxy'].get('volumes', [])
+                     new_volumes = []
+                     for vol in volumes:
+                         parts = vol.split(':')
+                         if len(parts) >= 2:
+                             src = parts[0]
+                             # If it points to our generated files
+                             if '.nginx-custom' in src:
+                                 # Replace relative path with absolute remote path
+                                 filename = Path(src).name
+                                 new_src = f"{remote_base_dir}/{filename}"
+                                 parts[0] = new_src
+                                 new_volumes.append(':'.join(parts))
+                             else:
+                                 new_volumes.append(vol)
+                     data['services']['proxy']['volumes'] = new_volumes
+                
+                # Save as temporary remote-ready compose file
+                compose_file_to_use = '.docker-compose.server.remote.yml'
+                with open(self.base_dir / compose_file_to_use, 'w') as f:
+                    yaml.dump(data, f, default_flow_style=False)
+                    
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to prepare remote compose file: {e}[/yellow]")
+        
         result = self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'up', '-d'],
+            ['docker', 'compose', '-f', str(self.base_dir / compose_file_to_use), 'up', '-d'],
             server=server
         )
         
@@ -146,6 +526,10 @@ class DockerManager:
     
     def down(self, server: Optional[str] = None) -> bool:
         """Stop and remove containers."""
+        # Establish connection first
+        if server and not self.check_connection(server):
+            return False
+
         mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
         if mode == 'swarm':
             return self.swarm_down(server=server)
@@ -159,10 +543,14 @@ class DockerManager:
     
     def status(self, server: Optional[str] = None) -> None:
         """Show container status."""
+        # Establish connection first
+        if server and not self.check_connection(server):
+            return
+
         mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
         if mode == 'swarm':
             self.swarm_status(server=server)
-            return
+            return 
 
         self._run_cmd(
             ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'ps'],
@@ -171,6 +559,10 @@ class DockerManager:
     
     def logs(self, service: Optional[str] = None, tail: int = 50, follow: bool = False, server: Optional[str] = None) -> None:
         """View container logs."""
+        # Establish connection first
+        if server and not self.check_connection(server):
+            return
+
         mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
         if mode == 'swarm':
             swarm_env = self._get_swarm_env()
@@ -199,6 +591,10 @@ class DockerManager:
     
     def update(self, server: Optional[str] = None) -> bool:
         """Update containers to latest images."""
+        # Establish connection first
+        if server and not self.check_connection(server):
+            return False
+
         mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
         if mode == 'swarm':
             return self.swarm_update(server=server)
@@ -361,15 +757,49 @@ class DockerManager:
 
     def _run_cmd(self, cmd: list, server: Optional[str] = None, capture: bool = False, env: Optional[dict] = None) -> subprocess.CompletedProcess:
         """Run a command locally or remotely via SSH."""
-        if server:
-            ssh_cmd = ['ssh', server, ' '.join(cmd)]
+        import os
+        
+        # Prepare environment
+        full_env = os.environ.copy()
+        
+        # Load .env.docker if it exists to ensure compose file variable substitution works
+        env_docker_path = self.base_dir / '.env.docker'
+        if env_docker_path.exists():
+            try:
+                from dotenv import dotenv_values
+                docker_env = dotenv_values(env_docker_path)
+                if docker_env:
+                    clean_env = {k: v for k, v in docker_env.items() if v is not None}
+                    full_env.update(clean_env)
+            except ImportError:
+                pass
+
+        if env:
+            full_env.update(env)
+
+        if server and cmd[0] == 'docker':
+            # For docker commands, use DOCKER_HOST to run against remote daemon with local files
+            docker_host = server
+            if not docker_host.startswith('ssh://'):
+                 docker_host = f"ssh://{docker_host}"
+            
+            full_env['DOCKER_HOST'] = docker_host
+            
+            # Run without SSH wrapper, locally, but targeting remote daemon
+            return subprocess.run(cmd, cwd=self.base_dir, capture_output=capture, text=True, env=full_env)
+            
+        elif server:
+            # For non-docker commands (e.g. strict shell commands), use SSH wrapper
+            ssh_cmd = [
+                'ssh',
+                '-o', 'ControlMaster=auto',
+                '-o', 'ControlPath=~/.ssh/thothai-%C',
+                '-o', 'ControlPersist=600',
+                server,
+                ' '.join(cmd)
+            ]
             return subprocess.run(ssh_cmd, cwd=self.base_dir, capture_output=capture, text=True)
         else:
-            full_env = None
-            if env:
-                import os
-                full_env = os.environ.copy()
-                full_env.update(env)
             return subprocess.run(cmd, cwd=self.base_dir, capture_output=capture, text=True, env=full_env)
 
     def _manage_swarm_resources(self, stack_name: str, server: Optional[str] = None) -> bool:

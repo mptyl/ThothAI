@@ -9,6 +9,34 @@ from pathlib import Path
 from typing import Dict, Any
 
 
+def detect_server_name() -> str | None:
+    """Try to detect server name/hostname."""
+    import socket
+    try:
+        hostname = socket.gethostname()
+        
+        # Check if hostname looks like a domain (has dots and isn't localhost)
+        if '.' in hostname and not hostname.startswith(('localhost', '127')):
+            return hostname
+        
+        # Try to get the primary IP address
+        try:
+            # Connect to an external host to get primary IP (doesn't actually send data)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]
+            
+            # Try reverse DNS lookup
+            try:
+                return socket.gethostbyaddr(ip)[0]
+            except Exception:
+                return None
+        except Exception:
+            return None
+    except Exception:
+        return None
+
+
 class ConfigManager:
     """Manages ThothAI configuration and generates .env.docker."""
     
@@ -16,6 +44,8 @@ class ConfigManager:
         self.config_path = Path(config_path)
         self.config: Dict[str, Any] = {}
         self.load_config()
+
+
     
     def load_config(self) -> None:
         """Load configuration from YAML file."""
@@ -159,6 +189,23 @@ class ConfigManager:
         docker_cfg = self.config.get('docker', {})
         env_lines.append(f"DOCKER_USERNAME={docker_cfg.get('image_registry', 'tylconsulting')}")
         env_lines.append(f"VERSION={docker_cfg.get('image_version', 'latest')}")
+
+        # Auto-detect SERVER_NAME if not explicitly set in config
+        # This helps with Nginx configuration on remote servers
+        server_name = self.config.get('server_name') or detect_server_name()
+        
+        if server_name:
+            print(f"[dim]Detected server name: {server_name}[/dim]")
+            env_lines.append(f"SERVER_NAME={server_name}")
+            
+            # Also set ALLOWED_HOSTS for Django backend
+            # Use config value if provided, otherwise default to server_name + local defaults
+            allowed_hosts = self.config.get('allowed_hosts')
+            web_port = ports.get('nginx', 8040)
+            if not allowed_hosts:
+                allowed_hosts = f"{server_name},{server_name}:{web_port},localhost,127.0.0.1,host.docker.internal"
+            
+            env_lines.append(f"ALLOWED_HOSTS={allowed_hosts}")
         
         # Write .env.docker
         env_path = self.config_path.parent / '.env.docker'
