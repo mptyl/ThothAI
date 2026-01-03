@@ -1,0 +1,196 @@
+networks:
+  thoth-network:
+    external: true
+    name: thoth-network
+services:
+  backend:
+    container_name: thoth-backend
+    depends_on:
+    - thoth-qdrant
+    env_file: .env.docker
+    environment:
+    - HOST_IP=host.docker.internal
+    - DOCKER_ENV=development
+    - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
+    - AUTO_GENERATE_SECRETS=true
+    - FRONTEND_URL=http://srv1198403.hstgr.cloud:3040
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    healthcheck:
+      interval: 10s
+      retries: 5
+      start_period: 1200s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8000/admin/login/
+      timeout: 5s
+    image: tylconsulting/thoth-backend:latest
+    networks:
+    - thoth-network
+    restart: always
+    volumes:
+    - thoth-backend-db:/app/backend_db
+    - thoth-shared-data:/app/data
+    - thoth-data-exchange:/app/data_exchange
+    - thoth-logs:/app/logs
+    - backend-static:/vol/static
+    - backend-media:/vol/media
+    - thoth-secrets:/vol/secrets
+    - /tmp/thothai_deploy/config.yml.local:/app/config.yml.local:ro
+    - /tmp/thothai_deploy/manage.py:/app/manage.py
+  frontend:
+    container_name: thoth-frontend
+    depends_on:
+    - backend
+    - sql-generator
+    env_file: .env.docker
+    environment:
+    - NODE_ENV=production
+    - PORT=3000
+    - HOSTNAME=0.0.0.0
+    - DJANGO_SERVER=http://proxy:80
+    - SQL_GENERATOR_URL=http://sql-generator:8020
+    - DOCKER_CONTAINER=true
+    - HOST_IP=host.docker.internal
+    - NEXT_PUBLIC_DJANGO_SERVER=http://srv1198403.hstgr.cloud:8040
+    - NEXT_PUBLIC_SQL_GENERATOR_URL=http://srv1198403.hstgr.cloud:8020
+    - RUNTIME_BACKEND_URL=http://srv1198403.hstgr.cloud:8040
+    - RUNTIME_SQL_GENERATOR_URL=http://srv1198403.hstgr.cloud:8020
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    image: tylconsulting/thoth-frontend:latest
+    networks:
+    - thoth-network
+    ports:
+    - ${FRONTEND_PORT:-3040}:3000
+    restart: always
+    volumes:
+    - frontend-cache:/app/.next/cache
+    - thoth-secrets:/vol/secrets
+    - thoth-data-exchange:/app/data_exchange:ro
+  mermaid-service:
+    container_name: thoth-mermaid-service
+    healthcheck:
+      interval: 30s
+      retries: 3
+      start_period: 40s
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8001/health
+      timeout: 10s
+    image: tylconsulting/thoth-mermaid-service:latest
+    networks:
+    - thoth-network
+    ports:
+    - ${MERMAID_SERVICE_PORT:-8003}:8001
+    restart: always
+  proxy:
+    container_name: thoth-proxy
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+      sql-generator:
+        condition: service_started
+    entrypoint:
+    - /custom-entrypoint.sh
+    environment:
+    - APP_HOST=backend
+    - APP_PORT=8000
+    - FRONTEND_HOST=frontend
+    - FRONTEND_PORT=3000
+    - SQL_GEN_HOST=sql-generator
+    - SQL_GEN_PORT=8020
+    - SERVER_NAME=${SERVER_NAME:-localhost}
+    - DEBUG=False
+    image: tylconsulting/thoth-proxy:latest
+    networks:
+    - thoth-network
+    ports:
+    - 0.0.0.0:${WEB_PORT:-8040}:80
+    - '[::]:${WEB_PORT:-8040}:80'
+    restart: always
+    volumes:
+    - backend-static:/vol/static:ro
+    - backend-media:/vol/media:ro
+    - thoth-data-exchange:/vol/data_exchange:ro
+    - /tmp/thothai_deploy/.nginx-custom.conf.tpl:/etc/nginx/conf.d/default.conf.tpl:ro
+    - /tmp/thothai_deploy/.nginx-custom-entrypoint.sh:/custom-entrypoint.sh:ro
+  sql-generator:
+    container_name: thoth-sql-generator
+    depends_on:
+    - backend
+    - thoth-qdrant
+    env_file: .env.docker
+    environment:
+    - DOCKER_CONTAINER=true
+    - HOST_IP=host.docker.internal
+    - PORT=8020
+    - DJANGO_SERVER=http://backend:8000
+    - VECTOR_DB_HOST=thoth-qdrant
+    - VECTOR_DB_PORT=6333
+    - DB_ROOT_PATH=/app/data
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    image: tylconsulting/thoth-sql-generator:latest
+    networks:
+    - thoth-network
+    ports:
+    - ${SQL_GENERATOR_PORT:-8020}:8020
+    restart: always
+    volumes:
+    - thoth-shared-data:/app/data
+    - thoth-data-exchange:/app/data_exchange
+    - thoth-logs:/app/logs
+    - thoth-secrets:/vol/secrets
+  thoth-qdrant:
+    container_name: thoth-qdrant
+    healthcheck:
+      interval: 30s
+      retries: 3
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:6333/
+      timeout: 10s
+    image: qdrant/qdrant:latest
+    networks:
+    - thoth-network
+    ports:
+    - 6333:6333
+    restart: always
+    volumes:
+    - qdrant-data:/qdrant/storage
+version: '3.8'
+volumes:
+  backend-media:
+    external: true
+    name: thoth-backend-media
+  backend-static:
+    external: true
+    name: thoth-backend-static
+  frontend-cache:
+    external: true
+    name: thoth-frontend-cache
+  qdrant-data:
+    external: true
+    name: thoth-qdrant-data
+  thoth-backend-db:
+    name: thoth-backend-db
+  thoth-data-exchange:
+    external: true
+    name: thoth-data-exchange
+  thoth-logs:
+    name: thoth-logs
+  thoth-secrets:
+    external: true
+    name: thoth-secrets
+  thoth-shared-data:
+    external: true
+    name: thoth-shared-data

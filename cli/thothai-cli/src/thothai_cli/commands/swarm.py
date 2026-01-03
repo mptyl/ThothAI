@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 from ..core.docker_manager import DockerManager
 from ..core.config_manager import ConfigManager
+from .prune import swarm_prune_cmd
 from pathlib import Path
 
 console = Console()
@@ -143,3 +144,7 @@ def logs(service, tail, follow, server):
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")
         raise click.Abort()
+
+
+# Register prune subcommand
+swarm_group.add_command(swarm_prune_cmd)

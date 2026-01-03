@@ -8,7 +8,7 @@ import click
 from rich.console import Console
 from pathlib import Path
 
-from .commands import init, deploy, swarm, data, config
+from .commands import init, deploy, swarm, data, config, prune
 
 console = Console()
 
@@ -36,6 +36,7 @@ main.add_command(swarm.swarm_group)
 main.add_command(data.csv_group)
 main.add_command(data.db_group)
 main.add_command(config.config_group)
+main.add_command(prune.prune_cmd)
 
 
 @main.command('manual')

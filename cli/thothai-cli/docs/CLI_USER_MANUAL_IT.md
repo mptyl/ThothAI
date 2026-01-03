@@ -88,6 +88,7 @@ Per un monitoraggio avanzato, puoi inserire un `logfire_token` (totalmente opzio
 #### Altri Parametri
 Tutti gli altri parametri possono essere lasciati ai valori di default. Tuttavia:
 - **Verifica le Porte**: Assicurati che le porte configurate (es. `8040`, `3040`) non siano già in uso da altre applicazioni sul tuo sistema.
+- **Server Name**: Il parametro `server_name` (opzionale) permette di definire l'hostname pubblico. La CLI lo userà per configurare Nginx e mostrare gli URL di accesso corretti.
 
 ```yaml
 ai_providers:
@@ -157,14 +158,49 @@ Richiede che Docker Desktop (o Engine) abbia lo Swarm attivo (`docker swarm init
 La CLI usa il tunneling SSH per inviare comandi al demone Docker remoto.
 - **Avvio**: `uv run thothai up --server ssh://user@ip`
 - **Stop**: `uv run thothai down --server ssh://user@ip`
-- **Nota**: I file di configurazione (`config.yml.local`) risiedono **in locale**, ma vengono usati per configurare il container remoto.
+- **Pulisci**: `uv run thothai prune --server ssh://user@ip`
+- **Nota**: La CLI ora gestisce automaticamente la sincronizzazione dei file di configurazione (`config.yml.local`, `.env.docker`, etc.) verso il server remoto nella directory `/tmp/thothai_generated`, garantendo che i bind mounts funzionino correttamente anche su sistemi remoti.
 
 #### 4. Remoto + Swarm
 Gestione professionale di un cluster di produzione.
 - **Avvio**: `uv run thothai swarm deploy --server ssh://user@ip`
 - **Stop**: `uv run thothai swarm down --server ssh://user@ip`
+- **Pulisci**: `uv run thothai swarm prune --server ssh://user@ip`
 - **Update**: `uv run thothai swarm update --server ssh://user@ip` (Rolling update senza downtime)
 - **Rollback**: `uv run thothai swarm rollback --server ssh://user@ip`
+
+### 4.5 Gestione Avanzata Connessioni SSH
+
+Dall'aggiornamento v1.1, la CLI `thothai` implementa un sistema di **Docker Socket Tunneling** automatico che rende la gestione remota estremamente fluida e sicura.
+
+#### Come funziona
+Quando specifichi l'opzione `--server`, la CLI:
+1.  **Crea un Tunnel Sicuro**: Apre una connessione SSH in background che "collega" il socket Docker del server remoto a un socket temporaneo sulla tua macchina locale.
+2.  **Riuso dell'Autenticazione**: Grazie al tunnel, l'autenticazione (password o chiave) avviene **una sola volta** all'inizio dell'operazione. Tutti i comandi successivi (creazione volumi, avvio container, check stato) riutilizzano lo stesso tunnel istantaneamente.
+3.  **Configurazione Trasparente**: La CLI utilizza il client `ssh` di sistema. Questo significa che rispetta automaticamente il tuo file `~/.ssh/config`, le chiavi caricate in `ssh-agent` e le tue impostazioni di sicurezza abituali.
+
+#### Ottimizzazione con `~/.ssh/config`
+Per evitare di scrivere ogni volta `user@ip`, ti consigliamo di aggiungere il server al tuo file di configurazione SSH locale (`~/.ssh/config`):
+
+```text
+Host thoth-prod
+    HostName srv1198403.hstgr.cloud
+    User root
+    IdentityFile ~/.ssh/id_rsa
+```
+
+Con questa configurazione, i comandi diventano semplicissimi:
+```bash
+uv run thothai up --server thoth-prod
+uv run thothai status --server thoth-prod
+uv run thothai prune --server thoth-prod
+```
+
+#### Risoluzione Problemi Remoti
+Se la connessione fallisce:
+- Verifica di poter accedere manualmente: `ssh user@host`.
+- Se usi una chiave con passphrase, assicurati che sia caricata: `ssh-add ~/.ssh/id_rsa`.
+- In caso di errori "Permission denied", verifica che l'utente specificato abbia i permessi per eseguire comandi Docker sul server (tipicamente deve appartenere al gruppo `docker` o essere `root`).
 
 ---
 
@@ -189,6 +225,7 @@ Al termine dell'avvio, l'applicazione sarà raggiungibile ai seguenti indirizzi 
 - **`uv run thothai status`**: Fornisce una panoramica immediata dello stato di salute dei servizi, elencando i container attivi e le porte occupate.
 - **`uv run thothai logs [-f]`**: Aggrega i log di tutti i microservizi. Fondamentale per il debugging in fase di configurazione dei provider AI. Use `-f` per seguire i log in tempo reale.
 - **`uv run thothai update`**: Sincronizza il tuo sistema con le ultime versioni ufficiali delle immagini Docker di ThothAI, applicando patch e nuove funzionalità.
+- **`uv run thothai prune`**: Rimuove tutti gli artefatti Docker (container, network, volumi e immagini) legati al progetto. Supporta l'opzione `--volumes/--no-volumes` e `--images/--no-images`. **Attenzione: la rimozione dei volumi elimina permanentemente tutti i dati (database e CSV).**
 - **`uv run thothai config validate`**: Verifica analitica di `config.yml.local`. Assicura che le chiavi API siano formattate correttamente e che i modelli scelti siano supportati dai provider attivi.
 - **`uv run thothai config test`**: Verifica la comunicazione con il motore Docker locale o remoto per prevenire errori di avvio dovuti a permessi o conflitti.
 
@@ -203,6 +240,7 @@ Al termine dell'avvio, l'applicazione sarà raggiungibile ai seguenti indirizzi 
 | `uv run thothai swarm deploy` | Deploy dello stack su Swarm |
 | `uv run thothai swarm down` | Rimuove lo stack ThothAI da Swarm. Elimina tutti i servizi in esecuzione e pulisce i segreti e le configurazioni associate, mantenendo intatti i volumi con i dati persistenti. |
 | `uv run thothai swarm status` | Stato dei servizi nello stack Swarm |
+| `uv run thothai swarm prune` | Cleanup completo degli artefatti Swarm (stack, secrets, configs, network e volumi). |
 | `uv run thothai swarm update` | Rolling update dei servizi Swarm |
 | `uv run thothai swarm rollback` | Ripristina la versione precedente dello stack |
 | `uv run thothai swarm logs [service]` | Visualizza i log di un servizio Swarm (default: backend). Opzioni: `-f` (follow), `--tail N`. |

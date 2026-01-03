@@ -135,5 +135,33 @@ def show_manual():
         console.print("[red]Errore: Manuale utente non trovato.[/red]")
 
 
+@main.command('prune')
+@click.option('-y', '--yes', is_flag=True, help='Skip confirmation prompt')
+@click.option('--volumes/--no-volumes', default=True, help='Include/exclude volumes (default: include)')
+@click.option('--images/--no-images', default=True, help='Include/exclude images (default: include)')
+@click.pass_context
+def prune(ctx, yes, volumes, images):
+    """Remove all Docker artifacts for this ThothAI project.
+    
+    This command removes containers, networks, volumes (optional), and images
+    related to the ThothAI deployment.
+    """
+    if not yes:
+        click.confirm(
+            "\n[yellow]WARNING: This will remove ThothAI containers and networks.[/yellow]\n"
+            "Are you sure you want to proceed?",
+            abort=True
+        )
+        
+        if volumes:
+             click.confirm(
+                "[red]CRITICAL: This will PERMANENTLY DELETE all persistent data (databases and CSVs).[/red]\n"
+                "Are you REALLY sure?",
+                abort=True
+            )
+
+    ctx.obj['docker'].prune(remove_volumes=volumes, remove_images=images)
+
+
 if __name__ == '__main__':
     main()

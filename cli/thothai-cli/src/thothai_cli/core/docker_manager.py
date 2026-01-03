@@ -5,6 +5,11 @@
 """Docker manager for container operations."""
 
 import subprocess
+import os
+import hashlib
+import time
+import signal
+import atexit
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
@@ -23,7 +28,138 @@ class DockerManager:
         self.compose_file = 'docker-compose.yml'
         # Used for remote deployments to track the target hostname
         self._remote_hostname: str | None = None
+        self._tunnel_process: Optional[subprocess.Popen] = None
+        self._tunnel_socket: Optional[Path] = None
+        # Docker Context tracking
+        self._active_docker_context: str | None = None
+        self._previous_docker_context: str | None = None
+        
+        # Register cleanup on exit
+        atexit.register(self._stop_ssh_tunnel)
 
+    def _get_server_hash(self, server: str) -> str:
+        """Generate a unique hash for the server connection."""
+        return hashlib.md5(server.encode()).hexdigest()[:8]
+
+    def _get_tunnel_paths(self, server: str) -> tuple[Path, Path]:
+        """Get paths for tunnel socket and PID file."""
+        s_hash = self._get_server_hash(server)
+        socket_path = Path(f"/tmp/thothai-docker-{s_hash}.sock")
+        pid_path = Path(f"/tmp/thothai-docker-{s_hash}.pid")
+        return socket_path, pid_path
+
+    def _start_ssh_tunnel(self, server: str) -> str | None:
+        """Start a background SSH tunnel for the Docker socket."""
+        # Clean connection string (strip ssh:// if present)
+        # OpenSSH 'ssh' command doesn't always like the ssh:// prefix
+        clean_server = server.replace('ssh://', '')
+        
+        socket_path, pid_path = self._get_tunnel_paths(clean_server)
+        
+        # If socket exists, try to see if it's alive
+        if socket_path.exists():
+            try:
+                # Test connection to the socket
+                test_cmd = ['docker', '-H', f'unix://{socket_path}', 'version', '--format', '{{.Client.Version}}']
+                result = subprocess.run(test_cmd, capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    self._tunnel_socket = socket_path
+                    return str(socket_path)
+            except Exception:
+                pass
+            
+            # If not alive or failed, remove it
+            try:
+                socket_path.unlink()
+            except Exception:
+                pass
+
+        console.print(f"[dim]Establishing secure tunnel to {server}...[/dim]")
+        
+        # Determine a safe ControlPath
+        # Some systems might not have ~/.ssh/ or it might have permission issues
+        ssh_dir = Path.home() / '.ssh'
+        if ssh_dir.exists() and os.access(ssh_dir, os.W_OK):
+            control_path = '~/.ssh/thothai-%C'
+        else:
+            control_path = f'/tmp/thothai-{hashlib.md5(clean_server.encode()).hexdigest()[:8]}-%C'
+
+        # Start SSH tunnel in background
+        # -nN: No stdin, No command execution
+        # -L: Local socket to remote socket
+        # -o ControlMaster=auto ...: Standard OpenSSH multiplexing
+        ssh_cmd = [
+            'ssh', '-nN',
+            '-L', f'{socket_path}:/var/run/docker.sock',
+            '-o', 'ControlMaster=auto',
+            '-o', 'ControlPath=' + control_path,
+            '-o', 'ControlPersist=600',
+            clean_server
+        ]
+        
+        try:
+            # We don't use -f because we want to manage the process ourselves via Popen
+            # to ensure we can kill it if needed, OR we can use the pid file.
+            process = subprocess.Popen(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            
+            # Wait for socket to appear
+            start_time = time.time()
+            while time.time() - start_time < 15:
+                if socket_path.exists():
+                    self._tunnel_process = process
+                    self._tunnel_socket = socket_path
+                    # Save PID for cleanup
+                    pid_path.write_text(str(process.pid))
+                    return str(socket_path)
+                
+                if process.poll() is not None:
+                    # SSH exited early (e.g. auth failed)
+                    stdout, stderr = process.communicate()
+                    error_msg = stderr.strip() or stdout.strip() or "Process exited with code " + str(process.returncode)
+                    
+                    if "Permission denied" in error_msg:
+                        console.print("[red]SSH Permission denied. Check your keys or password.[/red]")
+                    else:
+                        console.print(f"[red]SSH tunnel failed: {error_msg}[/red]")
+                    return None
+                    
+                time.sleep(0.5)
+            
+            console.print("[red]Timeout waiting for SSH tunnel socket[/red]")
+            # Try to get any error message before terminating
+            if process.poll() is None:
+                process.terminate()
+                stdout, stderr = process.communicate(timeout=1)
+                if stderr.strip():
+                    console.print(f"[red]SSH error: {stderr.strip()}[/red]")
+            
+            return None
+            
+        except Exception as e:
+            console.print(f"[red]Error creating SSH tunnel: {e}[/red]")
+            return None
+
+    def _stop_ssh_tunnel(self):
+        """Stop the background SSH tunnel."""
+        if self._tunnel_process:
+            try:
+                self._tunnel_process.terminate()
+                self._tunnel_process.wait(timeout=2)
+            except Exception:
+                self._tunnel_process.kill()
+            self._tunnel_process = None
+
+        if self._tunnel_socket and self._tunnel_socket.exists():
+            try:
+                self._tunnel_socket.unlink()
+            except Exception:
+                pass
+            
+            # Also clean up PID file
+            pid_path = self._tunnel_socket.with_suffix('.pid')
+            if pid_path.exists():
+                pid_path.unlink()
+        
     def _extract_hostname_from_server(self, server: str) -> str:
         """Extract hostname from SSH URL.
         
@@ -47,6 +183,188 @@ class DockerManager:
             hostname = hostname.split(':')[0]
         
         return hostname
+
+    # =============================
+    # Docker Context Methods
+    # =============================
+    
+    def _use_docker_context(self, server: str) -> tuple[bool, str]:
+        """Use Docker Context for remote connection.
+        
+        Creates and activates a Docker Context for the specified server,
+        enabling transparent remote Docker commands via SSH.
+        
+        Args:
+            server: SSH connection string (e.g., user@host or ssh://user@host)
+            
+        Returns:
+            Tuple of (success, previous_context_name)
+        """
+        clean_server = server.replace('ssh://', '')
+        context_name = f"thothai-{self._get_server_hash(clean_server)}"
+        
+        console.print(f"[dim]Using Docker Context: {context_name}[/dim]")
+        
+        # Check if context already exists
+        result = subprocess.run(
+            ['docker', 'context', 'ls', '--format', '{{.Name}}'],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            console.print(f"[yellow]Warning: Could not list Docker contexts: {result.stderr}[/yellow]")
+            return False, ""
+        
+        existing_contexts = result.stdout.strip().split('\n')
+        
+        if context_name not in existing_contexts:
+            console.print(f"[dim]Creating Docker Context for {clean_server}...[/dim]")
+            
+            create_cmd = [
+                'docker', 'context', 'create', context_name,
+                '--docker', f'host=ssh://{clean_server}'
+            ]
+            
+            result = subprocess.run(create_cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                console.print(f"[yellow]Warning: Could not create Docker Context: {result.stderr}[/yellow]")
+                return False, ""
+            
+            console.print(f"[green]✓ Docker Context created[/green]")
+        else:
+            console.print(f"[dim]Docker Context already exists[/dim]")
+        
+        # Save current context to restore later
+        result = subprocess.run(
+            ['docker', 'context', 'show'],
+            capture_output=True,
+            text=True
+        )
+        previous_context = result.stdout.strip() if result.returncode == 0 else "default"
+        
+        # Activate the context
+        result = subprocess.run(
+            ['docker', 'context', 'use', context_name],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            console.print(f"[red]Error: Could not use Docker Context: {result.stderr}[/red]")
+            return False, ""
+        
+        console.print(f"[green]✓ Using Docker Context: {context_name}[/green]")
+        
+        # Store context info for later restoration
+        self._active_docker_context = context_name
+        self._previous_docker_context = previous_context
+        
+        return True, previous_context
+
+    def _restore_docker_context(self, previous_context: str) -> bool:
+        """Restore the previous Docker Context.
+        
+        Args:
+            previous_context: Name of the context to restore
+            
+        Returns:
+            True if restoration succeeded
+        """
+        if not previous_context:
+            previous_context = "default"
+        
+        console.print(f"[dim]Restoring Docker Context: {previous_context}[/dim]")
+        
+        result = subprocess.run(
+            ['docker', 'context', 'use', previous_context],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            console.print(f"[yellow]Warning: Could not restore Docker Context: {result.stderr}[/yellow]")
+            return False
+        
+        self._active_docker_context = None
+        console.print(f"[green]✓ Docker Context restored[/green]")
+        return True
+
+    def _rsync_files(self, server: str, remote_dir: str = "/opt/thothai") -> bool:
+        """Transfer required files to remote server using rsync.
+        
+        Uses rsync for efficient incremental transfers (delta-transfer algorithm).
+        
+        Args:
+            server: SSH connection string
+            remote_dir: Remote directory path for deployment files
+            
+        Returns:
+            True if all transfers succeeded
+        """
+        clean_server = server.replace('ssh://', '')
+        
+        console.print(f"[dim]Syncing files to {clean_server}:{remote_dir}...[/dim]")
+        
+        # Create remote directory
+        ssh_cmd = ['ssh', clean_server, f'mkdir -p {remote_dir}']
+        result = subprocess.run(ssh_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            console.print(f"[red]Failed to create remote directory: {result.stderr}[/red]")
+            return False
+        
+        # Files to sync (essential configuration)
+        files_to_sync = [
+            'docker-compose-hub.yml',
+            '.env.docker',
+            'config.yml.local',
+            'swarm_config.env',
+            '.nginx-custom.conf.tpl',
+            '.nginx-custom-entrypoint.sh',
+        ]
+        
+        # Sync individual files
+        for filename in files_to_sync:
+            local_path = self.base_dir / filename
+            if local_path.exists():
+                rsync_cmd = [
+                    'rsync', '-avz', '--progress',
+                    str(local_path),
+                    f'{clean_server}:{remote_dir}/'
+                ]
+                result = subprocess.run(rsync_cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    console.print(f"[yellow]Warning: Failed to sync {filename}[/yellow]")
+        
+        # Sync setup_csv directory
+        setup_csv_path = self.base_dir / 'setup_csv'
+        if setup_csv_path.exists() and setup_csv_path.is_dir():
+            console.print(f"[dim]Syncing setup_csv directory...[/dim]")
+            rsync_cmd = [
+                'rsync', '-avz', '--progress',
+                str(setup_csv_path) + '/',
+                f'{clean_server}:{remote_dir}/setup_csv/'
+            ]
+            result = subprocess.run(rsync_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                console.print(f"[yellow]Warning: Failed to sync setup_csv: {result.stderr}[/yellow]")
+        
+        # Sync dev_databases if exists
+        dev_db_path = self.base_dir / 'data' / 'dev_databases'
+        if dev_db_path.exists() and dev_db_path.is_dir():
+            console.print(f"[dim]Syncing dev_databases directory...[/dim]")
+            rsync_cmd = [
+                'rsync', '-avz', '--progress',
+                str(dev_db_path) + '/',
+                f'{clean_server}:{remote_dir}/data/dev_databases/'
+            ]
+            result = subprocess.run(rsync_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                console.print(f"[yellow]Warning: Failed to sync dev_databases: {result.stderr}[/yellow]")
+        
+        console.print(f"[green]✓ Files synced to remote server[/green]")
+        return True
 
     def _create_nginx_files(self) -> bool:
         """Create custom nginx configuration files for server name support."""
@@ -396,251 +714,208 @@ exec nginx -g "daemon off;"
     def check_connection(self, server: Optional[str] = None) -> bool:
         """Establish SSH connection and verify access.
         
-        This also sets up the ControlMaster socket for subsequent commands
-        to reuse the connection without re-authenticating.
+        This sets up the SSH tunnel for the Docker socket.
         """
         if not server:
             return True
             
-        console.print(f"[dim]Verifying connection to {server}...[/dim]")
-        
-        # We run a simple command to establish the connection.
-        # We DO NOT capture output so the user can interactively enter password if needed.
-        # This first connection creates the ControlMaster socket.
-        ssh_cmd = [
-            'ssh',
-            '-o', 'ControlMaster=auto',
-            '-o', 'ControlPath=~/.ssh/thothai-%C',
-            '-o', 'ControlPersist=600',
-            server,
-            'echo "Connection established"'
-        ]
-        
-        try:
-            result = subprocess.run(ssh_cmd, text=True)
-            if result.returncode == 0:
-                return True
-            else:
-                console.print("[red]Failed to connect to server.[/red]")
-                return False
-        except Exception as e:
-            console.print(f"[red]Connection error: {e}[/red]")
+        # Start the tunnel. This handles authentication.
+        socket_path = self._start_ssh_tunnel(server)
+        if not socket_path:
+            return False
+            
+        # Verify Docker access through the tunnel
+        result = self._run_cmd(['docker', 'version', '--format', '{{.Server.Version}}'], server=server, capture=True)
+        if result.returncode == 0:
+            console.print(f"[green]✓ Connected to Docker on {server} (v{result.stdout.strip()})[/green]")
+            return True
+        else:
+            console.print(f"[red]Failed to verify Docker access on {server}[/red]")
+            self._stop_ssh_tunnel()
             return False
 
     def up(self, server: Optional[str] = None) -> bool:
         """Pull images and start containers."""
-        # Establish connection first (handles auth once)
-        if server and not self.check_connection(server):
-            return False
+        previous_context = None
+        use_docker_context = False
+        
+        try:
+            # For remote deployment, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote deployment[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel (existing approach)
+                    if not self.check_connection(server):
+                        return False
 
-        mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
-        if mode == 'swarm':
-            return self.swarm_up(server=server)
+            mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
+            if mode == 'swarm':
+                return self.swarm_up(server=server)
         
-        # Extract remote hostname for remote deployments
-        remote_hostname = None
-        if server:
-            remote_hostname = self._extract_hostname_from_server(server)
-            self._remote_hostname = remote_hostname
-            console.print(f"[dim]Deploying to remote server: {remote_hostname}[/dim]")
-            
-        # Validate configuration
-        console.print("[dim]Validating configuration...[/dim]")
-        if not self.config_mgr.validate():
-            return False
-        
-        # Generate .env.docker with correct SERVER_NAME
-        if not self._ensure_env_docker(remote_hostname=remote_hostname):
-            return False
-            
-        # Check for SERVER_NAME in .env.docker to trigger custom Nginx setup
-        use_custom_compose = False
-        env_docker_path = self.base_dir / '.env.docker'
-        if env_docker_path.exists():
-            with open(env_docker_path) as f:
-                if 'SERVER_NAME=' in f.read():
-                    console.print("[dim]Creating nginx configuration files for server name support...[/dim]")
-                    if self._create_nginx_files():
-                         if self._create_server_compose_file(remote_hostname=remote_hostname):
-                             use_custom_compose = True
-                             console.print("[dim]Using custom server configuration...[/dim]")
-                    else:
-                        console.print("[yellow]Warning: Failed to create nginx files, using defaults[/yellow]")
-
-        # Create network and volumes
-        if not self._create_network(server=server):
-            return False
-        if not self._create_volumes(server=server):
-            return False
-        
-        # Pull images
-        console.print("\n[bold]Pulling images from Docker Hub...[/bold]")
-        result = self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'pull'],
-            server=server
-        )
-        
-        if result.returncode != 0:
-            console.print("[red]Failed to pull images[/red]")
-            return False
-        
-        # Start containers
-        console.print("\n[bold]Starting containers...[/bold]")
-        # Note: Binder mounts don't work well over remote SSH with Docker Compose unless they exist on the target.
-        # However, we are assuming the user knows what they are doing if they use --server with Compose.
-        
-        compose_file_to_use = '.docker-compose.server.yml' if use_custom_compose else self.compose_file
-        
-        # If using custom compose and deploying to remote server, we MUST copy the generated files
-        if use_custom_compose and server:
-             # Extract host/user from ssh connection string (ssh://user@host or user@host)
-             remote_dest = server.replace('ssh://', '')
-             
-             console.print(f"[dim]Copying configuration files to remote server {remote_dest}...[/dim]")
-             
-             # Files to copy
-             files_to_copy = [
-                 '.nginx-custom.conf.tpl',
-                 '.nginx-custom-entrypoint.sh',
-                 '.docker-compose.server.yml'
-             ]
-             
-             for filename in files_to_copy:
-                 local_path = self.base_dir / filename
-                 if local_path.exists():
-                     # We assume the remote path mirrors the current directory structure if possible,
-                     # OR simpler: copy to home directory or a temp dir?
-                     # Docker Compose usually expects relative paths to work from where the compose file is.
-                     # So if we copy docker-compose.server.yml to remote, we should put it in a folder 
-                     # and run compose FROM THERE.
-                     # BUT `docker -H ssh://... compose -f local_file up` uses the LOCAL file for definition,
-                     # but mounts are relative to the REMOTE filesystem.
-                     # So we need to put the mounted files on the remote filesystem at the SAME relative path 
-                     # as defined in the compose file.
-                     # The compose file says: `./.nginx-custom.conf.tpl`.
-                     # So we need to put them in the "working directory" of the remote compose execution.
-                     # When using `docker -H ... compose ...`, where is the "remote working directory"? 
-                     # It doesn't really have one in the context of the host filesystem unless we specify it?
-                     # Actually, `docker compose` resolves paths locally. So `./` becomes absolute local path?
-                     # NO. `docker compose` sends the build context. But for bind mounts, it passes the path as is.
-                     # If I run `docker -H ... compose -f file.yml up`, and file.yml has `./foo:/foo`, 
-                     # Docker daemon receives absolute path of `./foo`?
-                     # If I use `docker compose`, it converts relative paths to absolute paths ON THE CLIENT.
-                     # So `/Users/mp/ThothAI/.nginx...` is sent to the remote daemon. The remote daemon looks for that path on the Linux server.
-                     # Obviously that fails.
-                     
-                     # SOLUTION:
-                     # We need to pick a stable path on the remote server, copy files there, 
-                     # AND update the docker-compose file to point to those remote paths?
-                     # OR simpler:
-                     # Deploy to a specific folder on remote server (e.g. ~/thothai_deploy)
-                     # and DO NOT use `docker -H ... compose -f local ...`.
-                     # Instead, use `ssh remote "docker compose -f ... up"`.
-                     # BUT `thothai-cli` is designed to run locally against remote daemon.
-                     
-                     # Compromise:
-                     # 1. Copy files to `/tmp/thothai_config/` on remote server.
-                     # 2. Modify the *local* `docker-compose.server.yml` (in memory or temp file) 
-                     #    to point valid mounts to `/tmp/thothai_config/` instead of `./`.
-                     # 3. Use that modified compose file to run against remote daemon.
-                     
-                     # Better yet:
-                     # Just assume a standard deployment path on remote: `/opt/thothai` or `~/thothai`.
-                     # Since we don't know the remote user's home easily without a query...
-                     # `/tmp` is inconsistent across reboots.
-                     
-                     # Let's try to copy to `/tmp/thothai_deploy/` and use that for now.
-                     # It's robust enough for a "fix".
-                     
-                     pass
-        
-        # ACTUALLY, simpler approach:
-        # Just use scp to copy to a fixed path, say `/tmp/thothai_generated/`
-        # And we need to Update the compose file we use to point to that.
-        
-        # Let's refine the logic.
-        if use_custom_compose and server:
-            remote_base_dir = "/tmp/thothai_generated"
-            remote_dest_conn = server.replace('ssh://', '')
-            
-            # 1. Create remote directory
-            self._run_cmd(['mkdir', '-p', remote_base_dir], server=server, capture=True)
-            
-            # 2. Copy files (nginx config, env, and config files needed by services)
-            files_to_copy = [
-                '.nginx-custom.conf.tpl', 
-                '.nginx-custom-entrypoint.sh',
-                '.env.docker',
-                'config.yml.local'
-            ]
-            import shutil
-            
-            for f in files_to_copy:
-                # Use scp command directly
-                # scp local_file user@host:/tmp/thothai_generated/
-                subprocess.run(['scp', str(self.base_dir / f), f"{remote_dest_conn}:{remote_base_dir}/{f}"], 
-                             check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            
-            # 3. Modify compose file locally to point to remote paths for bind mounts
-            # We need to update paths that reference local files to use remote paths
-            try:
-                import yaml
-                with open(self.base_dir / '.docker-compose.server.yml') as f:
-                    data = yaml.safe_load(f)
+            # Extract remote hostname for remote deployments
+            remote_hostname = None
+            if server:
+                remote_hostname = self._extract_hostname_from_server(server)
+                self._remote_hostname = remote_hostname
+                console.print(f"[dim]Deploying to remote server: {remote_hostname}[/dim]")
                 
-                # Files that need path remapping
-                files_to_remap = ['.nginx-custom.conf.tpl', '.nginx-custom-entrypoint.sh', 
-                                  '.env.docker', 'config.yml.local']
+            # Validate configuration
+            console.print("[dim]Validating configuration...[/dim]")
+            if not self.config_mgr.validate():
+                return False
+            
+            # Generate .env.docker with correct SERVER_NAME
+            if not self._ensure_env_docker(remote_hostname=remote_hostname):
+                return False
                 
-                # Update volume mounts in ALL services
-                for service_name, service_config in data.get('services', {}).items():
-                    if 'volumes' not in service_config:
-                        continue
-                    
-                    volumes = service_config.get('volumes', [])
-                    new_volumes = []
-                    for vol in volumes:
-                        parts = vol.split(':')
-                        if len(parts) >= 2:
-                            src = parts[0]
-                            filename = Path(src).name
-                            # Check if this is a file we copied to remote
-                            if filename in files_to_remap or any(f in src for f in files_to_remap):
-                                # Replace with absolute remote path
-                                new_src = f"{remote_base_dir}/{filename}"
-                                parts[0] = new_src
-                                new_volumes.append(':'.join(parts))
-                            else:
-                                new_volumes.append(vol)
+            # Nginx and custom config support
+            use_custom_compose = False
+            env_docker_path = self.base_dir / '.env.docker'
+            if env_docker_path.exists():
+                with open(env_docker_path) as f:
+                    if 'SERVER_NAME=' in f.read():
+                        console.print("[dim]Creating nginx configuration files for server name support...[/dim]")
+                        if self._create_nginx_files():
+                             if self._create_server_compose_file(remote_hostname=remote_hostname):
+                                 use_custom_compose = True
+                                 console.print("[dim]Using custom server configuration...[/dim]")
                         else:
-                            new_volumes.append(vol)
-                    service_config['volumes'] = new_volumes
-                
-                # Save as temporary remote-ready compose file
-                compose_file_to_use = '.docker-compose.server.remote.yml'
-                with open(self.base_dir / compose_file_to_use, 'w') as f:
-                    yaml.dump(data, f, default_flow_style=False)
-                    
-            except Exception as e:
-                console.print(f"[yellow]Warning: Failed to prepare remote compose file: {e}[/yellow]")
-        
-        result = self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / compose_file_to_use), 'up', '-d'],
-            server=server
-        )
-        
-        if result.returncode != 0:
-            console.print("[red]Failed to start containers[/red]")
-            return False
-        
-        # Wait for backend and run initial setup
-        if not self.wait_for_backend(server=server):
-            return False
+                            console.print("[yellow]Warning: Failed to create nginx files, using defaults[/yellow]")
+
+            # Prepare for deployment
+            compose_file_to_use = '.docker-compose.server.yml' if use_custom_compose else self.compose_file
             
-        if not self.run_initial_setup_commands(server=server):
-            return False
-        
-        return True
+            # If deploying to remote server, we MUST ensure images are pullable and mounts are remapped
+            if server:
+                 remote_base_dir = "/tmp/thothai_deploy"
+                 remote_dest_conn = server.replace('ssh://', '')
+                 
+                 console.print(f"[dim]Preparing remote deployment on {remote_dest_conn}...[/dim]")
+                 
+                 # 1. Create and clean remote directory
+                 self._run_cmd(['rm', '-rf', remote_base_dir], server=server, capture=True)
+                 self._run_cmd(['mkdir', '-p', remote_base_dir], server=server, capture=True)
+                 
+                 # 2. Files to copy (essential configuration + any mounted local file)
+                 # We will identify these during the remapping pass.
+                 synced_files = set()
+                 
+                 # 3. Modify compose file locally to be remote-compatible
+                 try:
+                     import yaml
+                     local_compose_path = self.base_dir / compose_file_to_use
+                     if not local_compose_path.exists():
+                         # Fallback to default if custom missing
+                         local_compose_path = self.base_dir / self.compose_file
+                     
+                     with open(local_compose_path) as f:
+                         data = yaml.safe_load(f)
+                     
+                     # Registry prefix for local-looking images
+                     registry = self.config_mgr.get('docker', {}).get('image_registry', 'tylconsulting')
+                     
+                     # Process services
+                     for service_name, service_config in data.get('services', {}).items():
+                         # a. Correct image names (e.g. thoth-backend -> tylconsulting/thoth-backend)
+                         image = service_config.get('image', '')
+                         if image and (not '/' in image or image.startswith('thoth-')):
+                             if not '/' in image:
+                                # Avoid prefixing already prefixed images if they happen to start with thoth-
+                                service_config['image'] = f"{registry}/{image}"
+                         
+                         # b. Strip build sections (we only pull on remote)
+                         if 'build' in service_config:
+                             del service_config['build']
+                         
+                         # c. Remap volume mounts
+                         if 'volumes' in service_config:
+                             new_volumes = []
+                             for vol in service_config.get('volumes', []):
+                                 if isinstance(vol, str):
+                                     parts = vol.split(':')
+                                     if len(parts) >= 2:
+                                         src = parts[0]
+                                         if src.startswith('./'):
+                                             local_path = self.base_dir / src
+                                             if local_path.is_file() and local_path.exists():
+                                                 # Map to remote base dir and sync
+                                                 filename = local_path.name
+                                                 if filename not in synced_files:
+                                                     self._copy_file(str(local_path), f"{remote_base_dir}/{filename}", server=server)
+                                                     synced_files.add(filename)
+                                                 
+                                                 parts[0] = f"{remote_base_dir}/{filename}"
+                                                 new_volumes.append(':'.join(parts))
+                                                 continue
+                                             elif local_path.is_dir():
+                                                 # Skip directories for now (production environment usually doesn't need dev source code)
+                                                 # skipping the mount prevents "not a directory" errors if destination is a file in image.
+                                                 continue
+                                 new_volumes.append(vol)
+                             service_config['volumes'] = new_volumes
+                     
+                     # Ensure essential config files are synced even if not explicitly in mounts
+                     essential_files = ['.env.docker', 'config.yml.local', '.nginx-custom.conf.tpl', '.nginx-custom-entrypoint.sh']
+                     for essential in essential_files:
+                         if essential not in synced_files:
+                             local_path = self.base_dir / essential
+                             if local_path.exists():
+                                 self._copy_file(str(local_path), f"{remote_base_dir}/{essential}", server=server)
+                                 synced_files.add(essential)
+
+                     # Save as temporary remote-ready compose file
+                     compose_file_to_use = '.docker-compose.remote-deploy.yml'
+                     with open(self.base_dir / compose_file_to_use, 'w') as f:
+                         yaml.dump(data, f, default_flow_style=False)
+                         
+                 except Exception as e:
+                     console.print(f"[yellow]Warning: Failed to prepare remote-ready compose file: {e}[/yellow]")
+                     # We continue with original, but it will likely fail on mounts or images
+
+            # Create network and volumes (on target)
+            if not self._create_network(server=server):
+                return False
+            if not self._create_volumes(server=server):
+                return False
+            
+            # Pull images using the (possibly remapped) compose file
+            console.print("\n[bold]Pulling images...[/bold]")
+            result = self._run_cmd(
+                ['docker', 'compose', '-f', str(self.base_dir / compose_file_to_use), 'pull'],
+                server=server
+            )
+            
+            # Pull failure is often fatal for remote deployment
+            if result.returncode != 0:
+                console.print("[red]Failed to pull images[/red]")
+                return False
+            
+            # Start containers
+            console.print("\n[bold]Starting containers...[/bold]")
+            result = self._run_cmd(
+                ['docker', 'compose', '-f', str(self.base_dir / compose_file_to_use), 'up', '-d'],
+                server=server
+            )
+            
+            if result.returncode != 0:
+                console.print("[red]Failed to start containers[/red]")
+                return False
+            
+            # Wait for backend and run initial setup
+            if not self.wait_for_backend(server=server):
+                return False
+                
+            return True
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
     
     def down(self, server: Optional[str] = None) -> bool:
         """Stop and remove containers."""
@@ -895,30 +1170,68 @@ exec nginx -g "daemon off;"
         if env:
             full_env.update(env)
 
-        if server and cmd[0] == 'docker':
-            # For docker commands, use DOCKER_HOST to run against remote daemon with local files
+        if server and cmd[0] == 'docker' and self._tunnel_socket:
+            # Use the established tunnel for Docker commands
+            full_env['DOCKER_HOST'] = f"unix://{self._tunnel_socket}"
+            
+            # Run locally targeting the tunneled socket
+            return subprocess.run(cmd, cwd=self.base_dir, capture_output=capture, text=True, env=full_env)
+            
+        elif server and cmd[0] == 'docker':
+            # Fallback if tunnel is not active (should not happen if check_connection was called)
             docker_host = server
             if not docker_host.startswith('ssh://'):
                  docker_host = f"ssh://{docker_host}"
             
             full_env['DOCKER_HOST'] = docker_host
-            
-            # Run without SSH wrapper, locally, but targeting remote daemon
             return subprocess.run(cmd, cwd=self.base_dir, capture_output=capture, text=True, env=full_env)
             
         elif server:
+            # Clean connection string for standard ssh command
+            clean_server = server.replace('ssh://', '')
+            
+            # Determine a safe ControlPath (mirroring _start_ssh_tunnel)
+            ssh_dir = Path.home() / '.ssh'
+            if ssh_dir.exists() and os.access(ssh_dir, os.W_OK):
+                control_path = '~/.ssh/thothai-%C'
+            else:
+                control_path = f'/tmp/thothai-{hashlib.md5(clean_server.encode()).hexdigest()[:8]}-%C'
+
             # For non-docker commands (e.g. strict shell commands), use SSH wrapper
             ssh_cmd = [
                 'ssh',
                 '-o', 'ControlMaster=auto',
-                '-o', 'ControlPath=~/.ssh/thothai-%C',
+                '-o', 'ControlPath=' + control_path,
                 '-o', 'ControlPersist=600',
-                server,
+                clean_server,
                 ' '.join(cmd)
             ]
             return subprocess.run(ssh_cmd, cwd=self.base_dir, capture_output=capture, text=True)
         else:
             return subprocess.run(cmd, cwd=self.base_dir, capture_output=capture, text=True, env=full_env)
+
+    def _copy_file(self, local_path: str, remote_path: str, server: str) -> bool:
+        """Copy a file to a remote server using scp with the same tunnel as _run_cmd."""
+        clean_server = server.replace('ssh://', '')
+        
+        # Determine a safe ControlPath (mirroring _start_ssh_tunnel)
+        ssh_dir = Path.home() / '.ssh'
+        if ssh_dir.exists() and os.access(ssh_dir, os.W_OK):
+            control_path = '~/.ssh/thothai-%C'
+        else:
+            control_path = f'/tmp/thothai-{hashlib.md5(clean_server.encode()).hexdigest()[:8]}-%C'
+
+        scp_cmd = [
+            'scp',
+            '-o', 'ControlMaster=auto',
+            '-o', 'ControlPath=' + control_path,
+            '-o', 'BatchMode=yes',
+            local_path,
+            f"{clean_server}:{remote_path}"
+        ]
+        
+        result = subprocess.run(scp_cmd, capture_output=True)
+        return result.returncode == 0
 
     def _manage_swarm_resources(self, stack_name: str, server: Optional[str] = None) -> bool:
         """Create secrets, configs, and network for Swarm."""
@@ -943,106 +1256,128 @@ exec nginx -g "daemon off;"
 
     def swarm_up(self, server: Optional[str] = None) -> bool:
         """Deploy ThothAI to Docker Swarm."""
-        # Extract remote hostname for remote deployments
-        remote_hostname = None
-        if server:
-            remote_hostname = self._extract_hostname_from_server(server)
-            self._remote_hostname = remote_hostname
-            console.print(f"[dim]Deploying Swarm to remote server: {remote_hostname}[/dim]")
+        previous_context = None
+        use_docker_context = False
         
-        if not self.config_mgr.validate():
-            return False
-        
-        # Generate .env.docker with correct SERVER_NAME for remote
-        if not self.config_mgr.generate_env_docker(remote_hostname=remote_hostname):
-            return False
-            
-        # Strict check for swarm_config.env (no auto-generation)
-        swarm_config_path = self.base_dir / 'swarm_config.env'
-        if not swarm_config_path.exists():
-            console.print("[red]Error: 'swarm_config.env' not found.[/red]")
-            console.print("This file is required for Swarm deployment.")
-            console.print("Please run [bold]thothai init --mode swarm[/bold] to generate it, or create it manually.")
-            return False
-            
-        swarm_env = self._get_swarm_env()
-        stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
-        stack_file = self.config_mgr.get('docker', {}).get('stack_file', 'docker-stack.yml')
-        
-        # For remote deployments, inject NEXT_PUBLIC_* URLs with remote hostname
-        if remote_hostname:
-            ports = self.config_mgr.get('ports', {})
-            web_port = ports.get('nginx', 8040)
-            sql_gen_port = ports.get('sql_generator', 8020)
-            
-            # Add/override these in swarm_env for stack file substitution
-            swarm_env['NEXT_PUBLIC_DJANGO_SERVER'] = f'http://{remote_hostname}:{web_port}'
-            swarm_env['NEXT_PUBLIC_SQL_GENERATOR_URL'] = f'http://{remote_hostname}:{sql_gen_port}'
-            swarm_env['RUNTIME_BACKEND_URL'] = f'http://{remote_hostname}:{web_port}'
-            swarm_env['RUNTIME_SQL_GENERATOR_URL'] = f'http://{remote_hostname}:{sql_gen_port}'
-            console.print(f"[dim]Updated Swarm frontend URLs to use {remote_hostname}[/dim]")
-        
-        if not (self.base_dir / stack_file).exists():
-            console.print(f"[red]Error: Stack file '{stack_file}' not found[/red]")
-            return False
-            
-        # Preprocess stack file to handle variable substitution in keys (which Docker doesn't support)
-        # This replaces ${VAR} and ${VAR:-default} with values from swarm_env
         try:
-            stack_content = (self.base_dir / stack_file).read_text(encoding='utf-8')
-            processed_content = self._replace_env_vars(stack_content, swarm_env)
+            # For remote deployment, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for Swarm...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for Swarm deployment[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return False
             
-            # For remote deployments, replace localhost in NEXT_PUBLIC_* and RUNTIME_* URLs
-            # This handles the template's "http://localhost:${WEB_PORT}" format
-            if remote_hostname:
-                import re
-                # Replace localhost in env variable assignments that are for frontend URLs
-                # Match patterns like "NEXT_PUBLIC_DJANGO_SERVER=http://localhost:" or similar
-                for env_prefix in ['NEXT_PUBLIC_', 'RUNTIME_']:
-                    pattern = rf'({env_prefix}[A-Z_]+=http://)localhost:'
-                    replacement = rf'\1{remote_hostname}:'
-                    processed_content = re.sub(pattern, replacement, processed_content)
+            # Extract remote hostname for remote deployments
+            remote_hostname = None
+            if server:
+                remote_hostname = self._extract_hostname_from_server(server)
+                self._remote_hostname = remote_hostname
+                console.print(f"[dim]Deploying Swarm to remote server: {remote_hostname}[/dim]")
             
-            temp_stack_file = f"docker-stack.gen.yml"
-            (self.base_dir / temp_stack_file).write_text(processed_content, encoding='utf-8')
-            stack_file_to_deploy = temp_stack_file
-        except Exception as e:
-            console.print(f"[red]Error processing stack file: {e}[/red]")
-            return False
-            
-        try:
-            # Create volumes (Swarm usually uses local volumes if not configured otherwise, mimicking install-swarm.sh)
-            volumes = ['thoth-secrets', 'thoth-backend-static', 'thoth-backend-media', 
-                       'thoth-frontend-cache', 'thoth-qdrant-data', 'thoth-shared-data', 'thoth-data-exchange']
-            for vol in volumes:
-                self._run_cmd(['docker', 'volume', 'create', vol], server)
+            if not self.config_mgr.validate():
+                return False
+        
+            # Generate .env.docker with correct SERVER_NAME for remote
+            if not self.config_mgr.generate_env_docker(remote_hostname=remote_hostname):
+                return False
                 
-            # Manage secrets/configs
-            self._manage_swarm_resources(stack_name, server)
-            
-            # Deploy stack
-            console.print(f"\n[bold]Deploying stack '{stack_name}' to Swarm...[/bold]")
-            result = self._run_cmd(
-                ['docker', 'stack', 'deploy', '-c', stack_file_to_deploy, stack_name],
-                server=server,
-                env=swarm_env
-            )
-            
-            if result.returncode != 0:
-                console.print("[red]Failed to deploy stack[/red]")
+            # Strict check for swarm_config.env (no auto-generation)
+            swarm_config_path = self.base_dir / 'swarm_config.env'
+            if not swarm_config_path.exists():
+                console.print("[red]Error: 'swarm_config.env' not found.[/red]")
+                console.print("This file is required for Swarm deployment.")
+                console.print("Please run [bold]thothai init --mode swarm[/bold] to generate it, or create it manually.")
                 return False
             
-            # Wait for all services to be healthy
-            self.wait_for_swarm_services(stack_name, server)
+            swarm_env = self._get_swarm_env()
+            stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
+            stack_file = self.config_mgr.get('docker', {}).get('stack_file', 'docker-stack.yml')
             
-            # Print access info
-            self.print_access_info(is_swarm=True)
+            # For remote deployments, inject NEXT_PUBLIC_* URLs with remote hostname
+            if remote_hostname:
+                ports = self.config_mgr.get('ports', {})
+                web_port = ports.get('nginx', 8040)
+                sql_gen_port = ports.get('sql_generator', 8020)
                 
-            return True
+                # Add/override these in swarm_env for stack file substitution
+                swarm_env['NEXT_PUBLIC_DJANGO_SERVER'] = f'http://{remote_hostname}:{web_port}'
+                swarm_env['NEXT_PUBLIC_SQL_GENERATOR_URL'] = f'http://{remote_hostname}:{sql_gen_port}'
+                swarm_env['RUNTIME_BACKEND_URL'] = f'http://{remote_hostname}:{web_port}'
+                swarm_env['RUNTIME_SQL_GENERATOR_URL'] = f'http://{remote_hostname}:{sql_gen_port}'
+                console.print(f"[dim]Updated Swarm frontend URLs to use {remote_hostname}[/dim]")
+            
+            if not (self.base_dir / stack_file).exists():
+                console.print(f"[red]Error: Stack file '{stack_file}' not found[/red]")
+                return False
+                
+            # Preprocess stack file to handle variable substitution in keys (which Docker doesn't support)
+            # This replaces ${VAR} and ${VAR:-default} with values from swarm_env
+            try:
+                stack_content = (self.base_dir / stack_file).read_text(encoding='utf-8')
+                processed_content = self._replace_env_vars(stack_content, swarm_env)
+                
+                # For remote deployments, replace localhost in NEXT_PUBLIC_* and RUNTIME_* URLs
+                # This handles the template's "http://localhost:${WEB_PORT}" format
+                if remote_hostname:
+                    import re
+                    # Replace localhost in env variable assignments that are for frontend URLs
+                    # Match patterns like "NEXT_PUBLIC_DJANGO_SERVER=http://localhost:" or similar
+                    for env_prefix in ['NEXT_PUBLIC_', 'RUNTIME_']:
+                        pattern = rf'({env_prefix}[A-Z_]+=http://)localhost:'
+                        replacement = rf'\1{remote_hostname}:'
+                        processed_content = re.sub(pattern, replacement, processed_content)
+                
+                temp_stack_file = f"docker-stack.gen.yml"
+                (self.base_dir / temp_stack_file).write_text(processed_content, encoding='utf-8')
+                stack_file_to_deploy = temp_stack_file
+            except Exception as e:
+                console.print(f"[red]Error processing stack file: {e}[/red]")
+                return False
+            
+            try:
+                # Create volumes (Swarm usually uses local volumes if not configured otherwise, mimicking install-swarm.sh)
+                volumes = ['thoth-secrets', 'thoth-backend-static', 'thoth-backend-media', 
+                           'thoth-frontend-cache', 'thoth-qdrant-data', 'thoth-shared-data', 'thoth-data-exchange']
+                for vol in volumes:
+                    self._run_cmd(['docker', 'volume', 'create', vol], server)
+                    
+                # Manage secrets/configs
+                self._manage_swarm_resources(stack_name, server)
+                
+                # Deploy stack
+                console.print(f"\n[bold]Deploying stack '{stack_name}' to Swarm...[/bold]")
+                result = self._run_cmd(
+                    ['docker', 'stack', 'deploy', '-c', stack_file_to_deploy, stack_name],
+                    server=server,
+                    env=swarm_env
+                )
+                
+                if result.returncode != 0:
+                    console.print("[red]Failed to deploy stack[/red]")
+                    return False
+                
+                # Wait for all services to be healthy
+                self.wait_for_swarm_services(stack_name, server)
+                
+                # Print access info
+                self.print_access_info(is_swarm=True)
+                    
+                return True
+            finally:
+                # Cleanup temp file
+                if (self.base_dir / temp_stack_file).exists():
+                    (self.base_dir / temp_stack_file).unlink()
+                    
         finally:
-            # Cleanup temp file
-            if (self.base_dir / temp_stack_file).exists():
-                (self.base_dir / temp_stack_file).unlink()
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
     
     def wait_for_swarm_services(self, stack_name: str, server: Optional[str] = None, timeout: int = 600) -> bool:
         """Wait for all Swarm services to be running.
@@ -1192,8 +1527,8 @@ exec nginx -g "daemon off;"
             web_port = swarm_env.get('WEB_PORT', web_port)
             frontend_port = swarm_env.get('FRONTEND_PORT', frontend_port)
         
-        # Use remote hostname if set, otherwise localhost
-        host = self._remote_hostname or 'localhost'
+        # Use remote hostname if set, then configured server_name, finally localhost
+        host = self._remote_hostname or self.config_mgr.get('server_name') or 'localhost'
         
         console.print("\n[bold]Access URLs:[/bold]")
         console.print(f"  Main App:   http://{host}:{web_port}")
@@ -1225,3 +1560,263 @@ exec nginx -g "daemon off;"
         cmd.append(full_service_name)
         
         self._run_cmd(cmd, server=server)
+
+    def prune(self, server: Optional[str] = None, remove_volumes: bool = True, remove_images: bool = True) -> bool:
+        """Remove all Docker Compose artifacts for ThothAI.
+        
+        Args:
+            server: Optional SSH URL for remote execution
+            remove_volumes: Whether to remove Docker volumes
+            remove_images: Whether to remove Docker images
+            
+        Returns:
+            True if cleanup was successful
+        """
+        # Establish connection first
+        if server and not self.check_connection(server):
+            return False
+        
+        success = True
+        
+        # 1. Stop and remove containers via docker compose
+        console.print("[dim]Stopping and removing containers...[/dim]")
+        result = self._run_cmd(
+            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'down', '--remove-orphans'],
+            server=server,
+            capture=True
+        )
+        if result.returncode == 0:
+            console.print("[green]✓ Containers stopped and removed[/green]")
+        else:
+            console.print("[yellow]⚠ Some containers may not have been removed[/yellow]")
+        
+        # 2. Remove any remaining thoth containers
+        console.print("[dim]Checking for remaining containers...[/dim]")
+        result = self._run_cmd(
+            ['docker', 'ps', '-a', '--filter', 'name=thoth', '--format', '{{.ID}}'],
+            server=server,
+            capture=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            container_ids = result.stdout.strip().split('\n')
+            for cid in container_ids:
+                if cid:
+                    self._run_cmd(['docker', 'rm', '-f', cid], server=server, capture=True)
+            console.print(f"[green]✓ Removed {len(container_ids)} remaining container(s)[/green]")
+        
+        # 3. Remove network
+        console.print("[dim]Removing network...[/dim]")
+        result = self._run_cmd(
+            ['docker', 'network', 'rm', 'thoth-network'],
+            server=server,
+            capture=True
+        )
+        if result.returncode == 0:
+            console.print("[green]✓ Network removed[/green]")
+        else:
+            console.print("[dim]Network already removed or not found[/dim]")
+        
+        # 4. Remove volumes if requested
+        if remove_volumes:
+            console.print("[dim]Removing volumes...[/dim]")
+            volumes = [
+                'thoth-secrets',
+                'thoth-backend-db',
+                'thoth-backend-static',
+                'thoth-backend-media',
+                'thoth-backend-secrets',
+                'thoth-logs',
+                'thoth-frontend-cache',
+                'thoth-qdrant-data',
+                'thoth-shared-data',
+                'thoth-data-exchange'
+            ]
+            removed_count = 0
+            for vol in volumes:
+                result = self._run_cmd(
+                    ['docker', 'volume', 'rm', vol],
+                    server=server,
+                    capture=True
+                )
+                if result.returncode == 0:
+                    removed_count += 1
+            console.print(f"[green]✓ Removed {removed_count} volume(s)[/green]")
+        
+        # 5. Remove images if requested
+        if remove_images:
+            console.print("[dim]Removing images...[/dim]")
+            result = self._run_cmd(
+                ['docker', 'images', '--filter', 'reference=thothai/*', '--format', '{{.ID}}'],
+                server=server,
+                capture=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                image_ids = list(set(result.stdout.strip().split('\n')))  # Deduplicate
+                for img_id in image_ids:
+                    if img_id:
+                        self._run_cmd(['docker', 'rmi', '-f', img_id], server=server, capture=True)
+                console.print(f"[green]✓ Removed {len(image_ids)} image(s)[/green]")
+            else:
+                console.print("[dim]No ThothAI images found[/dim]")
+        
+        # 6. Remove generated local files (only if local, not remote)
+        if not server:
+            console.print("[dim]Removing generated configuration files...[/dim]")
+            generated_files = [
+                '.docker-compose.server.yml',
+                '.docker-compose.server.remote.yml',
+                '.nginx-custom.conf.tpl',
+                '.nginx-custom-entrypoint.sh',
+                'docker-stack.gen.yml'
+            ]
+            removed_count = 0
+            for filename in generated_files:
+                filepath = self.base_dir / filename
+                if filepath.exists():
+                    filepath.unlink()
+                    removed_count += 1
+            if removed_count > 0:
+                console.print(f"[green]✓ Removed {removed_count} generated file(s)[/green]")
+        
+        return success
+
+    def swarm_prune(self, server: Optional[str] = None, remove_volumes: bool = True, remove_images: bool = True) -> bool:
+        """Remove all Docker Swarm artifacts for ThothAI.
+        
+        Args:
+            server: Optional SSH URL for remote execution
+            remove_volumes: Whether to remove Docker volumes
+            remove_images: Whether to remove Docker images
+            
+        Returns:
+            True if cleanup was successful
+        """
+        # Establish connection first
+        if server and not self.check_connection(server):
+            return False
+        
+        success = True
+        swarm_env = self._get_swarm_env()
+        stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
+        
+        # 1. Remove stack
+        console.print(f"[dim]Removing stack '{stack_name}'...[/dim]")
+        result = self._run_cmd(
+            ['docker', 'stack', 'rm', stack_name],
+            server=server,
+            capture=True
+        )
+        if result.returncode == 0:
+            console.print(f"[green]✓ Stack '{stack_name}' removed[/green]")
+        else:
+            console.print(f"[yellow]⚠ Stack may not exist or could not be removed[/yellow]")
+        
+        # 2. Wait for services to be removed
+        console.print("[dim]Waiting for services to be removed...[/dim]")
+        import time
+        max_wait = 60
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            result = self._run_cmd(
+                ['docker', 'service', 'ls', '--filter', f'label=com.docker.stack.namespace={stack_name}', '--format', '{{.Name}}'],
+                server=server,
+                capture=True
+            )
+            if result.returncode == 0 and not result.stdout.strip():
+                break
+            time.sleep(2)
+        console.print("[green]✓ Services removed[/green]")
+        
+        # 3. Remove secrets
+        console.print("[dim]Removing secrets...[/dim]")
+        secrets_to_remove = [
+            f"{stack_name}_thoth_env_config",
+            f"{stack_name}_thoth_config_yml"
+        ]
+        for secret in secrets_to_remove:
+            self._run_cmd(['docker', 'secret', 'rm', secret], server=server, capture=True)
+        console.print("[green]✓ Secrets removed[/green]")
+        
+        # 4. Remove configs
+        console.print("[dim]Removing configs...[/dim]")
+        configs_to_remove = [
+            f"{stack_name}_thoth_env_docker"
+        ]
+        for config in configs_to_remove:
+            self._run_cmd(['docker', 'config', 'rm', config], server=server, capture=True)
+        console.print("[green]✓ Configs removed[/green]")
+        
+        # 5. Remove network (swarm overlay)
+        console.print("[dim]Removing network...[/dim]")
+        result = self._run_cmd(
+            ['docker', 'network', 'rm', f'{stack_name}_thoth-network'],
+            server=server,
+            capture=True
+        )
+        # Also try without stack prefix
+        self._run_cmd(['docker', 'network', 'rm', 'thoth-network'], server=server, capture=True)
+        console.print("[green]✓ Network removed[/green]")
+        
+        # 6. Remove volumes if requested
+        if remove_volumes:
+            console.print("[dim]Removing volumes...[/dim]")
+            volumes = [
+                'thoth-secrets',
+                'thoth-backend-db',
+                'thoth-backend-static',
+                'thoth-backend-media',
+                'thoth-backend-secrets',
+                'thoth-logs',
+                'thoth-frontend-cache',
+                'thoth-qdrant-data',
+                'thoth-shared-data',
+                'thoth-data-exchange'
+            ]
+            removed_count = 0
+            for vol in volumes:
+                result = self._run_cmd(
+                    ['docker', 'volume', 'rm', vol],
+                    server=server,
+                    capture=True
+                )
+                if result.returncode == 0:
+                    removed_count += 1
+            console.print(f"[green]✓ Removed {removed_count} volume(s)[/green]")
+        
+        # 7. Remove images if requested
+        if remove_images:
+            console.print("[dim]Removing images...[/dim]")
+            result = self._run_cmd(
+                ['docker', 'images', '--filter', 'reference=thothai/*', '--format', '{{.ID}}'],
+                server=server,
+                capture=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                image_ids = list(set(result.stdout.strip().split('\n')))
+                for img_id in image_ids:
+                    if img_id:
+                        self._run_cmd(['docker', 'rmi', '-f', img_id], server=server, capture=True)
+                console.print(f"[green]✓ Removed {len(image_ids)} image(s)[/green]")
+            else:
+                console.print("[dim]No ThothAI images found[/dim]")
+        
+        # 8. Remove generated local files (only if local)
+        if not server:
+            console.print("[dim]Removing generated configuration files...[/dim]")
+            generated_files = [
+                '.docker-compose.server.yml',
+                '.docker-compose.server.remote.yml',
+                '.nginx-custom.conf.tpl',
+                '.nginx-custom-entrypoint.sh',
+                'docker-stack.gen.yml'
+            ]
+            removed_count = 0
+            for filename in generated_files:
+                filepath = self.base_dir / filename
+                if filepath.exists():
+                    filepath.unlink()
+                    removed_count += 1
+            if removed_count > 0:
+                console.print(f"[green]✓ Removed {removed_count} generated file(s)[/green]")
+        
+        return success

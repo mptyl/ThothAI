@@ -1,6 +1,6 @@
 [project]
 name = "thothai-data-cli"
-version = "1.0.1"
+version = "1.0.2"
 description = "CLI for ThothAI data exchange - CSV and SQLite database management"
 readme = "README.md"
 license = {file = "LICENSE.md"}

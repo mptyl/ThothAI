@@ -110,8 +110,6 @@ data_exchange/
         data_exchange.mkdir(exist_ok=True)
         if not (data_exchange / '.gitkeep').exists():
             (data_exchange / '.gitkeep').touch()
-        if not (data_exchange / '.gitkeep').exists():
-            (data_exchange / '.gitkeep').touch()
         console.print(f"[green]✓[/green] Created data_exchange/ directory")
         
         # Generate .env.docker immediately to allow user inspection/editing

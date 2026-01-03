@@ -9,8 +9,9 @@
 5. [Comandi CSV](#comandi-csv)
 6. [Comandi Database](#comandi-database)
 7. [Comandi di Configurazione](#comandi-di-configurazione)
-8. [Uso Avanzato](#uso-avanzato)
-9. [Risoluzione dei Problemi](#risoluzione-dei-problemi)
+8. [Comando Prune](#comando-prune)
+9. [Uso Avanzato](#uso-avanzato)
+10. [Risoluzione dei Problemi](#risoluzione-dei-problemi)
 
 ---
 
@@ -198,6 +199,30 @@ Verifica che la CLI sia in grado di parlare con il demone Docker (locale o remot
 ```bash
 uv run thothai-data config test
 ```
+
+---
+
+## 12. Comando Prune (`thothai-data prune`)
+
+Il comando `prune` è uno strumento di manutenzione potente che permette di ripulire completamente l'ambiente Docker eliminando gli artefatti legati a ThothAI.
+
+### 12.1 Funzionamento
+Rimuove i container (Compose o Swarm), le reti virtuali e, opzionalmente, i volumi persistenti e le immagini Docker.
+
+```bash
+uv run thothai-data prune
+```
+
+### 12.2 Opzioni Disponibili
+
+| Opzione | Descrizione | Default |
+|---------|-------------|---------|
+| `--yes`, `-y` | Salta la conferma interattiva | No |
+| `--volumes` / `--no-volumes` | Include o esclude la rimozione dei volumi | `include` |
+| `--images` / `--no-images` | Include o esclude la rimozione delle immagini | `include` |
+
+> [!CAUTION]
+> **Perdita Dati**: L'uso di `prune` con l'opzione `--volumes` (attiva di default) **elimina permanentemente** tutti i database SQLite e i file CSV caricati o esportati. Assicurati di avere un backup se necessario.
 
 ---
 

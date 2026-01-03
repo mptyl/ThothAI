@@ -109,9 +109,6 @@ class="authentication-bg position-relative"
 
 {% block extra_javascript %}
 <script>
-    document.getElementById('id_login').value = "user@demo.com"
-    document.getElementById('id_password').value = "password"
-    
     // Password visibility toggle
     document.getElementById('togglePassword').addEventListener('click', function() {
         const passwordInput = document.getElementById('id_password');

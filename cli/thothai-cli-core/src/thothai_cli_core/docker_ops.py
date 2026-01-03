@@ -529,3 +529,72 @@ class DockerOperations:
         if not success:
              console.print(f"[red]Could not find database or directory matching: {name}[/red]")
              console.print(f"Searched in: {base_dir}")
+
+    def prune(self, remove_volumes: bool = True, remove_images: bool = True) -> bool:
+        """Remove all Docker artifacts for the configured ThothAI project.
+        
+        Args:
+            remove_volumes: Whether to remove Docker volumes
+            remove_images: Whether to remove Docker images
+            
+        Returns:
+            True if cleanup was successful
+        """
+        success = True
+        
+        # 1. Stop and remove containers
+        console.print("[dim]Stopping and removing containers...[/dim]")
+        # We try to remove by label first, then by name
+        if self.mode == 'swarm':
+            console.print(f"[dim]Removing stack '{self.stack_name}'...[/dim]")
+            result = self._run_command(['docker', 'stack', 'rm', self.stack_name])
+        else:
+            # For compose, we don't have the compose file path here easily 
+            # (thothai-data-cli works without the compose file locally)
+            # So we remove by filter
+            result = self._run_command(['docker', 'ps', '-a', '--filter', f'label=com.docker.compose.project={self.stack_name}', '--format', '{{.ID}}'])
+            if result.returncode == 0 and result.stdout.strip():
+                ids = result.stdout.strip().split('\n')
+                for cid in ids:
+                    self._run_command(['docker', 'rm', '-f', cid])
+        
+        # 2. Final check for any thoth containers
+        console.print("[dim]Checking for remaining thoth containers...[/dim]")
+        result = self._run_command(['docker', 'ps', '-a', '--filter', 'name=thoth', '--format', '{{.ID}}'])
+        if result.returncode == 0 and result.stdout.strip():
+            ids = result.stdout.strip().split('\n')
+            for cid in ids:
+                self._run_command(['docker', 'rm', '-f', cid])
+        
+        # 3. Remove network
+        console.print("[dim]Removing network...[/dim]")
+        self._run_command(['docker', 'network', 'rm', 'thoth-network'])
+        if self.mode == 'swarm':
+             self._run_command(['docker', 'network', 'rm', f'{self.stack_name}_thoth-network'])
+        
+        # 4. Remove volumes if requested
+        if remove_volumes:
+            console.print("[dim]Removing volumes...[/dim]")
+            volumes = [
+                'thoth-secrets',
+                'thoth-backend-static',
+                'thoth-backend-media',
+                'thoth-frontend-cache',
+                'thoth-qdrant-data',
+                'thoth-shared-data',
+                'thoth-data-exchange'
+            ]
+            for vol in volumes:
+                self._run_command(['docker', 'volume', 'rm', vol])
+        
+        # 5. Remove images if requested
+        if remove_images:
+            console.print("[dim]Removing ThothAI images...[/dim]")
+            result = self._run_command(['docker', 'images', '--filter', 'reference=thothai/*', '--format', '{{.ID}}'])
+            if result.returncode == 0 and result.stdout.strip():
+                ids = list(set(result.stdout.strip().split('\n')))
+                for img_id in ids:
+                    self._run_command(['docker', 'rmi', '-f', img_id])
+        
+        console.print("[green]✓ Cleanup completed[/green]")
+        return success
