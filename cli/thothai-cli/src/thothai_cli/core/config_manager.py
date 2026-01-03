@@ -81,8 +81,14 @@ class ConfigManager:
         
         return True
     
-    def generate_env_docker(self) -> bool:
-        """Generate .env.docker file from configuration."""
+    def generate_env_docker(self, remote_hostname: str | None = None) -> bool:
+        """Generate .env.docker file from configuration.
+        
+        Args:
+            remote_hostname: Optional hostname for remote deployments. When provided,
+                             uses this for SERVER_NAME instead of local detection.
+                             This enables proper domain configuration for remote servers.
+        """
         env_lines = []
         
         # AI Providers
@@ -190,22 +196,34 @@ class ConfigManager:
         env_lines.append(f"DOCKER_USERNAME={docker_cfg.get('image_registry', 'tylconsulting')}")
         env_lines.append(f"VERSION={docker_cfg.get('image_version', 'latest')}")
 
-        # Auto-detect SERVER_NAME if not explicitly set in config
-        # This helps with Nginx configuration on remote servers
-        server_name = self.config.get('server_name') or detect_server_name()
+        # SERVER_NAME logic:
+        # 1. If remote_hostname is provided (remote deployment), use it
+        # 2. Otherwise, use config value or local detection (local deployment)
+        if remote_hostname:
+            server_name = remote_hostname
+            print(f"[dim]Using remote server name: {server_name}[/dim]")
+        else:
+            server_name = self.config.get('server_name') or detect_server_name()
+            if server_name:
+                print(f"[dim]Detected server name: {server_name}[/dim]")
         
         if server_name:
-            print(f"[dim]Detected server name: {server_name}[/dim]")
             env_lines.append(f"SERVER_NAME={server_name}")
             
-            # Also set ALLOWED_HOSTS for Django backend
-            # Use config value if provided, otherwise default to server_name + local defaults
+            # Set ALLOWED_HOSTS for Django backend
+            # Include the server_name (whether local or remote) plus standard hosts
             allowed_hosts = self.config.get('allowed_hosts')
             web_port = ports.get('nginx', 8040)
+            frontend_port = ports.get('frontend', 3040)
             if not allowed_hosts:
                 allowed_hosts = f"{server_name},{server_name}:{web_port},localhost,127.0.0.1,host.docker.internal"
             
             env_lines.append(f"ALLOWED_HOSTS={allowed_hosts}")
+            
+            # For remote deployments, set CORS_ALLOWED_ORIGINS so frontend can make API calls
+            if remote_hostname:
+                cors_origins = f"http://{server_name}:{frontend_port},http://{server_name}:{web_port}"
+                env_lines.append(f"CORS_ALLOWED_ORIGINS={cors_origins}")
         
         # Write .env.docker
         env_path = self.config_path.parent / '.env.docker'

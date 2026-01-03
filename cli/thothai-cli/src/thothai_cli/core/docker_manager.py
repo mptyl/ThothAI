@@ -21,6 +21,32 @@ class DockerManager:
         self.config_mgr = config_mgr
         self.base_dir = config_mgr.config_path.parent
         self.compose_file = 'docker-compose.yml'
+        # Used for remote deployments to track the target hostname
+        self._remote_hostname: str | None = None
+
+    def _extract_hostname_from_server(self, server: str) -> str:
+        """Extract hostname from SSH URL.
+        
+        Args:
+            server: SSH connection string (e.g., ssh://user@host or user@host)
+            
+        Returns:
+            The hostname portion (e.g., 'host' or 'srv.example.com')
+        """
+        # Remove ssh:// prefix if present
+        conn_str = server.replace('ssh://', '')
+        
+        # Split on @ to get user@host -> host
+        if '@' in conn_str:
+            hostname = conn_str.split('@', 1)[1]
+        else:
+            hostname = conn_str
+        
+        # Remove any trailing port (:22) if present
+        if ':' in hostname:
+            hostname = hostname.split(':')[0]
+        
+        return hostname
 
     def _create_nginx_files(self) -> bool:
         """Create custom nginx configuration files for server name support."""
@@ -165,8 +191,14 @@ exec nginx -g "daemon off;"
         
         return True
 
-    def _create_server_compose_file(self) -> bool:
-        """Create a custom docker-compose file with nginx configuration mounts."""
+    def _create_server_compose_file(self, remote_hostname: str | None = None) -> bool:
+        """Create a custom docker-compose file with nginx configuration mounts.
+        
+        Args:
+            remote_hostname: Optional hostname for remote deployments.
+                             When provided, updates NEXT_PUBLIC_* variables to use
+                             this hostname instead of localhost.
+        """
         try:
             import yaml
             
@@ -218,6 +250,66 @@ exec nginx -g "daemon off;"
                 # Add custom entrypoint
                 proxy_service['entrypoint'] = ["/custom-entrypoint.sh"]
             
+            # For remote deployments, update frontend NEXT_PUBLIC_* variables
+            if remote_hostname and 'services' in compose_data and 'frontend' in compose_data['services']:
+                frontend_service = compose_data['services']['frontend']
+                if 'environment' not in frontend_service:
+                    frontend_service['environment'] = []
+                
+                # Get ports from config
+                ports = self.config_mgr.get('ports', {})
+                web_port = ports.get('nginx', 8040)
+                sql_gen_port = ports.get('sql_generator', 8020)
+                
+                # Define the new environment values for remote
+                env_updates = {
+                    'NEXT_PUBLIC_DJANGO_SERVER': f'http://{remote_hostname}:{web_port}',
+                    'NEXT_PUBLIC_SQL_GENERATOR_URL': f'http://{remote_hostname}:{sql_gen_port}',
+                    'RUNTIME_BACKEND_URL': f'http://{remote_hostname}:{web_port}',
+                    'RUNTIME_SQL_GENERATOR_URL': f'http://{remote_hostname}:{sql_gen_port}',
+                }
+                
+                # Update environment (handles both list and dict formats)
+                if isinstance(frontend_service['environment'], list):
+                    # Filter out old values and add new ones
+                    new_env = []
+                    for env in frontend_service['environment']:
+                        key = env.split('=')[0] if '=' in str(env) else str(env)
+                        if key not in env_updates:
+                            new_env.append(env)
+                    # Add the updated values
+                    for key, value in env_updates.items():
+                        new_env.append(f'{key}={value}')
+                    frontend_service['environment'] = new_env
+                elif isinstance(frontend_service['environment'], dict):
+                    frontend_service['environment'].update(env_updates)
+                    
+                console.print(f"[dim]Updated frontend URLs to use {remote_hostname}[/dim]")
+            
+            # For remote deployments, update backend FRONTEND_URL
+            if remote_hostname and 'services' in compose_data and 'backend' in compose_data['services']:
+                backend_service = compose_data['services']['backend']
+                if 'environment' not in backend_service:
+                    backend_service['environment'] = []
+                
+                # Get frontend port from config
+                ports = self.config_mgr.get('ports', {})
+                frontend_port = ports.get('frontend', 3040)
+                
+                # Update FRONTEND_URL to use remote hostname
+                frontend_url = f'http://{remote_hostname}:{frontend_port}'
+                
+                if isinstance(backend_service['environment'], list):
+                    # Filter out old FRONTEND_URL and add new one
+                    new_env = [env for env in backend_service['environment'] 
+                               if not str(env).startswith('FRONTEND_URL=')]
+                    new_env.append(f'FRONTEND_URL={frontend_url}')
+                    backend_service['environment'] = new_env
+                elif isinstance(backend_service['environment'], dict):
+                    backend_service['environment']['FRONTEND_URL'] = frontend_url
+                    
+                console.print(f"[dim]Updated backend FRONTEND_URL to {frontend_url}[/dim]")
+            
             # Write modified compose file
             with open(self.base_dir / '.docker-compose.server.yml', 'w') as f:
                 yaml.dump(compose_data, f, default_flow_style=False)
@@ -228,13 +320,18 @@ exec nginx -g "daemon off;"
             console.print(f"[red]Error creating server compose file: {e}[/red]")
             return False
     
-    def _ensure_env_docker(self) -> bool:
-        """Ensure .env.docker exists and is up-to-date."""
+    def _ensure_env_docker(self, remote_hostname: str | None = None) -> bool:
+        """Ensure .env.docker exists and is up-to-date.
+        
+        Args:
+            remote_hostname: Optional hostname for remote deployments.
+                             Passed to generate_env_docker() for correct SERVER_NAME.
+        """
         env_path = self.base_dir / '.env.docker'
         
         # Always regenerate to ensure it's current
         console.print("[dim]Generating .env.docker...[/dim]")
-        if not self.config_mgr.generate_env_docker():
+        if not self.config_mgr.generate_env_docker(remote_hostname=remote_hostname):
             console.print("[red]Failed to generate .env.docker[/red]")
             return False
         
@@ -339,14 +436,21 @@ exec nginx -g "daemon off;"
         mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
         if mode == 'swarm':
             return self.swarm_up(server=server)
+        
+        # Extract remote hostname for remote deployments
+        remote_hostname = None
+        if server:
+            remote_hostname = self._extract_hostname_from_server(server)
+            self._remote_hostname = remote_hostname
+            console.print(f"[dim]Deploying to remote server: {remote_hostname}[/dim]")
             
         # Validate configuration
         console.print("[dim]Validating configuration...[/dim]")
         if not self.config_mgr.validate():
             return False
         
-        # Generate .env.docker
-        if not self._ensure_env_docker():
+        # Generate .env.docker with correct SERVER_NAME
+        if not self._ensure_env_docker(remote_hostname=remote_hostname):
             return False
             
         # Check for SERVER_NAME in .env.docker to trigger custom Nginx setup
@@ -357,7 +461,7 @@ exec nginx -g "daemon off;"
                 if 'SERVER_NAME=' in f.read():
                     console.print("[dim]Creating nginx configuration files for server name support...[/dim]")
                     if self._create_nginx_files():
-                         if self._create_server_compose_file():
+                         if self._create_server_compose_file(remote_hostname=remote_hostname):
                              use_custom_compose = True
                              console.print("[dim]Using custom server configuration...[/dim]")
                     else:
@@ -462,8 +566,13 @@ exec nginx -g "daemon off;"
             # 1. Create remote directory
             self._run_cmd(['mkdir', '-p', remote_base_dir], server=server, capture=True)
             
-            # 2. Copy files
-            files_to_copy = ['.nginx-custom.conf.tpl', '.nginx-custom-entrypoint.sh']
+            # 2. Copy files (nginx config, env, and config files needed by services)
+            files_to_copy = [
+                '.nginx-custom.conf.tpl', 
+                '.nginx-custom-entrypoint.sh',
+                '.env.docker',
+                'config.yml.local'
+            ]
             import shutil
             
             for f in files_to_copy:
@@ -472,31 +581,40 @@ exec nginx -g "daemon off;"
                 subprocess.run(['scp', str(self.base_dir / f), f"{remote_dest_conn}:{remote_base_dir}/{f}"], 
                              check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
-            # 3. Modify compose file locally to point to remote paths
-            # We need to make a copy of .docker-compose.server.yml
-            # replace ./foo with /tmp/thothai_generated/foo
+            # 3. Modify compose file locally to point to remote paths for bind mounts
+            # We need to update paths that reference local files to use remote paths
             try:
                 import yaml
                 with open(self.base_dir / '.docker-compose.server.yml') as f:
                     data = yaml.safe_load(f)
                 
-                if 'services' in data and 'proxy' in data['services']:
-                     volumes = data['services']['proxy'].get('volumes', [])
-                     new_volumes = []
-                     for vol in volumes:
-                         parts = vol.split(':')
-                         if len(parts) >= 2:
-                             src = parts[0]
-                             # If it points to our generated files
-                             if '.nginx-custom' in src:
-                                 # Replace relative path with absolute remote path
-                                 filename = Path(src).name
-                                 new_src = f"{remote_base_dir}/{filename}"
-                                 parts[0] = new_src
-                                 new_volumes.append(':'.join(parts))
-                             else:
-                                 new_volumes.append(vol)
-                     data['services']['proxy']['volumes'] = new_volumes
+                # Files that need path remapping
+                files_to_remap = ['.nginx-custom.conf.tpl', '.nginx-custom-entrypoint.sh', 
+                                  '.env.docker', 'config.yml.local']
+                
+                # Update volume mounts in ALL services
+                for service_name, service_config in data.get('services', {}).items():
+                    if 'volumes' not in service_config:
+                        continue
+                    
+                    volumes = service_config.get('volumes', [])
+                    new_volumes = []
+                    for vol in volumes:
+                        parts = vol.split(':')
+                        if len(parts) >= 2:
+                            src = parts[0]
+                            filename = Path(src).name
+                            # Check if this is a file we copied to remote
+                            if filename in files_to_remap or any(f in src for f in files_to_remap):
+                                # Replace with absolute remote path
+                                new_src = f"{remote_base_dir}/{filename}"
+                                parts[0] = new_src
+                                new_volumes.append(':'.join(parts))
+                            else:
+                                new_volumes.append(vol)
+                        else:
+                            new_volumes.append(vol)
+                    service_config['volumes'] = new_volumes
                 
                 # Save as temporary remote-ready compose file
                 compose_file_to_use = '.docker-compose.server.remote.yml'
@@ -825,13 +943,18 @@ exec nginx -g "daemon off;"
 
     def swarm_up(self, server: Optional[str] = None) -> bool:
         """Deploy ThothAI to Docker Swarm."""
+        # Extract remote hostname for remote deployments
+        remote_hostname = None
+        if server:
+            remote_hostname = self._extract_hostname_from_server(server)
+            self._remote_hostname = remote_hostname
+            console.print(f"[dim]Deploying Swarm to remote server: {remote_hostname}[/dim]")
+        
         if not self.config_mgr.validate():
             return False
         
-        if not self.config_mgr.generate_env_docker():
-            return False
-        
-        if not self.config_mgr.generate_env_docker():
+        # Generate .env.docker with correct SERVER_NAME for remote
+        if not self.config_mgr.generate_env_docker(remote_hostname=remote_hostname):
             return False
             
         # Strict check for swarm_config.env (no auto-generation)
@@ -846,6 +969,19 @@ exec nginx -g "daemon off;"
         stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
         stack_file = self.config_mgr.get('docker', {}).get('stack_file', 'docker-stack.yml')
         
+        # For remote deployments, inject NEXT_PUBLIC_* URLs with remote hostname
+        if remote_hostname:
+            ports = self.config_mgr.get('ports', {})
+            web_port = ports.get('nginx', 8040)
+            sql_gen_port = ports.get('sql_generator', 8020)
+            
+            # Add/override these in swarm_env for stack file substitution
+            swarm_env['NEXT_PUBLIC_DJANGO_SERVER'] = f'http://{remote_hostname}:{web_port}'
+            swarm_env['NEXT_PUBLIC_SQL_GENERATOR_URL'] = f'http://{remote_hostname}:{sql_gen_port}'
+            swarm_env['RUNTIME_BACKEND_URL'] = f'http://{remote_hostname}:{web_port}'
+            swarm_env['RUNTIME_SQL_GENERATOR_URL'] = f'http://{remote_hostname}:{sql_gen_port}'
+            console.print(f"[dim]Updated Swarm frontend URLs to use {remote_hostname}[/dim]")
+        
         if not (self.base_dir / stack_file).exists():
             console.print(f"[red]Error: Stack file '{stack_file}' not found[/red]")
             return False
@@ -855,6 +991,17 @@ exec nginx -g "daemon off;"
         try:
             stack_content = (self.base_dir / stack_file).read_text(encoding='utf-8')
             processed_content = self._replace_env_vars(stack_content, swarm_env)
+            
+            # For remote deployments, replace localhost in NEXT_PUBLIC_* and RUNTIME_* URLs
+            # This handles the template's "http://localhost:${WEB_PORT}" format
+            if remote_hostname:
+                import re
+                # Replace localhost in env variable assignments that are for frontend URLs
+                # Match patterns like "NEXT_PUBLIC_DJANGO_SERVER=http://localhost:" or similar
+                for env_prefix in ['NEXT_PUBLIC_', 'RUNTIME_']:
+                    pattern = rf'({env_prefix}[A-Z_]+=http://)localhost:'
+                    replacement = rf'\1{remote_hostname}:'
+                    processed_content = re.sub(pattern, replacement, processed_content)
             
             temp_stack_file = f"docker-stack.gen.yml"
             (self.base_dir / temp_stack_file).write_text(processed_content, encoding='utf-8')
@@ -1045,10 +1192,13 @@ exec nginx -g "daemon off;"
             web_port = swarm_env.get('WEB_PORT', web_port)
             frontend_port = swarm_env.get('FRONTEND_PORT', frontend_port)
         
+        # Use remote hostname if set, otherwise localhost
+        host = self._remote_hostname or 'localhost'
+        
         console.print("\n[bold]Access URLs:[/bold]")
-        console.print(f"  Main App:   http://localhost:{web_port}")
-        console.print(f"  Frontend:   http://localhost:{frontend_port}")
-        console.print(f"  Admin:      http://localhost:{web_port}/admin")
+        console.print(f"  Main App:   http://{host}:{web_port}")
+        console.print(f"  Frontend:   http://{host}:{frontend_port}")
+        console.print(f"  Admin:      http://{host}:{web_port}/admin")
         
         console.print("\n[bold]Login Credentials:[/bold]")
         console.print(f"  Username: {admin.get('username', 'admin')}")

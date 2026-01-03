@@ -397,6 +397,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:7010",  # Docker Swarm Proxy
 ]
 
+# Add CORS_ALLOWED_ORIGINS from environment variables (for remote deployments)
+# Format: comma-separated list of origins, e.g., "http://server.com:3040,http://server.com:8040"
+env_cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+for origin in env_cors_origins:
+    origin = origin.strip()
+    if origin and origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(origin)
+
 # For development, allow all origins from localhost
 if DEBUG:
     CORS_ALLOWED_ORIGIN_REGEXES = [
