@@ -171,13 +171,14 @@ Gestione professionale di un cluster di produzione.
 
 ### 4.5 Gestione Avanzata Connessioni SSH
 
-Dall'aggiornamento v1.1, la CLI `thothai` implementa un sistema di **Docker Socket Tunneling** automatico che rende la gestione remota estremamente fluida e sicura.
+Dall'aggiornamento v1.1, la CLI `thothai` implementa un sistema di **Docker Context** automatico che rende la gestione remota estremamente fluida e sicura.
 
 #### Come funziona
 Quando specifichi l'opzione `--server`, la CLI:
-1.  **Crea un Tunnel Sicuro**: Apre una connessione SSH in background che "collega" il socket Docker del server remoto a un socket temporaneo sulla tua macchina locale.
-2.  **Riuso dell'Autenticazione**: Grazie al tunnel, l'autenticazione (password o chiave) avviene **una sola volta** all'inizio dell'operazione. Tutti i comandi successivi (creazione volumi, avvio container, check stato) riutilizzano lo stesso tunnel istantaneamente.
-3.  **Configurazione Trasparente**: La CLI utilizza il client `ssh` di sistema. Questo significa che rispetta automaticamente il tuo file `~/.ssh/config`, le chiavi caricate in `ssh-agent` e le tue impostazioni di sicurezza abituali.
+1.  **Crea un Docker Context**: Configura automaticamente un context Docker che punta al server remoto via SSH. I context sono persistenti e riutilizzabili tra sessioni.
+2.  **Riuso dell'Autenticazione**: Grazie al context, l'autenticazione (password o chiave) avviene **una sola volta** all'inizio dell'operazione. Tutti i comandi successivi riutilizzano lo stesso context istantaneamente.
+3.  **Fallback Automatico**: Per versioni Docker precedenti alla 19.03, la CLI utilizza automaticamente un tunnel SSH come metodo alternativo.
+4.  **Configurazione Trasparente**: La CLI utilizza il client `ssh` di sistema. Questo significa che rispetta automaticamente il tuo file `~/.ssh/config`, le chiavi caricate in `ssh-agent` e le tue impostazioni di sicurezza abituali.
 
 #### Ottimizzazione con `~/.ssh/config`
 Per evitare di scrivere ogni volta `user@ip`, ti consigliamo di aggiungere il server al tuo file di configurazione SSH locale (`~/.ssh/config`):
@@ -223,6 +224,7 @@ Al termine dell'avvio, l'applicazione sarà raggiungibile ai seguenti indirizzi 
 - **`uv run thothai up`**: Il comando principale per l'avvio. Valida la configurazione, crea i volumi necessari e avvia tutti i microservizi di ThothAI (Frontend, Backend, AI Generator, Database). Supporta l'opzione `--server ssh://...` per deploy remoti.
 - **`uv run thothai down`**: Ferma l'esecuzione e rimuove i container e le reti virtuali. I tuoi dati nei volumi persistenti rimangono intatti.
 - **`uv run thothai status`**: Fornisce una panoramica immediata dello stato di salute dei servizi, elencando i container attivi e le porte occupate.
+- **`uv run thothai ps [--all]`**: Mostra i servizi attivi con informazioni dettagliate (nome container, immagine, stato, porte). Usa `--all` per includere anche i container fermati. Supporta `--server` per ambienti remoti.
 - **`uv run thothai logs [-f]`**: Aggrega i log di tutti i microservizi. Fondamentale per il debugging in fase di configurazione dei provider AI. Use `-f` per seguire i log in tempo reale.
 - **`uv run thothai update`**: Sincronizza il tuo sistema con le ultime versioni ufficiali delle immagini Docker di ThothAI, applicando patch e nuove funzionalità.
 - **`uv run thothai prune`**: Rimuove tutti gli artefatti Docker (container, network, volumi e immagini) legati al progetto. Supporta l'opzione `--volumes/--no-volumes` e `--images/--no-images`. **Attenzione: la rimozione dei volumi elimina permanentemente tutti i dati (database e CSV).**
@@ -240,6 +242,7 @@ Al termine dell'avvio, l'applicazione sarà raggiungibile ai seguenti indirizzi 
 | `uv run thothai swarm deploy` | Deploy dello stack su Swarm |
 | `uv run thothai swarm down` | Rimuove lo stack ThothAI da Swarm. Elimina tutti i servizi in esecuzione e pulisce i segreti e le configurazioni associate, mantenendo intatti i volumi con i dati persistenti. |
 | `uv run thothai swarm status` | Stato dei servizi nello stack Swarm |
+| `uv run thothai swarm ps [-s service]` | Mostra servizi e task dello stack con dettagli. Usa `-s backend` per filtrare un servizio specifico. |
 | `uv run thothai swarm prune` | Cleanup completo degli artefatti Swarm (stack, secrets, configs, network e volumi). |
 | `uv run thothai swarm update` | Rolling update dei servizi Swarm |
 | `uv run thothai swarm rollback` | Ripristina la versione precedente dello stack |

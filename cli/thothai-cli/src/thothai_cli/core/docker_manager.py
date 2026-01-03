@@ -919,106 +919,262 @@ exec nginx -g "daemon off;"
     
     def down(self, server: Optional[str] = None) -> bool:
         """Stop and remove containers."""
-        # Establish connection first
-        if server and not self.check_connection(server):
-            return False
-
-        mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
-        if mode == 'swarm':
-            return self.swarm_down(server=server)
-
-        result = self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'down'],
-            server=server
-        )
+        previous_context = None
+        use_docker_context = False
         
-        return result.returncode == 0
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for down...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote down[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return False
+
+            mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
+            if mode == 'swarm':
+                return self.swarm_down(server=server)
+
+            result = self._run_cmd(
+                ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'down'],
+                server=server
+            )
+            
+            return result.returncode == 0
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
     
     def status(self, server: Optional[str] = None) -> None:
         """Show container status."""
-        # Establish connection first
-        if server and not self.check_connection(server):
-            return
+        previous_context = None
+        use_docker_context = False
+        
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for status...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote status[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return
 
-        mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
-        if mode == 'swarm':
-            self.swarm_status(server=server)
-            return 
+            mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
+            if mode == 'swarm':
+                self.swarm_status(server=server)
+                return 
 
-        self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'ps'],
-            server=server
-        )
+            self._run_cmd(
+                ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'ps'],
+                server=server
+            )
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
     
     def logs(self, service: Optional[str] = None, tail: int = 50, follow: bool = False, server: Optional[str] = None) -> None:
         """View container logs."""
-        # Establish connection first
-        if server and not self.check_connection(server):
-            return
+        previous_context = None
+        use_docker_context = False
+        
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for logs...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote logs[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return
 
-        mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
-        if mode == 'swarm':
-            swarm_env = self._get_swarm_env()
-            stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
-            service_name = f"{stack_name}_{service}" if service else f"{stack_name}"
-            cmd = ['docker', 'service', 'logs']
+            mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
+            if mode == 'swarm':
+                swarm_env = self._get_swarm_env()
+                stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
+                service_name = f"{stack_name}_{service}" if service else f"{stack_name}"
+                cmd = ['docker', 'service', 'logs']
+                if follow:
+                    cmd.append('-f')
+                else:
+                    cmd.extend(['--tail', str(tail)])
+                cmd.append(service_name)
+                self._run_cmd(cmd, server=server)
+                return
+
+            cmd = ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'logs']
+            
             if follow:
                 cmd.append('-f')
             else:
                 cmd.extend(['--tail', str(tail)])
-            cmd.append(service_name)
+            
+            if service:
+                cmd.append(service)
+            
             self._run_cmd(cmd, server=server)
-            return
-
-        cmd = ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'logs']
-        
-        if follow:
-            cmd.append('-f')
-        else:
-            cmd.extend(['--tail', str(tail)])
-        
-        if service:
-            cmd.append(service)
-        
-        self._run_cmd(cmd, server=server)
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
     
+    def ps(self, server: Optional[str] = None, show_all: bool = False) -> None:
+        """Show active services with detailed container/task information.
+        
+        Args:
+            server: Optional SSH URL for remote execution
+            show_all: If True, show all containers including stopped ones
+        """
+        previous_context = None
+        use_docker_context = False
+        
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for ps...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote ps[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return
+
+            mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
+            if mode == 'swarm':
+                self.swarm_ps(server=server)
+                return 
+
+            # Build docker compose ps command with enhanced formatting
+            cmd = ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'ps', '--format', 'table']
+            
+            if show_all:
+                cmd.append('-a')
+            
+            self._run_cmd(cmd, server=server)
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
+    
+    def swarm_ps(self, service: Optional[str] = None, server: Optional[str] = None) -> None:
+        """Show Swarm stack tasks with replica distribution.
+        
+        Args:
+            service: Optional specific service name to show tasks for
+            server: Optional SSH URL for remote execution
+        """
+        previous_context = None
+        use_docker_context = False
+        
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for swarm ps...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote swarm ps[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return
+
+            swarm_env = self._get_swarm_env()
+            stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
+            
+            if service:
+                # Show tasks for a specific service
+                full_service_name = f"{stack_name}_{service}"
+                console.print(f"\n[bold]Tasks for service: {full_service_name}[/bold]\n")
+                self._run_cmd(['docker', 'service', 'ps', full_service_name], server=server)
+            else:
+                # Show all stack tasks
+                console.print(f"\n[bold]Stack: {stack_name}[/bold]\n")
+                self._run_cmd(['docker', 'stack', 'ps', stack_name], server=server)
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
+
     def update(self, server: Optional[str] = None) -> bool:
         """Update containers to latest images."""
-        # Establish connection first
-        if server and not self.check_connection(server):
-            return False
+        previous_context = None
+        use_docker_context = False
+        
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for update...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote update[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return False
 
-        mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
-        if mode == 'swarm':
-            return self.swarm_update(server=server)
+            mode = self.config_mgr.get('docker', {}).get('deployment_mode', 'compose')
+            if mode == 'swarm':
+                return self.swarm_update(server=server)
 
-        # Ensure configuration is up-to-date
-        if not self._ensure_env_docker():
-            return False
-        
-        # Pull latest images
-        console.print("\n[bold]Pulling latest images...[/bold]")
-        result = self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'pull'],
-            server=server
-        )
-        
-        if result.returncode != 0:
-            console.print("[red]Failed to pull latest images[/red]")
-            return False
-        
-        # Recreate containers
-        console.print("\n[bold]Recreating containers...[/bold]")
-        result = self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'up', '-d', '--force-recreate'],
-            server=server
-        )
-        
-        if result.returncode != 0:
-            console.print("[red]Failed to recreate containers[/red]")
-            return False
-        
-        return True
+            # Ensure configuration is up-to-date
+            if not self._ensure_env_docker():
+                return False
+            
+            # Pull latest images
+            console.print("\n[bold]Pulling latest images...[/bold]")
+            result = self._run_cmd(
+                ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'pull'],
+                server=server
+            )
+            
+            if result.returncode != 0:
+                console.print("[red]Failed to pull latest images[/red]")
+                return False
+            
+            # Recreate containers
+            console.print("\n[bold]Recreating containers...[/bold]")
+            result = self._run_cmd(
+                ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'up', '-d', '--force-recreate'],
+                server=server
+            )
+            
+            if result.returncode != 0:
+                console.print("[red]Failed to recreate containers[/red]")
+                return False
+            
+            return True
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
     
     def _get_swarm_env(self) -> dict:
         """Get environment variables for Swarm deployment."""
@@ -1572,113 +1728,131 @@ exec nginx -g "daemon off;"
         Returns:
             True if cleanup was successful
         """
-        # Establish connection first
-        if server and not self.check_connection(server):
-            return False
+        previous_context = None
+        use_docker_context = False
         
-        success = True
-        
-        # 1. Stop and remove containers via docker compose
-        console.print("[dim]Stopping and removing containers...[/dim]")
-        result = self._run_cmd(
-            ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'down', '--remove-orphans'],
-            server=server,
-            capture=True
-        )
-        if result.returncode == 0:
-            console.print("[green]✓ Containers stopped and removed[/green]")
-        else:
-            console.print("[yellow]⚠ Some containers may not have been removed[/yellow]")
-        
-        # 2. Remove any remaining thoth containers
-        console.print("[dim]Checking for remaining containers...[/dim]")
-        result = self._run_cmd(
-            ['docker', 'ps', '-a', '--filter', 'name=thoth', '--format', '{{.ID}}'],
-            server=server,
-            capture=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            container_ids = result.stdout.strip().split('\n')
-            for cid in container_ids:
-                if cid:
-                    self._run_cmd(['docker', 'rm', '-f', cid], server=server, capture=True)
-            console.print(f"[green]✓ Removed {len(container_ids)} remaining container(s)[/green]")
-        
-        # 3. Remove network
-        console.print("[dim]Removing network...[/dim]")
-        result = self._run_cmd(
-            ['docker', 'network', 'rm', 'thoth-network'],
-            server=server,
-            capture=True
-        )
-        if result.returncode == 0:
-            console.print("[green]✓ Network removed[/green]")
-        else:
-            console.print("[dim]Network already removed or not found[/dim]")
-        
-        # 4. Remove volumes if requested
-        if remove_volumes:
-            console.print("[dim]Removing volumes...[/dim]")
-            volumes = [
-                'thoth-secrets',
-                'thoth-backend-db',
-                'thoth-backend-static',
-                'thoth-backend-media',
-                'thoth-backend-secrets',
-                'thoth-logs',
-                'thoth-frontend-cache',
-                'thoth-qdrant-data',
-                'thoth-shared-data',
-                'thoth-data-exchange'
-            ]
-            removed_count = 0
-            for vol in volumes:
-                result = self._run_cmd(
-                    ['docker', 'volume', 'rm', vol],
-                    server=server,
-                    capture=True
-                )
-                if result.returncode == 0:
-                    removed_count += 1
-            console.print(f"[green]✓ Removed {removed_count} volume(s)[/green]")
-        
-        # 5. Remove images if requested
-        if remove_images:
-            console.print("[dim]Removing images...[/dim]")
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for prune...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote prune[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return False
+            
+            success = True
+            
+            # 1. Stop and remove containers via docker compose
+            console.print("[dim]Stopping and removing containers...[/dim]")
             result = self._run_cmd(
-                ['docker', 'images', '--filter', 'reference=thothai/*', '--format', '{{.ID}}'],
+                ['docker', 'compose', '-f', str(self.base_dir / self.compose_file), 'down', '--remove-orphans'],
+                server=server,
+                capture=True
+            )
+            if result.returncode == 0:
+                console.print("[green]✓ Containers stopped and removed[/green]")
+            else:
+                console.print("[yellow]⚠ Some containers may not have been removed[/yellow]")
+            
+            # 2. Remove any remaining thoth containers
+            console.print("[dim]Checking for remaining containers...[/dim]")
+            result = self._run_cmd(
+                ['docker', 'ps', '-a', '--filter', 'name=thoth', '--format', '{{.ID}}'],
                 server=server,
                 capture=True
             )
             if result.returncode == 0 and result.stdout.strip():
-                image_ids = list(set(result.stdout.strip().split('\n')))  # Deduplicate
-                for img_id in image_ids:
-                    if img_id:
-                        self._run_cmd(['docker', 'rmi', '-f', img_id], server=server, capture=True)
-                console.print(f"[green]✓ Removed {len(image_ids)} image(s)[/green]")
+                container_ids = result.stdout.strip().split('\n')
+                for cid in container_ids:
+                    if cid:
+                        self._run_cmd(['docker', 'rm', '-f', cid], server=server, capture=True)
+                console.print(f"[green]✓ Removed {len(container_ids)} remaining container(s)[/green]")
+            
+            # 3. Remove network
+            console.print("[dim]Removing network...[/dim]")
+            result = self._run_cmd(
+                ['docker', 'network', 'rm', 'thoth-network'],
+                server=server,
+                capture=True
+            )
+            if result.returncode == 0:
+                console.print("[green]✓ Network removed[/green]")
             else:
-                console.print("[dim]No ThothAI images found[/dim]")
-        
-        # 6. Remove generated local files (only if local, not remote)
-        if not server:
-            console.print("[dim]Removing generated configuration files...[/dim]")
-            generated_files = [
-                '.docker-compose.server.yml',
-                '.docker-compose.server.remote.yml',
-                '.nginx-custom.conf.tpl',
-                '.nginx-custom-entrypoint.sh',
-                'docker-stack.gen.yml'
-            ]
-            removed_count = 0
-            for filename in generated_files:
-                filepath = self.base_dir / filename
-                if filepath.exists():
-                    filepath.unlink()
-                    removed_count += 1
-            if removed_count > 0:
-                console.print(f"[green]✓ Removed {removed_count} generated file(s)[/green]")
-        
-        return success
+                console.print("[dim]Network already removed or not found[/dim]")
+            
+            # 4. Remove volumes if requested
+            if remove_volumes:
+                console.print("[dim]Removing volumes...[/dim]")
+                volumes = [
+                    'thoth-secrets',
+                    'thoth-backend-db',
+                    'thoth-backend-static',
+                    'thoth-backend-media',
+                    'thoth-backend-secrets',
+                    'thoth-logs',
+                    'thoth-frontend-cache',
+                    'thoth-qdrant-data',
+                    'thoth-shared-data',
+                    'thoth-data-exchange'
+                ]
+                removed_count = 0
+                for vol in volumes:
+                    result = self._run_cmd(
+                        ['docker', 'volume', 'rm', vol],
+                        server=server,
+                        capture=True
+                    )
+                    if result.returncode == 0:
+                        removed_count += 1
+                console.print(f"[green]✓ Removed {removed_count} volume(s)[/green]")
+            
+            # 5. Remove images if requested
+            if remove_images:
+                console.print("[dim]Removing images...[/dim]")
+                result = self._run_cmd(
+                    ['docker', 'images', '--filter', 'reference=thothai/*', '--format', '{{.ID}}'],
+                    server=server,
+                    capture=True
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    image_ids = list(set(result.stdout.strip().split('\n')))  # Deduplicate
+                    for img_id in image_ids:
+                        if img_id:
+                            self._run_cmd(['docker', 'rmi', '-f', img_id], server=server, capture=True)
+                    console.print(f"[green]✓ Removed {len(image_ids)} image(s)[/green]")
+                else:
+                    console.print("[dim]No ThothAI images found[/dim]")
+            
+            # 6. Remove generated local files (only if local, not remote)
+            if not server:
+                console.print("[dim]Removing generated configuration files...[/dim]")
+                generated_files = [
+                    '.docker-compose.server.yml',
+                    '.docker-compose.server.remote.yml',
+                    '.nginx-custom.conf.tpl',
+                    '.nginx-custom-entrypoint.sh',
+                    'docker-stack.gen.yml'
+                ]
+                removed_count = 0
+                for filename in generated_files:
+                    filepath = self.base_dir / filename
+                    if filepath.exists():
+                        filepath.unlink()
+                        removed_count += 1
+                if removed_count > 0:
+                    console.print(f"[green]✓ Removed {removed_count} generated file(s)[/green]")
+            
+            return success
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
 
     def swarm_prune(self, server: Optional[str] = None, remove_volumes: bool = True, remove_images: bool = True) -> bool:
         """Remove all Docker Swarm artifacts for ThothAI.
@@ -1691,132 +1865,151 @@ exec nginx -g "daemon off;"
         Returns:
             True if cleanup was successful
         """
-        # Establish connection first
-        if server and not self.check_connection(server):
-            return False
+        previous_context = None
+        use_docker_context = False
         
-        success = True
-        swarm_env = self._get_swarm_env()
-        stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
-        
-        # 1. Remove stack
-        console.print(f"[dim]Removing stack '{stack_name}'...[/dim]")
-        result = self._run_cmd(
-            ['docker', 'stack', 'rm', stack_name],
-            server=server,
-            capture=True
-        )
-        if result.returncode == 0:
-            console.print(f"[green]✓ Stack '{stack_name}' removed[/green]")
-        else:
-            console.print(f"[yellow]⚠ Stack may not exist or could not be removed[/yellow]")
-        
-        # 2. Wait for services to be removed
-        console.print("[dim]Waiting for services to be removed...[/dim]")
-        import time
-        max_wait = 60
-        start_time = time.time()
-        while time.time() - start_time < max_wait:
+        try:
+            # For remote execution, try Docker Context first (preferred)
+            if server:
+                console.print("[dim]Attempting Docker Context connection for Swarm prune...[/dim]")
+                success, previous_context = self._use_docker_context(server)
+                if success:
+                    use_docker_context = True
+                    console.print("[green]✓ Using Docker Context for remote Swarm prune[/green]")
+                else:
+                    console.print("[yellow]Docker Context not available, falling back to SSH Tunnel[/yellow]")
+                    # Fallback to SSH Tunnel
+                    if not self.check_connection(server):
+                        return False
+            
+            success = True
+            swarm_env = self._get_swarm_env()
+            stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
+            
+            # 1. Remove stack
+            console.print(f"[dim]Removing stack '{stack_name}'...[/dim]")
             result = self._run_cmd(
-                ['docker', 'service', 'ls', '--filter', f'label=com.docker.stack.namespace={stack_name}', '--format', '{{.Name}}'],
+                ['docker', 'stack', 'rm', stack_name],
                 server=server,
                 capture=True
             )
-            if result.returncode == 0 and not result.stdout.strip():
-                break
-            time.sleep(2)
-        console.print("[green]✓ Services removed[/green]")
-        
-        # 3. Remove secrets
-        console.print("[dim]Removing secrets...[/dim]")
-        secrets_to_remove = [
-            f"{stack_name}_thoth_env_config",
-            f"{stack_name}_thoth_config_yml"
-        ]
-        for secret in secrets_to_remove:
-            self._run_cmd(['docker', 'secret', 'rm', secret], server=server, capture=True)
-        console.print("[green]✓ Secrets removed[/green]")
-        
-        # 4. Remove configs
-        console.print("[dim]Removing configs...[/dim]")
-        configs_to_remove = [
-            f"{stack_name}_thoth_env_docker"
-        ]
-        for config in configs_to_remove:
-            self._run_cmd(['docker', 'config', 'rm', config], server=server, capture=True)
-        console.print("[green]✓ Configs removed[/green]")
-        
-        # 5. Remove network (swarm overlay)
-        console.print("[dim]Removing network...[/dim]")
-        result = self._run_cmd(
-            ['docker', 'network', 'rm', f'{stack_name}_thoth-network'],
-            server=server,
-            capture=True
-        )
-        # Also try without stack prefix
-        self._run_cmd(['docker', 'network', 'rm', 'thoth-network'], server=server, capture=True)
-        console.print("[green]✓ Network removed[/green]")
-        
-        # 6. Remove volumes if requested
-        if remove_volumes:
-            console.print("[dim]Removing volumes...[/dim]")
-            volumes = [
-                'thoth-secrets',
-                'thoth-backend-db',
-                'thoth-backend-static',
-                'thoth-backend-media',
-                'thoth-backend-secrets',
-                'thoth-logs',
-                'thoth-frontend-cache',
-                'thoth-qdrant-data',
-                'thoth-shared-data',
-                'thoth-data-exchange'
-            ]
-            removed_count = 0
-            for vol in volumes:
+            if result.returncode == 0:
+                console.print(f"[green]✓ Stack '{stack_name}' removed[/green]")
+            else:
+                console.print(f"[yellow]⚠ Stack may not exist or could not be removed[/yellow]")
+            
+            # 2. Wait for services to be removed
+            console.print("[dim]Waiting for services to be removed...[/dim]")
+            import time
+            max_wait = 60
+            start_time = time.time()
+            while time.time() - start_time < max_wait:
                 result = self._run_cmd(
-                    ['docker', 'volume', 'rm', vol],
+                    ['docker', 'service', 'ls', '--filter', f'label=com.docker.stack.namespace={stack_name}', '--format', '{{.Name}}'],
                     server=server,
                     capture=True
                 )
-                if result.returncode == 0:
-                    removed_count += 1
-            console.print(f"[green]✓ Removed {removed_count} volume(s)[/green]")
-        
-        # 7. Remove images if requested
-        if remove_images:
-            console.print("[dim]Removing images...[/dim]")
+                if result.returncode == 0 and not result.stdout.strip():
+                    break
+                time.sleep(2)
+            console.print("[green]✓ Services removed[/green]")
+            
+            # 3. Remove secrets
+            console.print("[dim]Removing secrets...[/dim]")
+            secrets_to_remove = [
+                f"{stack_name}_thoth_env_config",
+                f"{stack_name}_thoth_config_yml"
+            ]
+            for secret in secrets_to_remove:
+                self._run_cmd(['docker', 'secret', 'rm', secret], server=server, capture=True)
+            console.print("[green]✓ Secrets removed[/green]")
+            
+            # 4. Remove configs
+            console.print("[dim]Removing configs...[/dim]")
+            configs_to_remove = [
+                f"{stack_name}_thoth_env_docker"
+            ]
+            for config in configs_to_remove:
+                self._run_cmd(['docker', 'config', 'rm', config], server=server, capture=True)
+            console.print("[green]✓ Configs removed[/green]")
+            
+            # 5. Remove network (swarm overlay)
+            console.print("[dim]Removing network...[/dim]")
             result = self._run_cmd(
-                ['docker', 'images', '--filter', 'reference=thothai/*', '--format', '{{.ID}}'],
+                ['docker', 'network', 'rm', f'{stack_name}_thoth-network'],
                 server=server,
                 capture=True
             )
-            if result.returncode == 0 and result.stdout.strip():
-                image_ids = list(set(result.stdout.strip().split('\n')))
-                for img_id in image_ids:
-                    if img_id:
-                        self._run_cmd(['docker', 'rmi', '-f', img_id], server=server, capture=True)
-                console.print(f"[green]✓ Removed {len(image_ids)} image(s)[/green]")
-            else:
-                console.print("[dim]No ThothAI images found[/dim]")
-        
-        # 8. Remove generated local files (only if local)
-        if not server:
-            console.print("[dim]Removing generated configuration files...[/dim]")
-            generated_files = [
-                '.docker-compose.server.yml',
-                '.docker-compose.server.remote.yml',
-                '.nginx-custom.conf.tpl',
-                '.nginx-custom-entrypoint.sh',
-                'docker-stack.gen.yml'
-            ]
-            removed_count = 0
-            for filename in generated_files:
-                filepath = self.base_dir / filename
-                if filepath.exists():
-                    filepath.unlink()
-                    removed_count += 1
-            if removed_count > 0:
-                console.print(f"[green]✓ Removed {removed_count} generated file(s)[/green]")
-        
-        return success
+            # Also try without stack prefix
+            self._run_cmd(['docker', 'network', 'rm', 'thoth-network'], server=server, capture=True)
+            console.print("[green]✓ Network removed[/green]")
+            
+            # 6. Remove volumes if requested
+            if remove_volumes:
+                console.print("[dim]Removing volumes...[/dim]")
+                volumes = [
+                    'thoth-secrets',
+                    'thoth-backend-db',
+                    'thoth-backend-static',
+                    'thoth-backend-media',
+                    'thoth-backend-secrets',
+                    'thoth-logs',
+                    'thoth-frontend-cache',
+                    'thoth-qdrant-data',
+                    'thoth-shared-data',
+                    'thoth-data-exchange'
+                ]
+                removed_count = 0
+                for vol in volumes:
+                    result = self._run_cmd(
+                        ['docker', 'volume', 'rm', vol],
+                        server=server,
+                        capture=True
+                    )
+                    if result.returncode == 0:
+                        removed_count += 1
+                console.print(f"[green]✓ Removed {removed_count} volume(s)[/green]")
+            
+            # 7. Remove images if requested
+            if remove_images:
+                console.print("[dim]Removing images...[/dim]")
+                result = self._run_cmd(
+                    ['docker', 'images', '--filter', 'reference=thothai/*', '--format', '{{.ID}}'],
+                    server=server,
+                    capture=True
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    image_ids = list(set(result.stdout.strip().split('\n')))
+                    for img_id in image_ids:
+                        if img_id:
+                            self._run_cmd(['docker', 'rmi', '-f', img_id], server=server, capture=True)
+                    console.print(f"[green]✓ Removed {len(image_ids)} image(s)[/green]")
+                else:
+                    console.print("[dim]No ThothAI images found[/dim]")
+            
+            # 8. Remove generated local files (only if local)
+            if not server:
+                console.print("[dim]Removing generated configuration files...[/dim]")
+                generated_files = [
+                    '.docker-compose.server.yml',
+                    '.docker-compose.server.remote.yml',
+                    '.nginx-custom.conf.tpl',
+                    '.nginx-custom-entrypoint.sh',
+                    'docker-stack.gen.yml'
+                ]
+                removed_count = 0
+                for filename in generated_files:
+                    filepath = self.base_dir / filename
+                    if filepath.exists():
+                        filepath.unlink()
+                        removed_count += 1
+                if removed_count > 0:
+                    console.print(f"[green]✓ Removed {removed_count} generated file(s)[/green]")
+            
+            return success
+            
+        finally:
+            # Always restore Docker Context if we used it
+            if previous_context and use_docker_context:
+                self._restore_docker_context(previous_context)
+

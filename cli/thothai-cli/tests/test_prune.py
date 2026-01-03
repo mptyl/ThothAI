@@ -51,8 +51,8 @@ def test_prune_compose_calls_correct_commands():
     print("SUCCESS: Prune compose test passed")
 
 
-def test_prune_remote_uses_docker_host():
-    """Test that remote prune uses DOCKER_HOST environment variable."""
+def test_prune_remote_uses_docker_context():
+    """Test that remote prune uses Docker Context for remote execution."""
     mock_config = MagicMock()
     mock_config.config_path = Path("/tmp/config.yml.local")
     mock_config.get.return_value = {'deployment_mode': 'compose'}
@@ -60,21 +60,44 @@ def test_prune_remote_uses_docker_host():
     mgr = DockerManager(mock_config)
     
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 0
-        mock_run.return_value.stdout = ""
-        mock_run.return_value.stderr = ""
+        # Simulate Docker Context commands working
+        def run_side_effect(cmd, **kwargs):
+            result = MagicMock()
+            result.returncode = 0
+            result.stdout = ""
+            result.stderr = ""
+            
+            # Docker context ls returns existing contexts
+            if cmd == ['docker', 'context', 'ls', '--format', '{{.Name}}']:
+                result.stdout = "default"
+            
+            # Docker context show returns current context
+            if cmd == ['docker', 'context', 'show']:
+                result.stdout = "default"
+            
+            return result
+        
+        mock_run.side_effect = run_side_effect
         
         # Run prune with remote server
         mgr.prune(server="user@remotehost", remove_volumes=False, remove_images=False)
         
-        # Check that DOCKER_HOST was set in environment for docker commands
-        docker_host_used = False
-        for call_args in mock_run.call_args_list:
-            if call_args[1].get('env', {}).get('DOCKER_HOST') == 'ssh://user@remotehost':
-                docker_host_used = True
-                break
+        # Check that Docker Context commands were called
+        calls = [c[0][0] if c[0] else c[1].get('args', []) for c in mock_run.call_args_list]
         
-        assert docker_host_used, "DOCKER_HOST should be set for remote execution"
+        # Verify context creation was attempted
+        context_create_found = any(
+            'docker' in str(cmd) and 'context' in str(cmd) and 'create' in str(cmd)
+            for cmd in calls
+        )
+        
+        # Verify context use was called
+        context_use_found = any(
+            'docker' in str(cmd) and 'context' in str(cmd) and 'use' in str(cmd)
+            for cmd in calls
+        )
+        
+        assert context_create_found or context_use_found, "Docker Context should be used for remote execution"
         
     print("SUCCESS: Remote prune test passed")
 
@@ -115,6 +138,7 @@ def test_swarm_prune_calls_stack_rm():
 
 if __name__ == "__main__":
     test_prune_compose_calls_correct_commands()
-    test_prune_remote_uses_docker_host()
+    test_prune_remote_uses_docker_context()
     test_swarm_prune_calls_stack_rm()
     print("\nAll prune tests passed!")
+

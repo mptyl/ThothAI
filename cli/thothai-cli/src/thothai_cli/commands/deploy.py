@@ -2,7 +2,7 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-"""Deploy commands: up, down, status, logs, update."""
+"""Deploy commands: up, down, status, ps, logs, update."""
 
 import click
 from rich.console import Console
@@ -99,6 +99,30 @@ def logs(service, tail, follow, server):
     try:
         docker_mgr = get_docker_manager()
         docker_mgr.logs(service, tail, follow, server=server)
+    
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        raise click.Abort()
+
+
+@click.command()
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+@click.option('--all', '-a', 'show_all', is_flag=True, help='Show all containers including stopped')
+def ps(server, show_all):
+    """Show active services and their details.
+    
+    Similar to 'docker compose ps' but with enhanced formatting.
+    Automatically detects Swarm mode and shows stack services.
+    
+    \\b
+    Examples:
+        thothai ps                   # Local containers
+        thothai ps --all             # Include stopped containers
+        thothai ps --server user@host  # Remote containers
+    """
+    try:
+        docker_mgr = get_docker_manager()
+        docker_mgr.ps(server=server, show_all=show_all)
     
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")

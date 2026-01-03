@@ -30,19 +30,24 @@ uv pip install -e ".[dev]"
 
 ```
 cli/                  # Directory principale CLI
-├── thothai_cli_core/     # Pacchetto core condiviso [NUOVO]
+├── thothai_cli_core/     # Pacchetto core condiviso
 │   ├── src/thothai_cli_core/
-│   │   └── docker_ops.py # Operazioni Docker condivise
+│   │   └── docker_ops.py # Operazioni Docker condivise (CSV/DB)
 │   └── pyproject.toml
 ├── thothai-cli/          # CLI principale (dipende da core)
 │   ├── src/thothai_cli/
-│   │   ├── cli.py
-│   │   ├── commands/     # Comandi integrati
-│   │   │   ├── data.py   # Implementa csv e db tramite core
-│   │   │   └── ...
+│   │   ├── cli.py        # Entry point e registrazione comandi
+│   │   ├── commands/     # Moduli comandi
+│   │   │   ├── deploy.py # up, down, status, ps, logs, update
+│   │   │   ├── swarm.py  # swarm deploy, down, status, ps, update, rollback, logs
+│   │   │   ├── prune.py  # prune, swarm prune
+│   │   │   ├── init.py   # init, init --mode swarm
+│   │   │   ├── config.py # config validate, config test
+│   │   │   └── data.py   # csv e db (tramite core)
 │   │   ├── core/
-│   │   │   └── config_manager.py
-│   │   └── templates/
+│   │   │   ├── config_manager.py
+│   │   │   └── docker_manager.py  # Gestione Docker/Swarm/Remote
+│   │   └── templates/    # Template config.yml, docker-compose, docker-stack
 │   ├── pyproject.toml
 │   └── README.md
 ├── thothai-data-cli/     # CLI dati standalone (dipende da core)
@@ -227,7 +232,7 @@ jobs:
 
 ## Logica "Smart Commands"
 
-I comandi principali (`up`, `down`, `status`, `logs`, `update`) implementano una logica di dispatch automatico:
+I comandi principali (`up`, `down`, `status`, `ps`, `logs`, `update`, `prune`) implementano una logica di dispatch automatico:
 
 1.  **ConfigManager** legge `docker.deployment_mode` da `config.yml.local`.
 2.  **DockerManager** verifica il valore:
@@ -250,6 +255,37 @@ cp ../../docker-stack.yml src/thothai_cli/templates/docker-stack.yml
 # e aggiungere 'deployment_mode' nella sezione 'docker' per mantenere
 # il template coerente con la filosofia lightweight.
 ```
+
+## Docker Context per Deploy Remoto
+
+La CLI utilizza **Docker Context** come meccanismo primario per le connessioni remote. Questo approccio nativo Docker semplifica la gestione multi-server.
+
+### Implementazione
+
+I metodi chiave in `docker_manager.py`:
+
+- `_use_docker_context(server)`: Crea e attiva un context Docker per il server specificato
+- `_restore_docker_context(previous)`: Ripristina il context precedente dopo l'operazione
+- `_rsync_files(server, remote_dir)`: Trasferisce i file di configurazione al server remoto
+
+### Flusso di Esecuzione Remota
+
+```
+1. thothai up --server user@host
+2. _use_docker_context() → Crea context "thothai-abc123"
+3. _rsync_files() → Sincronizza config su /opt/thothai
+4. docker compose up → Eseguito via context
+5. _restore_docker_context() → Ripristina "default"
+```
+
+### Fallback SSH Tunnel
+
+Per Docker < 19.03, la CLI utilizza automaticamente `_start_ssh_tunnel()` che crea un tunnel SSH per il socket Docker.
+
+### Documentazione Tecnica
+
+Per dettagli approfonditi sull'implementazione, consulta:
+- [`docs/devops/DOCKER_CONTEXT_IMPLEMENTATION.md`](../../../docs/devops/DOCKER_CONTEXT_IMPLEMENTATION.md)
 
 ## Best Practices
 

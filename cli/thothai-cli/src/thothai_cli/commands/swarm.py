@@ -2,7 +2,7 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-"""Swarm commands: deploy, status, update, rollback."""
+"""Swarm commands: deploy, status, ps, update, rollback."""
 
 import click
 from rich.console import Console
@@ -91,6 +91,26 @@ def swarm_status_cmd(server):
     try:
         docker_mgr = get_docker_manager()
         docker_mgr.swarm_status(server=server)
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        raise click.Abort()
+
+
+@swarm_group.command('ps')
+@click.option('--server', help='SSH URL for remote server (e.g., user@host)')
+@click.option('--service', '-s', help='Show tasks for specific service only')
+def swarm_ps_cmd(server, service):
+    """Show Swarm stack services and tasks.
+    
+    \\b
+    Examples:
+        thothai swarm ps                    # All stack services
+        thothai swarm ps -s backend         # Tasks for backend service only
+        thothai swarm ps --server user@host # Remote stack status
+    """
+    try:
+        docker_mgr = get_docker_manager()
+        docker_mgr.swarm_ps(service=service, server=server)
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/red]")
         raise click.Abort()
