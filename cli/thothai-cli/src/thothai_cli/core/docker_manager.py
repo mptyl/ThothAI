@@ -139,6 +139,29 @@ class DockerManager:
             console.print(f"[red]Error creating SSH tunnel: {e}[/red]")
             return None
 
+    def _parse_ssh_url(self, server: str) -> tuple[str, str, int]:
+        """Parse SSH URL into user, host, port."""
+        clean_server = server.replace('ssh://', '')
+        user = ''
+        port = 22
+        
+        # Extract user
+        if '@' in clean_server:
+            user, clean_server = clean_server.split('@', 1)
+            user += '@' # Include @ for easy concatenation
+        
+        # Extract port
+        if ':' in clean_server:
+            host, port_str = clean_server.split(':', 1)
+            try:
+                port = int(port_str)
+            except ValueError:
+                pass
+            clean_server = host
+            
+        return user, clean_server, port
+
+
     def _stop_ssh_tunnel(self):
         """Stop the background SSH tunnel."""
         if self._tunnel_process:
@@ -200,7 +223,11 @@ class DockerManager:
         Returns:
             Tuple of (success, previous_context_name)
         """
-        clean_server = server.replace('ssh://', '')
+        user, host, port = self._parse_ssh_url(server)
+        clean_server = f"{user}{host}"
+        if port != 22:
+             clean_server = f"{clean_server}:{port}"
+             
         context_name = f"thothai-{self._get_server_hash(clean_server)}"
         
         console.print(f"[dim]Using Docker Context: {context_name}[/dim]")
@@ -303,12 +330,16 @@ class DockerManager:
         Returns:
             True if all transfers succeeded
         """
-        clean_server = server.replace('ssh://', '')
+        user, host, port = self._parse_ssh_url(server)
+        clean_server = f"{user}{host}"
         
         console.print(f"[dim]Syncing files to {clean_server}:{remote_dir}...[/dim]")
         
+        # SSH options for robustness
+        ssh_opts = f"ssh -p {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        
         # Create remote directory
-        ssh_cmd = ['ssh', clean_server, f'mkdir -p {remote_dir}']
+        ssh_cmd = ['ssh', '-p', str(port), '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', clean_server, f'mkdir -p {remote_dir}']
         result = subprocess.run(ssh_cmd, capture_output=True, text=True)
         if result.returncode != 0:
             console.print(f"[red]Failed to create remote directory: {result.stderr}[/red]")
@@ -330,6 +361,7 @@ class DockerManager:
             if local_path.exists():
                 rsync_cmd = [
                     'rsync', '-avz', '--progress',
+                    '-e', ssh_opts,
                     str(local_path),
                     f'{clean_server}:{remote_dir}/'
                 ]
@@ -341,8 +373,11 @@ class DockerManager:
         setup_csv_path = self.base_dir / 'setup_csv'
         if setup_csv_path.exists() and setup_csv_path.is_dir():
             console.print(f"[dim]Syncing setup_csv directory...[/dim]")
+            # Ensure parent exists
+            self._run_cmd(['ssh', '-p', str(port), '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', clean_server, f'mkdir -p {remote_dir}/setup_csv'], capture=True)
             rsync_cmd = [
                 'rsync', '-avz', '--progress',
+                '-e', ssh_opts,
                 str(setup_csv_path) + '/',
                 f'{clean_server}:{remote_dir}/setup_csv/'
             ]
@@ -354,8 +389,11 @@ class DockerManager:
         dev_db_path = self.base_dir / 'data' / 'dev_databases'
         if dev_db_path.exists() and dev_db_path.is_dir():
             console.print(f"[dim]Syncing dev_databases directory...[/dim]")
+            # Ensure parent exists
+            self._run_cmd(['ssh', '-p', str(port), '-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', clean_server, f'mkdir -p {remote_dir}/data/dev_databases'], capture=True)
             rsync_cmd = [
                 'rsync', '-avz', '--progress',
+                '-e', ssh_opts,
                 str(dev_db_path) + '/',
                 f'{clean_server}:{remote_dir}/data/dev_databases/'
             ]
@@ -734,6 +772,129 @@ exec nginx -g "daemon off;"
             self._stop_ssh_tunnel()
             return False
 
+    def _docker_login(self, server: Optional[str] = None) -> bool:
+        """Perform docker login if configured and not using Docker Hub.
+        
+        Args:
+            server: Optional SSH URL for remote execution
+            
+        Returns:
+            True if login succeeded or was skipped (not required), False on failure.
+        """
+        docker_cfg = self.config_mgr.get('docker', {})
+        registry = docker_cfg.get('image_registry', 'tylconsulting')
+        
+        # Determine if it's Docker Hub
+        # Logic matches push.sh: "docker.io" or simple names (no dot, no colon, not localhost)
+        is_docker_hub = "docker.io" in registry or ('.' not in registry and ':' not in registry and registry != 'localhost')
+        
+        if is_docker_hub:
+            return True
+        
+        # Check for credentials
+        username = docker_cfg.get('registry_username')
+        password = docker_cfg.get('registry_password')
+        
+        if not username or not password:
+            # Custom registry but no credentials - assume public or already logged in?
+            # User requirement says "login active only when pull is not from docker hub"
+            # If they didn't provide credentials, we can't login.
+            console.print(f"[dim]Custom registry '{registry}' detected but no credentials in config. Skipping login.[/dim]")
+            return True
+            
+        console.print(f"[dim]Logging in to registry {registry}...[/dim]")
+        
+        # Use simple 'docker login' with password via stdin
+        # This prevents the password from showing up in process lists
+        cmd = ['docker', 'login', registry, '-u', username, '--password-stdin']
+        
+        try:
+            # We need to manually handle stdin for subprocess
+            # docker login reads from stdin
+            
+            # Security Note: This passes password in memory.
+            # Avoid printing cmd (it doesn't have password, but good practice)
+            
+            # Reuse _run_cmd logic? _run_cmd handles remote context/ssh wrapping.
+            # But passing stdin to _run_cmd isn't currently supported directly in the wrapper signature
+            # (it takes env, not input).
+            
+            # We'll implement a specific login run logic reusing basic principles
+            
+            import subprocess
+            input_bytes = f"{password}\n".encode('utf-8')
+            
+            # Start process
+            if server:
+                 # Check if we are using Docker Context (preferred)
+                 if self._active_docker_context:
+                     # Just run local docker command which points to remote context
+                     result = subprocess.run(
+                        cmd, 
+                        input=input_bytes, 
+                        capture_output=True, 
+                        text=False  # We use bytes input/output
+                     )
+                 elif self._tunnel_socket:
+                     # Use DOCKER_HOST
+                     env = os.environ.copy()
+                     env['DOCKER_HOST'] = f"unix://{self._tunnel_socket}"
+                     result = subprocess.run(
+                        cmd,
+                        input=input_bytes,
+                        capture_output=True,
+                        env=env,
+                        text=False
+                     )
+                 else:
+                     # SSH wrapper (last resort or specific cases)
+                     # Handling stdin via SSH wrapper requires care
+                     # We can pipe: echo password | ssh host docker login ...
+                     clean_server = server.replace('ssh://', '')
+                     
+                     # We must construct a safe command string
+                     # Using docker login --password-stdin on remote 
+                     remote_cmd = f"docker login {registry} -u {username} --password-stdin"
+                     
+                     ssh_cmd = [
+                        'ssh',
+                        '-o', 'BatchMode=yes',
+                        '-o', 'StrictHostKeyChecking=no',
+                        clean_server,
+                        remote_cmd
+                     ]
+                     
+                     result = subprocess.run(
+                        ssh_cmd,
+                        input=input_bytes,
+                        capture_output=True,
+                        text=False
+                     )
+            else:
+                 # Local
+                 result = subprocess.run(
+                    cmd,
+                    input=input_bytes,
+                    capture_output=True,
+                    text=False
+                 )
+            
+            if result.returncode == 0:
+                console.print(f"[green]✓ Logged in to {registry}[/green]")
+                return True
+            else:
+                try:
+                    err = result.stderr.decode('utf-8').strip()
+                except:
+                    err = str(result.stderr)
+                console.print(f"[red]Login failed: {err}[/red]")
+                return False
+                
+        except Exception as e:
+            console.print(f"[red]Error during docker login: {e}[/red]")
+            return False
+
+
     def up(self, server: Optional[str] = None) -> bool:
         """Pull images and start containers."""
         previous_context = None
@@ -763,6 +924,10 @@ exec nginx -g "daemon off;"
                 remote_hostname = self._extract_hostname_from_server(server)
                 self._remote_hostname = remote_hostname
                 console.print(f"[dim]Deploying to remote server: {remote_hostname}[/dim]")
+            
+            # Perform docker login if needed
+            if not self._docker_login(server=server):
+                return False
                 
             # Validate configuration
             console.print("[dim]Validating configuration...[/dim]")
@@ -1143,6 +1308,10 @@ exec nginx -g "daemon off;"
             if mode == 'swarm':
                 return self.swarm_update(server=server)
 
+            # Perform docker login if needed
+            if not self._docker_login(server=server):
+                return False
+
             # Ensure configuration is up-to-date
             if not self._ensure_env_docker():
                 return False
@@ -1435,6 +1604,14 @@ exec nginx -g "daemon off;"
                 remote_hostname = self._extract_hostname_from_server(server)
                 self._remote_hostname = remote_hostname
                 console.print(f"[dim]Deploying Swarm to remote server: {remote_hostname}[/dim]")
+                
+                # Sync files to remote server (Required for bind-mounts like setup_csv)
+                if not self._rsync_files(server):
+                     console.print("[yellow]Warning: File sync failed, deployment might miss data[/yellow]")
+            
+            # Perform docker login if needed
+            if not self._docker_login(server=server):
+                return False
             
             if not self.config_mgr.validate():
                 return False
@@ -1478,6 +1655,34 @@ exec nginx -g "daemon off;"
                 stack_content = (self.base_dir / stack_file).read_text(encoding='utf-8')
                 processed_content = self._replace_env_vars(stack_content, swarm_env)
                 
+                # Dynamic adjustment for secrets/configs namespacing
+                # We want to map the short names in YAML to the namespaced versions created by _manage_swarm_resources
+                # e.g. "external: true" -> "external:\n      name: ${STACK_NAME}_thoth_env_config"
+                stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
+                
+                replacements = {
+                    'thoth_env_config': f'{stack_name}_thoth_env_config',
+                    'thoth_config_yml': f'{stack_name}_thoth_config_yml',
+                    'thoth_env_docker': f'{stack_name}_thoth_env_docker',
+                }
+                
+                import yaml
+                stack_data = yaml.safe_load(processed_content)
+                
+                # Fix Secrets
+                if 'secrets' in stack_data:
+                    for secret_key, secret_def in stack_data['secrets'].items():
+                        if secret_key in replacements and secret_def.get('external'):
+                            secret_def['external'] = {'name': replacements[secret_key]}
+                
+                # Fix Configs
+                if 'configs' in stack_data:
+                    for config_key, config_def in stack_data['configs'].items():
+                        if config_key in replacements and config_def.get('external'):
+                            config_def['external'] = {'name': replacements[config_key]}
+                            
+                processed_content = yaml.dump(stack_data, default_flow_style=False)
+                
                 # For remote deployments, replace localhost in NEXT_PUBLIC_* and RUNTIME_* URLs
                 # This handles the template's "http://localhost:${WEB_PORT}" format
                 if remote_hostname:
@@ -1488,6 +1693,32 @@ exec nginx -g "daemon off;"
                         pattern = rf'({env_prefix}[A-Z_]+=http://)localhost:'
                         replacement = rf'\1{remote_hostname}:'
                         processed_content = re.sub(pattern, replacement, processed_content)
+
+                # Inject placement constraints for remote deployment (Pin to manager for persistence/bind-mounts)
+                if server:
+                    try:
+                        import yaml
+                        stack_data = yaml.safe_load(processed_content)
+                        if 'services' in stack_data:
+                            for service_name, service_def in stack_data['services'].items():
+                                if 'deploy' not in service_def:
+                                    service_def['deploy'] = {}
+                                if 'placement' not in service_def['deploy']:
+                                    service_def['deploy']['placement'] = {}
+                                if 'constraints' not in service_def['deploy']['placement']:
+                                    service_def['deploy']['placement']['constraints'] = []
+                                
+                                # Add pinning constraint
+                                constraints = service_def['deploy']['placement']['constraints']
+                                if not any('node.role == manager' in str(c) for c in constraints):
+                                    constraints.append('node.role == manager')
+                            
+                            processed_content = yaml.dump(stack_data, default_flow_style=False)
+                            console.print("[dim]Injected placement constraints: node.role == manager[/dim]")
+                    except ImportError:
+                        console.print("[yellow]Warning: PyYAML not installed, skipping constraint injection[/yellow]")
+                    except Exception as e:
+                         console.print(f"[yellow]Warning: Failed to inject constraints: {e}[/yellow]")
                 
                 temp_stack_file = f"docker-stack.gen.yml"
                 (self.base_dir / temp_stack_file).write_text(processed_content, encoding='utf-8')

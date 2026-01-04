@@ -294,7 +294,42 @@ Per dettagli approfonditi sull'implementazione, consulta:
 3. **Versionamento chiaro**: documenta breaking changes
 4. **Changelog**: mantieni CHANGELOG.md aggiornato
 5. **Security**: mai committare credenziali PyPI
-6. **Docker Images**: Per compilare e caricare le immagini multi-architettura, consulta `docs/PUSH_INSTRUCTIONS.md` nella root del progetto.
+
+## Gestione Immagini Docker (Push)
+
+Lo script `push.sh` (nella root del progetto) è lo strumento unificato per costruire e pubblicare le immagini Docker multi-architettura.
+
+### Utilizzo Base
+
+```bash
+./push.sh REGISTRY_URL VERSION
+```
+
+### Scenario A: Docker Hub (Pubblico)
+
+Per pubblicare su Docker Hub (default `tylconsulting`):
+
+```bash
+# Login preventivo necessario
+docker login
+
+# Push
+./push.sh tylconsulting latest
+```
+
+### Scenario B: Registry Privato (Custom)
+
+Per pubblicare su un registry aziendale (es. `registry.uni.com`):
+
+```bash
+# Login al registry privato
+docker login registry.uni.com
+
+# Push (specificando il namespace corretto)
+./push.sh registry.uni.com/mia-azienda latest
+```
+
+**Nota:** Il registry deve essere accessibile dalla macchina di build.
 
 ## Contatti
 
