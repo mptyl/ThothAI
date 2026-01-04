@@ -32,6 +32,10 @@ Regardless of the mode and topology, you can install ThothAI:
 *   **Locally**: On your current computer (e.g., a developer installing on their laptop) or by directly accessing the destination server.
 *   **Remotely**: From your local computer to a remote server (e.g., VPS or corporate server) via SSH connection automatically managed by the CLI.
 
+### Security Note: SSL/TLS
+
+ThothAI exposes services over HTTP. For production deployments, it is recommended to configure a reverse proxy with SSL termination (nginx, Apache, Traefik, HAProxy) according to your organization's security policies.
+
 ## Manuals Index
 
 To proceed, select the appropriate manual:
