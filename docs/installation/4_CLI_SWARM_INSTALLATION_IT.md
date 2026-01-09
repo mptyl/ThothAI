@@ -2,6 +2,51 @@
 
 Questa guida spiega come installare ThothAI su un cluster **Docker Swarm**. Questa è la modalità consigliata per produzione, alta affidabilità e scalabilità.
 
+## 0. Installazione Locale della CLI
+
+Prima di poter gestire il cluster Swarm, è necessario configurare l'ambiente locale con la CLI di ThothAI.
+
+### 0.1 Installazione di `uv`
+
+Il progetto utilizza `uv` per la gestione rapida delle dipendenze Python.
+
+**macOS / Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Windows:**
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+### 0.2 Creazione dell'ambiente virtuale
+
+Posizionarsi nella root del progetto e creare un virtual environment:
+
+```bash
+uv venv
+```
+
+Attivare l'ambiente:
+
+*   **macOS / Linux:** `source .venv/bin/activate`
+*   **Windows:** `.venv\Scripts\activate`
+
+### 0.3 Installazione della CLI
+
+Installare le dipendenze e il pacchetto CLI in modalità editabile:
+
+```bash
+uv pip install -e cli/thothai-cli
+```
+
+Verificare l'installazione:
+
+```bash
+thothai --help
+```
+
 ## 1. Prerequisiti
 
 *   **Cluster Swarm**: Server di destinazione con Docker Engine inizializzato come Swarm Manager (`docker swarm init`).
