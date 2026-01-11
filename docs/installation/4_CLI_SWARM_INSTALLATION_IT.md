@@ -38,7 +38,7 @@ Attivare l'ambiente:
 Installare le dipendenze e il pacchetto CLI in modalità editabile:
 
 ```bash
-uv pip install -e cli/thothai-cli
+uv pip install thothai-cli
 ```
 
 Verificare l'installazione:
@@ -89,6 +89,29 @@ Il comando `swarm deploy` si occupa di trasferire configurazioni e avviare lo st
 ```bash
 uv run thothai swarm deploy --server ssh://manager-node-user@ip
 ```
+
+### Nota per utenti Windows e autenticazione tramite chiave SSH
+
+La CLI di ThothAI **non supporta** direttamente il passaggio del percorso della chiave privata tramite flag (es. `-i path/to/key`).
+
+Per utilizzare una chiave SSH specifica (es. un file `.pem`) su Windows, è necessario configurare il file di configurazione SSH locale:
+
+1.  Aprire o creare il file `%USERPROFILE%\.ssh\config` (es. `C:\Users\TuoUtente\.ssh\config`).
+2.  Aggiungere un blocco per definire l'host alias e la chiave da usare:
+
+    ```text
+    Host swarm-manager
+        HostName 192.168.1.10
+        User ubuntu
+        IdentityFile C:\Users\TuoUtente\.ssh\my_private_key.pem
+    ```
+    *(Sostituire `192.168.1.10`, `ubuntu`, `HostName` e il percorso della chiave con i propri dati)*
+
+3.  Eseguire il comando usando l'alias definito (`swarm-manager`):
+
+    ```powershell
+    uv run thothai swarm deploy --server ssh://swarm-manager
+    ```
 
 ### Cosa avviene durante il deploy
 1.  **Connessione**: La CLI si connette via SSH al nodo manager.
