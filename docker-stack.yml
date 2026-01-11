@@ -10,7 +10,7 @@ version: '3.8'
 services:
   # === BACKEND SERVICE ===
   backend:
-    image: ${DOCKER_USERNAME}/thoth-backend:${VERSION:-latest}
+    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-backend:${VERSION:-latest}
     networks:
       - thoth-network
     volumes:
@@ -68,7 +68,7 @@ services:
 
   # === FRONTEND SERVICE ===
   frontend:
-    image: ${DOCKER_USERNAME}/thoth-frontend:${VERSION:-latest}
+    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-frontend:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
@@ -125,7 +125,7 @@ services:
 
   # === SQL GENERATOR SERVICE ===
   sql-generator:
-    image: ${DOCKER_USERNAME}/thoth-sql-generator:${VERSION:-latest}
+    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-sql-generator:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
@@ -177,7 +177,7 @@ services:
 
   # === PROXY SERVICE ===
   proxy:
-    image: ${DOCKER_USERNAME}/thoth-proxy:${VERSION:-latest}
+    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-proxy:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
@@ -221,7 +221,7 @@ services:
 
   # === MERMAID SERVICE ===
   mermaid-service:
-    image: ${DOCKER_USERNAME}/thoth-mermaid-service:${VERSION:-latest}
+    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-mermaid-service:${VERSION:-latest}
     networks:
       - thoth-network
     ports:
