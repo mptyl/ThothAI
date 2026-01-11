@@ -179,37 +179,160 @@ Se il pull manuale funziona, conferma che il problema è nella risoluzione del n
 
 ---
 
-## 6. Soluzioni Proposte
+## 6. Soluzione Applicata
 
-### Soluzione A: Aggiungere valori di default in docker-stack.yml (RACCOMANDATA)
+> [!NOTE]
+> **La Soluzione A è già stata applicata** nella versione **1.3.8** della CLI `thothai-cli`.
 
-Modificare [docker-stack.yml](file:///Users/mp/ThothAI/docker-stack.yml) aggiungendo i valori di default:
+### Modifiche effettuate
 
+Sono stati modificati i seguenti file aggiungendo il valore di default `:-tylconsulting` a tutte le definizioni delle immagini:
+
+- [docker-stack.yml](file:///Users/mp/ThothAI/docker-stack.yml) (root del progetto)
+- [cli/thothai-cli/src/thothai_cli/templates/docker-stack.yml](file:///Users/mp/ThothAI/cli/thothai-cli/src/thothai_cli/templates/docker-stack.yml) (template CLI)
+
+**Esempio della modifica:**
 ```diff
-# Backend
+# Prima (problematico)
 - image: ${DOCKER_USERNAME}/thoth-backend:${VERSION:-latest}
+
+# Dopo (corretto)
 + image: ${DOCKER_USERNAME:-tylconsulting}/thoth-backend:${VERSION:-latest}
-
-# Frontend  
-- image: ${DOCKER_USERNAME}/thoth-frontend:${VERSION:-latest}
-+ image: ${DOCKER_USERNAME:-tylconsulting}/thoth-frontend:${VERSION:-latest}
-
-# SQL Generator
-- image: ${DOCKER_USERNAME}/thoth-sql-generator:${VERSION:-latest}
-+ image: ${DOCKER_USERNAME:-tylconsulting}/thoth-sql-generator:${VERSION:-latest}
-
-# Proxy
-- image: ${DOCKER_USERNAME}/thoth-proxy:${VERSION:-latest}
-+ image: ${DOCKER_USERNAME:-tylconsulting}/thoth-proxy:${VERSION:-latest}
-
-# Mermaid
-- image: ${DOCKER_USERNAME}/thoth-mermaid-service:${VERSION:-latest}
-+ image: ${DOCKER_USERNAME:-tylconsulting}/thoth-mermaid-service:${VERSION:-latest}
 ```
 
-**File da modificare**:
-- [docker-stack.yml](file:///Users/mp/ThothAI/docker-stack.yml) (root)
-- [cli/thothai-cli/src/thothai_cli/templates/docker-stack.yml](file:///Users/mp/ThothAI/cli/thothai-cli/src/thothai_cli/templates/docker-stack.yml)
+La modifica è stata applicata a tutte e 5 le immagini custom:
+- `thoth-backend`
+- `thoth-frontend`
+- `thoth-sql-generator`
+- `thoth-proxy`
+- `thoth-mermaid-service`
+
+---
+
+## 7. Istruzioni per l'Utente
+
+Per applicare la correzione su un'installazione esistente, seguire questi passaggi:
+
+### 7.1 Aggiornare la CLI
+
+```bash
+# Sul server o sulla macchina locale dove è installata la CLI
+uv pip install thothai-cli --upgrade
+
+# Oppure con pip
+pip install thothai-cli --upgrade
+```
+
+Verificare che la versione sia almeno **1.3.8**:
+```bash
+thothai --version
+```
+
+### 7.2 Aggiornare il file docker-stack.yml
+
+> [!IMPORTANT]
+> Il comando `thothai init` **NON sovrascrive** i file esistenti per proteggere le configurazioni personalizzate. È necessario **cancellare manualmente** il vecchio `docker-stack.yml` prima di rigenerarlo.
+
+```bash
+# Spostarsi nella directory di installazione ThothAI
+cd /path/to/thothai-installation
+
+# Cancellare il vecchio docker-stack.yml
+rm docker-stack.yml
+
+# Rigenerare i file con la nuova versione
+thothai init --mode swarm
+```
+
+### 7.3 Eseguire il deploy
+
+```bash
+# Deploy locale
+thothai swarm deploy
+
+# Oppure deploy remoto
+thothai swarm deploy --server ssh://user@hostname
+```
+
+---
+
+## 8. Verifiche in Caso di Problemi Persistenti
+
+Se dopo aver applicato la soluzione il problema persiste, eseguire le seguenti verifiche diagnostiche:
+
+### 8.1 Verificare il nome immagine effettivo
+
+Dopo un deploy fallito, controllare come Docker ha interpretato il nome dell'immagine:
+
+```bash
+docker service inspect thothai-swarm_backend --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+```
+
+**Risultato atteso (corretto)**:
+```
+tylconsulting/thoth-backend:latest
+```
+
+**Risultato errato** (indica che la variabile non è stata sostituita):
+```
+/thoth-backend:latest
+```
+
+### 8.2 Verificare la configurazione swarm_config.env
+
+```bash
+cat swarm_config.env | grep DOCKER_USERNAME
+```
+
+Deve mostrare:
+```
+DOCKER_USERNAME=tylconsulting
+```
+
+### 8.3 Verificare lo stato dei servizi
+
+```bash
+docker service ls --filter "label=com.docker.stack.namespace=thothai-swarm"
+docker service ps thothai-swarm_backend --no-trunc
+```
+
+### 8.4 Test di pull manuale
+
+Verificare che le immagini siano effettivamente scaricabili sul server remoto:
+
+```bash
+docker pull tylconsulting/thoth-backend:latest
+docker pull tylconsulting/thoth-frontend:latest
+docker pull tylconsulting/thoth-proxy:latest
+docker pull tylconsulting/thoth-sql-generator:latest
+docker pull tylconsulting/thoth-mermaid-service:latest
+```
+
+Se il pull manuale funziona ma il deploy no, il problema è nella risoluzione delle variabili durante il deploy.
+
+### 8.5 Verificare il contenuto del docker-stack.yml generato
+
+Controllare che il file contenga effettivamente i valori di default:
+
+```bash
+grep "DOCKER_USERNAME" docker-stack.yml
+```
+
+Deve mostrare righe come:
+```yaml
+image: ${DOCKER_USERNAME:-tylconsulting}/thoth-backend:${VERSION:-latest}
+```
+
+Se invece mostra:
+```yaml
+image: ${DOCKER_USERNAME}/thoth-backend:${VERSION:-latest}
+```
+
+Significa che il file non è stato aggiornato correttamente. Ripetere la procedura della sezione 7.2.
+
+---
+
+## 9. Soluzioni Alternative (se la Soluzione A non funziona)
 
 ### Soluzione B: Forzare DOCKER_USERNAME nella CLI
 
@@ -222,24 +345,13 @@ swarm_env['DOCKER_USERNAME'] = swarm_env.get('DOCKER_USERNAME', 'tylconsulting')
 stack_name = swarm_env.get('STACK_NAME', 'thothai-swarm')
 ```
 
-### Soluzione C: Usare envsubst nella CLI (come lo script shell)
+### Soluzione C: Usare envsubst nella CLI
 
-Modificare la CLI per eseguire esplicitamente `envsubst` sul file stack prima del deploy, allineandola al comportamento dello script shell.
-
----
-
-## 7. Riepilogo Azioni Consigliate
-
-| Priorità | Azione | Complessità |
-|:--------:|--------|:-----------:|
-| 1 | Diagnostica: eseguire i comandi di verifica sul server remoto (sezione 5) | Bassa |
-| 2 | Applicare Soluzione A: aggiungere default alle immagini | Bassa |
-| 3 | Applicare Soluzione B: forzare variabile nella CLI | Media |
-| 4 | Testare nuovo deploy su server remoto | Bassa |
+Modificare la CLI per eseguire esplicitamente `envsubst` sul file stack prima del deploy, allineandola al comportamento dello script shell `install-swarm.sh`.
 
 ---
 
-## 8. File Analizzati
+## 10. File Analizzati
 
 - [push.sh](file:///Users/mp/ThothAI/push.sh) - Script build/push immagini
 - [docker-stack.yml](file:///Users/mp/ThothAI/docker-stack.yml) - Configurazione Swarm
@@ -248,7 +360,12 @@ Modificare la CLI per eseguire esplicitamente `envsubst` sul file stack prima de
 - [install-swarm.sh](file:///Users/mp/ThothAI/install-swarm.sh) - Script deploy Swarm
 - [docker_manager.py](file:///Users/mp/ThothAI/cli/thothai-cli/src/thothai_cli/core/docker_manager.py) - CLI Docker Manager
 - [swarm.py](file:///Users/mp/ThothAI/cli/thothai-cli/src/thothai_cli/commands/swarm.py) - Comandi CLI Swarm
+- [init.py](file:///Users/mp/ThothAI/cli/thothai-cli/src/thothai_cli/commands/init.py) - Comando init CLI
 
 ---
 
+**Stato**: ✅ Soluzione A applicata in CLI v1.3.8  
+**Data aggiornamento**: 11 Gennaio 2026
+
 *Documento generato automaticamente dall'analisi del codebase ThothAI*
+
