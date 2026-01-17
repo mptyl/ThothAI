@@ -25,6 +25,7 @@ from thoth_core.admin_utils import (
     render_collapsible,
     render_raw_toggle,
 )
+from thoth_core.admin import thoth_admin_site
 
 
 class ThothLogAdminForm(forms.ModelForm):
@@ -57,7 +58,7 @@ class ThothLogAdminForm(forms.ModelForm):
         }
 
 
-@admin.register(ThothLog)
+@admin.register(ThothLog, site=thoth_admin_site)
 class ThothLogAdmin(admin.ModelAdmin):
     form = ThothLogAdminForm
     list_display = (

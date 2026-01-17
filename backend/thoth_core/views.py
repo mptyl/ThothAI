@@ -151,6 +151,52 @@ def api_login(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])  # Pubblico, serve per decidere come mostrare la login form
+@permission_classes([])
+def auth_config(request):
+    """
+    Ritorna la configurazione di autenticazione per il frontend.
+    Usato per determinare quali opzioni mostrare nella login page.
+    """
+    from django.conf import settings
+    
+    providers = []
+    
+    # Aggiungi provider locale se non in single_idp mode
+    if settings.AUTH_MODE != "single_idp":
+        providers.append({
+            "id": "local",
+            "name": "Username/Password",
+            "type": "credentials",
+        })
+    
+    # Aggiungi provider OIDC configurati
+    oidc_apps = settings.SOCIALACCOUNT_PROVIDERS.get("openid_connect", {}).get("APPS", [])
+    for app in oidc_apps:
+        providers.append({
+            "id": app["provider_id"],
+            "name": app["name"],
+            "type": "oidc",
+            "login_url": f"/accounts/openid_connect/login/?process=login&provider_id={app['provider_id']}",
+        })
+    
+    # Determina se è single_idp effettivo
+    is_single_idp = (
+        settings.AUTH_MODE == "single_idp" and 
+        len(providers) == 1 and 
+        providers[0]["type"] == "oidc"
+    )
+    
+    return Response({
+        "mode": "single_idp" if is_single_idp else settings.AUTH_MODE,
+        "providers": providers,
+        "primary_provider": settings.PRIMARY_IDP if is_single_idp else None,
+        "registration_enabled": settings.AUTH_MODE in ("native", "multi"),
+        "password_reset_enabled": settings.AUTH_MODE != "single_idp",
+    })
+
+
+@api_view(["GET"])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def get_current_user(request):

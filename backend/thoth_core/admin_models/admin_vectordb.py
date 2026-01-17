@@ -15,6 +15,7 @@ from django.contrib import admin, messages
 from thoth_core.models import VectorDb
 from thoth_core.utilities.utils import export_csv, import_csv
 from thoth_core.widgets import PasswordInputWithToggle
+from thoth_core.admin import thoth_admin_site
 
 
 class VectorDbAdminForm(forms.ModelForm):
@@ -28,7 +29,7 @@ class VectorDbAdminForm(forms.ModelForm):
         }
 
 
-@admin.register(VectorDb)
+@admin.register(VectorDb, site=thoth_admin_site)
 class VectorDbAdmin(admin.ModelAdmin):
     form = VectorDbAdminForm
     list_display = (

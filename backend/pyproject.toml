@@ -28,7 +28,8 @@ dependencies = [
     # Core Django Framework
     "Django==5.2",
     "djangorestframework==3.16.0",
-    "django-allauth==65.7.0",
+    "django-allauth==65.13.1",
+    "PyJWT>=2.8.0",
     "django-crispy-forms==2.3",
     "crispy-bootstrap5==2025.4",
     "django-cors-headers==4.3.1",

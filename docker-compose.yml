@@ -1,8 +1,6 @@
-# Copyright (c) 2025 Marco Pancotti
+# Copyright (c) 2025 Tyl Consulting di Pancotti Marco
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
-
-version: '3.8'
 
 services:
   # === BACKEND SERVICE ===
@@ -169,14 +167,9 @@ services:
       - "${MERMAID_SERVICE_PORT:-8003}:8001"
     networks:
       - thoth-network
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    # Healthcheck is defined in Dockerfile using node
 
-  # === VECTOR DATABASE SERVICE ===
+    # === VECTOR DATABASE SERVICE ===
   thoth-qdrant:
     image: qdrant/qdrant:latest
     container_name: thoth-qdrant
@@ -187,11 +180,7 @@ services:
       - qdrant-data:/qdrant/storage
     networks:
       - thoth-network
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:6333/" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    # Using default healthcheck from official qdrant image
 
 volumes:
   backend-static:

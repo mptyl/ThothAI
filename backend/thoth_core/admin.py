@@ -10,6 +10,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from django.contrib import admin
+from django.conf import settings
+from django.http import HttpResponseRedirect
+from urllib.parse import urlencode
+
+
+class ThothAdminSite(admin.AdminSite):
+    """
+    Custom Admin Site che redirige al login unificato Next.js.
+    Questo garantisce che tutti gli utenti (locali e OIDC) possano accedere all'admin.
+    """
+    site_header = "Thoth Administration"
+    site_title = "Thoth Admin"
+    index_title = "Welcome to Thoth Administration"
+    
+    def login(self, request, extra_context=None):
+        """
+        Override: invece di mostrare il template admin/login.html,
+        redirige alla form Next.js con ?next=/admin/
+        """
+        # Se già autenticato e staff, procedi normalmente
+        if request.user.is_authenticated and request.user.is_staff:
+            return super().login(request, extra_context)
+        
+        # Altrimenti, redirect alla form unificata
+        next_url = request.GET.get('next', '/admin/')
+        login_url = getattr(settings, 'UNIFIED_LOGIN_URL', '/login')
+        params = urlencode({'next': next_url})
+        return HttpResponseRedirect(f"{login_url}?{params}")
+
+
+# Istanza globale del custom admin site
+thoth_admin_site = ThothAdminSite(name='thoth_admin')
+
 from .admin_models.admin_basic_aimodel import *
 from .admin_models.admin_aimodel import *
 from .admin_models.admin_sqldb import *

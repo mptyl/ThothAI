@@ -13,9 +13,10 @@
 from django.contrib import admin
 from thoth_core.models import Setting
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.admin import thoth_admin_site
 
 
-@admin.register(Setting)
+@admin.register(Setting, site=thoth_admin_site)
 class SettingAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)

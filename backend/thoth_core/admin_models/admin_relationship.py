@@ -14,6 +14,7 @@ from django import forms
 from django.contrib import admin
 from thoth_core.models import Relationship, SqlDb, SqlTable, SqlColumn
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.admin import thoth_admin_site
 
 
 class RelationshipAdminForm(forms.ModelForm):
@@ -215,7 +216,7 @@ class SqlTableTargetRelationshipFilter(admin.SimpleListFilter):
         return queryset
 
 
-@admin.register(Relationship)
+@admin.register(Relationship, site=thoth_admin_site)
 class RelationshipAdmin(admin.ModelAdmin):
     form = RelationshipAdminForm
     change_form_template = "admin/thoth_core/relationship/change_form.html"

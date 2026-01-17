@@ -91,6 +91,25 @@ def _derive_litellm_model(provider: str, model: str) -> str:
 
 DEFAULT_LITELLM_MODEL = _derive_litellm_model(BACKEND_AI_PROVIDER, BACKEND_AI_MODEL) if BACKEND_AI_PROVIDER and BACKEND_AI_MODEL else None
 
+# ============================================
+# AUTHENTICATION MODE CONFIGURATION
+# ============================================
+# Modalità: "native" | "single_idp" | "multi"
+AUTH_MODE = os.environ.get("AUTH_MODE", "native")
+
+# Primary IdP (usato in single_idp mode)
+PRIMARY_IDP = os.environ.get("PRIMARY_IDP", None)  # "microsoft"
+
+# URL della form unificata Next.js
+UNIFIED_LOGIN_URL = os.environ.get(
+    "UNIFIED_LOGIN_URL", 
+    "http://localhost:3040/login"  # Frontend Docker port
+)
+
+# Django usa questa URL per tutti i redirect a login
+LOGIN_URL = UNIFIED_LOGIN_URL
+LOGIN_REDIRECT_URL = os.environ.get("LOGIN_REDIRECT_URL", "/")
+
 ALLOWED_HOSTS = [
     "thoth-be",
     "thoth-be-proxy",
@@ -127,11 +146,73 @@ INSTALLED_APPS = [
     "crispy_bootstrap5",
     "allauth",
     "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.openid_connect",
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+# ============================================
+# SOCIALACCOUNT PROVIDERS (OIDC)
+# ============================================
+SOCIALACCOUNT_PROVIDERS = {
+    "openid_connect": {
+        "APPS": []
+    }
+}
+
+# Microsoft Entra ID Configuration
+# Tutti i parametri sono configurabili via ambiente per uso in produzione
+if os.environ.get("ENTRA_ENABLED", "false").lower() == "true":
+    SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"].append({
+        "provider_id": os.environ.get("ENTRA_PROVIDER_ID", "microsoft"),
+        "name": os.environ.get("ENTRA_PROVIDER_NAME", "Microsoft Entra ID"),
+        "client_id": os.environ.get("ENTRA_CLIENT_ID", ""),
+        "secret": os.environ.get("ENTRA_CLIENT_SECRET", ""),
+        "settings": {
+            "server_url": os.environ.get("ENTRA_ISSUER", ""),
+            "token_auth_method": os.environ.get("ENTRA_TOKEN_AUTH_METHOD", "client_secret_post"),
+        },
+    })
+
+
+# ============================================
+# IDP ROLE MAPPING CONFIGURATION
+# ============================================
+# Mapping ruoli IdP -> Django Groups (configurabile via ambiente)
+# Formato: "IdpRole1:DjangoGroup1,IdpRole2:DjangoGroup2"
+# Se vuoto, i ruoli vengono creati con lo stesso nome
+IDP_ROLE_MAPPING_STR = os.environ.get("IDP_ROLE_MAPPING", "")
+IDP_ROLE_MAPPING = {}
+if IDP_ROLE_MAPPING_STR:
+    for mapping in IDP_ROLE_MAPPING_STR.split(","):
+        if ":" in mapping:
+            idp_role, django_group = mapping.split(":", 1)
+            IDP_ROLE_MAPPING[idp_role.strip()] = django_group.strip()
+
+# ============================================
+# ALLAUTH BEHAVIOR SETTINGS
+# ============================================
+if AUTH_MODE == "single_idp":
+    ACCOUNT_ALLOW_SIGNUPS = False
+    SOCIALACCOUNT_ONLY = True
+    SOCIALACCOUNT_AUTO_SIGNUP = True
+elif AUTH_MODE == "multi":
+    ACCOUNT_ALLOW_SIGNUPS = True
+    SOCIALACCOUNT_AUTO_SIGNUP = True
+else:  # native
+    ACCOUNT_ALLOW_SIGNUPS = True
+    SOCIALACCOUNT_AUTO_SIGNUP = False
+
+ACCOUNT_LOGIN_METHODS = {"email", "username"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
+ACCOUNT_EMAIL_VERIFICATION = os.environ.get("EMAIL_VERIFICATION", "none")
+ACCOUNT_LOGOUT_ON_GET = True
+
+# Social Account Adapter per normalizzazione claims
+SOCIALACCOUNT_ADAPTER = 'thoth_core.adapters.ThothSocialAccountAdapter'
 
 # Verify that REST_FRAMEWORK is configured correctly
 REST_FRAMEWORK = {
@@ -159,6 +240,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "thoth_core.middleware.UnifiedLoginMiddleware",
 ]
 
 if DEBUG:

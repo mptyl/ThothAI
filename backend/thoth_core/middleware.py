@@ -96,54 +96,64 @@ class WorkspaceMiddleware(MiddlewareMixin):
 
 class TokenAuthenticationMiddleware(MiddlewareMixin):
     """
-    Middleware to automatically authenticate users based on token in session or header.
+    Middleware to automatically authenticate users based on token in session, header, or URL.
     This enables seamless SSO between frontend and Django admin.
     """
     
     def process_request(self, request):
-        # Skip if user is already authenticated
-        if not request.user.is_authenticated:
-            token_key = None
+        # Skip if user is already authenticated via Django session
+        if request.user.is_authenticated:
+            return None
             
-            # Try to get token from session first (set by SSO callback)
-            if hasattr(request, 'session') and 'auth_token' in request.session:
-                token_key = request.session.get('auth_token')
+        token_key = None
+        
+        # Try to get token from session first (set by SSO callback)
+        if hasattr(request, 'session') and 'auth_token' in request.session:
+            token_key = request.session.get('auth_token')
+            
+        # Try to get token from Authorization header
+        if not token_key:
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if auth_header.startswith('Token '):
+                token_key = auth_header.split(' ')[1]
+        
+        # Try to get token from X-Auth-Token header (alternative)
+        if not token_key:
+            token_key = request.META.get('HTTP_X_AUTH_TOKEN')
+        
+        # Try to get token from URL query string (for SSO callback flow)
+        if not token_key and request.GET.get('token'):
+            token_key = request.GET.get('token')
+        
+        # If we have a token, try to authenticate
+        if token_key:
+            try:
+                token = Token.objects.select_related('user').get(key=token_key)
+                user = token.user
                 
-            # Try to get token from Authorization header
-            if not token_key:
-                auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-                if auth_header.startswith('Token '):
-                    token_key = auth_header.split(' ')[1]
-            
-            # Try to get token from X-Auth-Token header (alternative)
-            if not token_key:
-                token_key = request.META.get('HTTP_X_AUTH_TOKEN')
-            
-            # If we have a token, try to authenticate
-            if token_key:
-                try:
-                    token = Token.objects.select_related('user').get(key=token_key)
-                    user = token.user
+                # Only auto-login if user is active
+                if user.is_active:
+                    # Use Django's login to properly create session
+                    # This handles all session setup including _auth_user_id
+                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                     
-                    # Only auto-login if user is active
-                    if user.is_active:
-                        # Set the user on the request
-                        request.user = user
-                        request._cached_user = user
-                        
-                        # If this is an admin URL and user has permissions, ensure they're logged in
-                        if request.path.startswith('/admin/') and (user.is_staff or user.is_superuser):
-                            # Use login to create session if not exists
-                            if not request.session.get('_auth_user_id'):
-                                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-                                logger.debug(f"Auto-logged in user {user.username} for admin access")
-                        
-                except Token.DoesNotExist:
-                    logger.debug(f"Invalid token in middleware: {token_key[:8] if token_key else 'None'}...")
-                except Exception as e:
-                    logger.error(f"Error in token authentication middleware: {e}")
+                    # Store token in session for future requests
+                    request.session['auth_token'] = token_key
+                    request.session['frontend_authenticated'] = True
+                    
+                    # IMPORTANT: Explicitly save session to ensure it persists
+                    request.session.modified = True
+                    request.session.save()
+                    
+                    logger.info(f"Token authenticated user {user.username}, session saved")
+                    
+            except Token.DoesNotExist:
+                logger.debug(f"Invalid token in middleware: {token_key[:8] if token_key else 'None'}...")
+            except Exception as e:
+                logger.error(f"Error in token authentication middleware: {e}")
         
         return None  # Continue processing
+
 
 
 class SessionRefreshMiddleware(MiddlewareMixin):
@@ -157,5 +167,28 @@ class SessionRefreshMiddleware(MiddlewareMixin):
             if not request.session.get_expire_at_browser_close():
                 # Keep session alive for 2 hours of inactivity
                 request.session.set_expiry(7200)
+        
+        return None  # Continue processing
+
+
+class UnifiedLoginMiddleware(MiddlewareMixin):
+    """
+    Intercetta richieste a /accounts/login/ e redirige alla form Next.js.
+    Questo garantisce che tutti gli entry point usino la stessa form unificata.
+    
+    TODO FUTURO: Implementare logout federato - attualmente disconnette solo sessione locale.
+    """
+    
+    def process_request(self, request):
+        from django.conf import settings
+        from django.shortcuts import redirect
+        from urllib.parse import urlencode
+        
+        # Intercetta /accounts/login/ solo se utente non autenticato
+        if request.path == '/accounts/login/' and not request.user.is_authenticated:
+            next_url = request.GET.get('next', '/')
+            login_url = getattr(settings, 'UNIFIED_LOGIN_URL', '/login')
+            params = urlencode({'next': next_url})
+            return redirect(f"{login_url}?{params}")
         
         return None  # Continue processing

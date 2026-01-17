@@ -8,6 +8,23 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User, AuthState, LoginRequest } from './types';
 import { apiClient } from './api';
 
+interface AuthConfig {
+  mode: 'native' | 'single_idp' | 'multi';
+  providers: AuthProvider[];
+  primary_provider: string | null;
+  registration_enabled: boolean;
+  password_reset_enabled: boolean;
+}
+
+export interface AuthProvider {
+  id: string;
+  name: string;
+  type: 'credentials' | 'oidc';
+  login_url?: string;
+}
+
+export type { AuthConfig };
+
 interface AuthContextType extends AuthState {
   login: (credentials: LoginRequest) => Promise<void>;
   loginWithToken: (token: string) => Promise<void>;
@@ -23,6 +40,31 @@ export function useAuth(): AuthContextType {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+}
+
+/**
+ * Redirect to OIDC provider login.
+ * Called when user clicks on IdP button (e.g., "Microsoft Entra ID").
+ */
+export function loginWithOIDC(providerId: string, redirectTo?: string) {
+  const backendUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8040';
+  const next = redirectTo || window.location.pathname;
+
+  // Redirect al backend Django che gestisce OIDC
+  window.location.href = `${backendUrl}/accounts/openid_connect/login/?process=login&provider_id=${providerId}&next=${encodeURIComponent(next)}`;
+}
+
+/**
+ * Fetch dynamic auth configuration from backend.
+ * Determines which providers are available and auth mode.
+ */
+export async function fetchAuthConfig(): Promise<AuthConfig> {
+  const backendUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8040';
+  const response = await fetch(`${backendUrl}/api/auth-config`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch auth config');
+  }
+  return response.json();
 }
 
 interface AuthProviderProps {
@@ -43,7 +85,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const checkExistingAuth = async () => {
       try {
         const storedUser = apiClient.getStoredUser();
-        const storedToken = typeof window !== 'undefined' 
+        const storedToken = typeof window !== 'undefined'
           ? (localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token'))
           : null;
 
@@ -51,7 +93,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           try {
             // Verify token is still valid
             const isValid = await apiClient.testToken();
-            
+
             if (isValid) {
               setState({
                 user: storedUser,
@@ -109,10 +151,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (credentials: LoginRequest) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+
     try {
       const response = await apiClient.login(credentials);
-      
+
       setState({
         user: response.user,
         token: response.token,
@@ -132,22 +174,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loginWithToken = async (token: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+
     try {
       // Store the token first
       if (typeof window !== 'undefined') {
         localStorage.setItem('thoth_token', token);
       }
-      
+
       // Get user data using the token
       const userData = await apiClient.getCurrentUser();
-      
+
       if (userData) {
         // Store user data
         if (typeof window !== 'undefined') {
           localStorage.setItem('thoth_user', JSON.stringify(userData));
         }
-        
+
         setState({
           user: userData,
           token: token,
@@ -163,7 +205,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('thoth_token');
       }
-      
+
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -176,7 +218,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     setState(prev => ({ ...prev, isLoading: true }));
-    
+
     try {
       await apiClient.logout();
     } finally {

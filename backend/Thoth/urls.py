@@ -29,16 +29,12 @@ Including another URLconf
 
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
 from django.urls import path, include
+from thoth_core.admin import thoth_admin_site
 
-# Customize admin site
-admin.site.site_header = "Thoth Administration"
-admin.site.site_title = "Thoth Admin"
-admin.site.index_title = "Welcome to Thoth Administration"
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("admin/", thoth_admin_site.urls),
     path("", include(("thoth_core.urls", "thoth_core"), namespace="thoth_core")),
     path("vdb/", include("thoth_ai_backend.urls")),
     path("accounts/", include("allauth.urls")),

@@ -20,6 +20,7 @@ urlpatterns = [
     path("", views.index, name="index"),
     path("auth/admin-callback/", AdminCallbackView.as_view(), name="admin_callback"),
     path("api/login", views.api_login, name="api_login"),
+    path("api/auth-config", views.auth_config, name="auth_config"),
     path("api/user", views.get_current_user, name="get_current_user"),
     path("api/test_token", views.test_token),
     path("api/test_api_key", views.test_api_key),

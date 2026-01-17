@@ -16,6 +16,7 @@ from django.contrib import messages
 from thoth_core.models import AiModel, BasicAiModel
 from thoth_core.utilities.utils import export_csv, import_csv
 from thoth_core.utilities.test_llm_provider import test_llm_provider
+from thoth_core.admin import thoth_admin_site
 
 
 class AiModelAdminForm(forms.ModelForm):
@@ -29,7 +30,7 @@ class AiModelAdminForm(forms.ModelForm):
         }
 
 
-@admin.register(AiModel)
+@admin.register(AiModel, site=thoth_admin_site)
 class AiModelAdmin(admin.ModelAdmin):
     form = AiModelAdminForm
     list_display = ("specific_model", "get_basic_model", "name")

@@ -15,21 +15,27 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
   // Use runtime value if provided, otherwise fallback to build-time embedded value
   const baseUrl = runtimeBackendUrl || process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
 
-  // Function to handle admin link click with token passing
-  const handleAdminClick = (e: React.MouseEvent) => {
+  // Function to handle backend link click - uses token-based SSO for admin access
+  const handleBackendClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // Try to get the token from localStorage
-    const token = typeof window !== 'undefined' ? localStorage.getItem('thoth_token') : null;
+    // Get the user's token from storage
+    const token = typeof window !== 'undefined'
+      ? (localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token'))
+      : null;
+
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
 
     if (token) {
-      // If we have a token, pass it to backend for seamless auth
-      window.location.href = `${baseUrl.replace(/\/$/, '')}/auth/admin-callback/?token=${token}`;
+      // Navigate with token to auto-authenticate on backend via SSO callback
+      // This creates a Django session and redirects to the backend root
+      window.location.href = `${cleanBaseUrl}/auth/admin-callback/?token=${encodeURIComponent(token)}&next=/`;
     } else {
-      // No token, just go to backend home (will require login)
-      window.location.href = `${baseUrl.replace(/\/$/, '')}/`;
+      // No token, navigate directly to backend root (will redirect to login if needed)
+      window.location.href = `${cleanBaseUrl}/`;
     }
   };
+
 
   return (
     <div className="space-y-2">
@@ -57,10 +63,10 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
 
       <a
         href="#"
-        onClick={handleAdminClick}
+        onClick={handleBackendClick}
         className="block text-sm text-gray-300 hover:text-white transition-colors"
       >
-        Admin
+        Backend
       </a>
       <Link
         href="/"

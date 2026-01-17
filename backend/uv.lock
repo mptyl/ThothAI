@@ -502,13 +502,16 @@ wheels = [
 
 [[package]]
 name = "django-allauth"
-version = "65.7.0"
+version = "65.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
     { name = "django" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4b/08/8557880768ba4d5966195ee5e57c69d8b9425c62ffb80293e2ad36dffb83/django_allauth-65.7.0.tar.gz", hash = "sha256:eb060692150f39e1529893c2de5f9b46e1dab51153ff6cca7ad72c7c125259ea", size = 1640126, upload-time = "2025-04-03T07:52:05.391Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/b7/42a048ba1dedbb6b553f5376a6126b1c753c10c70d1edab8f94c560c8066/django_allauth-65.13.1.tar.gz", hash = "sha256:2af0d07812f8c1a8e3732feaabe6a9db5ecf3fad6b45b6a0f7fd825f656c5a15", size = 1983857, upload-time = "2025-11-20T16:34:40.811Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/98/9d44ae1468abfdb521d651fb67f914165c7812dfdd97be16190c9b1cc246/django_allauth-65.13.1-py3-none-any.whl", hash = "sha256:2887294beedfd108b4b52ebd182e0ed373deaeb927fc5a22f77bbde3174704a6", size = 1787349, upload-time = "2025-11-20T16:34:37.354Z" },
+]
 
 [[package]]
 name = "django-browser-reload"
@@ -1669,6 +1672,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyjwt"
+version = "2.10.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/46/bd74733ff231675599650d3e47f361794b22ef3e3770998dda30d3b63726/pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953", size = 87785, upload-time = "2024-11-28T03:43:29.933Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/ad/689f02752eeec26aed679477e80e632ef1b682313be70793d798c1d5fc8f/PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb", size = 22997, upload-time = "2024-11-28T03:43:27.893Z" },
+]
+
+[[package]]
 name = "pymssql"
 version = "2.3.7"
 source = { registry = "https://pypi.org/simple" }
@@ -2292,6 +2304,7 @@ dependencies = [
     { name = "psycopg2-binary" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pyjwt" },
     { name = "pymssql" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
@@ -2351,7 +2364,7 @@ requires-dist = [
     { name = "cohere", specifier = ">=4.0.0" },
     { name = "crispy-bootstrap5", specifier = "==2025.4" },
     { name = "django", specifier = "==5.2" },
-    { name = "django-allauth", specifier = "==65.7.0" },
+    { name = "django-allauth", specifier = "==65.13.1" },
     { name = "django-browser-reload", specifier = "==1.18.0" },
     { name = "django-cors-headers", specifier = "==4.3.1" },
     { name = "django-crispy-forms", specifier = "==2.3" },
@@ -2372,6 +2385,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = "==2.9.10" },
     { name = "pydantic", specifier = "==2.11.7" },
     { name = "pydantic-settings", specifier = "==2.10.1" },
+    { name = "pyjwt", specifier = ">=2.8.0" },
     { name = "pymssql", specifier = ">=2.2.0" },
     { name = "pyodbc", marker = "extra == 'all-databases'", specifier = ">=4.0.0" },
     { name = "pyodbc", marker = "extra == 'sqlserver'", specifier = ">=4.0.0" },

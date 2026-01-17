@@ -26,6 +26,7 @@ from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
 )
 from thoth_core.utilities.task_validation import check_sqldb_task_can_start
 from thoth_core.admin_utils.sql_comment_script import build_comment_script
+from thoth_core.admin import thoth_admin_site
 
 
 logger = logging.getLogger(__name__)
@@ -130,7 +131,7 @@ class SqlDbFilter(admin.SimpleListFilter):
         return queryset
 
 
-@admin.register(SqlTable)
+@admin.register(SqlTable, site=thoth_admin_site)
 class SqlTableAdmin(admin.ModelAdmin):
     form = SqlTableAdminForm
     list_display = ("db_name", "name", "description", "generated_comment")

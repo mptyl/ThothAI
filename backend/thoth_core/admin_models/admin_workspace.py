@@ -14,6 +14,7 @@ from django import forms
 from django.contrib import admin, messages
 from thoth_core.models import Workspace, Agent, AiModel, SqlDb, Setting
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.admin import thoth_admin_site
 
 
 class WorkspaceAdminForm(forms.ModelForm):
@@ -48,7 +49,7 @@ class WorkspaceAdminForm(forms.ModelForm):
         }
 
 
-@admin.register(Workspace)
+@admin.register(Workspace, site=thoth_admin_site)
 class WorkspaceAdmin(admin.ModelAdmin):
     form = WorkspaceAdminForm
     list_display = (

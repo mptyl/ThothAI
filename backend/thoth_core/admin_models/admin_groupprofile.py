@@ -19,6 +19,7 @@ from django.contrib.auth.admin import (
 from thoth_core.models import GroupProfile
 from thoth_core.widgets import PasswordInputWithToggle
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.admin import thoth_admin_site
 
 
 class GroupProfileInline(admin.StackedInline):
@@ -61,12 +62,8 @@ class GroupAdmin(BaseGroupAdmin):
         super().save_model(request, obj, form, change)
 
 
-# Unregister the default Group admin and register our custom one
-admin.site.unregister(Group)
-admin.site.register(Group, GroupAdmin)
-
-# Unregister the default User admin and register our custom one with CSV actions
-admin.site.unregister(User)
+# Register Group with thoth_admin_site
+thoth_admin_site.register(Group, GroupAdmin)
 
 
 class UserAdmin(BaseUserAdmin):
@@ -92,10 +89,11 @@ class UserAdmin(BaseUserAdmin):
         return formset
 
 
-admin.site.register(User, UserAdmin)
+# Register User with thoth_admin_site
+thoth_admin_site.register(User, UserAdmin)
 
 
-@admin.register(GroupProfile)
+@admin.register(GroupProfile, site=thoth_admin_site)
 class GroupProfileAdmin(admin.ModelAdmin):
     list_display = ("group_name", "show_sql", "explain_generated_query")
     list_filter = ("show_sql", "explain_generated_query")

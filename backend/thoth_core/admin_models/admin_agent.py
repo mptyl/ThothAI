@@ -14,6 +14,7 @@ from django import forms
 from django.contrib import admin
 from thoth_core.models import Agent, AiModel
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.admin import thoth_admin_site
 
 
 class AgentAdminForm(forms.ModelForm):
@@ -40,7 +41,7 @@ class AgentAdminForm(forms.ModelForm):
     # clean da copiare qui dal file originale
 
 
-@admin.register(Agent)
+@admin.register(Agent, site=thoth_admin_site)
 class AgentAdmin(admin.ModelAdmin):
     form = AgentAdminForm
     list_display = (

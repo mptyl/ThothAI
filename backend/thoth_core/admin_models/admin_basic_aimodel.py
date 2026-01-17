@@ -13,9 +13,10 @@
 from django.contrib import admin
 from thoth_core.models import BasicAiModel
 from thoth_core.utilities.utils import export_csv, import_csv
+from thoth_core.admin import thoth_admin_site
 
 
-@admin.register(BasicAiModel)
+@admin.register(BasicAiModel, site=thoth_admin_site)
 class BasicAiModelAdmin(admin.ModelAdmin):
     list_display = ("name", "description", "provider")
     search_fields = ("name", "provider")

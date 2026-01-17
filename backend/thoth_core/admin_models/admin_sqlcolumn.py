@@ -22,6 +22,7 @@ from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_column_comments,
 )
 from thoth_core.utilities.task_validation import check_sqldb_task_can_start
+from thoth_core.admin import thoth_admin_site
  
 
 
@@ -163,7 +164,7 @@ class SqlTableColumnFilter(admin.SimpleListFilter):
         return queryset
 
 
-@admin.register(SqlColumn)
+@admin.register(SqlColumn, site=thoth_admin_site)
 class SqlColumnAdmin(admin.ModelAdmin):
     form = SqlColumnAdminForm
     list_display = (

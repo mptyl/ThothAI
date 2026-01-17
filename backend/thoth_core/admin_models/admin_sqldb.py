@@ -58,6 +58,7 @@ from thoth_core.utilities.task_validation import (
 
 from thoth_core.widgets import PasswordInputWithToggle
 from thoth_core.admin_utils.sql_comment_script import build_comment_script
+from thoth_core.admin import thoth_admin_site
 
 
 logger = logging.getLogger(__name__)
@@ -221,7 +222,7 @@ class SqlDbAdminForm(forms.ModelForm):
         return cleaned_data
 
 
-@admin.register(SqlDb)
+@admin.register(SqlDb, site=thoth_admin_site)
 class SqlDbAdmin(admin.ModelAdmin):
     form = SqlDbAdminForm
     list_display = (
