@@ -34,3 +34,20 @@ class ThothCoreConfig(AppConfig):
         # Ensure log directories exist
         from .logging_setup import ensure_log_directories
         ensure_log_directories()
+        
+        # Patch allauth's OpenIDConnectProvider to use Docker-aware adapter
+        # This enables token exchange when emulator returns localhost URLs
+        try:
+            from allauth.socialaccount.providers.openid_connect.provider import (
+                OpenIDConnectProvider,
+            )
+            from .adapters import DockerAwareOpenIDConnectAdapter
+            
+            # Monkey-patch the provider class to use our Docker-aware adapter
+            OpenIDConnectProvider.oauth2_adapter_class = DockerAwareOpenIDConnectAdapter
+            
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info("Patched OpenIDConnectProvider to use DockerAwareOpenIDConnectAdapter")
+        except ImportError:
+            pass  # allauth not installed or configured

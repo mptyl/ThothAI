@@ -1,0 +1,238 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.71kB done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from frontend.Dockerfile
+#2 transferring dockerfile: 2.38kB 0.0s done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/node:20-alpine
+#3 DONE 2.1s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2.62kB 0.1s done
+#4 DONE 0.1s
+
+#5 [deps 1/4] FROM docker.io/library/node:20-alpine@sha256:3960ed74dfe320a67bf8da9555b6bade25ebda2b22b6081d2f60fd7d5d430e9c
+#5 resolve docker.io/library/node:20-alpine@sha256:3960ed74dfe320a67bf8da9555b6bade25ebda2b22b6081d2f60fd7d5d430e9c 0.1s done
+#5 DONE 0.1s
+
+#6 [deps 2/4] WORKDIR /app
+#6 CACHED
+
+#7 [runner  3/10] RUN addgroup -g 1001 -S nodejs &&     adduser -S nextjs -u 1001
+#7 DONE 6.3s
+
+#8 [internal] load build context
+#8 transferring context: 11.78kB 3.3s done
+#8 DONE 3.4s
+
+#9 [deps 3/4] COPY package*.json ./
+#9 DONE 0.5s
+
+#10 [deps 4/4] RUN npm ci --only=production
+#10 5.023 npm warn config only Use `--omit=dev` to omit dev dependencies from the install.
+#10 85.13 npm warn tar TAR_ENTRY_ERROR ENOENT: no such file or directory, open '/app/node_modules/next/dist/compiled/ignore-loader/index.js'
+#10 85.22 npm warn tar TAR_ENTRY_ERROR ENOENT: no such file or directory, open '/app/node_modules/next/dist/compiled/image-size/index.js'
+#10 85.34 npm warn cleanup Failed to remove some directories [
+#10 85.34 npm warn cleanup   [
+#10 85.34 npm warn cleanup     '/app/node_modules/next',
+#10 85.34 npm warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir '/app/node_modules/next/dist/compiled'] {
+#10 85.34 npm warn cleanup       errno: -39,
+#10 85.34 npm warn cleanup       code: 'ENOTEMPTY',
+#10 85.34 npm warn cleanup       syscall: 'rmdir',
+#10 85.34 npm warn cleanup       path: '/app/node_modules/next/dist/compiled'
+#10 85.34 npm warn cleanup     }
+#10 85.34 npm warn cleanup   ],
+#10 85.34 npm warn cleanup   [
+#10 85.34 npm warn cleanup     '/app/node_modules',
+#10 85.34 npm warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir '/app/node_modules/next/dist/compiled'] {
+#10 85.34 npm warn cleanup       errno: -39,
+#10 85.34 npm warn cleanup       code: 'ENOTEMPTY',
+#10 85.34 npm warn cleanup       syscall: 'rmdir',
+#10 85.34 npm warn cleanup       path: '/app/node_modules/next/dist/compiled'
+#10 85.34 npm warn cleanup     }
+#10 85.34 npm warn cleanup   ]
+#10 85.34 npm warn cleanup ]
+#10 ...
+
+#11 [builder  9/15] COPY .eslintrc.json ./
+#11 CACHED
+
+#12 [builder 13/15] COPY public ./public
+#12 CACHED
+
+#13 [builder 11/15] COPY components ./components
+#13 CACHED
+
+#14 [builder  7/15] COPY postcss.config.js ./
+#14 CACHED
+
+#15 [builder  6/15] COPY next.config.js ./
+#15 CACHED
+
+#16 [builder  4/15] RUN npm ci
+#16 CACHED
+
+#17 [builder 10/15] COPY app ./app
+#17 CACHED
+
+#18 [deps 3/4] COPY package*.json ./
+#18 CACHED
+
+#19 [builder  5/15] COPY tsconfig.json ./
+#19 CACHED
+
+#20 [builder  8/15] COPY tailwind.config.js ./
+#20 CACHED
+
+#21 [builder 12/15] COPY lib ./lib
+#21 CACHED
+
+#22 [builder 14/15] RUN touch ../.env.local
+#22 CACHED
+
+#10 [deps 4/4] RUN npm ci --only=production
+#10 85.38 npm warn tar TAR_ENTRY_ERROR ENOENT: no such file or directory, open '/app/node_modules/next/dist/compiled/is-docker/index.js'
+#10 85.39 npm warn tar TAR_ENTRY_ERROR ENOENT: no such file or directory, open '/app/node_modules/next/dist/compiled/is-wsl/index.js'
+#10 85.39 npm warn tar TAR_ENTRY_ERROR ENOENT: no such file or directory, open '/app/node_modules/next/dist/compiled/jest-worker/index.js'
+#10 85.45 npm error code ETIMEDOUT
+#10 85.45 npm error syscall read
+#10 85.45 npm error errno -110
+#10 85.45 npm error network read ETIMEDOUT
+#10 85.45 npm error network This is a problem related to network connectivity.
+#10 85.45 npm error network In most cases you are behind a proxy or have bad network settings.
+#10 85.45 npm error network
+#10 85.45 npm error network If you are behind a proxy, please make sure that the
+#10 85.45 npm error network 'proxy' config is set properly.  See: 'npm help config'
+#10 85.48 npm notice
+#10 85.48 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#10 85.48 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#10 85.48 npm notice To update run: npm install -g npm@11.7.0
+#10 85.48 npm notice
+#10 85.48 npm error A complete log of this run can be found in: /root/.npm/_logs/2026-01-17T22_46_16_495Z-debug-0.log
+#10 ERROR: process "/bin/sh -c npm ci --only=production" did not complete successfully: exit code: 146
+
+#23 [builder  4/15] RUN npm ci
+#23 44.27 npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+#23 53.16 npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+#23 63.64 npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+#23 64.83 npm warn deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead
+#23 65.47 npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+#23 ...
+
+#24 [builder 15/15] RUN npm run build
+#24 6.088 
+#24 6.088 > thoth_ui@0.1.0 build
+#24 6.088 > next build
+#24 6.088 
+#24 ...
+
+#23 [builder  4/15] RUN npm ci
+#23 CANCELED
+
+#24 [builder 15/15] RUN npm run build
+#24 13.63 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#24 13.63 This information is used to shape Next.js' roadmap and prioritize features.
+#24 13.63 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#24 13.63 https://nextjs.org/telemetry
+#24 13.63 
+#24 14.25   ▲ Next.js 14.2.31
+#24 14.25 
+#24 14.74    Creating an optimized production build ...
+#24 160.5 Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+#24 160.5   npx update-browserslist-db@latest
+#24 160.5   Why you should do it regularly: https://github.com/browserslist/update-db#readme
+#24 ...
+
+#13 [builder 11/15] COPY components ./components
+#13 CACHED
+
+#24 [builder 15/15] RUN npm run build
+#24 235.4  ✓ Compiled successfully
+#24 235.4    Linting and checking validity of types ...
+#24 251.9 
+#24 251.9 ./app/about/page.tsx
+#24 251.9 72:9  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#24 251.9 
+#24 251.9 ./app/chat/page.tsx
+#24 251.9 717:19  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#24 251.9 
+#24 251.9 ./app/documentation/page.tsx
+#24 251.9 73:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#24 251.9 
+#24 251.9 ./components/DataTable.tsx
+#24 251.9 131:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#24 251.9 
+#24 251.9 ./components/OutputBlock.tsx
+#24 251.9 37:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+#24 251.9 
+#24 251.9 ./components/PaginatedDataTable.tsx
+#24 251.9 283:6  Warning: React Hook useCallback has unnecessary dependencies: 'rowData.length' and 'totalRows'. Either exclude them or remove the dependency array.  react-hooks/exhaustive-deps
+#24 251.9 
+#24 251.9 ./lib/hooks/use-audio-recorder.ts
+#24 251.9 105:6  Warning: React Hook useCallback has a missing dependency: 'stopRecording'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+#24 251.9 
+#24 251.9 info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+#24 257.6    Collecting page data ...
+#24 263.0    Generating static pages (0/17) ...
+#24 264.0    Generating static pages (4/17) 
+#24 264.3    Generating static pages (8/17) 
+#24 264.3    Generating static pages (12/17) 
+#24 264.4  ✓ Generating static pages (17/17)
+#24 264.7    Finalizing page optimization ...
+#24 264.7    Collecting build traces ...
+#24 281.1 
+#24 281.1 Route (app)                              Size     First Load JS
+#24 281.1 ┌ ○ /                                    2.99 kB         111 kB
+#24 281.1 ├ ○ /_not-found                          873 B          88.1 kB
+#24 281.1 ├ ƒ /about                               4.37 kB         134 kB
+#24 281.1 ├ ƒ /api/config                          0 B                0 B
+#24 281.1 ├ ƒ /api/save-sql-feedback               0 B                0 B
+#24 281.1 ├ ƒ /api/sql-proxy                       0 B                0 B
+#24 281.1 ├ ƒ /api/transcribe                      0 B                0 B
+#24 281.1 ├ ○ /auth/callback                       3.17 kB         111 kB
+#24 281.1 ├ ƒ /chat                                24.9 kB         510 kB
+#24 281.1 ├ ƒ /documentation                       4.58 kB         134 kB
+#24 281.1 ├ ○ /login                               4.66 kB         124 kB
+#24 281.1 ├ ƒ /settings                            10.7 kB         131 kB
+#24 281.1 ├ ○ /test-abort                          2.09 kB         110 kB
+#24 281.1 ├ ○ /test-auth                           2.55 kB         111 kB
+#24 281.1 ├ ○ /test-datatable                      3.18 kB         465 kB
+#24 281.1 ├ ○ /test-dialog                         3.76 kB        97.9 kB
+#24 281.1 └ ○ /welcome                             3.33 kB         122 kB
+#24 281.1 + First Load JS shared by all            87.2 kB
+#24 281.1   ├ chunks/117-84e5d1df96018cb1.js       31.6 kB
+#24 281.1   ├ chunks/fd9d1056-346a4d4db4c146e1.js  53.6 kB
+#24 281.1   └ other shared chunks (total)          1.97 kB
+#24 281.1 
+#24 281.1 
+#24 281.1 ○  (Static)   prerendered as static content
+#24 281.1 ƒ  (Dynamic)  server-rendered on demand
+#24 281.1 
+#24 DONE 284.0s
+
+#25 [runner  4/10] COPY --from=builder /app/public ./public
+#25 DONE 0.1s
+
+#26 [runner  5/10] COPY --from=builder /app/.next/standalone ./
+#26 CANCELED
+------
+ > [deps 4/4] RUN npm ci --only=production:
+85.45 npm error network In most cases you are behind a proxy or have bad network settings.
+85.45 npm error network
+85.45 npm error network If you are behind a proxy, please make sure that the
+85.45 npm error network 'proxy' config is set properly.  See: 'npm help config'
+85.48 npm notice
+85.48 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+85.48 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+85.48 npm notice To update run: npm install -g npm@11.7.0
+85.48 npm notice
+85.48 npm error A complete log of this run can be found in: /root/.npm/_logs/2026-01-17T22_46_16_495Z-debug-0.log
+------
+failed to solve: process "/bin/sh -c npm ci --only=production" did not complete successfully: exit code: 146
+
+
+
+View build details: docker-desktop://dashboard/build/default/default/tews0b34dm8fcz9z7e7fk727q
+

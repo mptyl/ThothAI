@@ -137,6 +137,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",  # Required for django-allauth OIDC
     "corsheaders",  # Add CORS headers support
     "thoth_core",
     "thoth_ai_backend",
@@ -149,6 +150,9 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.openid_connect",
 ]
+
+# Django Sites framework
+SITE_ID = 1
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 
@@ -210,9 +214,13 @@ ACCOUNT_LOGIN_METHODS = {"email", "username"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = os.environ.get("EMAIL_VERIFICATION", "none")
 ACCOUNT_LOGOUT_ON_GET = True
+SOCIALACCOUNT_LOGIN_ON_GET = True  # Force redirect to IdP on GET, don't show confirmation
 
 # Social Account Adapter per normalizzazione claims
 SOCIALACCOUNT_ADAPTER = 'thoth_core.adapters.ThothSocialAccountAdapter'
+
+# Account Adapter per gestione redirect post-login (allauth best practice)
+ACCOUNT_ADAPTER = 'thoth_core.adapters.ThothAccountAdapter'
 
 # Verify that REST_FRAMEWORK is configured correctly
 REST_FRAMEWORK = {
@@ -434,6 +442,12 @@ LOGGING = {
         "thoth_sqldb2": {
             "handlers": ["file"],
             "level": "WARNING",
+            "propagate": False,
+        },
+        # Debug allauth OIDC authentication
+        "allauth": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
             "propagate": False,
         },
     },

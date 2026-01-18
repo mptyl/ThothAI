@@ -177,7 +177,7 @@ def auth_config(request):
             "id": app["provider_id"],
             "name": app["name"],
             "type": "oidc",
-            "login_url": f"/accounts/openid_connect/login/?process=login&provider_id={app['provider_id']}",
+            "login_url": f"/accounts/oidc/{app['provider_id']}/login/?process=login",
         })
     
     # Determina se è single_idp effettivo

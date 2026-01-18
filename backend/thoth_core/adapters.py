@@ -7,17 +7,161 @@ OIDC Social Account Adapter for ThothAI.
 
 Normalizza i claims da Microsoft Entra ID
 e gestisce il mapping di ruoli e gruppi verso Django.
+
+Includes DockerAwareOpenIDConnectAdapter for fixing localhost URLs
+in OIDC discovery when running inside Docker containers.
 """
 
 import logging
+import os
 from typing import List, Optional
 
+from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from allauth.socialaccount.providers.openid_connect.views import OpenIDConnectOAuth2Adapter
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+class ThothAccountAdapter(DefaultAccountAdapter):
+    """
+    Custom Account Adapter following allauth best practices.
+    Configured via ACCOUNT_ADAPTER setting.
+    
+    Overrides get_login_redirect_url to handle cross-origin redirects
+    from backend to frontend after OIDC authentication.
+    """
+    
+    def get_login_redirect_url(self, request):
+        """
+        Override to redirect OIDC logins to frontend with token.
+        Standard allauth method for customizing post-login redirect.
+        
+        If the 'next' parameter points to an external URL (frontend),
+        we redirect to frontend SSO callback with a token.
+        """
+        from rest_framework.authtoken.models import Token
+        from urllib.parse import urlencode, urlparse
+        
+        # Get the 'next' parameter
+        next_url = request.GET.get('next', '')
+        
+        if not next_url:
+            # No explicit redirect, use default
+            return super().get_login_redirect_url(request)
+        
+        parsed = urlparse(next_url)
+        frontend_url = os.environ.get('FRONTEND_URL', '')
+        
+        # Check if next_url is an absolute URL pointing to frontend
+        if parsed.netloc and frontend_url:
+            parsed_frontend = urlparse(frontend_url)
+            
+            # Verify it's pointing to our frontend (security check)
+            if parsed.netloc == parsed_frontend.netloc:
+                # Create or get token for the authenticated user
+                token, _ = Token.objects.get_or_create(user=request.user)
+                
+                # Redirect to frontend SSO callback with token
+                destination = parsed.path or '/chat'
+                params = urlencode({'token': token.key, 'next': destination})
+                callback_url = f"{frontend_url}/auth/sso-callback?{params}"
+                
+                logger.info(f"OIDC redirect to frontend callback: {callback_url}")
+                return callback_url
+            else:
+                # External URL not matching frontend - security block
+                logger.warning(f"Blocked redirect to external URL: {next_url}")
+                return '/chat'
+        
+        # Relative URL or no frontend configured - use default behavior
+        return super().get_login_redirect_url(request)
+
+
+class DockerAwareOpenIDConnectAdapter(OpenIDConnectOAuth2Adapter):
+    """
+    Custom OAuth2 adapter that rewrites localhost URLs to host.docker.internal
+    for server-side requests when running inside Docker.
+    
+    This fixes the token exchange when the OIDC provider (emulator) returns
+    localhost URLs in its discovery document, which don't work from inside
+    a Docker container.
+    
+    Browser redirects still use localhost (for user access), but backend
+    token exchange uses host.docker.internal (for container networking).
+    """
+    
+    def __init__(self, request, provider_id=None):
+        super().__init__(request, provider_id)
+        logger.info(f"DockerAwareOpenIDConnectAdapter initialized for provider: {provider_id}")
+    
+    def _translate_url_for_docker(self, url: str) -> str:
+        """
+        Translate localhost URLs to host.docker.internal when in Docker.
+        """
+        if not url:
+            return url
+        
+        # Check if we're in Docker (HOST_IP env var is set in docker-compose.yml)
+        if os.environ.get('HOST_IP') == 'host.docker.internal':
+            # Replace localhost with host.docker.internal for server-side calls
+            translated = url.replace('http://localhost:', 'http://host.docker.internal:')
+            if translated != url:
+                logger.info(f"URL translated for Docker: {url} -> {translated}")
+            return translated
+        return url
+    
+    @property
+    def openid_config(self):
+        """Override to translate the discovery URL before fetching."""
+        if not hasattr(self, "_openid_config"):
+            from allauth.socialaccount.adapter import get_adapter
+            
+            server_url = self.get_provider().server_url
+            # Translate the discovery URL so we can fetch it from Docker
+            translated_url = self._translate_url_for_docker(server_url)
+            logger.info(f"Fetching OIDC discovery from: {translated_url}")
+            
+            resp = get_adapter().get_requests_session().get(translated_url)
+            resp.raise_for_status()
+            self._openid_config = resp.json()
+            logger.info(f"OIDC discovery fetched, token_endpoint: {self._openid_config.get('token_endpoint')}")
+        return self._openid_config
+    
+    @property
+    def access_token_url(self):
+        """Override to translate localhost to host.docker.internal."""
+        url = self.openid_config["token_endpoint"]
+        translated = self._translate_url_for_docker(url)
+        logger.info(f"access_token_url property returning: {translated}")
+        return translated
+    
+    @property
+    def profile_url(self):
+        """Override to translate localhost to host.docker.internal."""
+        url = self.openid_config["userinfo_endpoint"]
+        translated = self._translate_url_for_docker(url)
+        if translated != url:
+            logger.debug(f"Translated userinfo_endpoint for Docker: {url} -> {translated}")
+        return translated
+
+
+# Import provider class for custom registration
+from allauth.socialaccount.providers.openid_connect.provider import OpenIDConnectProvider
+
+
+class ThothOpenIDConnectProvider(OpenIDConnectProvider):
+    """
+    Custom OpenID Connect provider that uses DockerAwareOpenIDConnectAdapter.
+    
+    This provider must be registered in SOCIALACCOUNT_PROVIDERS to enable
+    Docker-aware URL translation for token exchange.
+    """
+    id = "openid_connect"
+    oauth2_adapter_class = DockerAwareOpenIDConnectAdapter
 
 
 class ThothSocialAccountAdapter(DefaultSocialAccountAdapter):
@@ -31,6 +175,31 @@ class ThothSocialAccountAdapter(DefaultSocialAccountAdapter):
     
     TODO FUTURO: Logout federato (attualmente solo sessione locale)
     """
+    
+    def on_authentication_error(
+        self,
+        request,
+        provider_id,
+        error=None,
+        exception=None,
+        extra_context=None
+    ):
+        """
+        Hook to capture and log OIDC authentication errors.
+        Called by allauth when token exchange or other auth steps fail.
+        """
+        import traceback
+        logger.error(f"OIDC Authentication Error for provider '{provider_id}'")
+        logger.error(f"Error: {error}")
+        if exception:
+            logger.error(f"Exception: {type(exception).__name__}: {exception}")
+            logger.error(f"Traceback:\n{traceback.format_exc()}")
+        if extra_context:
+            logger.error(f"Extra context: {extra_context}")
+        # Let parent handle the error (renders error page)
+        return super().on_authentication_error(
+            request, provider_id, error, exception, extra_context
+        )
     
     def pre_social_login(self, request, sociallogin):
         """

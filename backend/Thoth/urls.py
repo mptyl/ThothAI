@@ -31,14 +31,27 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
 from thoth_core.admin import thoth_admin_site
+from thoth_core import oidc_views
 
 
 urlpatterns = [
     path("admin/", thoth_admin_site.urls),
     path("", include(("thoth_core.urls", "thoth_core"), namespace="thoth_core")),
     path("vdb/", include("thoth_ai_backend.urls")),
+    # Custom OIDC routes using DockerAwareOpenIDConnectAdapter (must be before allauth.urls)
+    path(
+        "accounts/oidc/<str:provider_id>/login/",
+        oidc_views.oidc_login,
+        name="openid_connect_login",
+    ),
+    path(
+        "accounts/oidc/<str:provider_id>/login/callback/",
+        oidc_views.oidc_callback,
+        name="openid_connect_callback",
+    ),
     path("accounts/", include("allauth.urls")),
 ]
+
 
 # Development-specific features
 if settings.DEBUG:

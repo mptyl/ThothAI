@@ -18,6 +18,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+ENV CACHE_BUST=fix_login_url_v1
+
 # Copy source code in stages to ensure all directories are included
 # First copy package files (already done above)
 # Then copy configuration files

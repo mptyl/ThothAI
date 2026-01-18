@@ -48,10 +48,17 @@ export function useAuth(): AuthContextType {
  */
 export function loginWithOIDC(providerId: string, redirectTo?: string) {
   const backendUrl = process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8040';
-  const next = redirectTo || window.location.pathname;
+  const frontendUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
-  // Redirect al backend Django che gestisce OIDC
-  window.location.href = `${backendUrl}/accounts/openid_connect/login/?process=login&provider_id=${providerId}&next=${encodeURIComponent(next)}`;
+  // Build absolute URL for frontend destination
+  const destination = redirectTo || '/chat';
+  const absoluteNext = destination.startsWith('http')
+    ? destination
+    : `${frontendUrl}${destination}`;
+
+  // Redirect to Django backend OIDC endpoint with absolute frontend URL
+  console.log(`[DEBUG] Redirecting to OIDC: ${backendUrl}/accounts/oidc/${providerId}/login/?process=login&next=${encodeURIComponent(absoluteNext)}`);
+  window.location.href = `${backendUrl}/accounts/oidc/${providerId}/login/?process=login&next=${encodeURIComponent(absoluteNext)}`;
 }
 
 /**
