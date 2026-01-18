@@ -46,38 +46,34 @@ class ThothAccountAdapter(DefaultAccountAdapter):
         from rest_framework.authtoken.models import Token
         from urllib.parse import urlencode, urlparse
         
-        # Get the 'next' parameter
+        # Get the 'next' parameter from various sources
         next_url = request.GET.get('next', '')
-        
-        if not next_url:
-            # No explicit redirect, use default
-            return super().get_login_redirect_url(request)
-        
-        parsed = urlparse(next_url)
         frontend_url = os.environ.get('FRONTEND_URL', '')
         
-        # Check if next_url is an absolute URL pointing to frontend
-        if parsed.netloc and frontend_url:
-            parsed_frontend = urlparse(frontend_url)
-            
-            # Verify it's pointing to our frontend (security check)
-            if parsed.netloc == parsed_frontend.netloc:
-                # Create or get token for the authenticated user
-                token, _ = Token.objects.get_or_create(user=request.user)
-                
-                # Redirect to frontend SSO callback with token
-                destination = parsed.path or '/chat'
-                params = urlencode({'token': token.key, 'next': destination})
-                callback_url = f"{frontend_url}/auth/sso-callback?{params}"
-                
-                logger.info(f"OIDC redirect to frontend callback: {callback_url}")
-                return callback_url
-            else:
-                # External URL not matching frontend - security block
-                logger.warning(f"Blocked redirect to external URL: {next_url}")
-                return '/chat'
+        logger.info(f"[REDIRECT] get_login_redirect_url called - next='{next_url}', FRONTEND_URL='{frontend_url}'")
         
-        # Relative URL or no frontend configured - use default behavior
+        # If user is authenticated and we have FRONTEND_URL, always redirect to frontend
+        if request.user.is_authenticated and frontend_url:
+            # Create or get token for the authenticated user
+            token, _ = Token.objects.get_or_create(user=request.user)
+            
+            # Determine destination path
+            if next_url:
+                parsed = urlparse(next_url)
+                # Extract path from absolute or relative URL
+                destination = parsed.path or '/chat'
+            else:
+                destination = '/chat'
+            
+            # Build frontend SSO callback URL
+            params = urlencode({'token': token.key, 'next': destination})
+            callback_url = f"{frontend_url}/auth/sso-callback?{params}"
+            
+            logger.info(f"[REDIRECT] Redirecting to frontend: {callback_url}")
+            return callback_url
+        
+        # Fallback to default behavior
+        logger.info(f"[REDIRECT] Using default redirect (no FRONTEND_URL or not authenticated)")
         return super().get_login_redirect_url(request)
 
 

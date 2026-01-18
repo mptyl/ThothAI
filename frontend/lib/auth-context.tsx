@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User, AuthState, LoginRequest } from './types';
 import { apiClient } from './api';
 
@@ -156,7 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const login = async (credentials: LoginRequest) => {
+  const login = useCallback(async (credentials: LoginRequest) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
@@ -177,9 +177,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }));
       throw error;
     }
-  };
+  }, []);
 
-  const loginWithToken = async (token: string) => {
+  const loginWithToken = useCallback(async (token: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
@@ -221,9 +221,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }));
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true }));
 
     try {
@@ -237,11 +237,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
       });
     }
-  };
+  }, []);
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
-  };
+  }, []);
 
   const contextValue: AuthContextType = {
     ...state,
