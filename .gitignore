@@ -108,6 +108,7 @@ data_exchange/
 exports/*
 !exports/.gitkeep
 qdrant_storage/
+qdrant_storage_local/
 postgres_data/
 .pypi-token
 

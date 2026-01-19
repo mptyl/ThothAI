@@ -196,7 +196,7 @@ def upload_questions_to_vectordb(workspace_id=None) -> tuple:
         raise ValueError(error_msg)
 
     # Check if the base directory specified in DB_ROOT_PATH exists
-    db_root_dir = project_root / db_root_path_val
+    db_root_dir = Path(db_root_path_val)
     if not db_root_dir.is_dir():
         error_msg = (
             f"The directory specified by DB_ROOT_PATH does not exist: {db_root_dir}"

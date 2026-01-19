@@ -35,18 +35,33 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # local and Docker environments.
 import sys
 
-dotenv_path = BASE_DIR.parent / '.env.docker'
-if dotenv_path.exists():
-    load_dotenv(dotenv_path=dotenv_path, override=True)
-    # Verify DB_ROOT_PATH is loaded (critical for preprocessing)
-    db_root = os.getenv('DB_ROOT_PATH')
-    if db_root:
-        # Print to stderr to capture in logs but not pollute stdout (crucial for scripts)
-        sys.stderr.write(f"✓ Loaded .env.docker: DB_ROOT_PATH={db_root}\n")
+# Load environment configuration
+# Priority: .env.local (local dev) > .env.docker (Docker)
+dotenv_local = BASE_DIR.parent / '.env.local'
+dotenv_docker = BASE_DIR.parent / '.env.docker'
+
+# In Docker (DOCKER_ENV set), always use .env.docker
+# Locally (no DOCKER_ENV), prefer .env.local if it exists
+if os.environ.get('DOCKER_ENV'):
+    if dotenv_docker.exists():
+        load_dotenv(dotenv_path=dotenv_docker, override=True)
+        db_root = os.getenv('DB_ROOT_PATH')
+        if db_root:
+            sys.stderr.write(f"✓ Loaded .env.docker: DB_ROOT_PATH={db_root}\n")
+        else:
+            sys.stderr.write("⚠ Warning: .env.docker loaded but DB_ROOT_PATH not found\n")
     else:
-        sys.stderr.write(f"⚠ Warning: .env.docker loaded but DB_ROOT_PATH not found\n")
+        sys.stderr.write(f"⚠ Warning: .env.docker not found at {dotenv_docker}\n")
 else:
-    sys.stderr.write(f"⚠ Warning: .env.docker not found at {dotenv_path}\n")
+    # Local development - prefer .env.local
+    if dotenv_local.exists():
+        load_dotenv(dotenv_path=dotenv_local, override=True)
+        sys.stderr.write("✓ Loaded .env.local for local development\n")
+    elif dotenv_docker.exists():
+        load_dotenv(dotenv_path=dotenv_docker, override=True)
+        sys.stderr.write("✓ Loaded .env.docker (fallback for local development)\n")
+    else:
+        sys.stderr.write("⚠ Warning: No .env file found\n")
 
 APPEND_SLASH = True
 
