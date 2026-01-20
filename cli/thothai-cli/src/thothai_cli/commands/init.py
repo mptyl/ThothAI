@@ -12,8 +12,6 @@ import importlib.resources
 
 console = Console()
 
-from ..core.config_manager import ConfigManager
-
 
 @click.command('init')
 @click.option('--dir', 'directory', type=click.Path(), default='.',
@@ -34,7 +32,7 @@ def init_cmd(ctx, directory, mode):
     
     # Copy template files
     templates_to_copy = [
-        ('config.yml', 'config.yml.local'),
+        ('.env.docker.template', '.env.docker'),
         ('docker-compose.yml', 'docker-compose.yml'),
         ('data', 'data'),
         ('setup_csv', 'setup_csv'),
@@ -65,13 +63,7 @@ def init_cmd(ctx, directory, mode):
                     shutil.copytree(source_path, target)
                     console.print(f"[green]✓[/green] Created {target_name}/ directory")
                 else:
-                    if template_name == 'config.yml':
-                        # Customize deployment mode in config.yml.local
-                        content = source_path.read_text(encoding='utf-8')
-                        content = content.replace('deployment_mode: "compose"', f'deployment_mode: "{mode}"')
-                        target.write_text(content, encoding='utf-8')
-                    else:
-                        shutil.copy(source_path, target)
+                    shutil.copy(source_path, target)
                     console.print(f"[green]✓[/green] Created {target_name}")
         
         # Copy docs directory with user manual only
@@ -93,7 +85,6 @@ def init_cmd(ctx, directory, mode):
         
         # Create .gitignore
         gitignore_content = """# ThothAI
-config.yml.local
 .env.docker
 swarm_config.env
 data/
@@ -112,24 +103,12 @@ data_exchange/
             (data_exchange / '.gitkeep').touch()
         console.print(f"[green]✓[/green] Created data_exchange/ directory")
         
-        # Generate .env.docker immediately to allow user inspection/editing
-        try:
-            config_path = target_dir / 'config.yml.local'
-            if config_path.exists():
-                console.print("[dim]Generating initial .env.docker...[/dim]")
-                # We need to ensure we don't crash if config is invalid (default template should be valid enough)
-                # But ConfigManager might validate?? No, generate_env_docker just reads values.
-                cm = ConfigManager(config_path)
-                if cm.generate_env_docker():
-                    console.print(f"[green]✓[/green] Generated .env.docker")
-        except Exception as e:
-            console.print(f"[yellow]⚠ Could not generate .env.docker: {e}[/yellow]")
-        
         console.print("\n[bold green]✓ Initialization complete![/bold green]\n")
         console.print("[bold]Next steps:[/bold]")
-        console.print(f"1. Edit [cyan]{target_dir}/config.yml.local[/cyan] with your API keys")
+        console.print(f"1. Edit [cyan]{target_dir}/.env.docker[/cyan] with your API keys")
         console.print(f"2. Run [cyan]thothai up[/cyan] to deploy")
         
     except Exception as e:
         console.print(f"\n[bold red]✗ Error during initialization:[/bold red] {e}")
         raise click.Abort()
+

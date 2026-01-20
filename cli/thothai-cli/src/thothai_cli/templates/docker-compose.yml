@@ -12,7 +12,6 @@ services:
       - backend-static:/vol/static
       - backend-media:/vol/media
       - thoth-secrets:/vol/secrets
-      - ./config.yml.local:/app/config.yml.local:ro
     env_file: .env.docker
     environment:
       - HOST_IP=host.docker.internal

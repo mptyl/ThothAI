@@ -15,30 +15,22 @@ console = Console()
 
 def get_docker_ops():
     """Helper to initialize DockerOperations from thothai-cli config."""
-    config_path = Path.cwd() / 'config.yml.local'
-    if not config_path.exists():
-        # Maybe we are in a subfolder or it's a remote-only use case?
-        # For unified CLI, we assume config.yml.local is in CWD if managed here.
-        # But if it's missing, we can try to load from default if thothai was initialized.
-        pass
+    env_path = Path.cwd() / '.env.docker'
+    if not env_path.exists():
+        console.print("[red]Error: .env.docker not found[/red]")
+        return None
     
     try:
-        config_mgr = ConfigManager(config_path)
-        raw_config = config_mgr.config
+        config_mgr = ConfigManager(env_path)
         
-        # Determine deployment mode and stack name
-        deployment_mode = raw_config.get('docker', {}).get('deployment_mode', 'swarm')
-        
-        # Default stack name logic matches init command defaults
-        default_stack = 'thothai-swarm' if deployment_mode == 'swarm' else 'thothai'
-        
-        # Allow override from config, otherwise use default
-        stack_name = raw_config.get('docker', {}).get('stack_name', default_stack)
+        # Get deployment mode and stack name from .env.docker
+        deployment_mode = config_mgr.deployment_mode
+        stack_name = config_mgr.stack_name
         
         # Map thothai-cli config to what DockerOperations expects
         docker_ops_config = {
             'docker': {
-                'connection': 'local',  # thothai-cli is primarily local for now
+                'connection': 'local',
                 'mode': deployment_mode,
                 'stack_name': stack_name,
                 'service': 'backend',

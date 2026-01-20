@@ -58,20 +58,17 @@ git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 
 # 2. Copy and configure environment file
-cp config.yml config.yml.local
-# Edit config.yml.local with your API keys and configuration
+cp .env.docker.template .env.docker
+# Edit .env.docker with your API keys and configuration
 
-# 3. Run the installer
-./install.sh                 # Linux/macOS
-# Windows (CMD or PowerShell): .\install.bat  (or .\install.ps1)
+# 3. Start all services
+./docker-up.sh
+# Or manually: docker compose up -d
 
-# 4. Start all services
-docker compose up -d
-
-# 5. Access the application
+# 4. Access the application
+# Main interface: http://localhost:8040
 # Frontend: http://localhost:3040
 # Backend Admin: http://localhost:8040/admin
-# API: http://localhost:8040/api
 ```
 
 
@@ -231,30 +228,42 @@ LOGFIRE_TOKEN=your-logfire-token
 
 ### Configuration File Structure
 
-ThothAI uses a multi-level configuration system to manage different deployment environments:
+ThothAI uses a simple `.env` file-based configuration system:
 
 #### Configuration Files
 
-1. **`config.yml.local`** – Master configuration for Docker installation
-   - Contains all settings (API keys, ports, databases, monitoring)
-   - Used by `install.sh` to generate `.env.docker`
+1. **`.env.docker`** – Docker configuration (Compose and Swarm)
+   - Contains all settings (API keys, ports, deployment mode)
+   - Copy from `.env.docker.template` and configure
    - NOT committed to the repository (gitignored)
 
-2. **`.env.docker`** – Automatically generated for Docker
-   - Created by `installer.py` based on `config.yml.local`
-   - Contains environment variables for Docker Compose
-   - Regenerated on each run of `install.sh`
+2. **`.env.local`** – Local development configuration
+   - Used by `start-all.sh` for native Python/Node.js development
+   - Copy from `.env.local.template` and configure
+   - NOT committed to the repository (gitignored)
 
-                 ↓                      ↓
-          pyproject.toml.local      Container environment variables
+#### Deployment Options
+
+**Option 1: Wrapper Scripts** (Recommended)
+```bash
+cp .env.docker.template .env.docker
+nano .env.docker  # Configure your API keys
+./docker-up.sh    # Start (Compose or Swarm based on DEPLOYMENT_MODE)
+./docker-down.sh  # Stop
 ```
 
-The process:
-1. `install.sh` checks prerequisites and validates `config.yml.local`
-2. `installer.py` reads `config.yml.local` and generates:
-   - `.env.docker` with all environment variables
-   - `pyproject.toml.local` for database extras
-3. Docker Compose uses `.env.docker` to configure containers
+**Option 2: CLI**
+```bash
+thothai up        # Start
+thothai down      # Stop
+thothai ps        # Status
+```
+
+**Option 3: Manual Docker Commands**
+```bash
+docker compose up -d
+docker compose down
+```
 
 
 
@@ -270,9 +279,9 @@ The project uses `uv` to manage Python consistently:
 
 ### Best Practices
 
-1. **Never commit** files containing credentials (`.env*`, `config.yml.local`)
-2. **Use `config.yml.local`** for configuration
-3. **Do not modify** `.env.docker` manually (it is regenerated automatically)
+1. **Never commit** files containing credentials (`.env.docker`, `.env.local`)
+2. **Use `.env.docker.template`** as starting point for Docker configuration
+3. **Use `.env.local.template`** as starting point for local development
 4. **Back up configurations** before major upgrades
 
 ## 📝 Notes

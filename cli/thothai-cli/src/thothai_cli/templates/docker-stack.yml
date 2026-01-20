@@ -30,8 +30,6 @@ services:
       - AUTO_GENERATE_SECRETS=true
     secrets:
       - ${STACK_NAME:-thothai-swarm}_thoth_env_config
-      - source: ${STACK_NAME:-thothai-swarm}_thoth_config_yml
-        target: /app/config.yml.local
     configs:
       - source: ${STACK_NAME:-thothai-swarm}_thoth_env_docker
         target: /app/.env.docker
@@ -308,8 +306,6 @@ networks:
 
 secrets:
   ${STACK_NAME:-thothai-swarm}_thoth_env_config:
-    external: true
-  ${STACK_NAME:-thothai-swarm}_thoth_config_yml:
     external: true
 
 configs:

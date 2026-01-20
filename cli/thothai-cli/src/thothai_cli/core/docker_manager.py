@@ -349,7 +349,6 @@ class DockerManager:
         files_to_sync = [
             'docker-compose-hub.yml',
             '.env.docker',
-            'config.yml.local',
             'swarm_config.env',
             '.nginx-custom.conf.tpl',
             '.nginx-custom-entrypoint.sh',
@@ -1025,7 +1024,7 @@ exec nginx -g "daemon off;"
                              service_config['volumes'] = new_volumes
                      
                      # Ensure essential config files are synced even if not explicitly in mounts
-                     essential_files = ['.env.docker', 'config.yml.local', '.nginx-custom.conf.tpl', '.nginx-custom-entrypoint.sh']
+                     essential_files = ['.env.docker', '.nginx-custom.conf.tpl', '.nginx-custom-entrypoint.sh']
                      for essential in essential_files:
                          if essential not in synced_files:
                              local_path = self.base_dir / essential
@@ -1563,15 +1562,14 @@ exec nginx -g "daemon off;"
         console.print("[dim]Managing Swarm secrets and configs...[/dim]")
         
         # Remove existing (best effort)
-        self._run_cmd(['docker', 'secret', 'rm', f"{stack_name}_thoth_env_config", f"{stack_name}_thoth_config_yml"], server)
+        self._run_cmd(['docker', 'secret', 'rm', f"{stack_name}_thoth_env_config"], server)
         self._run_cmd(['docker', 'config', 'rm', f"{stack_name}_thoth_env_docker"], server)
         
         # Create new
         res1 = self._run_cmd(['docker', 'secret', 'create', f"{stack_name}_thoth_env_config", '.env.docker'], server)
-        res2 = self._run_cmd(['docker', 'secret', 'create', f"{stack_name}_thoth_config_yml", 'config.yml.local'], server)
         res3 = self._run_cmd(['docker', 'config', 'create', f"{stack_name}_thoth_env_docker", '.env.docker'], server)
         
-        if res1.returncode != 0 or res2.returncode != 0 or res3.returncode != 0:
+        if res1.returncode != 0 or res3.returncode != 0:
             console.print("[yellow]Warning: Some secrets or configs could not be created (they may already exist)[/yellow]")
             
         # Network is now created automatically by the stack (not external)
@@ -1924,7 +1922,7 @@ exec nginx -g "daemon off;"
         
         console.print("\n[bold]Login Credentials:[/bold]")
         console.print(f"  Username: {admin.get('username', 'admin')}")
-        console.print(f"  Password: [as configured in config.yml.local]")
+        console.print(f"  Password: [as configured in .env.docker]")
 
     def swarm_logs(self, service: str = 'backend', tail: int = 50, follow: bool = False, server: Optional[str] = None) -> None:
         """View Swarm service logs."""

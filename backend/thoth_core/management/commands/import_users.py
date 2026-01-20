@@ -48,6 +48,7 @@ class Command(BaseCommand):
                     username=row["username"],
                     defaults={
                         "email": row["email"],
+                        "password": row["password"],
                         "first_name": row["first_name"],
                         "last_name": row["last_name"],
                         "is_staff": row["is_staff"].lower() == "true",

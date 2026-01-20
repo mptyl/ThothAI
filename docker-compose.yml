@@ -2,8 +2,6 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-version: '3.8'
-
 services:
   # === BACKEND SERVICE ===
   backend:
@@ -25,15 +23,11 @@ services:
       - backend-static:/vol/static
       - backend-media:/vol/media
       - thoth-secrets:/vol/secrets
-      - ./config.yml.local:/app/config.yml.local:ro
-      # Development mounts to ensure code is up to date
-      - ./backend/thoth_ai_backend:/app/thoth_ai_backend
-      - ./backend/thoth_core:/app/thoth_core
-      - ./backend/manage.py:/app/manage.py
     env_file: .env.docker
     environment:
       - HOST_IP=host.docker.internal
-      - DOCKER_ENV=development
+      - DOCKER_ENV=production
+      - DOCKER_CONTAINER=true
       - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
       - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
       - AUTO_GENERATE_SECRETS=true
@@ -196,31 +190,23 @@ services:
 volumes:
   backend-static:
     name: thoth-backend-static
-    external: true
   backend-media:
     name: thoth-backend-media
-    external: true
   frontend-cache:
     name: thoth-frontend-cache
-    external: true
   qdrant-data:
     name: thoth-qdrant-data
-    external: true
   thoth-secrets:
     name: thoth-secrets
-    external: true
   thoth-backend-db:
     name: thoth-backend-db
   thoth-logs:
     name: thoth-logs
   thoth-shared-data:
     name: thoth-shared-data
-    external: true
   thoth-data-exchange:
     name: thoth-data-exchange
-    external: true
 
 networks:
   thoth-network:
-    external: true
     name: thoth-network

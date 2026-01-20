@@ -23,10 +23,10 @@ def config_group():
 @config_group.command('show')
 def config_show():
     """Show current configuration."""
-    config_path = Path.cwd() / 'config.yml.local'
+    config_path = Path.cwd() / '.env.docker'
     
     if not config_path.exists():
-        console.print("[red]config.yml.local not found[/red]")
+        console.print("[red].env.docker not found[/red]")
         return
     
     config_mgr = ConfigManager(config_path)
@@ -55,10 +55,10 @@ def config_show():
 @config_group.command('validate')
 def config_validate():
     """Validate configuration."""
-    config_path = Path.cwd() / 'config.yml.local'
+    config_path = Path.cwd() / '.env.docker'
     
     if not config_path.exists():
-        console.print("[red]config.yml.local not found[/red]")
+        console.print("[red].env.docker not found[/red]")
         raise click.Abort()
     
     config_mgr = ConfigManager(config_path)

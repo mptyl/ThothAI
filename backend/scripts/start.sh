@@ -160,56 +160,18 @@ print('Database cleaned for fresh installation')
     echo "Loading default configurations..."
     /app/.venv/bin/python manage.py load_defaults --source docker || echo "Warning: Could not load defaults"
     
-    # 2. Update passwords for imported users from config.yml.local
-    echo "Setting user passwords from configuration..."
-    if [ -f "/app/config.yml.local" ]; then
-        echo "Loading user configuration from config.yml.local..."
-        
-        # Extract admin user details from config
-        ADMIN_USERNAME=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        print(config.get('admin', {}).get('username', 'admin'))
-except:
-    print('admin')
-")
-        
-        ADMIN_PASSWORD=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        print(config.get('admin', {}).get('password', 'admin123'))
-except:
-    print('admin123')
-")
-        
-        # Extract demo user details from config
-        DEMO_USERNAME=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        print(config.get('demo', {}).get('username', 'demo'))
-except:
-    print('demo')
-")
-        
-        DEMO_PASSWORD=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        print(config.get('demo', {}).get('password', 'demo1234'))
-except:
-    print('demo1234')
-")
-        
-        # Update passwords for existing users
-        echo "Updating user passwords..."
-        /app/.venv/bin/python -c "
+    # 2. Update passwords for imported users from environment variables
+    echo "Setting user passwords from environment variables..."
+    
+    # Use environment variables with defaults
+    ADMIN_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}"
+    ADMIN_PASSWORD="${DJANGO_SUPERUSER_PASSWORD:-admin123}"
+    DEMO_USERNAME="${DEMO_USERNAME:-demo}"
+    DEMO_PASSWORD="${DEMO_PASSWORD:-demo1234}"
+    
+    # Update passwords for existing users
+    echo "Updating user passwords..."
+    /app/.venv/bin/python -c "
 import os
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Thoth.settings')
@@ -238,11 +200,7 @@ if demo_user:
 else:
     print('Warning: Demo user $DEMO_USERNAME not found')
 "
-        
-        echo "User password configuration completed."
-    else
-        echo "config.yml.local not found, skipping password configuration"
-    fi
+    echo "User password configuration completed."
     
     # 3. Link workspace demo to demo user
     echo "Setting up demo workspace for demo user..."
@@ -374,48 +332,48 @@ print('Initial setup completed!')
 print('==========================================')
 "
     
-else
-    echo "Found $WORKSPACE_COUNT workspace(s). Skipping initial setup."
-    echo "Database already initialized."
-    
-    # Still create users if they don't exist (for container restarts)
-    echo "Checking users..."
-    if [ -f "/app/config.yml.local" ]; then
-        # Extract admin user details from config
-        ADMIN_USERNAME=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        print(config.get('admin', {}).get('username', 'admin'))
-except:
-    print('admin')
-")
-        
-        # Create admin superuser if not exists
-        DJANGO_SUPERUSER_USERNAME="$ADMIN_USERNAME" \
-        DJANGO_SUPERUSER_EMAIL="admin@example.com" \
-        DJANGO_SUPERUSER_PASSWORD="admin123" \
-        /app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Admin user '$ADMIN_USERNAME' already exists"
-        
-        # Extract demo user details from config
-        DEMO_USERNAME=$(/app/.venv/bin/python -c "
-import yaml
-try:
-    with open('/app/config.yml.local', 'r') as f:
-        config = yaml.safe_load(f)
-        print(config.get('demo', {}).get('username', 'demo'))
-except:
-    print('demo')
-")
-        
-        # Create demo superuser if not exists
-        DJANGO_SUPERUSER_USERNAME="$DEMO_USERNAME" \
-        DJANGO_SUPERUSER_EMAIL="demo@example.com" \
-        DJANGO_SUPERUSER_PASSWORD="demo1234" \
-        /app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Demo user '$DEMO_USERNAME' already exists"
-    fi
 fi
+
+# 7. Ensure default users exist and passwords are correct (Always run)
+echo "Ensuring default users exist and passwords are up to date..."
+ADMIN_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}"
+ADMIN_PASSWORD="${DJANGO_SUPERUSER_PASSWORD:-admin123}"
+DEMO_USERNAME="${DEMO_USERNAME:-demo}"
+DEMO_PASSWORD="${DEMO_PASSWORD:-demo1234}"
+
+# Create/Update admin superuser 
+DJANGO_SUPERUSER_USERNAME="$ADMIN_USERNAME" \
+DJANGO_SUPERUSER_EMAIL="admin@example.com" \
+DJANGO_SUPERUSER_PASSWORD="$ADMIN_PASSWORD" \
+/app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Admin user '$ADMIN_USERNAME' already exists"
+
+# Create/Update demo superuser
+DJANGO_SUPERUSER_USERNAME="$DEMO_USERNAME" \
+DJANGO_SUPERUSER_EMAIL="demo@example.com" \
+DJANGO_SUPERUSER_PASSWORD="$DEMO_PASSWORD" \
+/app/.venv/bin/python manage.py createsuperuser --noinput 2>/dev/null || echo "Demo user '$DEMO_USERNAME' already exists"
+
+# Always ensure passwords are correct from env
+echo "Updating passwords for $ADMIN_USERNAME and $DEMO_USERNAME..."
+/app/.venv/bin/python -c "
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Thoth.settings')
+django.setup()
+from django.contrib.auth.models import User
+
+# Update admin password
+admin_user = User.objects.filter(username='$ADMIN_USERNAME').first()
+if admin_user:
+    admin_user.set_password('$ADMIN_PASSWORD')
+    admin_user.save()
+
+# Update demo password
+demo_user = User.objects.filter(username='$DEMO_USERNAME').first()
+if demo_user:
+    demo_user.set_password('$DEMO_PASSWORD')
+    demo_user.save()
+"
 
 echo "Running collectstatic..."
 /app/.venv/bin/python manage.py collectstatic --noinput

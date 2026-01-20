@@ -18,7 +18,7 @@ def test_ps_compose_calls_correct_commands():
     """Test that ps for compose mode calls the correct Docker commands."""
     # Mock ConfigManager
     mock_config = MagicMock()
-    mock_config.config_path = Path("/tmp/config.yml.local")
+    mock_config.config_path = Path("/tmp/.env.docker")
     mock_config.get.return_value = {'deployment_mode': 'compose'}
     
     mgr = DockerManager(mock_config)
@@ -54,7 +54,7 @@ def test_ps_compose_calls_correct_commands():
 def test_ps_with_show_all_flag():
     """Test that ps with --all flag includes -a option."""
     mock_config = MagicMock()
-    mock_config.config_path = Path("/tmp/config.yml.local")
+    mock_config.config_path = Path("/tmp/.env.docker")
     mock_config.get.return_value = {'deployment_mode': 'compose'}
     
     mgr = DockerManager(mock_config)
@@ -86,7 +86,7 @@ def test_ps_with_show_all_flag():
 def test_ps_remote_uses_docker_context():
     """Test that remote ps uses Docker Context for remote execution."""
     mock_config = MagicMock()
-    mock_config.config_path = Path("/tmp/config.yml.local")
+    mock_config.config_path = Path("/tmp/.env.docker")
     mock_config.get.return_value = {'deployment_mode': 'compose'}
     
     mgr = DockerManager(mock_config)
@@ -137,7 +137,7 @@ def test_ps_remote_uses_docker_context():
 def test_swarm_ps_calls_stack_ps():
     """Test that swarm ps runs docker stack ps."""
     mock_config = MagicMock()
-    mock_config.config_path = Path("/tmp/config.yml.local")
+    mock_config.config_path = Path("/tmp/.env.docker")
     mock_config.get.return_value = {'deployment_mode': 'swarm'}
     
     mgr = DockerManager(mock_config)
@@ -168,7 +168,7 @@ def test_swarm_ps_calls_stack_ps():
 def test_swarm_ps_with_service_filter():
     """Test that swarm ps with service filter runs docker service ps."""
     mock_config = MagicMock()
-    mock_config.config_path = Path("/tmp/config.yml.local")
+    mock_config.config_path = Path("/tmp/.env.docker")
     mock_config.get.return_value = {'deployment_mode': 'swarm'}
     
     mgr = DockerManager(mock_config)

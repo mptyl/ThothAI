@@ -23,8 +23,8 @@ uv pip install thothai-cli
 # 1. Initialize project
 uv run thothai init
 
-# 2. Configure (edit config.yml.local with your API keys)
-nano config.yml.local
+# 2. Configure (edit .env.docker with your API keys)
+nano .env.docker
 
 # 3. Deploy
 uv run thothai up

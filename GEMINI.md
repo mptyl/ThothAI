@@ -23,7 +23,7 @@
 - **Package Management**: `uv` (Python), `npm` (Node.js)
 
 ## Key Directories
-- Root: [README.md](file:///Users/mp/ThothAI/README.md), [docker-compose.yml](file:///Users/mp/ThothAI/docker-compose.yml), [install.sh](file:///Users/mp/ThothAI/install.sh), [config.yml.local](file:///Users/mp/ThothAI/config.yml.local).
+- Root: [README.md](file:///Users/mp/ThothAI/README.md), [docker-compose.yml](file:///Users/mp/ThothAI/docker-compose.yml), [.env.docker.template](file:///Users/mp/ThothAI/.env.docker.template).
 - Backend: [thoth_core](file:///Users/mp/ThothAI/backend/thoth_core), [thoth_ai_backend](file:///Users/mp/ThothAI/backend/thoth_ai_backend).
 - Frontend: [app](file:///Users/mp/ThothAI/frontend/app), [agents](file:///Users/mp/ThothAI/frontend/sql_generator/agents).
 - Docs: `docs/thothai_install/`, `data_exchange/`.
@@ -39,27 +39,44 @@
 ## Development Workflow
 
 ### Configuration
-- **Source of Truth**: `config.yml.local` (Gitignored).
-- **Docker Config**: `.env.docker` (Generated from `config.yml.local`).
+- **Docker**: `.env.docker` (Copy from `.env.docker.template`, gitignored)
+- **Local Dev**: `.env.local` (Copy from `.env.local.template`, gitignored)
 - **Required Env**:
-    - LLMs: `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY`.
-    - Embeddings: `EMBEDDING_PROVIDER`, `EMBEDDING_API_KEY`.
+    - LLMs: `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY`
+    - Embeddings: `EMBEDDING_PROVIDER`, `EMBEDDING_API_KEY`
 
 ### Common Development Commands
 
-#### Quick Start
+#### Quick Start - Docker
 ```bash
-# Interactive installer (recommended)
-./install.sh                    # Linux/macOS
-install.ps1                     # Windows
+# Copy and configure
+cp .env.docker.template .env.docker
+nano .env.docker  # Add your API keys
 
-# Docker setup
-docker-compose up --build       # Start all services
-docker-compose down            # Stop all services
+# Option 1: Wrapper script (recommended)
+./docker-up.sh
+./docker-down.sh
 
-# Docker Swarm setup
-./install-swarm.sh             # Install Swarm
-./deploy-swarm.sh              # Deploy Stack
+# Option 2: CLI
+thothai up
+thothai down
+
+# Option 3: Manual
+docker compose up -d
+docker compose down
+```
+
+#### Quick Start - Local Development
+```bash
+# Copy and configure
+cp .env.local.template .env.local
+nano .env.local  # Add your API keys
+
+# Start all services
+./start-all.sh
+
+# Stop all services
+./stop-all.sh
 ```
 
 #### Backend Development
@@ -140,23 +157,12 @@ This solution uses a **wrapper pattern** that filters the output of `thoth_dbman
 
 ### How It Works
 
-1. **`config.yml.local`** defines which databases are enabled:
-   ```yaml
-   databases:
-     sqlite: true       # Always required, cannot be disabled
-     postgresql: true   # Enable for PostgreSQL support
-     mysql: false       # Disabled - will not be available
-     mariadb: true
-     sqlserver: true
-     informix: true
-   ```
-
-2. **`installer.py`** generates `ENABLED_DATABASES` in `.env.docker`:
-   ```
+1. **`.env.docker`** defines which databases are enabled:
+   ```bash
    ENABLED_DATABASES=sqlite,postgresql,mariadb,sqlserver,informix
    ```
 
-3. **At runtime**, our `initialize_database_plugins()` function:
+2. **At runtime**, our `initialize_database_plugins()` function:
    - Calls `thoth_dbmanager.get_available_databases()` (unmodified external library)
    - Reads `ENABLED_DATABASES` from environment variables
    - Filters the result: databases not in the list are marked as `False`
@@ -184,7 +190,7 @@ if enabled_databases_env:
 ### Benefits
 - **No External Library Changes**: `thoth_dbmanager` remains untouched and can be updated independently
 - **Image Portability**: Pull the same Docker image from Docker Hub for any environment
-- **No Rebuild Required**: Change database support by editing `config.yml.local` and regenerating `.env.docker`
+- **No Rebuild Required**: Change database support by editing `.env.docker`
 - **Security**: Only expose the database drivers you actually need
 - **Backward Compatible**: If `ENABLED_DATABASES` is not set, all installed databases remain available
 
@@ -200,8 +206,7 @@ if enabled_databases_env:
 
 This means:
 - **Build time**: All drivers are installed in the image
-- **Runtime**: Only drivers listed in `ENABLED_DATABASES` are activated
-- **config.yml.local databases section**: Controls **runtime** availability, not build-time installation
+- **Runtime**: Only drivers listed in `ENABLED_DATABASES` (in `.env.docker`) are activated
 
 ## CURL Testing
 

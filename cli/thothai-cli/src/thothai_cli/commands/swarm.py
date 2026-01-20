@@ -16,25 +16,22 @@ console = Console()
 
 def get_docker_manager() -> DockerManager:
     """Get configured Docker manager instance."""
-    config_path = Path.cwd() / 'config.yml.local'
-    if not config_path.exists():
-        console.print("[red]Error: config.yml.local not found[/red]")
+    env_path = Path.cwd() / '.env.docker'
+    if not env_path.exists():
+        console.print("[red]Error: .env.docker not found[/red]")
         console.print("Run [cyan]thothai init[/cyan] first")
         raise click.Abort()
     
-    config_mgr = ConfigManager(config_path)
+    config_mgr = ConfigManager(env_path)
     
     # Ensure consistent stack name default
     raw_config = config_mgr.config
-    deployment_mode = raw_config.get('docker', {}).get('deployment_mode', 'swarm')
+    deployment_mode = raw_config.get('DEPLOYMENT_MODE', 'compose')
     default_stack = 'thothai-swarm' if deployment_mode == 'swarm' else 'thothai'
     
     # Update config object with explicit stack name if not present
-    if 'docker' not in raw_config:
-        raw_config['docker'] = {}
-    
-    if 'stack_name' not in raw_config['docker']:
-        raw_config['docker']['stack_name'] = default_stack
+    if 'STACK_NAME' not in raw_config:
+        raw_config['STACK_NAME'] = default_stack
         
     return DockerManager(config_mgr)
 

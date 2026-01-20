@@ -577,7 +577,7 @@ def initialize_database_plugins():
     Also filters based on ENABLED_DATABASES environment variable if set,
     allowing runtime control over which database plugins are active.
     This enables using generic Docker images with all drivers while
-    only exposing databases configured in config.yml.local.
+    only exposing databases configured via environment variables.
 
     Returns:
         Dict[str, bool]: Dictionary mapping database names to availability status

@@ -16,13 +16,13 @@ console = Console()
 
 def get_docker_manager() -> DockerManager:
     """Get configured Docker manager instance."""
-    config_path = Path.cwd() / 'config.yml.local'
-    if not config_path.exists():
-        console.print("[red]Error: config.yml.local not found[/red]")
+    env_path = Path.cwd() / '.env.docker'
+    if not env_path.exists():
+        console.print("[red]Error: .env.docker not found[/red]")
         console.print("Run [cyan]thothai init[/cyan] first")
         raise click.Abort()
     
-    config_mgr = ConfigManager(config_path)
+    config_mgr = ConfigManager(env_path)
     return DockerManager(config_mgr)
 
 

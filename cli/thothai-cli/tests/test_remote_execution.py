@@ -11,7 +11,7 @@ from thothai_cli.core.docker_manager import DockerManager
 def test_remote_execution_logic():
     # Mock ConfigManager
     mock_config = MagicMock()
-    mock_config.config_path = Path("/tmp/config.yml.local")
+    mock_config.config_path = Path("/tmp/.env.docker")
     
     # Instantiate DockerManager
     mgr = DockerManager(mock_config)
