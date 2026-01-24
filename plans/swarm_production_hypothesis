@@ -1,0 +1,82 @@
+# Ipotesi di Configurazione Swarm in Produzione (NFS + Bind Mounts)
+
+Questa ipotesi delinea l'architettura per il deploy di ThothAI in un ambiente Docker Swarm multi-nodo, utilizzando uno storage centralizzato NFS per garantire la persistenza e la condivisione dei dati tra i servizi.
+
+## 1. Architettura dello Storage
+
+Invece di utilizzare volumi gestiti da Docker (che possono complicare il debugging dei permessi su NFS), utilizzeremo **bind mounts** diretti sui path montati dall'host.
+
+### Presupposti
+- **NFS Server**: Un server Linux (es. `nfs-server.uni.com`) espone le cartelle.
+- **Mount Point sui Nodi**: Ogni nodo Swarm (m1, m2, m3, w1...) monta la share NFS nello stesso path locale.
+  - Esempio di mount point: `/mnt/nfs/thothai/`
+- **Permessi**: L'utente Docker sui nodi deve avere permessi di lettura/scrittura sulla share (tipicamente coordinando gli UID/GID tra nodi e server NFS).
+
+### Struttura Directory su NFS
+```bash
+/mnt/nfs/thothai/
+├── secrets/          # Certificati, password, chiavi API
+├── static/           # Asset statici (Django)
+├── media/            # File caricati dagli utenti
+├── qdrant_data/      # Database vettoriale
+├── postgres_data/    # Database applicativo (se in Swarm)
+├── shared/           # Dati condivisi tra backend e frontend
+└── logs/             # Log centralizzati
+```
+
+## 2. Configurazione `docker-stack.yml`
+
+Esempio di come configurare un servizio utilizzando bind mounts su path NFS:
+
+```yaml
+version: '3.8'
+
+services:
+  backend:
+    image: thothai/backend:latest
+    volumes:
+      # Utilizzo di bind mounts invece di volumi nominati
+      - type: bind
+        source: ${THOTH_DATA_PATH:-/mnt/nfs/thothai}/secrets
+        target: /app/secrets
+      - type: bind
+        source: ${THOTH_DATA_PATH:-/mnt/nfs/thothai}/static
+        target: /app/static
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager # O altri vincoli se necessario
+
+  frontend:
+    image: thothai/frontend:latest
+    volumes:
+      - type: bind
+        source: ${THOTH_DATA_PATH:-/mnt/nfs/thothai}/secrets
+        target: /app/secrets
+        read_only: true # Buona pratica per il frontend
+```
+
+> [!TIP]
+> L'uso di `${THOTH_DATA_PATH}` permette di cambiare il mount point root senza modificare il compose file, passandolo come variabile d'ambiente durante il deploy.
+
+## 3. Workflow di Deploy
+
+Il deploy viene eseguito esclusivamente dal nodo Master (`docker-prod-m1.uni.com`).
+
+### Comando di Deploy
+```bash
+# Eseguito su docker-prod-m1
+export THOTH_DATA_PATH="/mnt/nfs/thothai"
+docker stack deploy -c docker-stack.yml thothai --with-registry-auth
+```
+
+### Vantaggi di questo approccio
+1. **Trasparenza**: I dati sono direttamente accessibili sul filesystem del server Linux NFS per backup e manutenzione.
+2. **Semplicità**: Non richiede l'installazione di plugin di volume Docker aggiuntivi su ogni nodo.
+3. **Affidabilità**: Swarm gestisce lo scheduling, e i bind mounts assicurano che ovunque il container atterri, i dati siano presenti (se il mount NFS è attivo).
+
+## 4. Considerazioni Critiche
+
+- **Disponibilità NFS**: Se il server NFS cade, l'intero stack fallirà. È consigliabile un setup NFS in High Availability se possibile.
+- **Performance**: Il database (PostgreSQL/Qdrant) potrebbe risentire della latenza di rete su NFS. Per carichi elevati, valutare dischi locali veloci con vincoli di placement (`node.hostname`) o database esterni allo Swarm.
+- **Sincronizzazione UID/GID**: Assicurarsi che l'utente che esegue i processi nei container abbia i permessi corretti sulla directory NFS. Spesso si usa la mappatura `all_squash` su NFS con un `anonuid`/`anongid` specifico.

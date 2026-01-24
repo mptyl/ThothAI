@@ -15,8 +15,8 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
   // Use runtime value if provided, otherwise fallback to build-time embedded value
   const baseUrl = runtimeBackendUrl || process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
 
-  // Function to handle admin link click with token passing
-  const handleAdminClick = (e: React.MouseEvent) => {
+  // Function to handle backend link click with token passing
+  const handleBackendClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
     // Try to get the token from localStorage
@@ -57,10 +57,10 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
 
       <a
         href="#"
-        onClick={handleAdminClick}
+        onClick={handleBackendClick}
         className="block text-sm text-gray-300 hover:text-white transition-colors"
       >
-        Admin
+        Backend
       </a>
       <Link
         href="/"

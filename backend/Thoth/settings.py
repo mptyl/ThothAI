@@ -26,6 +26,18 @@ import os
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
+import dj_database_url
+from django.db.backends.signals import connection_created
+from django.dispatch import receiver
+
+@receiver(connection_created)
+def setup_search_path(sender, connection, **kwargs):
+    if connection.vendor == 'postgresql':
+        db_schema = os.environ.get("DB_SCHEMA", "thoth_schema")
+        with connection.cursor() as cursor:
+            # Force search_path to the specific schema to ensure isolation
+            # We don't include 'public' here during migration setup to avoid introspection conflicts
+            cursor.execute(f"SET search_path TO {db_schema}")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -203,20 +215,39 @@ WSGI_APPLICATION = "Thoth.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Using DOCKER_ENV to determine if running in Docker (development/production) or locally (None)
+# Using dynamic database configuration based on environment variables
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Development/Production check for SQLite paths
 DOCKER_ENV = os.environ.get("DOCKER_ENV", None)
-if DOCKER_ENV:  # Running in Docker
+
+if DATABASE_URL:
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": os.environ.get("DB_NAME_DOCKER", "/app/data/db.sqlite3"),
-        }
+        "default": dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=60,
+        )
     }
-else:  # Running locally
+    
+    # Add schema support for PostgreSQL
+    if DATABASE_URL.strip().startswith(("postgres://", "postgresql://")):
+        db_schema = os.environ.get("DB_SCHEMA", "thoth_schema")
+        # Ensure search_path is set. 'options' needs to be a string like '-c search_path=thoth_schema'
+        # dj_database_url might already have some OPTIONS, so we merge.
+        options = DATABASES["default"].get("OPTIONS", {})
+        options["options"] = f"-c search_path={db_schema},public"
+        DATABASES["default"]["OPTIONS"] = options
+else:
+    # Fallback to SQLite (legacy behavior)
+    if DOCKER_ENV:  # Running in Docker
+        sqlite_db_name = os.environ.get("DB_NAME_DOCKER", "/app/backend_db/db.sqlite3")
+    else:  # Running locally
+        sqlite_db_name = BASE_DIR / os.environ.get("DB_NAME_LOCAL", "db.sqlite3")
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / os.environ.get("DB_NAME_LOCAL", "db.sqlite3"),
+            "NAME": sqlite_db_name,
         }
     }
 

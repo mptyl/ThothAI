@@ -22,6 +22,16 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}Starting ThothAI Local Development Environment${NC}"
 echo "================================================"
 
+# --- CLI Arguments ---
+DETACHED=false
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -d|--detach) DETACHED=true ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
 # --- Configuration ---
 BACKEND_PORT=${BACKEND_PORT:-8040}
 FRONTEND_PORT=${FRONTEND_PORT:-3040}
@@ -47,6 +57,26 @@ else
     fi
 fi
 
+# --- Port Management ---
+check_docker() {
+    if ! docker info > /dev/null 2>&1; then
+        return 1
+    fi
+    return 0
+}
+
+reclaim_ports() {
+    echo -e "${BLUE}Ensuring ports are free...${NC}"
+    local ports=("$BACKEND_PORT" "$FRONTEND_PORT" "$SQL_GENERATOR_PORT" "$QDRANT_PORT")
+    for port in "${ports[@]}"; do
+        local pid=$(lsof -ti:"$port")
+        if [ -n "$pid" ]; then
+            echo "  Port $port is occupied by PID $pid. Reclaiming..."
+            kill -9 $pid 2>/dev/null || true
+        fi
+    done
+}
+
 # --- Cleanup function ---
 cleanup() {
     echo ""
@@ -65,49 +95,69 @@ cleanup() {
 }
 trap cleanup INT TERM
 
-# --- Step 1: Stop conflicting Docker services ---
+# --- Step 1: Stop conflicting Docker services and reclaim ports ---
 echo ""
-echo -e "${BLUE}Step 1: Stopping conflicting Docker containers...${NC}"
-docker stop thoth-backend thoth-frontend thoth-sql-generator thoth-proxy thoth-qdrant 2>/dev/null || true
-echo "  Docker containers stopped (if any were running)"
+echo -e "${BLUE}Step 1: Stopping conflicting Docker containers and reclaiming ports...${NC}"
+if check_docker; then
+    docker stop thoth-backend thoth-frontend thoth-sql-generator thoth-proxy thoth-qdrant 2>/dev/null || true
+    echo "  Docker containers stopped (if any were running)"
+else
+    echo -e "${YELLOW}  ⚠ Docker daemon not running. Skipping Docker container cleanup.${NC}"
+fi
+reclaim_ports
+echo "  Ports reclaimed"
 
 # --- Step 2: Keep Mermaid running ---
 echo ""
 echo -e "${BLUE}Step 2: Ensuring Mermaid service is running...${NC}"
-if ! docker ps --format '{{.Names}}' | grep -q 'thoth-mermaid-service'; then
-    docker compose up -d mermaid-service
-    echo "  Started mermaid-service"
+if check_docker; then
+    if ! docker ps --format '{{.Names}}' | grep -q 'thoth-mermaid-service'; then
+        docker compose up -d mermaid-service
+        echo "  Started mermaid-service"
+    else
+        echo "  mermaid-service already running"
+    fi
 else
-    echo "  mermaid-service already running"
+    echo -e "${YELLOW}  ⚠ Docker daemon not running. Mermaid service will be unavailable.${NC}"
 fi
 
 # --- Step 3: Start local Qdrant with separate storage ---
 echo ""
 echo -e "${BLUE}Step 3: Starting Qdrant with local storage...${NC}"
-mkdir -p "$QDRANT_LOCAL_STORAGE"
+if check_docker; then
+    mkdir -p "$QDRANT_LOCAL_STORAGE"
 
-# Stop existing local qdrant if running
-docker stop thoth-qdrant-local 2>/dev/null || true
-docker rm thoth-qdrant-local 2>/dev/null || true
+    # Stop existing local qdrant if running
+    docker stop thoth-qdrant-local 2>/dev/null || true
+    docker rm thoth-qdrant-local 2>/dev/null || true
 
-# Start Qdrant with local storage
-docker run -d \
-    --name thoth-qdrant-local \
-    -p ${QDRANT_PORT}:6333 \
-    -v "$(pwd)/${QDRANT_LOCAL_STORAGE}:/qdrant/storage" \
-    qdrant/qdrant:latest
+    # Start Qdrant with local storage
+    docker run -d \
+        --name thoth-qdrant-local \
+        -p ${QDRANT_PORT}:6333 \
+        -v "$(pwd)/${QDRANT_LOCAL_STORAGE}:/qdrant/storage" \
+        qdrant/qdrant:latest
 
-echo "  Qdrant started on port ${QDRANT_PORT} with storage in ${QDRANT_LOCAL_STORAGE}"
+    # Create logs directory if it doesn't exist
+    mkdir -p logs
+    
+    echo "  Qdrant started on port ${QDRANT_PORT} with storage in ${QDRANT_LOCAL_STORAGE}"
 
-# Wait for Qdrant to be ready
-echo "  Waiting for Qdrant to be ready..."
-for i in {1..30}; do
-    if curl -s http://localhost:${QDRANT_PORT}/ > /dev/null 2>&1; then
-        echo "  Qdrant is ready"
-        break
-    fi
-    sleep 1
-done
+    # Wait for Qdrant to be ready
+    echo "  Waiting for Qdrant to be ready..."
+    for i in {1..30}; do
+        if curl -s http://localhost:${QDRANT_PORT}/ > /dev/null 2>&1; then
+            echo "  Qdrant is ready"
+            break
+        fi
+        sleep 1
+    done
+else
+    echo -e "${RED}  ✗ Docker daemon not running. Qdrant is MANDATORY for ThothAI.${NC}"
+    echo -e "${RED}    Please start Docker and try again.${NC}"
+    # We exit here because Qdrant is essential
+    exit 1
+fi
 
 # --- Step 4: Start Backend ---
 echo ""
@@ -165,33 +215,37 @@ from thoth_core.models import (
 
 print('  Cleaning existing data...')
 
-# Clean workspaces and related data
-Workspace.objects.all().delete()
-print('    - Deleted all Workspaces')
+try:
+    # Clean workspaces and related data
+    Workspace.objects.all().delete()
+    print('    - Deleted all Workspaces')
 
-# Clean database structures
-Relationship.objects.all().delete()
-SqlColumn.objects.all().delete()
-SqlTable.objects.all().delete()
-SqlDb.objects.all().delete()
-print('    - Deleted all SQL database structures')
+    # Clean database structures
+    Relationship.objects.all().delete()
+    SqlColumn.objects.all().delete()
+    SqlTable.objects.all().delete()
+    SqlDb.objects.all().delete()
+    print('    - Deleted all SQL database structures')
 
-# Clean AI configurations
-Agent.objects.all().delete()
-Setting.objects.all().delete()
-AiModel.objects.all().delete()
-BasicAiModel.objects.all().delete()
-print('    - Deleted all AI configurations')
+    # Clean AI configurations
+    Agent.objects.all().delete()
+    Setting.objects.all().delete()
+    AiModel.objects.all().delete()
+    BasicAiModel.objects.all().delete()
+    print('    - Deleted all AI configurations')
 
-# Clean VectorDB
-VectorDb.objects.all().delete()
-print('    - Deleted all Vector databases')
+    # Clean VectorDB
+    VectorDb.objects.all().delete()
+    print('    - Deleted all Vector databases')
 
-# Clean groups (but not users)
-Group.objects.all().delete()
-print('    - Deleted all groups')
+    # Clean groups (but not users)
+    Group.objects.all().delete()
+    print('    - Deleted all groups')
 
-print('  Database cleaned for fresh installation')
+    print('  Database cleaned for fresh installation')
+except Exception as e:
+    # If tables don't exist, this is fine during first startup
+    print(f'  Skipped cleaning: tables may not exist yet ({e})')
 "
     
     # Load all default configurations (groups, users, workspace, AI models, etc.)
@@ -343,12 +397,23 @@ else
     echo "  Found $WORKSPACE_COUNT workspace(s). Database already initialized."
 fi
 
-# Start backend in dev mode from backend directory (runserver needs to be in backend/)
-cd backend
-source .venv/bin/activate
-python manage.py runserver ${BACKEND_PORT} &
-BACKEND_PID=$!
-cd ..
+# --- Step 4: Start Backend ---
+echo ""
+echo -e "${BLUE}Step 4: Starting Backend on port ${BACKEND_PORT}...${NC}"
+
+if [ "$DETACHED" = "true" ]; then
+    cd backend
+    source .venv/bin/activate
+    nohup ./.venv/bin/python manage.py runserver ${BACKEND_PORT} > ../logs/backend.log 2>&1 &
+    BACKEND_PID=$!
+    cd ..
+else
+    cd backend
+    source .venv/bin/activate
+    ./.venv/bin/python manage.py runserver ${BACKEND_PORT} &
+    BACKEND_PID=$!
+    cd ..
+fi
 
 echo "  Backend started (PID: $BACKEND_PID)"
 
@@ -380,9 +445,15 @@ export DJANGO_SERVER=http://localhost:${BACKEND_PORT}
 export VECTOR_DB_HOST=localhost
 export VECTOR_DB_PORT=${QDRANT_PORT}
 
-uv run python main.py &
-SQL_GEN_PID=$!
-cd ../..
+if [ "$DETACHED" = "true" ]; then
+    nohup uv run python main.py > ../../logs/sql_generator.log 2>&1 &
+    SQL_GEN_PID=$!
+    cd ../..
+else
+    uv run python main.py &
+    SQL_GEN_PID=$!
+    cd ../..
+fi
 
 echo "  SQL Generator started (PID: $SQL_GEN_PID)"
 
@@ -398,9 +469,15 @@ export SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT}
 export NEXT_PUBLIC_DJANGO_SERVER=http://localhost:${BACKEND_PORT}
 export NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:${SQL_GENERATOR_PORT}
 
-npm run dev &
-FRONTEND_PID=$!
-cd ..
+if [ "$DETACHED" = "true" ]; then
+    nohup npm run dev > ../logs/frontend.log 2>&1 &
+    FRONTEND_PID=$!
+    cd ..
+else
+    npm run dev &
+    FRONTEND_PID=$!
+    cd ..
+fi
 
 echo "  Frontend started (PID: $FRONTEND_PID)"
 
@@ -420,6 +497,19 @@ echo ""
 echo "Database: backend/db.sqlite3 (local)"
 echo "Qdrant Storage: ${QDRANT_LOCAL_STORAGE}/"
 echo ""
+
+if [ "$DETACHED" = "true" ]; then
+    echo -e "${GREEN}Services are running in the background.${NC}"
+    echo "Logs are available in the ./logs directory:"
+    echo "  - Backend:       ./logs/backend.log"
+    echo "  - SQL Generator: ./logs/sql_generator.log"
+    echo "  - Frontend:      ./logs/frontend.log"
+    echo ""
+    echo -e "${YELLOW}To stop the services, you can run: ./stop-all.sh${NC}"
+    echo ""
+    exit 0
+fi
+
 echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
 echo ""
 

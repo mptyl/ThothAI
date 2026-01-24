@@ -17,11 +17,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='thothlog',
-            name='enhanced_evaluation_selected_sql',
-            field=models.TextField(blank=True, default='', help_text='SQL query selected by enhanced evaluation process'),
-        ),
-        migrations.AddField(
-            model_name='thothlog',
             name='enhanced_evaluation_thinking',
             field=models.TextField(blank=True, default='', help_text='Enhanced evaluation reasoning and analysis'),
         ),

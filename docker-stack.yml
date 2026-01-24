@@ -10,7 +10,7 @@ version: '3.8'
 services:
   # === BACKEND SERVICE ===
   backend:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-backend:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-backend:${IMAGE_VERSION:-latest}
     networks:
       - thoth-network
     volumes:
@@ -28,6 +28,13 @@ services:
       - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
       - DOCKER_CONTAINER=true
       - AUTO_GENERATE_SECRETS=true
+      # PostgreSQL connection
+      - DB_ENGINE=${DB_ENGINE:-django.db.backends.postgresql}
+      - DB_NAME=${DB_NAME:-thoth_db}
+      - DB_USER=${DB_USER:-thoth_user}
+      - DB_PASSWORD=${DB_PASSWORD:-thoth_pass}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
     secrets:
       - thoth_env_config
 
@@ -65,9 +72,41 @@ services:
           cpus: '0.5'
           memory: 1G
 
+  # === DATABASE SERVICE ===
+  db:
+    image: postgres:16-alpine
+    networks:
+      - thoth-network
+    environment:
+      - POSTGRES_DB=${DB_NAME:-thoth_db}
+      - POSTGRES_USER=${DB_USER:-thoth_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-thoth_pass}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    deploy:
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=db"
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
   # === FRONTEND SERVICE ===
   frontend:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-frontend:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-frontend:${IMAGE_VERSION:-latest}
     networks:
       - thoth-network
     ports:
@@ -124,7 +163,7 @@ services:
 
   # === SQL GENERATOR SERVICE ===
   sql-generator:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-sql-generator:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-sql-generator:${IMAGE_VERSION:-latest}
     networks:
       - thoth-network
     ports:
@@ -176,7 +215,7 @@ services:
 
   # === PROXY SERVICE ===
   proxy:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-proxy:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-proxy:${IMAGE_VERSION:-latest}
     networks:
       - thoth-network
     ports:
@@ -220,7 +259,7 @@ services:
 
   # === MERMAID SERVICE ===
   mermaid-service:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-mermaid-service:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-mermaid-service:${IMAGE_VERSION:-latest}
     networks:
       - thoth-network
     ports:
@@ -289,6 +328,8 @@ volumes:
   qdrant-data:
     driver: local
   thoth-backend-db:
+    driver: local
+  postgres-data:
     driver: local
   thoth-backend-secrets:
     driver: local

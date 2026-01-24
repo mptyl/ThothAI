@@ -31,6 +31,13 @@ services:
       - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
       - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
       - AUTO_GENERATE_SECRETS=true
+      # PostgreSQL connection (referenced in settings.py)
+      - DB_ENGINE=${DB_ENGINE:-django.db.backends.postgresql}
+      - DB_NAME=${DB_NAME:-thoth_db}
+      - DB_USER=${DB_USER:-thoth_user}
+      - DB_PASSWORD=${DB_PASSWORD:-thoth_pass}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
     networks:
       - thoth-network
     extra_hosts:
@@ -43,6 +50,27 @@ services:
       start_period: 1200s # 20 minutes for initial setup with AI operations
     depends_on:
       - thoth-qdrant
+
+  # === DATABASE SERVICE (Optional) ===
+  db:
+    image: postgres:16-alpine
+    container_name: thoth-db
+    profiles:
+      - internal-db
+    restart: always
+    environment:
+      - POSTGRES_DB=${DB_NAME:-thoth_db}
+      - POSTGRES_USER=${DB_USER:-thoth_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-thoth_pass}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - thoth-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-thoth_user} -d ${DB_NAME:-thoth_db}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # === FRONTEND SERVICE ===
   frontend:
@@ -206,6 +234,8 @@ volumes:
     name: thoth-shared-data
   thoth-data-exchange:
     name: thoth-data-exchange
+  postgres-data:
+    name: thoth-postgres-data
 
 networks:
   thoth-network:

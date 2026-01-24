@@ -1,7 +1,7 @@
 services:
   # === BACKEND SERVICE ===
   backend:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-backend:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-backend:${IMAGE_VERSION:-latest}
     container_name: thoth-backend
     restart: always
     volumes:
@@ -35,7 +35,7 @@ services:
 
   # === FRONTEND SERVICE ===
   frontend:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-frontend:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-frontend:${IMAGE_VERSION:-latest}
     container_name: thoth-frontend
     restart: always
     ports:
@@ -67,7 +67,7 @@ services:
 
   # === SQL GENERATOR SERVICE ===
   sql-generator:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-sql-generator:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-sql-generator:${IMAGE_VERSION:-latest}
     container_name: thoth-sql-generator
     restart: always
     ports:
@@ -96,7 +96,7 @@ services:
 
   # === PROXY SERVICE ===
   proxy:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-proxy:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-proxy:${IMAGE_VERSION:-latest}
     container_name: thoth-proxy
     restart: always
     ports:
@@ -127,7 +127,7 @@ services:
 
   # === MERMAID SERVICE ===
   mermaid-service:
-    image: ${DOCKER_USERNAME:-tylconsulting}/thoth-mermaid-service:${VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-mermaid-service:${IMAGE_VERSION:-latest}
     container_name: thoth-mermaid-service
     restart: always
     ports:

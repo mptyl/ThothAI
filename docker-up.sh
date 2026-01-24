@@ -118,10 +118,16 @@ if [ "$MODE" = "swarm" ]; then
     echo "Deployed: docker stack services $STACK"
 else
     echo "Starting Docker Compose..."
+    COMPOSE_ARGS=""
+    if [ "${POSTGRES_INTERNAL:-false}" = "true" ]; then
+        echo "  Enabling internal PostgreSQL container..."
+        COMPOSE_ARGS="--profile internal-db"
+    fi
+    
     if [ "${BUILD_MODE:-hub}" = "build" ]; then
-        docker compose up -d --build
+        docker compose $COMPOSE_ARGS up -d --build
     else
-        docker compose up -d
+        docker compose $COMPOSE_ARGS up -d
     fi
     echo "Started: http://localhost:${WEB_PORT:-8040}"
 fi

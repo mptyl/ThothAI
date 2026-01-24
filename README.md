@@ -317,7 +317,7 @@ docker compose build
 ```bash
 # Requires Docker Hub account
 docker login
-./scripts/build-unified.sh v1.0.0
+./push.sh your_username v1.0.0
 ```
 
 ## 🔒 Security

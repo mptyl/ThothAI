@@ -54,6 +54,7 @@ dependencies = [
     # Database Support
     "SQLAlchemy==2.0.40",
     "psycopg2-binary==2.9.10",
+    "dj-database-url==2.3.0",
     # Thoth-specific Libraries (Qdrant as default vector DB)
     # All database drivers for maximum image portability
     # Runtime filtering via ENABLED_DATABASES env var controls which are actually available
