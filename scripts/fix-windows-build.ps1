@@ -4,6 +4,8 @@
 
 # PowerShell script to fix Windows Docker build issues
 
+$ErrorActionPreference = "Stop"
+
 Write-Host "Fixing potential Windows Docker build issues..." -ForegroundColor Green
 
 # Check if frontend/lib/contexts directory exists

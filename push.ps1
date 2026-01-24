@@ -40,7 +40,7 @@ if ($builders -notmatch "thoth-builder") {
 } else {
     docker buildx use thoth-builder
 }
-Write-ColorOutput "✓ Buildx ready" "Green"
+Write-ColorOutput "[OK] Buildx ready" "Green"
 Write-Host ""
 
 # === PHASE 1: BUILD ===
@@ -89,7 +89,7 @@ if (-not $PushOnly.IsPresent) {
         
         docker @params
         if ($LASTEXITCODE -ne 0) { Fail "Build/Push failed for $name" }
-        Write-ColorOutput "✓ Completed for $name" "Green"
+        Write-ColorOutput "[OK] Completed for $name" "Green"
         Write-Host ""
     }
 
@@ -98,7 +98,7 @@ if (-not $PushOnly.IsPresent) {
     docker buildx imagetools create -t "$RegistryUrl/thoth-qdrant:$Version" qdrant/qdrant:latest
     docker buildx imagetools create -t "$RegistryUrl/thoth-qdrant:latest" qdrant/qdrant:latest
     if ($LASTEXITCODE -ne 0) { Fail "Qdrant processing failed" }
-    Write-ColorOutput "✓ Qdrant ready (multi-platform preserved)" "Green"
+    Write-ColorOutput "[OK] Qdrant ready (multi-platform preserved)" "Green"
     Write-Host ""
 
 } else {

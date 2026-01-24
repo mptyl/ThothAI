@@ -92,7 +92,7 @@ function Load-SwarmConfig {
             [System.Environment]::SetEnvironmentVariable($name, $value)
         }
     }
-    Write-ColorOutput "✓ Configuration loaded from $configFile" "Green"
+    Write-ColorOutput "[OK] Configuration loaded from $configFile" "Green"
     return $config
 }
 
@@ -141,7 +141,7 @@ function Pull-Images {
         docker pull "$dockerUser/$img`:$version"
     }
     docker pull qdrant/qdrant:latest
-    Write-ColorOutput "✓ All images pulled" "Green"
+    Write-ColorOutput "[OK] All images pulled" "Green"
 }
 
 # Prepare stack file
@@ -180,7 +180,7 @@ function Prepare-StackFile {
     $content = $content.Replace('thoth_env_docker', "${stackName}_thoth_env_docker")
 
     $content | Out-File -FilePath "docker-stack-swarm.yml" -Encoding utf8
-    Write-ColorOutput "✓ docker-stack-swarm.yml ready" "Green"
+    Write-ColorOutput "[OK] docker-stack-swarm.yml ready" "Green"
 }
 
 # Manage secrets
@@ -203,7 +203,7 @@ function Manage-Secrets {
     if (Test-Path "config.yml.local") { docker secret create "${stackName}_thoth_config_yml" config.yml.local }
     if (Test-Path ".env.docker") { docker config create "${stackName}_thoth_env_docker" .env.docker }
     
-    Write-ColorOutput "✓ Secrets and configs created" "Green"
+    Write-ColorOutput "[OK] Secrets and configs created" "Green"
 }
 
 # Prune resources
@@ -216,7 +216,7 @@ function Prune-Swarm {
     Start-Sleep -Seconds 5
     docker secret rm "${stackName}_thoth_env_config" "${stackName}_thoth_config_yml" 2>$null | Out-Null
     docker config rm "${stackName}_thoth_env_docker" 2>$null | Out-Null
-    Write-ColorOutput "✓ Prune completed" "Green"
+    Write-ColorOutput "[OK] Prune completed" "Green"
 }
 
 # Wait for services
@@ -234,7 +234,7 @@ function Wait-ForServices {
                 if ($parts[0].Trim() -ne $parts[1].Trim()) { $allReady = $false; break }
             }
             if ($allReady) {
-                Write-ColorOutput "✓ All services are running" "Green"
+                Write-ColorOutput "[OK] All services are running" "Green"
                 return
             }
         }

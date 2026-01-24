@@ -4,7 +4,12 @@
 
 # Stop all locally running ThothAI services
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Continue"
+
+# Paths
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $ScriptDir
 
 Write-Host "Stopping ThothAI local services..." -ForegroundColor Cyan
 

@@ -4,6 +4,8 @@
 
 # PowerShell script to fix line endings for .sh files on Windows
 
+$ErrorActionPreference = "Continue"
+
 Write-Host "Fixing line endings for all .sh files..." -ForegroundColor Green
 Write-Host ""
 
