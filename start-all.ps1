@@ -116,30 +116,22 @@ if ((Get-Command "docker" -ErrorAction SilentlyContinue)) {
 
 # --- Step 4: Start Backend ---
 Write-Host "`nStep 4: Starting Backend on port $BACKEND_PORT..." -ForegroundColor Blue
-if (-not (Test-Path "backend/.venv")) {
-    Write-Host "[X] Backend .venv not found. Run 'cd backend; uv sync'." -ForegroundColor Red
-    exit 1
-}
-
-$BACKEND_PYTHON = "backend/.venv/Scripts/python.exe"
-if (-not (Test-Path $BACKEND_PYTHON)) { $BACKEND_PYTHON = "backend/.venv/bin/python" } # Support Git Bash/cross-env
 
 # Initialize DB (Python migrations)
-& $BACKEND_PYTHON backend/manage.py migrate --run-syncdb | Out-Null
-& $BACKEND_PYTHON backend/manage.py createcachetable 2>$null | Out-Null
+Write-Host "  Running migrations..."
+Set-Location "backend"
+uv run python manage.py migrate --run-syncdb | Out-Null
+uv run python manage.py createcachetable 2>$null | Out-Null
+Set-Location ..
 
 $startBackend = {
-    param($py, $port)
-    Set-Location (Get-Location)
-    & $py backend/manage.py runserver $port
+    param($port)
+    Set-Location "backend"
+    $env:PYTHONUNBUFFERED = "1"
+    uv run python manage.py runserver $port
 }
 
-if ($Detached) {
-    Start-Job -ScriptBlock $startBackend -ArgumentList $BACKEND_PYTHON, $BACKEND_PORT -Name "Thoth-Backend" | Out-Null
-} else {
-    # In interactive mode, we start them as jobs but we'll wait for Ctrl+C
-    Start-Job -ScriptBlock $startBackend -ArgumentList $BACKEND_PYTHON, $BACKEND_PORT -Name "Thoth-Backend" | Out-Null
-}
+Start-Job -ScriptBlock $startBackend -ArgumentList $BACKEND_PORT -Name "Thoth-Backend" | Out-Null
 Write-Host "  Backend started."
 
 # --- Step 5: Start SQL Generator ---

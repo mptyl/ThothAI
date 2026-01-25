@@ -150,4 +150,4 @@ npm run dev
 
 - **Conflitti di Porta**: Assicurati che le porte `8040`, `3040`, `8020` e `6333` siano libere.
 - **Problemi Micro-Frontend**: Se il frontend non riesce a comunicare con il backend, verifica che `NEXT_PUBLIC_DJANGO_SERVER` corrisponda esattamente all'URL del backend.
-- **Database**: Lo sviluppo locale utilizza SQLite (`backend/db.sqlite3`) per impostazione predefinita. Per resettarlo, elimina il file ed esegui nuovamente le migrazioni e `load_defaults`.
+- **Database**: Lo sviluppo locale utilizza SQLite (`backend/db.sqlite3`) per impostazione predefinita, ma supporta PostgreSQL se `DATABASE_URL` è configurato in `.env.local`.

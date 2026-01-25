@@ -58,8 +58,11 @@ git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 
 # 2. Copy and configure environment file
-cp .env.docker.template .env.docker
+# 2. Configure environment
+cp .env.compose.template .env.docker
 # Edit .env.docker with your API keys and configuration
+# By default uses internal DB (POSTGRES_INTERNAL=true)
+# To use external DB: set POSTGRES_INTERNAL=false and configure DB_* vars
 
 # 3. Start all services
 ./docker-up.sh
@@ -232,9 +235,8 @@ ThothAI uses a simple `.env` file-based configuration system:
 
 #### Configuration Files
 
-1. **`.env.docker`** – Docker configuration (Compose and Swarm)
-   - Contains all settings (API keys, ports, deployment mode)
-   - Copy from `.env.docker.template` and configure
+1. **`.env.docker`** – Docker configuration (Active)
+   - Copy from `.env.compose.template` (Local) or `.env.swarm.template` (Production)
    - NOT committed to the repository (gitignored)
 
 2. **`.env.local`** – Local development configuration
@@ -244,25 +246,26 @@ ThothAI uses a simple `.env` file-based configuration system:
 
 #### Deployment Options
 
-**Option 1: Wrapper Scripts** (Recommended)
+**Option 1: Docker Compose (Local)**
 ```bash
-cp .env.docker.template .env.docker
-nano .env.docker  # Configure your API keys
-./docker-up.sh    # Start (Compose or Swarm based on DEPLOYMENT_MODE)
-./docker-down.sh  # Stop
-```
-
-**Option 2: CLI**
-```bash
-thothai up        # Start
-thothai down      # Stop
-thothai ps        # Status
-```
-
-**Option 3: Manual Docker Commands**
-```bash
+cp .env.compose.template .env.docker
+# Configure keys...
 docker compose up -d
-docker compose down
+```
+
+**Option 3: Local Development (Hybrid)**
+```bash
+cp .env.local.template .env.local
+# Configure keys...
+# Start using SQLite (default) or configure DATABASE_URL for PostgreSQL
+./start-all.sh
+```
+
+**Option 2: Docker Swarm (Production)**
+```bash
+cp .env.swarm.template .env.swarm
+# Configure keys, external DB, and NFS path...
+docker stack deploy -c docker-stack.yml thoth
 ```
 
 

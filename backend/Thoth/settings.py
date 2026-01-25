@@ -217,6 +217,12 @@ WSGI_APPLICATION = "Thoth.wsgi.application"
 
 # Using dynamic database configuration based on environment variables
 DATABASE_URL = os.environ.get("DATABASE_URL")
+DB_ENGINE = os.environ.get("DB_ENGINE")
+DB_NAME = os.environ.get("DB_NAME")
+DB_USER = os.environ.get("DB_USER")
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+DB_HOST = os.environ.get("DB_HOST")
+DB_PORT = os.environ.get("DB_PORT")
 
 # Development/Production check for SQLite paths
 DOCKER_ENV = os.environ.get("DOCKER_ENV", None)
@@ -232,11 +238,28 @@ if DATABASE_URL:
     # Add schema support for PostgreSQL
     if DATABASE_URL.strip().startswith(("postgres://", "postgresql://")):
         db_schema = os.environ.get("DB_SCHEMA", "thoth_schema")
-        # Ensure search_path is set. 'options' needs to be a string like '-c search_path=thoth_schema'
-        # dj_database_url might already have some OPTIONS, so we merge.
         options = DATABASES["default"].get("OPTIONS", {})
         options["options"] = f"-c search_path={db_schema},public"
         DATABASES["default"]["OPTIONS"] = options
+
+elif DB_ENGINE == "django.db.backends.postgresql" and DB_NAME and DB_USER and DB_PASSWORD and DB_HOST:
+    # Explicit PostgreSQL configuration (Swarm / External DB)
+    db_schema = os.environ.get("DB_SCHEMA", "thoth_schema")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": DB_NAME,
+            "USER": DB_USER,
+            "PASSWORD": DB_PASSWORD,
+            "HOST": DB_HOST,
+            "PORT": DB_PORT or "5432",
+            "OPTIONS": {
+                "options": f"-c search_path={db_schema},public",
+            },
+        }
+    }
+    print(f"✓ Configured external PostgreSQL: Host={DB_HOST}, DB={DB_NAME}, Schema={db_schema}")
+
 else:
     # Fallback to SQLite (legacy behavior)
     if DOCKER_ENV:  # Running in Docker
@@ -250,6 +273,7 @@ else:
             "NAME": sqlite_db_name,
         }
     }
+    # print(f"✓ Configured SQLite: {sqlite_db_name}")
 
 # Secrets directories for sensitive uploads (e.g., SSH private keys)
 # In Docker, prefer the mounted secrets volume at /vol/secrets; locally, use project ./secrets

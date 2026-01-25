@@ -6,9 +6,10 @@ ThothAI configuration is centralized in simple environment files. This approach 
 
 | File | Purpose | Environment | Git Status |
 |------|---------|-------------|------------|
-| **`.env.docker`** | Main config for Docker Compose/Swarm | Production / Docker Dev | `gitignored` |
+| **`.env.docker`** | Active Config (Copied from template) | Production / Docker Dev | `gitignored` |
 | **`.env.local`** | Config for local native execution | Local Development | `gitignored` |
-| `.env.docker.template` | Template source for `.env.docker` | - | Committed |
+| `.env.compose.template` | Template source for Local Docker Compose | - | Committed |
+| `.env.swarm.template` | Template source for Swarm Production | - | Committed |
 | `.env.local.template` | Template source for `.env.local` | - | Committed |
 
 ## Variable Reference
@@ -19,6 +20,7 @@ ThothAI configuration is centralized in simple environment files. This approach 
 |----------|-------------|--------------|---------|
 | `DEPLOYMENT_MODE` | Orchestrator selection | `compose`, `swarm` | `compose` |
 | `BUILD_MODE` | Image source strategy | `hub` (pull), `build` (compile) | `hub` |
+| `THOTH_DATA_PATH` | NFS/Bind Mount base path (Swarm only) | Absolute path | `/mnt/nfs/thothai` |
 | `DOCKER_REGISTRY` | Registry for images | User/Org name | `tylconsulting` |
 | `IMAGE_VERSION` | Tag to deploy | `latest`, `v1.0.0` | `latest` |
 
@@ -33,6 +35,16 @@ These ports defined where services listen on the **host machine**.
 | `SQL_GENERATOR_PORT` | SQL Gen Agent API | `8020` |
 | `QDRANT_PORT` | Vector DB | `6333` |
 | `MERMAID_SERVICE_PORT`| Diagram Service | `8003` |
+
+### Database Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `POSTGRES_INTERNAL` | Use internal DB container? | `true` |
+| `AUTO_CREATE_SCHEMA`| Auto-create schema on startup? | `false` |
+| `DB_HOST` | External DB Host | - |
+| `DB_PORT` | External DB Port | `5432` |
+| `DB_SCHEMA` | Schema name | `thoth_db_swarm` |
 
 ### AI Providers (Application Logic)
 

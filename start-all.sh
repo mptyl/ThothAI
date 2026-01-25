@@ -494,7 +494,11 @@ echo "  SQL Generator: http://localhost:${SQL_GENERATOR_PORT}"
 echo "  Qdrant:        http://localhost:${QDRANT_PORT}"
 echo "  Mermaid:       http://localhost:8003"
 echo ""
-echo "Database: backend/db.sqlite3 (local)"
+if grep -q "^DATABASE_URL=" .env.local && grep -q "postgres" .env.local; then
+    echo "Database: PostgreSQL (configured in .env.local)"
+else
+    echo "Database: backend/db.sqlite3 (local) - Default"
+fi
 echo "Qdrant Storage: ${QDRANT_LOCAL_STORAGE}/"
 echo ""
 

@@ -36,6 +36,8 @@ desktop.ini
 .directory
 .Spotlight-V100
 .Trashes
+.editorconfig
+.envrc
 
 # Git
 .git
@@ -46,11 +48,15 @@ desktop.ini
 **/*.local
 .env
 .env.*
-!.env.template
+.env.*.template
+config.yml
+config.yml.template
+.env.template
 .env.docker
 .admin_password.hash
 .pypi-token
 swarm_config.env
+.*.yml
 
 # Runtime Data & Volumes (Use bind mounts instead)
 data_exchange/
@@ -60,10 +66,15 @@ exports/
 backend/logs/
 frontend/logs/
 frontend/sql_generator/logs/
+logs/
+output.log
 staticfiles/
 media/
 
 # AI Tooling & Metadata
+.agent/
+antigravity/
+openspec/
 .claude/
 .roo/
 .windsurf/
@@ -73,14 +84,31 @@ media/
 # Documentation & Legacy
 docs/
 legacy/
+enhancement_plans/
+plans/
 video_scripts/
 informix_and_olimpx/
-CHANGELOG.md
+# Global Markdown exclusion (unless needed by app)
+*.md
+# Explicit Context & Meta files
+CLAUDE.md
+GEMINI.md
+README.md
+LICENSE.md
+PUBLISH.md
+TEST_INSTALL.md
 AGENTS.md
+CHANGELOG.md
 PLANNING.md
 VIDEO_TUTORIAL.md
 
 # Scripts (Host-only or redundant)
+clean-all.sh
+clean-docker.sh
+docker-up.sh
+docker-down.sh
+docker-compose*.yml
+docker-stack.yml
 *.ps1
 *.bat
 install.sh
@@ -88,9 +116,15 @@ deploy-swarm.sh
 build-and-install.sh
 build-and-push-images.sh
 start-all.sh
+stop-all.sh
 stackswarm.sh
 remove-sensitive-files.sh
 update_copyright_*.sh
+push.sh
+install-swarm.sh
+
+# CLI Tool
+cli/
 
 # Tests
 .pytest_cache/
@@ -110,3 +144,8 @@ backend/tests/reports/
 
 # Backend specifically
 backend/data/
+backend/proxy/
+backend/tests/
+backend/setup_csv/
+backend/*.example
+backend/pyproject.local.to

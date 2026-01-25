@@ -21,7 +21,7 @@ Everything is controlled by the `.env.docker` file. This file is **gitignored** 
 
 1.  **Create Configuration**:
     ```bash
-    cp .env.docker.template .env.docker
+    cp .env.compose.template .env.docker
     ```
 
 2.  **Edit Settings**:
@@ -31,6 +31,13 @@ Everything is controlled by the `.env.docker` file. This file is **gitignored** 
     - **Build Mode**:
         - `BUILD_MODE=hub` (Default): Pulls pre-built images from Docker Hub. Faster and stable.
         - `BUILD_MODE=build`: Builds images locally from your source code. Use this if you have modified the code.
+
+3.  **Optional External Database**:
+    By default, an internal PostgreSQL container is used (`POSTGRES_INTERNAL=true`).
+    To use an external database (e.g., host machine Postgres or Cloud RDS):
+    - Set `POSTGRES_INTERNAL=false` in `.env.docker`.
+    - Configure `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`.
+    - (Optional) Set `AUTO_CREATE_SCHEMA=true` if you want ThothAI to create the schema automatically.
 
 ## 2. Deployment
 

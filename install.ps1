@@ -300,52 +300,16 @@ function Main {
         exit 1
     }
     
-    # Check Python version
-    if (-not (Test-PythonVersion $PythonCmd)) {
-        Write-ColorOutput "Error: Python 3.9+ is required" "Red"
+    # Check for uv (Required)
+    if (-not (Test-Command "uv")) {
+        Write-ColorOutput "Error: 'uv' is required but not found." "Red"
+        Write-ColorOutput "Please install uv: https://github.com/astral-sh/uv" "Red"
+        # Fallback suggestion for installation
+        Write-ColorOutput "Run: powershell -c `"irm https://astral.sh/uv/install.ps1 | iex`"" "Yellow"
         exit 1
     }
     
-    # Check for required Python packages
-    Write-ColorOutput "Installing required Python packages..." "Yellow"
-    
-    # Check if we're in a virtual environment
-    $InVenv = $env:VIRTUAL_ENV
-    
-    try {
-        if ($InVenv) {
-            # In virtual environment, don't use --user
-            & $PythonCmd -m pip install --quiet pyyaml requests toml 2>$null
-        } else {
-            # Not in virtual environment, use --user
-            & $PythonCmd -m pip install --quiet --user pyyaml requests toml 2>$null
-        }
-        
-        if ($LASTEXITCODE -ne 0) {
-            throw
-        }
-    } catch {
-        Write-ColorOutput "Warning: Could not install Python packages. Trying alternative method..." "Yellow"
-        try {
-            if ($InVenv) {
-                & $PythonCmd -m pip install pyyaml requests toml
-            } else {
-                & $PythonCmd -m pip install --user pyyaml requests toml
-            }
-            
-            if ($LASTEXITCODE -ne 0) {
-                throw
-            }
-        } catch {
-            Write-ColorOutput "Error: Failed to install required Python packages" "Red"
-            if ($InVenv) {
-                Write-ColorOutput "Please run: pip install pyyaml requests toml" "Red"
-            } else {
-                Write-ColorOutput "Please run: pip install --user pyyaml requests toml" "Red"
-            }
-            exit 1
-        }
-    }
+    Write-ColorOutput "Prerequisites OK (Docker, Compose, uv)" "Green"
     
     Write-ColorOutput "Prerequisites OK" "Green"
     Write-Host ""
@@ -363,7 +327,7 @@ function Main {
     
     # Validate configuration
     Write-ColorOutput "Validating configuration..." "Yellow"
-    & $PythonCmd scripts/validate_config.py config.yml.local
+    uv run --with pyyaml --with requests --with toml python scripts/validate_config.py config.yml.local
     if ($LASTEXITCODE -eq 0) {
         Write-ColorOutput "Configuration validation passed" "Green"
     } else {
@@ -375,7 +339,7 @@ function Main {
     
     # Configure embedding provider dependencies
     Write-ColorOutput "Configuring embedding provider dependencies..." "Yellow"
-    & $PythonCmd scripts/configure_embedding.py config.yml.local
+    uv run --with pyyaml --with requests --with toml python scripts/configure_embedding.py config.yml.local
     if ($LASTEXITCODE -ne 0) {
         Write-ColorOutput ""
         Write-ColorOutput "============================================" "Red"
@@ -398,9 +362,9 @@ function Main {
     # Run installer
     Write-ColorOutput "Starting installation..." "Blue"
     if ($InstallerArgs.Count -gt 0) {
-        & $PythonCmd scripts/installer.py $InstallerArgs
+        uv run --with pyyaml --with requests --with toml python scripts/installer.py $InstallerArgs
     } else {
-        & $PythonCmd scripts/installer.py
+        uv run --with pyyaml --with requests --with toml python scripts/installer.py
     }
     
     if ($LASTEXITCODE -eq 0) {

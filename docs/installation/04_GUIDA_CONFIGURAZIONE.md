@@ -6,9 +6,10 @@ La configurazione di ThothAI è centralizzata in semplici file di environment. Q
 
 | File | Scopo | Ambiente | Stato Git |
 |------|-------|----------|-----------|
-| **`.env.docker`** | Config principale per Docker Compose/Swarm | Produzione / Docker Dev | `gitignored` |
+| **`.env.docker`** | Config attiva (Copiata da template) | Produzione / Docker Dev | `gitignored` |
 | **`.env.local`** | Config per esecuzione nativa locale | Sviluppo Locale | `gitignored` |
-| `.env.docker.template` | Sorgente template per `.env.docker` | - | Committato |
+| `.env.compose.template` | Template sorgente per Docker Compose Locale | - | Committato |
+| `.env.swarm.template` | Template sorgente per Swarm Produzione | - | Committato |
 | `.env.local.template` | Sorgente template per `.env.local` | - | Committato |
 
 ## Riferimento Variabili
@@ -19,6 +20,7 @@ La configurazione di ThothAI è centralizzata in semplici file di environment. Q
 |-----------|-------------|---------------|---------|
 | `DEPLOYMENT_MODE` | Selezione orchestratore | `compose`, `swarm` | `compose` |
 | `BUILD_MODE` | Strategia sorgente immagine | `hub` (pull), `build` (compila) | `hub` |
+| `THOTH_DATA_PATH` | Percorso base NFS/Bind Mount (Solo Swarm) | Percorso Assoluto | `/mnt/nfs/thothai` |
 | `DOCKER_REGISTRY` | Registro per immagini | Nome Utente/Org | `tylconsulting` |
 | `IMAGE_VERSION` | Tag da distribuire | `latest`, `v1.0.0` | `latest` |
 
@@ -33,6 +35,16 @@ Queste porte definiscono dove i servizi ascoltano sulla **macchina host**.
 | `SQL_GENERATOR_PORT` | SQL Gen Agent API | `8020` |
 | `QDRANT_PORT` | Vector DB | `6333` |
 | `MERMAID_SERVICE_PORT`| Diagram Service | `8003` |
+
+### Configurazione Database
+
+| Variabile | Descrizione | Default |
+|-----------|-------------|---------|
+| `POSTGRES_INTERNAL` | Usare container DB interno? | `true` |
+| `AUTO_CREATE_SCHEMA`| Auto-creare schema all'avvio? | `false` |
+| `DB_HOST` | Host DB Esterno | - |
+| `DB_PORT` | Porta DB Esterno | `5432` |
+| `DB_SCHEMA` | Nome Schema | `thoth_db_swarm` |
 
 ### Provider AI (Logica Applicativa)
 

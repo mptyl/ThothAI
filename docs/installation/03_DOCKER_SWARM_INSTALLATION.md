@@ -20,15 +20,19 @@ docker swarm init --advertise-addr <MANAGER-IP>
 ## 3. Configuration
 
 ### Environment Variables
-1.  Copy `.env.docker.template` to `.env.docker`.
-2.  Set **DEPLOYMENT_MODE** to `swarm`.
-3.  Configure your API keys and external ports.
+### Environment Variables
+1.  Copy `.env.swarm.template` to `.env.swarm`.
+2.  Edit `.env.swarm` to configure:
+    - **Shared Storage**: Set `THOTH_DATA_PATH` (e.g., `/mnt/nfs/thothai`).
+    - **External Database**: Configure `DB_HOST`, `DB_USER`, `DB_PASSWORD` (Internal DB is not supported in Swarm).
+    - **API Keys**: Configure `OPENAI_API_KEY`, etc.
 
 ### Docker Secrets (Security)
 Swarm uses **Docker Secrets** to securely manage sensitive data. Instead of passing plain text env vars, `docker-up.sh` (or the CLI) automatically converts relevant variables into secrets.
 
 Secrets managed automatically include:
-- `thoth_env_config`: The full `.env.docker` content
+Secrets managed automatically include:
+- `thoth_env_config`: The content of your `.env.swarm` file (passed as secret).
 
 ## 4. Shared Storage (Critical)
 
@@ -36,27 +40,12 @@ In a Swarm, containers can float between nodes. Standard Docker `local` volumes 
 
 ### Example NFS Setup
 
-1.  **Mount your NFS share** on all nodes (Manager and Workers) at the same path, e.g., `/mnt/thoth_data`.
-2.  **Organize subdirectories**: Create `db` and `qdrant` folders inside your share (e.g., `/mnt/thoth_data/db`, `/mnt/thoth_data/qdrant`) to keep data separate.
-3.  **Edit `docker-stack.yml`** (or create a `docker-stack.override.yml`) to point volumes to these paths.
+1.  **Mount your NFS share** on all nodes (Manager and Workers) at the same path, e.g., `/mnt/nfs/thothai`.
+2.  **Configure `.env.swarm`**: Set `THOTH_DATA_PATH=/mnt/nfs/thothai`.
 
-*Example modification for `docker-stack.yml`:*
+That's it. The `docker-stack.yml` uses this path to bind mount the necessary directories.
 
-```yaml
-volumes:
-  thoth-backend-db:
-    driver: local
-    driver_opts:
-      type: nfs
-      o: addr=YOUR_NFS_SERVER_IP,rw
-      device: ":/mnt/thoth_data/db"
-  qdrant-data:
-    driver: local
-    driver_opts:
-      type: nfs
-      o: addr=YOUR_NFS_SERVER_IP,rw
-      device: ":/mnt/thoth_data/qdrant"
-```
+
 
 > [!WARNING]
 > Without shared storage, if a database container restarts on a different node, it will effectively "reset" to an empty state or the state of that specific node's local volume.
@@ -65,7 +54,9 @@ volumes:
 
 ### Method A: Using Helper Script (Recommended)
 
-Our `docker-up.sh` script detects `DEPLOYMENT_MODE=swarm` in `.env.docker` and switches to Swarm commands automatically.
+Our `docker-up.sh` script detects `DEPLOYMENT_MODE=swarm`... well, actually for Swarm we recommend the manual method or ensuring `.env.docker` is a symlink to `.env.swarm` if using the script.
+
+**Recommended Manual Method for Swarm:**
 
 ```bash
 ./docker-up.sh
@@ -87,7 +78,8 @@ If you want full manual control:
 
 2.  **Create Secrets**:
     ```bash
-    docker secret create thoth_env_config .env.docker
+    docker secret create thoth_env_config .env.swarm
+    docker config create thoth_env_docker .env.swarm
     ```
 
 3.  **Deploy Stack**:

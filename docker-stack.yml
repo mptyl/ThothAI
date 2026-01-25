@@ -14,27 +14,42 @@ services:
     networks:
       - thoth-network
     volumes:
-      - thoth-backend-db:/app/backend_db
-      - thoth-shared-data:/app/data
-      - thoth-logs:/app/logs
-      - backend-static:/vol/static
-      - backend-media:/vol/media
-      - thoth-data-exchange:/app/data_exchange
-      - thoth-backend-secrets:/vol/secrets
+      - type: bind
+        source: ${THOTH_DATA_PATH}/backend_db
+        target: /app/backend_db
+      - type: bind
+        source: ${THOTH_DATA_PATH}/shared
+        target: /app/data
+      - type: bind
+        source: ${THOTH_DATA_PATH}/logs
+        target: /app/logs
+      - type: bind
+        source: ${THOTH_DATA_PATH}/static
+        target: /vol/static
+      - type: bind
+        source: ${THOTH_DATA_PATH}/media
+        target: /vol/media
+      - type: bind
+        source: ${THOTH_DATA_PATH}/data_exchange
+        target: /app/data_exchange
+      - type: bind
+        source: ${THOTH_DATA_PATH}/secrets
+        target: /vol/secrets
     environment:
       - HOST_IP=host.docker.internal
       - DOCKER_ENV=production
-      - DB_NAME_DOCKER=/app/backend_db/db.sqlite3
-      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
       - DOCKER_CONTAINER=true
       - AUTO_GENERATE_SECRETS=true
-      # PostgreSQL connection
-      - DB_ENGINE=${DB_ENGINE:-django.db.backends.postgresql}
-      - DB_NAME=${DB_NAME:-thoth_db}
-      - DB_USER=${DB_USER:-thoth_user}
-      - DB_PASSWORD=${DB_PASSWORD:-thoth_pass}
-      - DB_HOST=${DB_HOST:-db}
-      - DB_PORT=${DB_PORT:-5432}
+      - AUTO_CREATE_SCHEMA=${AUTO_CREATE_SCHEMA:-false}
+      - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
+      # External PostgreSQL Connection
+      - DB_ENGINE=${DB_ENGINE}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_SCHEMA=${DB_SCHEMA}
     secrets:
       - thoth_env_config
 
@@ -72,37 +87,7 @@ services:
           cpus: '0.5'
           memory: 1G
 
-  # === DATABASE SERVICE ===
-  db:
-    image: postgres:16-alpine
-    networks:
-      - thoth-network
-    environment:
-      - POSTGRES_DB=${DB_NAME:-thoth_db}
-      - POSTGRES_USER=${DB_USER:-thoth_user}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-thoth_pass}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    deploy:
-      labels:
-        - "com.docker.stack.namespace=thothai-swarm"
-        - "com.thoth.project=thoth-ai"
-        - "com.thoth.service=db"
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
+
 
   # === FRONTEND SERVICE ===
   frontend:
@@ -115,9 +100,17 @@ services:
         protocol: tcp
         mode: ingress
     volumes:
-      - frontend-cache:/app/.next/cache
-      - thoth-data-exchange:/app/data_exchange:ro
-      - thoth-backend-secrets:/vol/secrets:ro
+      - type: bind
+        source: ${THOTH_DATA_PATH}/frontend_cache
+        target: /app/.next/cache
+      - type: bind
+        source: ${THOTH_DATA_PATH}/data_exchange
+        target: /app/data_exchange
+        read_only: true
+      - type: bind
+        source: ${THOTH_DATA_PATH}/secrets
+        target: /vol/secrets
+        read_only: true
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -172,10 +165,19 @@ services:
         protocol: tcp
         mode: ingress
     volumes:
-      - thoth-shared-data:/app/data
-      - thoth-logs:/app/logs
-      - thoth-data-exchange:/app/data_exchange
-      - thoth-backend-secrets:/vol/secrets:ro
+      - type: bind
+        source: ${THOTH_DATA_PATH}/shared
+        target: /app/data
+      - type: bind
+        source: ${THOTH_DATA_PATH}/logs
+        target: /app/logs
+      - type: bind
+        source: ${THOTH_DATA_PATH}/data_exchange
+        target: /app/data_exchange
+      - type: bind
+        source: ${THOTH_DATA_PATH}/secrets
+        target: /vol/secrets
+        read_only: true
     environment:
       - DOCKER_CONTAINER=true
       - PORT=8020
@@ -224,9 +226,18 @@ services:
         protocol: tcp
         mode: ingress
     volumes:
-      - backend-static:/vol/static:ro
-      - backend-media:/vol/media:ro
-      - thoth-data-exchange:/vol/data_exchange:ro
+      - type: bind
+        source: ${THOTH_DATA_PATH}/static
+        target: /vol/static
+        read_only: true
+      - type: bind
+        source: ${THOTH_DATA_PATH}/media
+        target: /vol/media
+        read_only: true
+      - type: bind
+        source: ${THOTH_DATA_PATH}/data_exchange
+        target: /vol/data_exchange
+        read_only: true
     environment:
       - APP_HOST=backend
       - APP_PORT=8000
@@ -296,7 +307,9 @@ services:
         protocol: tcp
         mode: ingress
     volumes:
-      - qdrant-data:/qdrant/storage
+      - type: bind
+        source: ${THOTH_DATA_PATH}/qdrant_data
+        target: /qdrant/storage
     deploy:
       labels:
         - "com.docker.stack.namespace=thothai-swarm"
@@ -318,27 +331,7 @@ services:
           cpus: '0.25'
           memory: 512M
 
-volumes:
-  backend-static:
-    driver: local
-  backend-media:
-    driver: local
-  frontend-cache:
-    driver: local
-  qdrant-data:
-    driver: local
-  thoth-backend-db:
-    driver: local
-  postgres-data:
-    driver: local
-  thoth-backend-secrets:
-    driver: local
-  thoth-logs:
-    driver: local
-  thoth-shared-data:
-    driver: local
-  thoth-data-exchange:
-    driver: local
+
 
 networks:
   thoth-network:

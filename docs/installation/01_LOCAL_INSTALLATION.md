@@ -150,4 +150,4 @@ npm run dev
 
 - **Port Conflicts**: Ensure ports `8040`, `3040`, `8020`, and `6333` are free.
 - **Micro-Frontend Issues**: If the frontend cannot talk to the backend, verify `NEXT_PUBLIC_DJANGO_SERVER` matches the backend URL exactly.
-- **Database**: Local development uses SQLite (`backend/db.sqlite3`) by default. To reset it, delete the file and re-run migrations and `load_defaults`.
+- **Database**: Local development uses SQLite (`backend/db.sqlite3`) by default, but supports PostgreSQL if `DATABASE_URL` is configured in `.env.local`. verification.

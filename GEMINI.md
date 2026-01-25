@@ -29,17 +29,18 @@
 - Docs: `docs/thothai_install/`, `data_exchange/`.
 
 ## Services and Ports
-- **Backend (Django)**: 8200 (Local) / 8000 (Docker internal) / 8040 (Docker external)
-- **Frontend (Next.js)**: 3200 (Local) / 3000 (Docker internal) / 3040 (Docker external)
-- **SQL Generator**: 8180 (Local) / 8020 (Docker internal)
-- **Qdrant**: 6334 (Local) / 6333 (Docker internal)
+- **Backend (Django)**: 8040 (Local & Docker external) / 8000 (Docker internal)
+- **Frontend (Next.js)**: 3040 (Local & Docker external) / 3000 (Docker internal)
+- **SQL Generator**: 8020 (Local & Docker external) / 8000 (Docker internal)
+- **Qdrant**: 6333 (Local & Docker external) / 6333 (Docker internal)
 - **Mermaid Service**: Self-hosted diagram generation (Docker)
-- **Docker Swarm Ports**: Configurable range 7000-7020 (default: Proxy=7010, Frontend=7001, Backend=7002, SQL-Gen=7003, Mermaid=7004, Qdrant=7005)
+- **Docker Swarm Ports**: Configurable range 7000-7020 (default: Proxy=7000, Frontend=7001, Backend=7002, SQL-Gen=7003, Mermaid=7004, Qdrant=7005)
 
 ## Development Workflow
 
 ### Configuration
-- **Docker**: `.env.docker` (Copy from `.env.docker.template`, gitignored)
+- **Docker Compose (Local)**: `.env.docker` (Copy from `.env.compose.template`, gitignored)
+- **Docker Swarm (Prod)**: `.env.swarm` (Copy from `.env.swarm.template`, gitignored)
 - **Local Dev**: `.env.local` (Copy from `.env.local.template`, gitignored)
 - **Required Env**:
     - LLMs: `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY`
@@ -47,23 +48,29 @@
 
 ### Common Development Commands
 
-#### Quick Start - Docker
+#### Quick Start - Docker (Local)
 ```bash
 # Copy and configure
-cp .env.docker.template .env.docker
+cp .env.compose.template .env.docker
 nano .env.docker  # Add your API keys
 
-# Option 1: Wrapper script (recommended)
-./docker-up.sh
-./docker-down.sh
-
-# Option 2: CLI
-thothai up
-thothai down
-
-# Option 3: Manual
+# Start with Docker Compose
 docker compose up -d
-docker compose down
+
+# To use external Database (optional):
+# 1. Set POSTGRES_INTERNAL=false in .env.docker
+# 2. Configure DB_HOST, DB_USER, etc.
+# 3. (Optional) Set AUTO_CREATE_SCHEMA=true to init DB
+```
+
+#### Quick Start - Docker Swarm (Production)
+```bash
+# Copy and configure
+cp .env.swarm.template .env.swarm
+nano .env.swarm  # Configure DB, NFS path, keys
+
+# Deploy Stack
+docker stack deploy -c docker-stack.yml thoth
 ```
 
 #### Quick Start - Local Development
@@ -72,7 +79,7 @@ docker compose down
 cp .env.local.template .env.local
 nano .env.local  # Add your API keys
 
-# Start all services
+# Start all services (Uses SQLite by default, or PostgreSQL if configured in .env.local)
 ./start-all.sh
 
 # Stop all services
@@ -84,7 +91,7 @@ nano .env.local  # Add your API keys
 cd backend
 uv sync                        # Install dependencies
 uv run python manage.py migrate
-uv run python manage.py runserver 8200
+uv run python manage.py runserver 8040
 uv run pytest                  # Run tests
 ```
 
@@ -92,7 +99,7 @@ uv run pytest                  # Run tests
 ```bash
 cd frontend
 npm install
-npm run dev                    # Port 3200 (local)
+npm run dev                    # Port 3040 (local)
 npm run build
 npm test
 ```
@@ -101,7 +108,7 @@ npm test
 ```bash
 cd frontend/sql_generator
 uv sync
-uv run python main.py          # Port 8180 (local)
+uv run python main.py          # Port 8020 (local)
 ```
 
 ## Agents Architecture (PydanticAI)
@@ -215,7 +222,7 @@ This means that every time you want to test with curl you must first build the s
 
 ### Local environment:
 ```bash
-curl -X POST "http://localhost:8180/generate-sql" \
+curl -X POST "http://localhost:8020/generate-sql" \
   -H "Content-Type: application/json" \
   -d '{
     "workspace_id": 1,

@@ -39,8 +39,9 @@ QDRANT_LOCAL_STORAGE="./qdrant_storage_local"
 # --- Step 1: Stop Services ---
 echo -e "${BLUE}Step 1: Stopping all services...${NC}"
 if docker info > /dev/null 2>&1; then
-    docker stop thoth-qdrant-local thoth-backend thoth-frontend thoth-sql-generator thoth-proxy thoth-qdrant 2>/dev/null || true
-    echo "  Docker containers stopped"
+    docker stop thoth-db thoth-mermaid-service thoth-qdrant-local thoth-backend thoth-frontend thoth-sql-generator thoth-proxy thoth-qdrant 2>/dev/null || true
+    docker rm thoth-mermaid-service 2>/dev/null || true
+    echo "  Docker containers stopped and mermaid-service removed"
 fi
 
 # --- Step 2: Clean Postgres ---

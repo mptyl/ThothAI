@@ -32,5 +32,10 @@ if [ -f "/app/scripts/init-shared-data.sh" ]; then
     /app/scripts/init-shared-data.sh
 fi
 
+# Initialize DB schema if requested (External DB / Swarm)
+if [ -f "/app/scripts/init_db_schema.py" ]; then
+    python3 /app/scripts/init_db_schema.py
+fi
+
 # Run the original entrypoint (start.sh will load the secrets)
 exec /start.sh
