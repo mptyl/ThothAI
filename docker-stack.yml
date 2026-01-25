@@ -5,8 +5,6 @@
 # Docker Stack configuration for Docker Swarm deployment
 # Use: docker stack deploy -c docker-stack.yml thoth
 
-version: '3.8'
-
 services:
   # === BACKEND SERVICE ===
   backend:
@@ -42,13 +40,13 @@ services:
       - AUTO_GENERATE_SECRETS=true
       - AUTO_CREATE_SCHEMA=${AUTO_CREATE_SCHEMA:-false}
       - FRONTEND_URL=http://localhost:${FRONTEND_PORT:-3040}
-      # External PostgreSQL Connection
-      - DB_ENGINE=${DB_ENGINE}
+      # Database connection (Always PostgreSQL in Swarm)
+      - DB_ENGINE=django.db.backends.postgresql
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
       - DB_SCHEMA=${DB_SCHEMA}
     secrets:
       - thoth_env_config
@@ -87,7 +85,39 @@ services:
           cpus: '0.5'
           memory: 1G
 
-
+  # === DATABASE SERVICE (Internal/External supported) ===
+  db:
+    image: postgres:16-alpine
+    networks:
+      - thoth-network
+    volumes:
+      - type: bind
+        source: ${THOTH_DATA_PATH:-.}/postgres_data
+        target: /var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME:-thoth_db}
+      - POSTGRES_USER=${DB_USER:-thoth_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-thoth_pass}
+    deploy:
+      labels:
+        - "com.docker.stack.namespace=thothai-swarm"
+        - "com.thoth.project=thoth-ai"
+        - "com.thoth.service=db"
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
 
   # === FRONTEND SERVICE ===
   frontend:

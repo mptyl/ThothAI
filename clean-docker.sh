@@ -39,6 +39,13 @@ POSTGRES_INTERNAL=${POSTGRES_INTERNAL:-true}
 # --- Step 1: Stop and Clean Docker Resources ---
 echo -e "${BLUE}Step 1: Stopping services and removing volumes...${NC}"
 
+# First, stop all containers explicitly
+echo "  Stopping containers..."
+docker compose stop
+
+# Wait a moment for containers to fully stop
+sleep 2
+
 # We use 'docker compose down -v' to remove containers, networks, and VOLUMES.
 # This effectively cleans Internal DB, Qdrant data, Redis (if any), etc.
 if docker compose down -v; then
@@ -46,6 +53,22 @@ if docker compose down -v; then
 else
     echo -e "${RED}  Failed to clean Docker resources.${NC}"
     exit 1
+fi
+
+# Remove the internal PostgreSQL database volume if using internal DB
+if [ "$POSTGRES_INTERNAL" = "true" ]; then
+    echo "  Removing internal PostgreSQL database volume..."
+    if docker volume rm thoth-postgres-data 2>/dev/null; then
+        echo -e "${GREEN}  ✓ Internal PostgreSQL volume removed${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ No internal PostgreSQL volume to remove (or already removed)${NC}"
+    fi
+fi
+
+# Force remove the network if it still exists
+echo "  Ensuring network removal..."
+if docker network ls | grep -q "thoth-network"; then
+    docker network rm thoth-network 2>/dev/null || echo -e "${YELLOW}  ⚠ Network cleanup will happen automatically${NC}"
 fi
 
 # --- Step 2: External Database Cleanup (Conditional) ---

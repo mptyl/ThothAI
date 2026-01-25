@@ -45,7 +45,7 @@ You can start the system using our helper scripts, the CLI, or manual commands.
 
 ### Option A: Helper Script (Recommended)
 
-We provide a robust script that handles setup, network creation, and cleanup automatically.
+We provide a robust script that handles setup, network creation, and cleanup automatically. By default, it operates in **Compose mode**.
 
 ```bash
 ./docker-up.sh

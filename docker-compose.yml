@@ -11,7 +11,7 @@ services:
       args:
         DOCKER_BUILDKIT: 1
         BUILDKIT_INLINE_CACHE: 1
-    image: thoth-backend:latest
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-backend:${IMAGE_VERSION:-latest}
     container_name: thoth-backend
     restart: always
     # Port removed - backend only accessible through proxy
@@ -83,7 +83,7 @@ services:
         BUILDKIT_INLINE_CACHE: 1
         NEXT_PUBLIC_DJANGO_SERVER: http://localhost:${BACKEND_PORT:-8040}
         NEXT_PUBLIC_SQL_GENERATOR_URL: http://localhost:${SQL_GENERATOR_PORT:-8020}
-    image: thoth-frontend:latest
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-frontend:${IMAGE_VERSION:-latest}
     container_name: thoth-frontend
     restart: always
     ports:
@@ -120,7 +120,7 @@ services:
       dockerfile: docker/sql-generator.Dockerfile
       args:
         BUILDKIT_INLINE_CACHE: 1
-    image: thoth-sql-generator:latest
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-sql-generator:${IMAGE_VERSION:-latest}
     container_name: thoth-sql-generator
     restart: always
     ports:
@@ -152,7 +152,7 @@ services:
     build:
       context: ./backend/proxy
       dockerfile: ../../docker/proxy.Dockerfile
-    image: thoth-proxy:latest
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-proxy:${IMAGE_VERSION:-latest}
     container_name: thoth-proxy
     restart: always
     ports:
@@ -186,7 +186,7 @@ services:
     build:
       context: ./docker/mermaid-service
       dockerfile: Dockerfile
-    image: thoth-mermaid-service:latest
+    image: ${DOCKER_REGISTRY:-tylconsulting}/thoth-mermaid-service:${IMAGE_VERSION:-latest}
     container_name: thoth-mermaid-service
     restart: always
     ports:

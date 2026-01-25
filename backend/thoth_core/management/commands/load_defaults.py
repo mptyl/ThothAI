@@ -248,6 +248,9 @@ Usage Examples:
         # Final verification
         self.verify_imports()
 
+        # Reset PostgreSQL sequences to prevent duplicate key violations
+        self.reset_sequences()
+
     def clean_existing_data(
         self,
         clean_db_structure=False,
@@ -473,3 +476,82 @@ Usage Examples:
             5: "Workspace setup: Full workspace configurations with all dependencies",
         }
         return descriptions.get(level_num, "Unknown level")
+
+    def reset_sequences(self):
+        """
+        Reset PostgreSQL sequences after CSV import with explicit IDs.
+        
+        When importing data from CSV files with explicit ID values, PostgreSQL
+        sequences are not automatically updated. This causes duplicate key violations
+        when trying to create new records via Django admin or API.
+        
+        This method resets all sequences to match the maximum ID in their tables.
+        """
+        from django.db import connection
+        
+        # Only run for PostgreSQL databases
+        if connection.vendor != 'postgresql':
+            self.stdout.write("  Skipping sequence reset (not PostgreSQL)")
+            return
+            
+        self.stdout.write("\n--- Resetting PostgreSQL Sequences ---")
+        
+        # List of tables with auto-increment IDs that are populated from CSV
+        tables_with_sequences = [
+            'thoth_core_agent',
+            'thoth_core_aimodel',
+            'thoth_core_setting',
+            'thoth_core_workspace',
+            'thoth_core_basicaimodel',
+            'thoth_core_vectordb',
+            'thoth_core_sqldb',
+            'thoth_core_sqltable',
+            'thoth_core_sqlcolumn',
+            'thoth_core_relationship',
+        ]
+        
+        try:
+            with connection.cursor() as cursor:
+                for table_name in tables_with_sequences:
+                    sequence_name = f"{table_name}_id_seq"
+                    
+                    # Reset sequence to MAX(id) from the table
+                    sql = f"""
+                    SELECT setval(
+                        '{sequence_name}', 
+                        COALESCE((SELECT MAX(id) FROM {table_name}), 1),
+                        true
+                    );
+                    """
+                    
+                    try:
+                        cursor.execute(sql)
+                        result = cursor.fetchone()
+                        new_value = result[0] if result else 0
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"  ✓ Reset {sequence_name} to {new_value}"
+                            )
+                        )
+                    except Exception as e:
+                        # Table or sequence might not exist - this is okay
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"  ⚠ Could not reset {sequence_name}: {str(e)}"
+                            )
+                        )
+            
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "\n✓ PostgreSQL sequence reset completed successfully"
+                )
+            )
+            
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(
+                    f"✗ Sequence reset failed: {str(e)}"
+                )
+            )
+            logger.error(f"Sequence reset failed: {str(e)}", exc_info=True)
+

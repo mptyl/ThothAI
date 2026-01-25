@@ -102,7 +102,9 @@ django.setup()
 from thoth_core.models import Workspace
 count = Workspace.objects.count()
 print(count)
-" 2>/dev/null || echo "0")
+" 2>/dev/null | tail -1 | tr -d '[:space:]' || echo "0")
+
+echo "Workspace count: $WORKSPACE_COUNT"
 
 if [ "$WORKSPACE_COUNT" = "0" ]; then
     echo "=========================================="

@@ -261,12 +261,15 @@ cp .env.local.template .env.local
 ./start-all.sh
 ```
 
-**Option 2: Docker Swarm (Production)**
+**Option 2: Docker Swarm (Production / Cluster)**
 ```bash
 cp .env.swarm.template .env.swarm
+cp swarm_config.env.template swarm_config.env
 # Configure keys, external DB, and NFS path...
-docker stack deploy -c docker-stack.yml thoth
+./docker-swarm-up.sh
 ```
+> [!NOTE]
+> Docker Swarm deployment strictly uses PostgreSQL. You can use the internal `db` service (with bind mounts) or a truly external database. Use `./clean-docker-swarm.sh` to reset the swarm environment.
 
 
 

@@ -54,37 +54,40 @@ Tutto qui. `docker-stack.yml` usa questo percorso per montare le directory neces
 
 ### Metodo A: Usare Script di Supporto (Raccomandato)
 
-Il nostro script `docker-up.sh` rileva `DEPLOYMENT_MODE=swarm`... in realtà per Swarm raccomandiamo il metodo manuale.
-
-**Metodo Manuale Raccomandato per Swarm:**
+Per semplificare il processo di distribuzione (gestendo automaticamente rete, segreti e configurazioni):
 
 ```bash
-./docker-up.sh
+./docker-swarm-up.sh
 ```
 
-Esegue questi passaggi:
-1.  Crea la rete overlay `thoth-network` (se mancante).
-2.  Crea/Aggiorna i Docker Secrets dai tuoi file di configurazione.
-3.  Distribuisce lo stack definito in `docker-stack.yml`.
+Per resettare l'ambiente al "Giorno 0" (incluso il reset dello schema DB):
+```bash
+./clean-docker-swarm.sh
+```
 
 ### Metodo B: Distribuzione Manuale
 
-Se vuoi un controllo manuale completo:
+Se desideri un controllo manuale completo, ecco i passaggi eseguiti dallo script:
 
-1.  **Crea Rete**:
+1.  **Inizializza Swarm**:
     ```bash
-    docker network create --driver overlay thoth-network
+    docker swarm init
     ```
 
-2.  **Crea Secrets**:
+2.  **Crea Rete**:
     ```bash
-    docker secret create thoth_env_config .env.swarm
-    docker config create thoth_env_docker .env.swarm
+    docker network create --driver overlay --attachable thothai-swarm_thoth-network
     ```
 
-3.  **Distribuisci Stack**:
+3.  **Crea Secrets & Configs**:
     ```bash
-    docker stack deploy -c docker-stack.yml thoth
+    docker secret create thothai-swarm_thoth_env_config .env.docker
+    docker config create thothai-swarm_thoth_env_docker .env.docker
+    ```
+
+4.  **Distribuisci Stack**:
+    ```bash
+    docker stack deploy -c docker-stack.yml thothai-swarm
     ```
 
 ## 6. Gestione & Scaling

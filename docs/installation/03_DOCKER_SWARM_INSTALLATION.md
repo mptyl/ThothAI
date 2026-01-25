@@ -54,37 +54,40 @@ That's it. The `docker-stack.yml` uses this path to bind mount the necessary dir
 
 ### Method A: Using Helper Script (Recommended)
 
-Our `docker-up.sh` script detects `DEPLOYMENT_MODE=swarm`... well, actually for Swarm we recommend the manual method or ensuring `.env.docker` is a symlink to `.env.swarm` if using the script.
-
-**Recommended Manual Method for Swarm:**
+To simplify the deployment process (handling network, secrets, and configs automatically):
 
 ```bash
-./docker-up.sh
+./docker-swarm-up.sh
 ```
 
-It performs these steps:
-1.  Creates the overlay network `thoth-network` (if missing).
-2.  Creates/Updates Docker Secrets from your config files.
-3.  Deploys the stack defined in `docker-stack.yml`.
+To reset the environment to "Day 0" (including schema reset):
+```bash
+./clean-docker-swarm.sh
+```
 
 ### Method B: Manual Deployment
 
-If you want full manual control:
+If you want full manual control, the following steps are executed by the script:
 
-1.  **Create Network**:
+1.  **Initialize Swarm**:
     ```bash
-    docker network create --driver overlay thoth-network
+    docker swarm init
     ```
 
-2.  **Create Secrets**:
+2.  **Create Network**:
     ```bash
-    docker secret create thoth_env_config .env.swarm
-    docker config create thoth_env_docker .env.swarm
+    docker network create --driver overlay --attachable thothai-swarm_thoth-network
     ```
 
-3.  **Deploy Stack**:
+3.  **Create Secrets & Configs**:
     ```bash
-    docker stack deploy -c docker-stack.yml thoth
+    docker secret create thothai-swarm_thoth_env_config .env.docker
+    docker config create thothai-swarm_thoth_env_docker .env.docker
+    ```
+
+4.  **Deploy Stack**:
+    ```bash
+    docker stack deploy -c docker-stack.yml thothai-swarm
     ```
 
 ## 6. Management & Scaling

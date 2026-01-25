@@ -45,7 +45,7 @@ Puoi avviare il sistema utilizzando i nostri script di supporto, la CLI o comand
 
 ### Opzione A: Script di Supporto (Raccomandato)
 
-Forniamo uno script robusto che gestisce automaticamente setup, creazione rete e pulizia.
+Forniamo uno script robusto che gestisce automaticamente setup, creazione rete e pulizia. Di default, opera in **modalità Compose**.
 
 ```bash
 ./docker-up.sh

@@ -115,6 +115,7 @@ prepare_stack_file() {
     print_color "Preparing deployment file..." "$YELLOW"
     # Export vars for envsubst
     export REGISTRY_URL="$DOCKER_USERNAME"
+    export DOCKER_REGISTRY="$DOCKER_USERNAME"
     export APP_HOST="${STACK_NAME}_backend"
     export FRONTEND_HOST="${STACK_NAME}_frontend"
     export SQL_GEN_HOST="${STACK_NAME}_sql-generator"
