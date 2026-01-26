@@ -9,6 +9,9 @@
 - **Storage Condiviso** (NFS/GlusterFS/EFS) montato su tutti i nodi (Critico per la persistenza distribuita).
 - **Accesso SSH** al nodo manager.
 
+> [!TIP]
+> **Test Locale su Mac/Windows**: È possibile testare Swarm localmente anche senza NFS. In questo caso, usa un percorso locale assoluto per `THOTH_DATA_PATH` (es. `/Users/nome/thoth_data`). Nota che questo funzionerà solo in configurazione single-node.
+
 ## 2. Inizializzazione Swarm
 
 Sul tuo **Nodo Manager**, inizializza lo swarm se non l'hai già fatto:
@@ -17,15 +20,19 @@ Sul tuo **Nodo Manager**, inizializza lo swarm se non l'hai già fatto:
 docker swarm init --advertise-addr <IP-MANAGER>
 ```
 
-## 3. Configurazione
+### Configurazione Ambiente
 
-### Variabili d'Ambiente
-### Variabili d'Ambiente
-1.  Copia `.env.swarm.template` in `.env.swarm`.
-2.  Modifica `.env.swarm` per configurare:
-    - **Storage Condiviso**: Imposta `THOTH_DATA_PATH` (es. `/mnt/nfs/thothai`).
-    - **Database Esterno**: Configura `DB_HOST`, `DB_USER`, `DB_PASSWORD` (Il DB interno non è supportato in Swarm).
-    - **Chiavi API**: Configura `OPENAI_API_KEY`, ecc.
+Le impostazioni di Swarm sono divise in due file:
+
+1.  **`.env.swarm`**: Configurazione dell'applicazione (API keys, DB, ecc.).
+    - Copia `.env.swarm.template` in `.env.swarm`.
+    - Imposta `THOTH_DATA_PATH` (es. `/mnt/nfs/thothai` o un path locale per test).
+    - Configura il Database Esterno (PostgreSQL).
+
+2.  **`swarm_config.env`**: Configurazione dell'infrastruttura Swarm (Porte, Stack Name).
+    - Copia `swarm_config.env.template` in `swarm_config.env`.
+    - **Rimappatura Porte**: Qui puoi cambiare le porte pubbliche (es. `WEB_PORT`, `FRONTEND_PORT`) se quelle di default (serie 7000) sono occupate.
+    - Definisci lo `STACK_NAME` (default: `thothai-swarm`).
 
 ### Docker Secrets (Sicurezza)
 Swarm utilizza **Docker Secrets** per gestire in modo sicuro i dati sensibili. Invece di passare variabili env in chiaro, `docker-up.sh` (o la CLI) converte automaticamente le variabili rilevanti in secrets.
@@ -119,3 +126,17 @@ Per aggiornare l'applicazione (es. nuova versione immagine):
 2.  Esegui di nuovo `./docker-up.sh`.
 
 Swarm esegue un **rolling update** (default: 1 alla volta, 10s ritardo). Se il nuovo container fallisce l'healthcheck, Swarm esegue automaticamente il **rollback** alla versione stabile precedente.
+
+## 8. Troubleshooting Comuni
+
+### Errore di Sintassi `SECRET_KEY`
+Se ricevi errori bash durante il deploy (es. `syntax error near unexpected token`), verifica che la tua `SECRET_KEY` in `.env.swarm` non contenga caratteri speciali non escapati (come `(`, `)`, `&`).
+**Soluzione**: Usa lo script `./generate-keys.sh` per generare chiavi sicure e compatibili con bash.
+
+### Connessione Database Fallita (Locale)
+Se i container non riescono a connettersi a un database locale (es. Supabase su Mac) con errore `Connection refused` usando `localhost`:
+**Soluzione**: Imposta `DB_HOST=host.docker.internal` in `.env.swarm`. Questo permette ai container di raggiungere i servizi sulla macchina host.
+
+### Errore Auhtenticazione Supabase (Pooler)
+Se usi Supabase locale con pooler (es. Supavisor) e ricevi `Tenant or user not found`:
+**Soluzione**: Verifica il formato dell'utente. Spesso con il pooler è necessario usare il formato `postgres.<tenant_id>` (es. `postgres.athena`) invece del semplice `postgres`.

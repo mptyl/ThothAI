@@ -8,9 +8,10 @@ ThothAI configuration is centralized in simple environment files. This approach 
 |------|---------|-------------|------------|
 | **`.env.docker`** | Active Config (Copied from template) | Production / Docker Dev | `gitignored` |
 | **`.env.local`** | Config for local native execution | Local Development | `gitignored` |
+| **`swarm_config.env`** | Swarm Infrastructure Config (Ports, Stack) | Docker Swarm | `gitignored` |
 | `.env.compose.template` | Template source for Local Docker Compose | - | Committed |
 | `.env.swarm.template` | Template source for Swarm Production | - | Committed |
-| `.env.local.template` | Template source for `.env.local` | - | Committed |
+| `swarm_config.env.template` | Template source for `swarm_config.env` | - | Committed |
 
 ## Variable Reference
 
@@ -26,15 +27,19 @@ ThothAI configuration is centralized in simple environment files. This approach 
 
 ### Infrastructure & Ports
 
-These ports defined where services listen on the **host machine**.
+These ports defined where services listen on the **host machine**. In Swarm mode, these variables are loaded from `swarm_config.env`.
 
-| Variable | Service | Default Port |
-|----------|---------|--------------|
-| `WEB_PORT` | Nginx Proxy (Main Entry) | `8040` |
-| `FRONTEND_PORT` | Next.js Frontend (Direct) | `3040` |
-| `SQL_GENERATOR_PORT` | SQL Gen Agent API | `8020` |
-| `QDRANT_PORT` | Vector DB | `6333` |
-| `MERMAID_SERVICE_PORT`| Diagram Service | `8003` |
+| Variable | Service | Default Port (Compose) | Default Port (Swarm) |
+|----------|---------|------------------------|-----------------------|
+| `WEB_PORT` | Nginx Proxy (Main Entry) | `8040` | `7010` |
+| `FRONTEND_PORT` | Next.js Frontend (Direct) | `3040` | `7001` |
+| `BACKEND_PORT` | Django Admin/API (via Proxy) | `8040` | `7002` |
+| `SQL_GENERATOR_PORT` | SQL Gen Agent API | `8020` | `7003` |
+| `MERMAID_SERVICE_PORT`| Diagram Service | `8003` | `7004` |
+| `QDRANT_PORT` | Vector DB | `6333` | `7005` |
+
+> [!NOTE]
+> The `docker-swarm-up.sh` script prioritizes settings from `swarm_config.env` to avoid conflicts with existing Docker Compose installations on the same manager node.
 
 ### Database Configuration
 
@@ -45,6 +50,9 @@ These ports defined where services listen on the **host machine**.
 | `DB_HOST` | External DB Host | - |
 | `DB_PORT` | External DB Port | `5432` |
 | `DB_SCHEMA` | Schema name | `thoth_db_swarm` |
+
+> [!TIP]
+> **External DB on Host (Local)**: If running Swarm on Mac/Windows and you need to connect to a DB on the host (e.g., local Supabase), use `host.docker.internal` as `DB_HOST`.
 
 ### AI Providers (Application Logic)
 
@@ -67,6 +75,23 @@ You must configure **at least one** LLM provider for the application to function
 | `DB_ROOT_PATH` | **Absolute path** to test databases folder | Docker: `/app/data` |
 | `ENTRA_ENABLED` | Enable Microsoft IdP integration | `true`, `false` |
 
+## Security Keys Generation
+ 
+Certain variables like `SECRET_KEY` (for Django) and `DJANGO_API_KEY` (for communication between frontend and backend) are critical for system security. While these are auto-generated in Docker Compose, you must configure them manually for local or Swarm installations.
+ 
+To simplify this process, a dedicated script is available in the project root:
+ 
+```bash
+./generate-keys.sh
+```
+ 
+**Why use it?**
+- **Security**: Generates high-entropy random keys.
+- **Ease of Use**: You don't need to know internal Python commands to generate valid secrets.
+- **Standardization**: Ensures keys are in the correct format expected by ThothAI.
+ 
+Copy the generated values and paste them into the respective variables in your `.env.local` or `.env.swarm` files.
+ 
 ## Best Practices
 
 1.  **Never Commit Secrets**: Ensure your `.env.docker` and `.env.local` files are never added to git.
