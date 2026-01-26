@@ -174,4 +174,5 @@ Thumbs.db
 
 .mcp.json
 video_scripts/
-informix_and_olimpx/.env.docker_prev
+informix_and_olimpx/
+.env.docker_prev
