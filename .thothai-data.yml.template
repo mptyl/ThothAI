@@ -1,0 +1,16 @@
+docker:
+  connection: local      # 'local' o 'ssh'
+  mode: swarm           # 'compose' o 'swarm'
+  stack_name: thothai-swarm
+  service: backend
+  db_service: sql-generator
+
+ssh:  # Solo per connessioni remote
+  host: server.example.com
+  user: deploy
+  port: 22
+  key_file: ""  # Opzionale
+
+paths:
+  data_exchange: /app/data_exchange
+  shared_data: /app/data

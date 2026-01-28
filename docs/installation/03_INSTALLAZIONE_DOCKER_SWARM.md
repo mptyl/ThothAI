@@ -38,8 +38,10 @@ Le impostazioni di Swarm sono divise in due file:
 Swarm utilizza **Docker Secrets** per gestire in modo sicuro i dati sensibili. Invece di passare variabili env in chiaro, `docker-up.sh` (o la CLI) converte automaticamente le variabili rilevanti in secrets.
 
 I Secrets gestiti automaticamente includono:
-I Secrets gestiti automaticamente includono:
 - `thoth_env_config`: Il contenuto del tuo file `.env.swarm` (passato come secret).
+
+> [!NOTE]
+> **Persistenza della Configurazione**: A differenza dei dati variabili (che risiedono nei volumi condivisi), i Secret e le Config sono memorizzati e replicati dai nodi manager del cluster. Questo permette di ricreare i container senza perdere le impostazioni, poiché Swarm inietta automaticamente i segreti in ogni nuova istanza del servizio.
 
 ## 4. Storage Condiviso (Critico)
 
