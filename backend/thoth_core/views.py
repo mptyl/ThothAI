@@ -16,6 +16,7 @@ import requests
 from datetime import datetime, timezone
 
 from django.conf import settings
+from django.db import transaction
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
@@ -197,38 +198,39 @@ def supabase_auth(request):
         return Response({"error": "Email not found in token"}, status=400)
 
     # Auto-provisioning: crea o recupera utente Django
-    user, created = User.objects.get_or_create(
-        username=email,
-        defaults={
-            "email":        email,
-            "first_name":   first_name,
-            "last_name":    last_name,
-            "is_staff":     True,
-            "is_superuser": True,
-        }
-    )
-    if not created:
-        user.last_login = dj_timezone.now()
-        user.save(update_fields=["last_login"])
+    with transaction.atomic():
+        user, created = User.objects.get_or_create(
+            username=email,
+            defaults={
+                "email":        email,
+                "first_name":   first_name,
+                "last_name":    last_name,
+                "is_staff":     True,
+                "is_superuser": True,
+            }
+        )
+        if not created:
+            user.last_login = dj_timezone.now()
+            user.save(update_fields=["last_login"])
 
-    # Assegna workspace di default al primo accesso
-    if created:
-        try:
-            workspace = Workspace.objects.get(name=settings.DEFAULT_WORKSPACE_NAME)
-            workspace.users.add(user)
-            workspace.default_workspace.add(user)
-        except Workspace.DoesNotExist:
-            # Rollback: rimuovi utente appena creato per non lasciare utenti orfani
-            user.delete()
-            return Response({
-                "error": "setup_incomplete",
-                "detail": (
-                    f"Workspace '{settings.DEFAULT_WORKSPACE_NAME}' not found. "
-                    f"Run CSV import before authenticating Supabase users."
-                )
-            }, status=503)
+        # Assegna workspace di default al primo accesso
+        if created:
+            try:
+                workspace = Workspace.objects.get(name=settings.DEFAULT_WORKSPACE_NAME)
+                workspace.users.add(user)
+                workspace.default_workspace.add(user)  # M2M esistente in ThothAI: indica gli utenti per cui questo è il workspace di default
+            except Workspace.DoesNotExist:
+                # Rollback atomico: la transazione cancella user + tutto il provisioning
+                user.delete()
+                return Response({
+                    "error": "setup_incomplete",
+                    "detail": (
+                        f"Workspace '{settings.DEFAULT_WORKSPACE_NAME}' not found. "
+                        f"Run CSV import before authenticating Supabase users."
+                    )
+                }, status=503)
 
-    # Traccia scadenza JWT per gestione ciclo di vita sessione
+    # Traccia scadenza JWT — fuori dalla transazione (operazione di aggiornamento idempotente)
     expires_at = _decode_jwt_exp(token)
     if expires_at:
         SupabaseSession.objects.update_or_create(
