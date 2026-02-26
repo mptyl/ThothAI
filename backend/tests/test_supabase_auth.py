@@ -23,13 +23,11 @@ from rest_framework.authtoken.models import Token
 from thoth_core.models import SupabaseSession
 
 
-SUPABASE_ON = {
-    "SUPABASE_AUTH_ENABLED": True,
-    "SUPABASE_AUTH_URL": "http://fake-supabase-auth:9999",
-    "DEFAULT_WORKSPACE_NAME": "california_schools",
-}
-
 # JWT con payload {"sub":"1","exp":9999999999} — anno ~2286, serve per testare exp decode
+# ARCHITETTURA ATTESA: il mock "thoth_core.views.requests.get" presuppone che:
+# - la view supabase_auth sia in thoth_core/views.py (Task 5)
+# - quel modulo usi `import requests` a livello di file (non `from requests import get`)
+# Se la view viene spostata in un altro modulo, aggiornare tutti i patch() di seguito.
 FAKE_JWT_WITH_EXP = (
     "eyJhbGciOiJIUzI1NiJ9"
     ".eyJzdWIiOiIxIiwiZXhwIjo5OTk5OTk5OTk5fQ"
@@ -111,6 +109,9 @@ class TestSupabaseAuthValidation:
                               {"token": "any"},
                               format="json")
         assert res.status_code == 503
+        assert "error" in res.data  # risposta strutturata, non HTML
+        # GoTrue irraggiungibile prima della creazione utente → nessun utente orfano
+        assert not User.objects.filter(email="any").exists()
 
     def test_returns_400_when_email_missing_in_payload(self, client, supabase_settings):
         mock_resp = MagicMock()
@@ -180,7 +181,12 @@ class TestSupabaseAuthProvisioning:
     def test_no_rollback_for_existing_user_when_workspace_not_found(
         self, client, supabase_settings
     ):
-        """Utente già esistente: il rollback riguarda solo i nuovi utenti."""
+        """
+        Per un utente già esistente, il workspace non viene assegnato nuovamente
+        (la logica è: `if created: workspace.users.add(user)`).
+        Quindi, anche se il workspace non esiste, un utente preesistente ottiene 200
+        e non viene toccato — il rollback è solo per gli utenti appena creati.
+        """
         email = "existing@example.com"
         user = User.objects.create_user(username=email, email=email, password="x")
         Token.objects.create(user=user)
