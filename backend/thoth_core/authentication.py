@@ -81,6 +81,9 @@ class SupabaseAwareTokenAuthentication(TokenAuthentication):
     def authenticate_credentials(self, key):
         user, token = super().authenticate_credentials(key)
 
+        # Defensive guard: the class is registered in REST_FRAMEWORK only when
+        # SUPABASE_AUTH_ENABLED=True (see settings.py), but an explicit check here
+        # makes it safe if instantiated directly in tests or via manual override.
         if not settings.SUPABASE_AUTH_ENABLED:
             return (user, token)
 
