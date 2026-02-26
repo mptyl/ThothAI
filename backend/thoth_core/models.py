@@ -1275,4 +1275,4 @@ class SupabaseSession(models.Model):
         verbose_name = "Supabase Session"
 
     def __str__(self):
-        return f"SupabaseSession({self.user.username}, expires={self.expires_at})"
+        return f"{self.user.username} - {self.expires_at}"
