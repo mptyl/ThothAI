@@ -52,6 +52,14 @@ class ApiClient {
       (response) => response,
       (error) => {
         if (error.response?.status === 401 && typeof window !== 'undefined') {
+          // Guard against concurrent 401 responses: only the first one
+          // triggers a redirect. Subsequent ones are suppressed because
+          // `_redirectingFor401` stays true until the page reloads.
+          if (_redirectingFor401) {
+            return Promise.reject(error);
+          }
+          _redirectingFor401 = true;
+
           // Only treat as an expired-session 401 if a token was present
           // (avoids redirect loops on fresh login failures where token is absent)
           const hadToken =
@@ -60,17 +68,14 @@ class ApiClient {
 
           this.clearStoredAuth();
 
-          if (hadToken) {
-            // Session expired (SupabaseSession invalidated DRF token).
-            if (window.opener) {
-              // Window was opened by Athena: trigger silent re-auth.
-              window.location.href = '/auth/supabase';
-            } else {
-              // Standalone window: redirect to login form.
-              window.location.href = '/login';
-            }
+          if (hadToken && window.opener) {
+            // Session expired, window opened by Athena: trigger silent re-auth.
+            // Note: /auth/supabase handles the "wrong opener" case defensively
+            // (times out and redirects to /login if no token arrives in 5 s).
+            window.location.href = '/auth/supabase';
           } else {
-            // No token was present — regular auth failure, go to login.
+            // No token present (regular auth failure), or standalone window
+            // (session expired but no Athena opener): go to login form.
             window.location.href = '/login';
           }
         }
@@ -253,6 +258,7 @@ class ApiClient {
 }
 
 // Export a function that creates the client to ensure environment variables are loaded
+let _redirectingFor401 = false;
 let _apiClient: ApiClient | null = null;
 
 export const apiClient = {
