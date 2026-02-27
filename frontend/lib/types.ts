@@ -17,6 +17,8 @@ export interface User {
   last_name: string;
   groups: string[];
   group_profiles: GroupProfile[];
+  is_superuser?: boolean;
+  is_staff?: boolean;
 }
 
 export interface LoginRequest {

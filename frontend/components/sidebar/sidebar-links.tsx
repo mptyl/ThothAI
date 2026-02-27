@@ -19,21 +19,26 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
   const handleBackendClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    const token   = typeof window !== "undefined"
-      ? localStorage.getItem("thoth_token")
+    const token   = typeof window !== 'undefined'
+      ? (localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token'))
       : null;
-    const userStr = typeof window !== "undefined"
-      ? localStorage.getItem("thoth_user")
+    const userStr = typeof window !== 'undefined'
+      ? (localStorage.getItem('thoth_user') || sessionStorage.getItem('thoth_user'))
       : null;
-    const user    = userStr ? JSON.parse(userStr) : null;
-    const base    = baseUrl.replace(/\/$/, "");
+    let user: { is_superuser?: boolean } | null = null;
+    try {
+      user = userStr ? JSON.parse(userStr) : null;
+    } catch {
+      user = null;
+    }
+    const base    = baseUrl.replace(/\/$/, '');
 
     if (user?.is_superuser && token) {
-      // SSO silenzioso → admin Django senza secondo login
+      // Superuser: silent SSO — no second login required
       window.location.href =
         `${base}/auth/admin-callback/?token=${token}&next=/admin/`;
     } else {
-      // Form login Django — per bootstrap admin o utenti senza accesso diretto
+      // Non-superuser or no token: redirect to Django admin login form
       window.location.href = `${base}/admin/login/`;
     }
   };

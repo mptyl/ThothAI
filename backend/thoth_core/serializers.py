@@ -48,8 +48,11 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "groups",
             "group_profiles",
+            "is_superuser",
+            "is_staff",
         ]
-        # Escludiamo campi sensibili come la password
+        read_only_fields = ["is_superuser", "is_staff"]
+        # Sensitive fields such as password are excluded
 
     def get_groups(self, obj):
         return list(obj.groups.values_list("name", flat=True))
