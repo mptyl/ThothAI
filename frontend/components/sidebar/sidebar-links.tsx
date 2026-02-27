@@ -19,15 +19,22 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
   const handleBackendClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // Try to get the token from localStorage
-    const token = typeof window !== 'undefined' ? localStorage.getItem('thoth_token') : null;
+    const token   = typeof window !== "undefined"
+      ? localStorage.getItem("thoth_token")
+      : null;
+    const userStr = typeof window !== "undefined"
+      ? localStorage.getItem("thoth_user")
+      : null;
+    const user    = userStr ? JSON.parse(userStr) : null;
+    const base    = baseUrl.replace(/\/$/, "");
 
-    if (token) {
-      // If we have a token, pass it to backend for seamless auth
-      window.location.href = `${baseUrl.replace(/\/$/, '')}/auth/admin-callback/?token=${token}`;
+    if (user?.is_superuser && token) {
+      // SSO silenzioso → admin Django senza secondo login
+      window.location.href =
+        `${base}/auth/admin-callback/?token=${token}&next=/admin/`;
     } else {
-      // No token, just go to backend home (will require login)
-      window.location.href = `${baseUrl.replace(/\/$/, '')}/`;
+      // Form login Django — per bootstrap admin o utenti senza accesso diretto
+      window.location.href = `${base}/admin/login/`;
     }
   };
 
