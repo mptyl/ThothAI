@@ -74,6 +74,16 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
       >
         Backend
       </a>
+      {process.env.NEXT_PUBLIC_ATHENA_ORIGIN && (
+        <a
+          href={process.env.NEXT_PUBLIC_ATHENA_ORIGIN}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-sm text-gray-300 hover:text-white transition-colors"
+        >
+          Athena
+        </a>
+      )}
       <Link
         href="/"
         className="block text-sm text-gray-300 hover:text-white transition-colors"
