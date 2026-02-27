@@ -70,8 +70,14 @@ export default function SupabaseAuthPage() {
     };
 
     const handler = (event: MessageEvent) => {
-      if (event.origin !== athenaOrigin) return;
-      if (event.data?.type !== 'supabase_token') return;
+      if (event.origin !== athenaOrigin) {
+        console.warn(`[supabase-auth] Origin mismatch: ${event.origin} !== ${athenaOrigin}`);
+        return;
+      }
+      if (event.data?.type !== 'supabase_token') {
+        console.warn(`[supabase-auth] Expected type 'supabase_token', got '${event.data?.type}'`);
+        return;
+      }
       window.removeEventListener('message', handler);
       clearTimeout(timeoutId);
       const { token } = event.data;
