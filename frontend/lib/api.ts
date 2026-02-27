@@ -51,9 +51,28 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && typeof window !== 'undefined') {
+          // Only treat as an expired-session 401 if a token was present
+          // (avoids redirect loops on fresh login failures where token is absent)
+          const hadToken =
+            localStorage.getItem('thoth_token') ||
+            sessionStorage.getItem('thoth_token');
+
           this.clearStoredAuth();
-          window.location.href = '/login';
+
+          if (hadToken) {
+            // Session expired (SupabaseSession invalidated DRF token).
+            if (window.opener) {
+              // Window was opened by Athena: trigger silent re-auth.
+              window.location.href = '/auth/supabase';
+            } else {
+              // Standalone window: redirect to login form.
+              window.location.href = '/login';
+            }
+          } else {
+            // No token was present — regular auth failure, go to login.
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }
