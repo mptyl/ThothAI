@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2, AlertCircle, Sparkles, Database, MessageSquare, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, Database, MessageSquare, Lock, User, Eye, EyeOff, ExternalLink } from 'lucide-react';
 
 export function LoginForm() {
   const [username, setUsername] = useState('');
@@ -152,6 +152,28 @@ export function LoginForm() {
             )}
           </button>
         </form>
+
+        {process.env.NEXT_PUBLIC_ATHENA_ORIGIN && (
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/50" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">oppure</span>
+              </div>
+            </div>
+            <a
+              href={process.env.NEXT_PUBLIC_ATHENA_ORIGIN}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 w-full inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-10 px-4 py-2 border border-[#4a90a4]/40 text-[#4a90a4] hover:bg-[#4a90a4]/10"
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Accedi tramite Athena
+            </a>
+          </div>
+        )}
 
         {/* Features showcase */}
         <div className="mt-8 pt-8 border-t border-border/50">

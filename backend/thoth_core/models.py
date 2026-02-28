@@ -15,6 +15,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User, Group
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 
 class LanguageCode(models.TextChoices):
@@ -1253,3 +1254,25 @@ class ThothLog(models.Model):
             if minutes > 0:
                 return f"{hours} hour{'s' if hours != 1 else ''} {minutes} minute{'s' if minutes != 1 else ''}"
             return f"{hours} hour{'s' if hours != 1 else ''}"
+
+
+class SupabaseSession(models.Model):
+    """
+    Traccia la scadenza del JWT Supabase per gli utenti autenticati via Athena.
+    Usato da SupabaseAwareTokenAuthentication per invalidare il DRF token
+    quando il JWT Supabase scade (default Supabase: 1 ora).
+    """
+    user       = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="supabase_session"
+    )
+    expires_at = models.DateTimeField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    class Meta:
+        verbose_name = "Supabase Session"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.expires_at}"

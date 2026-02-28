@@ -41,9 +41,40 @@ TEST_DATABASES = {
 }
 
 @pytest.fixture(scope="session")
-def django_db_setup():
-    """Override Django database setup for tests"""
+def django_db_setup(django_db_blocker):
+    """Override Django database setup for tests.
+
+    Sets DATABASES to in-memory SQLite and creates the schema using
+    Django's setup_databases() so all tests can access the tables.
+    """
+    from django.db import connections
+    from django.test.utils import setup_databases, teardown_databases
+
     settings.DATABASES = TEST_DATABASES
+
+    with django_db_blocker.unblock():
+        # Close all existing connections before switching to SQLite.
+        connections.close_all()
+
+    # Reset the connections handler so it re-reads settings.DATABASES (SQLite).
+    # We must:
+    # 1. Reset _settings (stores the cached DB config dict)
+    # 2. Delete the cached 'settings' property from the instance __dict__
+    # 3. Replace _connections (Local) so no stale connection objects remain
+    connections._settings = None
+    try:
+        del connections.__dict__["settings"]
+    except KeyError:
+        pass
+    # Replace thread-local connection store with a fresh one.
+    from asgiref.local import Local
+    connections._connections = Local(connections.thread_critical)
+
+    with django_db_blocker.unblock():
+        db_cfg = setup_databases(verbosity=0, interactive=False)
+    yield
+    with django_db_blocker.unblock():
+        teardown_databases(db_cfg, verbosity=0)
 
 
 @pytest.fixture(autouse=True)

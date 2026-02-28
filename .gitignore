@@ -103,6 +103,8 @@ docker-compose.override.yml
 .docker/
 
 # === Application Specific ===
+# Dev/test databases
+backend/data/
 # Shared data directories (bind mounts)
 data_exchange/
 exports/*

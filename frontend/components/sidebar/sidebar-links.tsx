@@ -19,15 +19,27 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
   const handleBackendClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // Try to get the token from localStorage
-    const token = typeof window !== 'undefined' ? localStorage.getItem('thoth_token') : null;
+    const token   = typeof window !== 'undefined'
+      ? (localStorage.getItem('thoth_token') || sessionStorage.getItem('thoth_token'))
+      : null;
+    const userStr = typeof window !== 'undefined'
+      ? (localStorage.getItem('thoth_user') || sessionStorage.getItem('thoth_user'))
+      : null;
+    let user: { is_superuser?: boolean } | null = null;
+    try {
+      user = userStr ? JSON.parse(userStr) : null;
+    } catch {
+      user = null;
+    }
+    const base    = baseUrl.replace(/\/$/, '');
 
-    if (token) {
-      // If we have a token, pass it to backend for seamless auth
-      window.location.href = `${baseUrl.replace(/\/$/, '')}/auth/admin-callback/?token=${token}`;
+    if (user?.is_superuser && token) {
+      // Superuser: silent SSO — no second login required
+      window.location.href =
+        `${base}/auth/admin-callback/?token=${token}&next=/admin/`;
     } else {
-      // No token, just go to backend home (will require login)
-      window.location.href = `${baseUrl.replace(/\/$/, '')}/`;
+      // Non-superuser or no token: redirect to Django admin login form
+      window.location.href = `${base}/admin/login/`;
     }
   };
 
@@ -62,6 +74,16 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
       >
         Backend
       </a>
+      {process.env.NEXT_PUBLIC_ATHENA_ORIGIN && (
+        <a
+          href={process.env.NEXT_PUBLIC_ATHENA_ORIGIN}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-sm text-gray-300 hover:text-white transition-colors"
+        >
+          Athena
+        </a>
+      )}
       <Link
         href="/"
         className="block text-sm text-gray-300 hover:text-white transition-colors"

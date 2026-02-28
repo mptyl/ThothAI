@@ -508,3 +508,17 @@ CORS_ALLOW_METHODS = [
     "POST",
     "PUT",
 ]
+
+# --- Supabase Auth Integration (optional, disabled by default) ---
+# Attivare in .env.docker con SUPABASE_AUTH_ENABLED=true quando ThothAI
+# è deployato nella rete Docker di Supabase (ecosistema Athena).
+SUPABASE_AUTH_ENABLED  = os.environ.get("SUPABASE_AUTH_ENABLED",  "false").lower() == "true"
+SUPABASE_AUTH_URL      = os.environ.get("SUPABASE_AUTH_URL",       "")
+# GoTrue interno: http://supabase-auth:9999 — disponibile solo in rete Supabase Docker
+DEFAULT_WORKSPACE_NAME = os.environ.get("DEFAULT_WORKSPACE_NAME",  "california_schools")
+
+# Sostituisce TokenAuthentication con la versione Supabase-aware solo se abilitato
+if SUPABASE_AUTH_ENABLED:
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [
+        "thoth_core.authentication.SupabaseAwareTokenAuthentication",
+    ]

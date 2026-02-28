@@ -12,11 +12,15 @@
 
 import logging
 import os
+import requests
 from datetime import datetime, timezone
 
+from django.conf import settings
+from django.db import transaction
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.utils import timezone as dj_timezone
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -31,11 +35,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import generics, status
 
-from thoth_core.authentication import ApiKeyAuthentication
+from thoth_core.authentication import ApiKeyAuthentication, _decode_jwt_exp
 from thoth_core.permissions import HasValidApiKey, IsAuthenticatedOrHasApiKey
 from thoth_core.health_check import HealthChecker, HealthCheckStatus
 
-from .models import SqlColumn, SqlDb, SqlTable, Workspace, ThothLog, Agent, AgentChoices
+from .models import SqlColumn, SqlDb, SqlTable, Workspace, ThothLog, Agent, AgentChoices, SupabaseSession
 from .serializers import (
     SqlColumnSerializer,
     SqlTableSerializer,
@@ -148,6 +152,95 @@ def api_login(request):
             {"error": "An unexpected error occurred", "details": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([])
+def supabase_auth(request):
+    """
+    Scambia un JWT Supabase con un token Django DRF.
+    Attivo solo se SUPABASE_AUTH_ENABLED=True.
+
+    POST /api/supabase-auth
+    Body: { "token": "<supabase_access_token>" }
+    Response 200: { "token": "<django_drf_token>", "user": {...} }
+    Response 503: workspace di default non trovato — eseguire CSV import prima
+    """
+    if not settings.SUPABASE_AUTH_ENABLED:
+        return Response({"error": "Not enabled"}, status=404)
+
+    token = request.data.get("token")
+    if not token:
+        return Response({"error": "Token required"}, status=400)
+
+    # Valida JWT chiamando GoTrue — rete Docker interna, nessuna dipendenza aggiuntiva
+    try:
+        resp = requests.get(
+            f"{settings.SUPABASE_AUTH_URL}/user",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5,
+        )
+    except requests.RequestException:
+        return Response({"error": "Auth service unreachable"}, status=503)
+
+    if resp.status_code != 200:
+        return Response({"error": "Invalid or expired token"}, status=401)
+
+    supabase_user = resp.json()
+    email      = supabase_user.get("email", "")
+    metadata   = supabase_user.get("user_metadata", {})
+    full_name  = metadata.get("full_name", metadata.get("name", ""))
+    first_name = full_name.split(" ")[0] if full_name else ""
+    last_name  = " ".join(full_name.split(" ")[1:]) if full_name else ""
+
+    if not email:
+        return Response({"error": "Email not found in token"}, status=400)
+
+    # Auto-provisioning: crea o recupera utente Django
+    with transaction.atomic():
+        user, created = User.objects.get_or_create(
+            username=email,
+            defaults={
+                "email":        email,
+                "first_name":   first_name,
+                "last_name":    last_name,
+                "is_staff":     True,
+                "is_superuser": True,
+            }
+        )
+        if not created:
+            user.last_login = dj_timezone.now()
+            user.save(update_fields=["last_login"])
+
+        # Assegna workspace di default al primo accesso
+        if created:
+            try:
+                workspace = Workspace.objects.get(name=settings.DEFAULT_WORKSPACE_NAME)
+                workspace.users.add(user)
+                workspace.default_workspace.add(user)  # M2M esistente in ThothAI: indica gli utenti per cui questo è il workspace di default
+            except Workspace.DoesNotExist:
+                # Rollback atomico: la transazione cancella user + tutto il provisioning
+                user.delete()
+                return Response({
+                    "error": "setup_incomplete",
+                    "detail": (
+                        f"Workspace '{settings.DEFAULT_WORKSPACE_NAME}' not found. "
+                        f"Run CSV import before authenticating Supabase users."
+                    )
+                }, status=503)
+
+    # Traccia scadenza JWT — fuori dalla transazione (operazione di aggiornamento idempotente)
+    expires_at = _decode_jwt_exp(token)
+    if expires_at:
+        SupabaseSession.objects.update_or_create(
+            user=user,
+            defaults={"expires_at": expires_at}
+        )
+
+    django_token, _ = Token.objects.get_or_create(user=user)
+    serializer = UserSerializer(user)
+    return Response({"token": django_token.key, "user": serializer.data})
 
 
 @api_view(["GET"])

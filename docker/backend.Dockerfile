@@ -85,8 +85,7 @@ RUN if [ -d /app/scripts ]; then \
 # Create necessary directories including secrets
 # Note: /app/data will be mounted from host, don't create it here
 RUN mkdir -p /app/logs /app/exports /vol/static /vol/media /vol/secrets \
-    && chmod 755 /app/logs /app/exports /vol/static /vol/media \
-    && chmod 700 /vol/secrets
+    && chmod 755 /app/logs /app/exports /vol/static /vol/media /vol/secrets
 
 # Collect static files to the volume mount point
 RUN /app/.venv/bin/python manage.py collectstatic --noinput --clear || true
