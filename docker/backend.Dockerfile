@@ -2,8 +2,10 @@
 # This file is part of ThothAI and is released under the Apache 2.0.
 # See the LICENSE.md file in the project root for full license information.
 
-# === SINGLE-STAGE BUILD FOR BACKEND ===
+# === RUST TOOLCHAIN (multi-arch safe: official image exists for amd64 + arm64) ===
+FROM rust:1.83-slim-bookworm AS rust-stage
 
+# === MAIN BUILD ===
 FROM python:3.13-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
@@ -35,11 +37,12 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust via rustup (for fastuuid compilation - requires newer Cargo)
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
-    && . "$HOME/.cargo/env" \
-    && echo 'source $HOME/.cargo/env' >> ~/.bashrc
-ENV PATH="/root/.cargo/bin:${PATH}"
+# Copy Rust toolchain from the platform-correct rust image (avoids rustup QEMU failures)
+COPY --from=rust-stage /usr/local/cargo /usr/local/cargo
+COPY --from=rust-stage /usr/local/rustup /usr/local/rustup
+ENV RUSTUP_HOME="/usr/local/rustup" \
+    CARGO_HOME="/usr/local/cargo" \
+    PATH="/usr/local/cargo/bin:$PATH"
 
 # Install Microsoft SQL Server ODBC drivers (17 + 18) for pyodbc compatibility when available
 COPY docker/install-msodbc.sh /tmp/install-msodbc.sh
