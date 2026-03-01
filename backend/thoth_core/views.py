@@ -74,8 +74,17 @@ def set_workspace_session(request):
         # Validate that the workspace exists and the user has access to it
         workspace = Workspace.objects.get(pk=workspace_id, users=request.user)
         request.session["selected_workspace_id"] = workspace.pk
+
+        # Update the user's default_workspace M2M so the frontend API
+        # (which reads default_workspace) reflects the change.
+        with transaction.atomic():
+            for old_ws in Workspace.objects.filter(default_workspace=request.user):
+                old_ws.default_workspace.remove(request.user)
+            workspace.default_workspace.add(request.user)
+
         logger.info(
-            f"User {request.user.username} set workspace {workspace.pk} in session."
+            f"User {request.user.username} set workspace {workspace.pk} "
+            f"in session and as default."
         )
         # Return 204 No Content, HTMX doesn't need a response body here
         return HttpResponse(status=204)
@@ -89,6 +98,34 @@ def set_workspace_session(request):
             f"Error setting workspace in session for user {request.user.username}: {e}"
         )
         return HttpResponse(status=500)
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def set_default_workspace(request):
+    """
+    Sets the user's default workspace via DRF Token authentication.
+    Called from the Next.js frontend when the user changes workspace.
+    """
+    workspace_id = request.data.get('workspace_id')
+    if not workspace_id:
+        return Response({'error': 'Missing workspace_id'}, status=400)
+    try:
+        workspace = Workspace.objects.get(pk=workspace_id, users=request.user)
+        with transaction.atomic():
+            for old_ws in Workspace.objects.filter(default_workspace=request.user):
+                old_ws.default_workspace.remove(request.user)
+            workspace.default_workspace.add(request.user)
+        logger.info(
+            f"User {request.user.username} set default workspace to {workspace.pk} via API."
+        )
+        return Response(status=204)
+    except Workspace.DoesNotExist:
+        logger.warning(
+            f"User {request.user.username} tried to set invalid or inaccessible workspace {workspace_id}."
+        )
+        return Response({'error': 'Invalid or inaccessible workspace'}, status=403)
 
 
 @api_view(["GET"])

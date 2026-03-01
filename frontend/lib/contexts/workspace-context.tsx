@@ -109,6 +109,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setSelectedWorkspace(workspace);
       localStorage.setItem('thoth_selected_workspace_id', workspace.id.toString());
 
+      // fire-and-forget: update default workspace in backend
+      apiClient.setDefaultWorkspace(workspaceId).catch(err =>
+        console.warn('Failed to update default workspace on backend:', err)
+      );
+
       // Also fetch the full workspace data for this workspace
       try {
         const fullWorkspaces: Workspace[] = await apiClient.getWorkspaces();

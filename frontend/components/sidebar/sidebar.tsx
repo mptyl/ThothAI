@@ -11,6 +11,7 @@ import { ResetButton } from './reset-button';
 import { SidebarFlags } from './sidebar-flags';
 import { StrategySelector } from './strategy-selector';
 import { SidebarLinks } from './sidebar-links';
+import { WorkspaceCurrentDisplay } from './workspace-current-display';
 
 interface SidebarProps {
   backendUrl?: string;
@@ -45,6 +46,9 @@ export function Sidebar({ backendUrl }: SidebarProps) {
 
         {/* Divider */}
         <SidebarDivider />
+
+        {/* Current Workspace Display */}
+        <WorkspaceCurrentDisplay />
 
         {/* Navigation Links */}
         <SidebarLinks backendUrl={backendUrl} />

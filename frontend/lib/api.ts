@@ -218,6 +218,10 @@ class ApiClient {
     }
   }
 
+  async setDefaultWorkspace(workspaceId: number): Promise<void> {
+    await this.client.post('/api/workspace/set-default/', { workspace_id: workspaceId });
+  }
+
   setToken(token: string): void {
     if (typeof window !== 'undefined') {
       localStorage.setItem('thoth_token', token);
@@ -292,6 +296,10 @@ export const apiClient = {
 
   async getWorkspacesUserList(): Promise<WorkspaceUserListResponse> {
     return this.instance.getWorkspacesUserList();
+  },
+
+  async setDefaultWorkspace(workspaceId: number): Promise<void> {
+    return this.instance.setDefaultWorkspace(workspaceId);
   },
 
   setToken(token: string): void {

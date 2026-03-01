@@ -26,6 +26,8 @@ urlpatterns = [
     path("api/test_api_key", views.test_api_key),
     path("api/workspaces", views.get_user_workspaces),
     path("api/workspaces_user_list", views.get_user_workspaces_list),
+    # Must be before api/workspace/<str:workspace_name> to avoid capture
+    path("api/workspace/set-default/", views.set_default_workspace, name="set_default_workspace"),
     path(
         "api/workspace/<str:workspace_name>",
         views.get_workspace_by_name,

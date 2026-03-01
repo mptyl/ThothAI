@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 import { useWorkspace } from '@/lib/contexts/workspace-context';
+import { WorkspaceSelector } from '@/components/sidebar/workspace-selector';
 import { useSidebar } from '@/lib/contexts/sidebar-context';
 import { sqlGeneratorApi, GenerateSQLResponse } from '@/lib/sql-generator-api';
 import { DataTable } from '@/components/DataTable';
@@ -672,6 +673,9 @@ export default function ChatPage() {
             <div>
               <h1 className="text-lg font-semibold">ThothAI</h1>
               <p className="text-sm text-muted-foreground">Natural Language to SQL</p>
+            </div>
+            <div className="ml-4">
+              <WorkspaceSelector compact />
             </div>
           </div>
 
