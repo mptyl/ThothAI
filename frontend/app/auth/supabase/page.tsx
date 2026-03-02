@@ -29,10 +29,24 @@ import { Loader2 } from 'lucide-react';
 export default function SupabaseAuthPage() {
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
+  const [athenaOrigins, setAthenaOrigins] = useState<string[] | null>(null);
 
+  // Stage 1: fetch runtime config
   useEffect(() => {
-    const athenaOrigin =
-      process.env.NEXT_PUBLIC_ATHENA_ORIGIN ?? 'http://localhost:3090';
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(cfg => {
+        const origins: string[] = cfg.athenaOrigins?.length
+          ? cfg.athenaOrigins
+          : [cfg.athenaOrigin || 'http://localhost:3090'];
+        setAthenaOrigins(origins);
+      })
+      .catch(() => setAthenaOrigins(['http://localhost:3090']));
+  }, []);
+
+  // Stage 2: set up postMessage listener once athenaOrigins is known
+  useEffect(() => {
+    if (athenaOrigins === null) return;
 
     // Pagina aperta direttamente senza finestra padre: nessun token disponibile
     if (!window.opener) {
@@ -40,8 +54,9 @@ export default function SupabaseAuthPage() {
       return;
     }
 
-    // Segnala ad Athena che la pagina è pronta a ricevere il token
-    window.opener.postMessage('ready', athenaOrigin);
+    // Segnala ad Athena che la pagina è pronta a ricevere il token.
+    // Usa "*" perché "ready" non contiene dati sensibili e Athena può essere su porte diverse.
+    window.opener.postMessage('ready', '*');
 
     const exchangeToken = async (supabaseToken: string) => {
       try {
@@ -70,8 +85,8 @@ export default function SupabaseAuthPage() {
     };
 
     const handler = (event: MessageEvent) => {
-      if (event.origin !== athenaOrigin) {
-        console.warn(`[supabase-auth] Origin mismatch: ${event.origin} !== ${athenaOrigin}`);
+      if (!athenaOrigins.includes(event.origin)) {
+        console.warn(`[supabase-auth] Origin mismatch: ${event.origin} not in [${athenaOrigins.join(', ')}]`);
         return;
       }
       if (event.data?.type !== 'supabase_token') {
@@ -101,7 +116,7 @@ export default function SupabaseAuthPage() {
       window.removeEventListener('message', handler);
       clearTimeout(timeoutId);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [athenaOrigins]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (status === 'error') {
     return (

@@ -7,6 +7,8 @@ export async function GET() {
     // In Docker Swarm, these are injected via 'environment' keys or .env files
     const backendUrl = process.env.RUNTIME_BACKEND_URL;
     const sqlGeneratorUrl = process.env.RUNTIME_SQL_GENERATOR_URL;
+    const athenaOrigin = process.env.RUNTIME_ATHENA_ORIGIN;
+    const athenaOriginsEnv = process.env.RUNTIME_ATHENA_ORIGINS;
 
     if (!backendUrl) {
         console.error('CRITICAL: RUNTIME_BACKEND_URL is not set in the environment');
@@ -16,8 +18,14 @@ export async function GET() {
         );
     }
 
+    const athenaOrigins: string[] = athenaOriginsEnv
+        ? athenaOriginsEnv.split(',').map(o => o.trim()).filter(Boolean)
+        : [athenaOrigin || 'http://localhost:3090'];
+
     return NextResponse.json({
         backendUrl,
-        sqlGeneratorUrl: sqlGeneratorUrl || backendUrl, // Fallback if needed
+        sqlGeneratorUrl: sqlGeneratorUrl || backendUrl,
+        athenaOrigin: athenaOrigin || '',
+        athenaOrigins,
     });
 }
