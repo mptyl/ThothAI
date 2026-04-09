@@ -76,7 +76,7 @@ class ThothLLMClient:
         # LM Studio endpoint is configurable
     }
 
-    def __init__(self, ai_model):
+    def __init__(self, ai_model, fallback_client=None):
         """
         Initialize the LLM client with model configuration.
 
@@ -86,6 +86,8 @@ class ThothLLMClient:
                 - specific_model: Model name/identifier
                 - temperature: Optional temperature setting
                 - url: Optional custom endpoint URL
+            fallback_client: Optional ThothLLMClient to use when the primary
+                model returns ServiceUnavailableError (503).
         """
         self.ai_model = ai_model
         self.provider = ai_model.basic_model.provider
@@ -93,6 +95,7 @@ class ThothLLMClient:
         self.api_key = self._get_api_key()
         self.temperature = float(ai_model.temperature) if ai_model.temperature else 0.7
         self.custom_endpoint = self._get_custom_endpoint()
+        self.fallback_client = fallback_client
 
         logger.info(
             f"Initialized LLM client for {self.provider} with model {self.model_name}"
@@ -348,6 +351,21 @@ class ThothLLMClient:
                     raw_response=response,
                 )
 
+        except litellm.ServiceUnavailableError as e:
+            if self.fallback_client:
+                logger.warning(
+                    f"Primary model {self.model_name} unavailable, "
+                    f"falling back to {self.fallback_client.model_name}: {e}"
+                )
+                return self.fallback_client.generate(
+                    messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    stream=stream,
+                    **kwargs,
+                )
+            logger.error(f"LLM generation failed: {str(e)}")
+            raise
         except Exception as e:
             logger.error(f"LLM generation failed: {str(e)}")
             raise
