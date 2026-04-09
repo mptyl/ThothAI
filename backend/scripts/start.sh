@@ -415,4 +415,6 @@ exec /app/.venv/bin/gunicorn \
     --graceful-timeout 30 \
     --max-requests 1000 \
     --max-requests-jitter 50 \
+    --limit-request-field_size 0 \
+    --limit-request-line 0 \
     Thoth.wsgi:application
