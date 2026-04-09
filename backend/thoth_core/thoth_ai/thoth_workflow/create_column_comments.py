@@ -989,6 +989,9 @@ def create_selected_column_comments_async(
                                     }
                                 )
 
+                        # Rate limiting: delay between chunks to avoid overloading the LLM provider
+                        time.sleep(2)
+
             except Exception as e:
                 error_msg = f"Error processing table {table.name}: {str(e)}"
                 logger.error(error_msg)
