@@ -11,11 +11,15 @@
 # limitations under the License.
 
 import json
+import logging
 import os
 import re
+from typing import Optional
 
 from thoth_core.thoth_ai.llm_client import ThothLLMClient, create_llm_client
 from thoth_core.models import LLMChoices
+
+logger = logging.getLogger(__name__)
 
 # Import the database manager factory
 from thoth_dbmanager import ThothDbFactory
@@ -210,7 +214,54 @@ def setup_llm_from_env() -> ThothLLMClient:
 
     url = api_base_by_provider.get(provider_enum)
     ai_model = _AiModel(provider_enum, model_id, temperature=0.7, url=url)
-    return create_llm_client(ai_model)
+    client = create_llm_client(ai_model)
+    client.fallback_client = _create_fallback_client()
+    return client
+
+
+def _create_fallback_client() -> Optional[ThothLLMClient]:
+    """
+    Create a fallback LLM client from BACKEND_AI_FALLBACK_* env vars.
+
+    Returns None if the fallback env vars are not configured.
+    """
+    fallback_provider = os.environ.get("BACKEND_AI_FALLBACK_PROVIDER", "").strip().lower()
+    fallback_model = os.environ.get("BACKEND_AI_FALLBACK_MODEL", "").strip()
+    if not fallback_provider or not fallback_model:
+        return None
+
+    provider_map = {
+        "openai": LLMChoices.OPENAI,
+        "anthropic": LLMChoices.CLAUDE,
+        "gemini": LLMChoices.GEMINI,
+        "mistral": LLMChoices.MISTRAL,
+        "deepseek": LLMChoices.DEEPSEEK,
+        "openrouter": LLMChoices.OPENROUTER,
+        "ollama": LLMChoices.OLLAMA,
+        "lm_studio": LLMChoices.LMSTUDIO,
+        "groq": LLMChoices.GROQ,
+    }
+
+    provider_enum = provider_map.get(fallback_provider)
+    if not provider_enum:
+        logger.warning(f"Unsupported BACKEND_AI_FALLBACK_PROVIDER: {fallback_provider}")
+        return None
+
+    class _BasicModel:
+        def __init__(self, provider):
+            self.provider = provider
+
+    class _AiModel:
+        def __init__(self, provider, specific_model):
+            self.basic_model = _BasicModel(provider)
+            self.specific_model = specific_model
+            self.temperature = 0.7
+            self.url = None
+
+    ai_model = _AiModel(provider_enum, fallback_model)
+    fallback = create_llm_client(ai_model)
+    logger.info(f"Configured fallback LLM: {fallback.model_name}")
+    return fallback
 
 
 def setup_sql_db(sql_db):
