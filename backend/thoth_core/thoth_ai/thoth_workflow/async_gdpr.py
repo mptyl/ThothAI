@@ -13,6 +13,7 @@ from typing import List
 from django.utils import timezone
 
 from thoth_core.models import SqlDb
+from thoth_core.thoth_ai.thoth_workflow.log_handler import create_db_comment_logger, update_sqldb_log
 
 logger = logging.getLogger(__name__)
 
@@ -37,28 +38,39 @@ def _process_gdpr_scan(sqldb_ids: List[int], task_id: str, user_id: int = None):
         sql_db = None
         try:
             sql_db = SqlDb.objects.get(id=sqldb_id)
+
+            custom_logger, memory_handler = create_db_comment_logger(sql_db, "async_gdpr")
+            custom_logger.info(f"Starting GDPR scan for DB '{sql_db.name}'...")
+
             sql_db.gdpr_status = "RUNNING"
             sql_db.gdpr_task_id = task_id
             sql_db.gdpr_start_time = timezone.now()
             sql_db.gdpr_end_time = None
+            sql_db.gdpr_log = None
             sql_db.save(update_fields=[
-                "gdpr_status", "gdpr_task_id", "gdpr_start_time", "gdpr_end_time"
+                "gdpr_status", "gdpr_task_id", "gdpr_start_time", "gdpr_end_time", "gdpr_log"
             ])
+
+            update_sqldb_log(sql_db, memory_handler, "gdpr_log")
 
             scan_gdpr_for_db(sql_db)
 
+            custom_logger.info(f"GDPR scan completed successfully for DB '{sql_db.name}'.")
             sql_db.gdpr_status = "COMPLETED"
             sql_db.gdpr_end_time = timezone.now()
-            sql_db.save(update_fields=["gdpr_status", "gdpr_end_time"])
-            logger.info(f"GDPR scan completed for '{sql_db.name}'")
+            update_sqldb_log(sql_db, memory_handler, "gdpr_log")
+            sql_db.save(update_fields=["gdpr_status", "gdpr_end_time", "gdpr_log"])
 
         except Exception as e:
             logger.error(f"GDPR scan failed for DB id={sqldb_id}: {e}")
             try:
                 if sql_db:
+                    if 'custom_logger' in dir():
+                        custom_logger.error(f"GDPR scan failed: {e}")
+                        update_sqldb_log(sql_db, memory_handler, "gdpr_log")
                     sql_db.gdpr_status = "FAILED"
                     sql_db.gdpr_end_time = timezone.now()
-                    sql_db.save(update_fields=["gdpr_status", "gdpr_end_time"])
+                    sql_db.save(update_fields=["gdpr_status", "gdpr_end_time", "gdpr_log"])
                 else:
                     SqlDb.objects.filter(id=sqldb_id).update(
                         gdpr_status="FAILED", gdpr_end_time=timezone.now()

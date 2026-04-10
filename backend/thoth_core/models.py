@@ -409,6 +409,7 @@ class SqlDb(models.Model):
     scope_task_id = models.CharField(max_length=255, blank=True, null=True)
     scope_start_time = models.DateTimeField(blank=True, null=True)
     scope_end_time = models.DateTimeField(blank=True, null=True)
+    scope_log = models.TextField(blank=True, null=True)
 
     # ERD generation status
     erd_status = models.CharField(
@@ -417,6 +418,7 @@ class SqlDb(models.Model):
     erd_task_id = models.CharField(max_length=255, blank=True, null=True)
     erd_start_time = models.DateTimeField(blank=True, null=True)
     erd_end_time = models.DateTimeField(blank=True, null=True)
+    erd_log = models.TextField(blank=True, null=True)
 
     # Documentation generation status
     documentation_status = models.CharField(
@@ -425,6 +427,7 @@ class SqlDb(models.Model):
     documentation_task_id = models.CharField(max_length=255, blank=True, null=True)
     documentation_start_time = models.DateTimeField(blank=True, null=True)
     documentation_end_time = models.DateTimeField(blank=True, null=True)
+    documentation_log = models.TextField(blank=True, null=True)
 
     # GDPR scan status
     gdpr_status = models.CharField(
@@ -433,6 +436,7 @@ class SqlDb(models.Model):
     gdpr_task_id = models.CharField(max_length=255, blank=True, null=True)
     gdpr_start_time = models.DateTimeField(blank=True, null=True)
     gdpr_end_time = models.DateTimeField(blank=True, null=True)
+    gdpr_log = models.TextField(blank=True, null=True)
 
     def get_collection_name(self):
         if not self.schema or self.schema == "public":
