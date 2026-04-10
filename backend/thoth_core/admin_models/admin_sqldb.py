@@ -251,9 +251,13 @@ class SqlDbAdmin(admin.ModelAdmin):
         "test_connection",
         "generate_all_comments",
         generate_scope,
+        "generate_scope_async",
         generate_db_erd,
+        "generate_db_erd_async",
         generate_db_documentation,
+        "generate_db_documentation_async",
         "scan_gdpr_compliance",
+        "scan_gdpr_compliance_async",
         "download_db_comment_sql",
     )
     fieldsets = (
@@ -1278,3 +1282,51 @@ class SqlDbAdmin(admin.ModelAdmin):
             )
 
     scan_gdpr_compliance.short_description = "Scan GDPR compliance (AI assisted - sync)"
+
+    def generate_scope_async(self, request, queryset):
+        """Generate scope for selected databases (AI assisted - async)"""
+        from thoth_core.thoth_ai.thoth_workflow.async_scope import start_async_scope_generation
+        sqldb_ids = list(queryset.values_list("id", flat=True))
+        running = queryset.filter(scope_status="RUNNING")
+        if running.exists():
+            self.message_user(request, "A scope generation is already running.", level=messages.WARNING)
+            return
+        task_id = start_async_scope_generation(sqldb_ids, request.user.id)
+        self.message_user(request, f"Async scope generation started (task: {task_id}).", level=messages.SUCCESS)
+    generate_scope_async.short_description = "Generate scope (AI assisted - async)"
+
+    def generate_db_erd_async(self, request, queryset):
+        """Generate ERD for selected databases (AI assisted - async)"""
+        from thoth_core.thoth_ai.thoth_workflow.async_erd import start_async_erd_generation
+        sqldb_ids = list(queryset.values_list("id", flat=True))
+        running = queryset.filter(erd_status="RUNNING")
+        if running.exists():
+            self.message_user(request, "An ERD generation is already running.", level=messages.WARNING)
+            return
+        task_id = start_async_erd_generation(sqldb_ids, request.user.id)
+        self.message_user(request, f"Async ERD generation started (task: {task_id}).", level=messages.SUCCESS)
+    generate_db_erd_async.short_description = "Generate ERD (AI assisted - async)"
+
+    def generate_db_documentation_async(self, request, queryset):
+        """Generate documentation for selected databases (AI assisted - async)"""
+        from thoth_core.thoth_ai.thoth_workflow.async_documentation import start_async_documentation_generation
+        sqldb_ids = list(queryset.values_list("id", flat=True))
+        running = queryset.filter(documentation_status="RUNNING")
+        if running.exists():
+            self.message_user(request, "A documentation generation is already running.", level=messages.WARNING)
+            return
+        task_id = start_async_documentation_generation(sqldb_ids, request.user.id)
+        self.message_user(request, f"Async documentation generation started (task: {task_id}).", level=messages.SUCCESS)
+    generate_db_documentation_async.short_description = "Generate documentation (AI assisted - async)"
+
+    def scan_gdpr_compliance_async(self, request, queryset):
+        """Scan for GDPR compliance (AI assisted - async)"""
+        from thoth_core.thoth_ai.thoth_workflow.async_gdpr import start_async_gdpr_scan
+        sqldb_ids = list(queryset.values_list("id", flat=True))
+        running = queryset.filter(gdpr_status="RUNNING")
+        if running.exists():
+            self.message_user(request, "A GDPR scan is already running.", level=messages.WARNING)
+            return
+        task_id = start_async_gdpr_scan(sqldb_ids, request.user.id)
+        self.message_user(request, f"Async GDPR scan started (task: {task_id}).", level=messages.SUCCESS)
+    scan_gdpr_compliance_async.short_description = "Scan GDPR compliance (AI assisted - async)"
