@@ -138,6 +138,18 @@ class SqlDbAdminForm(forms.ModelForm):
             "column_comment_log": forms.Textarea(
                 attrs={"rows": 8, "style": "width: 100%; max-width: 100%;"}
             ),
+            "scope_log": forms.Textarea(
+                attrs={"rows": 8, "style": "width: 100%; max-width: 100%;"}
+            ),
+            "erd_log": forms.Textarea(
+                attrs={"rows": 8, "style": "width: 100%; max-width: 100%;"}
+            ),
+            "documentation_log": forms.Textarea(
+                attrs={"rows": 8, "style": "width: 100%; max-width: 100%;"}
+            ),
+            "gdpr_log": forms.Textarea(
+                attrs={"rows": 8, "style": "width: 100%; max-width: 100%;"}
+            ),
         }
 
     def clean(self):
@@ -389,6 +401,62 @@ class SqlDbAdmin(admin.ModelAdmin):
                 ),
                 "classes": ("collapse",),
                 "description": "Status and logs for column comment generation tasks.",
+            },
+        ),
+        (
+            "AI Task Status – Scope Generation",
+            {
+                "fields": (
+                    "scope_status",
+                    "scope_task_id",
+                    "scope_start_time",
+                    "scope_end_time",
+                    "scope_log",
+                ),
+                "classes": ("collapse",),
+                "description": "Status and logs for scope generation tasks.",
+            },
+        ),
+        (
+            "AI Task Status – ERD Generation",
+            {
+                "fields": (
+                    "erd_status",
+                    "erd_task_id",
+                    "erd_start_time",
+                    "erd_end_time",
+                    "erd_log",
+                ),
+                "classes": ("collapse",),
+                "description": "Status and logs for ERD generation tasks.",
+            },
+        ),
+        (
+            "AI Task Status – Documentation Generation",
+            {
+                "fields": (
+                    "documentation_status",
+                    "documentation_task_id",
+                    "documentation_start_time",
+                    "documentation_end_time",
+                    "documentation_log",
+                ),
+                "classes": ("collapse",),
+                "description": "Status and logs for documentation generation tasks.",
+            },
+        ),
+        (
+            "AI Task Status – GDPR Scan",
+            {
+                "fields": (
+                    "gdpr_status",
+                    "gdpr_task_id",
+                    "gdpr_start_time",
+                    "gdpr_end_time",
+                    "gdpr_log",
+                ),
+                "classes": ("collapse",),
+                "description": "Status and logs for GDPR compliance scan tasks.",
             },
         ),
     )
