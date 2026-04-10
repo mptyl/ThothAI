@@ -89,119 +89,104 @@ def get_language_description(language_code):
     return "English"  # fallback
 
 
+def generate_scope_for_db(sql_db):
+    """
+    Generate scope for a single SqlDb instance using an AI model.
+
+    Takes a single SqlDb instance, performs the LLM call, and saves the result.
+    Returns on success, raises on failure.
+    """
+    llm = setup_llm_from_env()
+
+    tables = SqlTable.objects.filter(sql_db=sql_db)
+    tables_data = []
+    for table in tables:
+        columns = SqlColumn.objects.filter(sql_table=table)
+        columns_data = [
+            {
+                "original_name": col.original_column_name,
+                "description": col.column_description,
+                "value_description": col.value_description,
+            }
+            for col in columns
+        ]
+        tables_data.append(
+            {
+                "name": table.name,
+                "description": table.description,
+                "columns": columns_data,
+            }
+        )
+
+    language_code = sql_db.language or "en"
+    language_description = get_language_description(language_code)
+    prompt_variables = {
+        "db_name": sql_db.name,
+        "tables": tables_data,
+        "language": language_description,
+    }
+
+    output = _generate_scope_with_llm(llm, prompt_variables)
+
+    if not output or not hasattr(output, "content"):
+        raise RuntimeError(f"AI did not return a scope for database '{sql_db.name}'.")
+
+    generated_content = output.content
+
+    try:
+        # Clean the content - remove markdown code blocks if present
+        cleaned_content = _clean_content(generated_content)
+
+        # Try to parse the output as JSON
+        scope_json = json.loads(cleaned_content)
+
+        # Generate Markdown from JSON
+        markdown_sections = []
+        for key, value in scope_json.items():
+            # Convert key to a readable title (e.g., "main_entities" -> "Main Entities")
+            title = key.replace("_", " ").title()
+            # Add section to markdown with title and content
+            markdown_sections.append(f"## {title}\n{value}")
+
+        # Join all sections with double newlines for paragraph separation
+        markdown_scope = "\n\n".join(markdown_sections)
+
+        # Save both formats
+        sql_db.scope = markdown_scope
+        sql_db.scope_json = json.dumps(scope_json, ensure_ascii=False, indent=2)
+        sql_db.save()
+
+    except json.JSONDecodeError:
+        # If JSON parsing fails, save the raw output to scope and leave scope_json empty
+        sql_db.scope = generated_content
+        sql_db.scope_json = None
+        sql_db.save()
+
+
 def generate_scope(modeladmin, request, queryset):
     """
-    Generates a scope description for each selected SqlDb instance using an AI model.
+    Django admin action: generates a scope description for each selected SqlDb instance.
     """
-    try:
+    for db in queryset:
         try:
-            llm = setup_llm_from_env()
+            generate_scope_for_db(db)
+            modeladmin.message_user(
+                request,
+                f"Successfully generated scope for database '{db.name}'.",
+                messages.SUCCESS,
+            )
+        except json.JSONDecodeError:
+            modeladmin.message_user(
+                request,
+                f"Warning: AI output was not valid JSON for database '{db.name}'. Saving raw text to scope field.",
+                messages.WARNING,
+            )
         except Exception as e:
             modeladmin.message_user(
                 request,
-                f"Failed to set up LLM model from environment: {str(e)}",
+                f"Error generating scope for database '{db.name}': {str(e)}",
                 messages.ERROR,
             )
-            return
-
-        for db in queryset:
-            tables = SqlTable.objects.filter(sql_db=db)
-            tables_data = []
-            for table in tables:
-                columns = SqlColumn.objects.filter(sql_table=table)
-                columns_data = [
-                    {
-                        "original_name": col.original_column_name,
-                        "description": col.column_description,
-                        "value_description": col.value_description,
-                    }
-                    for col in columns
-                ]
-                tables_data.append(
-                    {
-                        "name": table.name,
-                        "description": table.description,
-                        "columns": columns_data,
-                    }
-                )
-
-            try:
-                language_code = db.language or "en"
-                language_description = get_language_description(language_code)
-                prompt_variables = {
-                    "db_name": db.name,
-                    "tables": tables_data,
-                    "language": language_description,
-                }
-
-                output = _generate_scope_with_llm(llm, prompt_variables)
-
-                if output and hasattr(output, "content"):
-                    generated_content = output.content
-
-                    try:
-                        # Clean the content - remove markdown code blocks if present
-                        cleaned_content = _clean_content(generated_content)
-
-                        # Try to parse the output as JSON
-                        scope_json = json.loads(cleaned_content)
-
-                        # Generate Markdown from JSON
-                        markdown_sections = []
-                        for key, value in scope_json.items():
-                            # Convert key to a readable title (e.g., "main_entities" -> "Main Entities")
-                            title = key.replace("_", " ").title()
-                            # Add section to markdown with title and content
-                            markdown_sections.append(f"## {title}\n{value}")
-
-                        # Join all sections with double newlines for paragraph separation
-                        markdown_scope = "\n\n".join(markdown_sections)
-
-                        # Save both formats
-                        db.scope = markdown_scope
-                        db.scope_json = json.dumps(
-                            scope_json, ensure_ascii=False, indent=2
-                        )
-                        db.save()
-
-                        modeladmin.message_user(
-                            request,
-                            f"Successfully generated scope for database '{db.name}'.",
-                            messages.SUCCESS,
-                        )
-
-                    except json.JSONDecodeError:
-                        # If JSON parsing fails, save the raw output to scope and leave scope_json empty
-                        modeladmin.message_user(
-                            request,
-                            f"Warning: AI output was not valid JSON for database '{db.name}'. Saving raw text to scope field.",
-                            messages.WARNING,
-                        )
-                        db.scope = generated_content
-                        db.scope_json = None
-                        db.save()
-                else:
-                    modeladmin.message_user(
-                        request,
-                        f"AI did not return a scope for database '{db.name}'.",
-                        messages.WARNING,
-                    )
-
-            except Exception as e:
-                modeladmin.message_user(
-                    request,
-                    f"Error generating scope for database '{db.name}': {str(e)}",
-                    messages.ERROR,
-                )
-
-    except FileNotFoundError:
-        modeladmin.message_user(
-            request, "Prompt template file not found.", messages.ERROR
-        )
-    except Exception as e:
-        modeladmin.message_user(
-            request, f"An unexpected error occurred: {str(e)}", messages.ERROR
-        )
 
 
-generate_scope.short_description = "Generate scope (AI assisted)"
+generate_scope.short_description = "Generate scope (AI assisted - sync)"
