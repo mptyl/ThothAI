@@ -764,214 +764,174 @@ def generate_complete_html(db_name, scope_html, tables_html, relationships_html,
     return html_template
 
 
-def generate_db_documentation(modeladmin, request, queryset):
+def generate_documentation_for_db(sql_db):
     """
-    Generates comprehensive Markdown documentation for the first selected SqlDb instance using AI.
-    The documentation includes database scope, Mermaid schema diagram, table descriptions, and column details.
+    Generate full documentation for a single SqlDb instance.
+
+    Takes a single SqlDb instance, performs all LLM calls, ERD generation,
+    markdown/HTML assembly and file export. Returns on success, raises on failure.
     """
-    try:
-        # Setup LLM from environment variables
-        try:
-            llm = setup_llm_from_env()
-        except Exception as e:
-            modeladmin.message_user(
-                request,
-                f"Failed to set up LLM model from environment: {str(e)}",
-                messages.ERROR,
-            )
-            return
+    # Setup LLM from environment variables
+    llm = setup_llm_from_env()
 
-        # Process only the first database
-        if queryset.count() > 1:
-            modeladmin.message_user(
-                request,
-                "Multiple databases selected. Processing only the first one.",
-                messages.WARNING,
-            )
+    db = sql_db
 
-        db = queryset.first()
-        if not db:
-            modeladmin.message_user(request, "No database selected.", messages.ERROR)
-            return
+    # Get language from database or default to English
+    language = db.language or "en"
 
-        # Get language from database or default to English
-        language = db.language or "en"
+    # Load prompt template
+    template_path = os.path.join(
+        settings.BASE_DIR,
+        "thoth_core",
+        "thoth_ai",
+        "thoth_workflow",
+        "prompt_templates",
+        "generate_db_documentation_prompt.txt",
+    )
 
-        # Load prompt template
-        template_path = os.path.join(
-            settings.BASE_DIR,
-            "thoth_core",
-            "thoth_ai",
-            "thoth_workflow",
-            "prompt_templates",
-            "generate_db_documentation_prompt.txt",
+    with open(template_path, "r") as file:
+        prompt_template_text = file.read()
+
+    # Prepare messages for LLM - only for Mermaid generation
+    llm_messages = []
+    if getattr(llm, "provider", None) != LLMChoices.GEMINI:
+        llm_messages.append(
+            {
+                "role": "system",
+                "content": "You are an expert in database schema design. Generate ONLY a Mermaid ERD diagram in mermaid notation.",
+            }
         )
 
-        with open(template_path, "r") as file:
-            prompt_template_text = file.read()
+    # Generate schema string from Django models
+    schema_string = generate_schema_string_from_models(db.id)
 
-        # Prepare messages for LLM - only for Mermaid generation
-        llm_messages = []
-        if getattr(llm, "provider", None) != LLMChoices.GEMINI:
-            llm_messages.append(
+    # Collect table information with descriptions
+    tables_data = []
+    for table in SqlTable.objects.filter(sql_db=db):
+        columns_data = []
+        for col in SqlColumn.objects.filter(sql_table=table):
+            columns_data.append(
                 {
-                    "role": "system",
-                    "content": "You are an expert in database schema design. Generate ONLY a Mermaid ERD diagram in mermaid notation.",
+                    "name": col.original_column_name,
+                    "expanded_name": col.column_name or col.original_column_name,
+                    "data_type": col.data_format,
+                    "description": col.column_description
+                    or col.generated_comment
+                    or "",
+                    "value_description": col.value_description or "",
+                    "is_pk": bool(col.pk_field),
+                    "is_fk": bool(col.fk_field),
+                    "fk_reference": col.fk_field if col.fk_field else "",
                 }
             )
 
-        # Prepare prompt - template is already formatted text, not needed for LiteLLM
-
-        # Collect database information
-
-        # Generate schema string from Django models
-        schema_string = generate_schema_string_from_models(db.id)
-
-        # Collect table information with descriptions
-        tables_data = []
-        for table in SqlTable.objects.filter(sql_db=db):
-            columns_data = []
-            for col in SqlColumn.objects.filter(sql_table=table):
-                columns_data.append(
-                    {
-                        "name": col.original_column_name,
-                        "expanded_name": col.column_name or col.original_column_name,
-                        "data_type": col.data_format,
-                        "description": col.column_description
-                        or col.generated_comment
-                        or "",
-                        "value_description": col.value_description or "",
-                        "is_pk": bool(col.pk_field),
-                        "is_fk": bool(col.fk_field),
-                        "fk_reference": col.fk_field if col.fk_field else "",
-                    }
-                )
-
-            tables_data.append(
-                {
-                    "name": table.name,
-                    "description": table.description or table.generated_comment or "",
-                    "columns": columns_data,
-                }
-            )
-
-        # Collect relationships
-        relationships = Relationship.objects.filter(
-            source_table__sql_db=db
-        ) | Relationship.objects.filter(target_table__sql_db=db)
-
-        relationships_data = []
-        for rel in relationships:
-            relationships_data.append(
-                {
-                    "source_table": rel.source_table.name,
-                    "source_column": rel.source_column.original_column_name,
-                    "target_table": rel.target_table.name,
-                    "target_column": rel.target_column.original_column_name,
-                    "name": f"{rel.source_table.name}_{rel.target_table.name}_fk",
-                }
-            )
-
-        # Generate Mermaid diagram using LLM
-        try:
-            # Format the prompt with variables
-            prompt_variables = {
-                "db_name": db.name,
-                "schema_string": schema_string,
-                "tables": tables_data,
-                "relationships": relationships_data,
+        tables_data.append(
+            {
+                "name": table.name,
+                "description": table.description or table.generated_comment or "",
+                "columns": columns_data,
             }
+        )
 
-            # Preprocess template (handles both {{}} syntax and Jinja2 control structures)
-            from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
-                preprocess_template,
+    # Collect relationships
+    relationships = Relationship.objects.filter(
+        source_table__sql_db=db
+    ) | Relationship.objects.filter(target_table__sql_db=db)
+
+    relationships_data = []
+    for rel in relationships:
+        relationships_data.append(
+            {
+                "source_table": rel.source_table.name,
+                "source_column": rel.source_column.original_column_name,
+                "target_table": rel.target_table.name,
+                "target_column": rel.target_column.original_column_name,
+                "name": f"{rel.source_table.name}_{rel.target_table.name}_fk",
+            }
+        )
+
+    # Generate Mermaid diagram using LLM
+    # Format the prompt with variables
+    prompt_variables = {
+        "db_name": db.name,
+        "schema_string": schema_string,
+        "tables": tables_data,
+        "relationships": relationships_data,
+    }
+
+    # Preprocess template (handles both {{}} syntax and Jinja2 control structures)
+    from thoth_core.thoth_ai.thoth_workflow.comment_generation_utils import (
+        preprocess_template,
+    )
+
+    formatted_prompt = preprocess_template(
+        prompt_template_text, prompt_variables
+    )
+
+    # If template had Jinja2 control structures, it's already rendered
+    # Otherwise, we need to format it
+    if "{% " not in prompt_template_text:
+        formatted_prompt = formatted_prompt.format(**prompt_variables)
+    llm_messages.append({"role": "user", "content": formatted_prompt})
+
+    # Generate using LLM
+    output = llm.generate(llm_messages, max_tokens=3000)
+
+    # Extract Mermaid diagram from LLM output
+    mermaid_diagram = ""
+    if output and hasattr(output, "content"):
+        llm_response = output.content
+        mermaid_diagram = extract_mermaid_diagram(llm_response) or llm_response
+
+        # Save ERD Mermaid diagram to database field
+        db.erd = mermaid_diagram
+        db.save(update_fields=["erd"])
+
+    # Generate HTML components using Python functions
+    scope_html = generate_scope_html(db.scope_json)
+    tables_html = generate_tables_html(db.id, language)
+    relationships_html = generate_relationships_html(db.id, language)
+
+    # Save to file
+    io_dir, error_message = ensure_exports_directory()
+    if error_message:
+        raise RuntimeError(f"Export failed: {error_message}")
+
+    # Create database-named directory
+    db_dir = get_export_path(db.name)
+    os.makedirs(db_dir, exist_ok=True)
+
+    # Create filenames
+    base_filename = f"{db.name}_documentation"
+    html_filename = f"{base_filename}.html"
+
+    html_filepath = os.path.join(db_dir, html_filename)
+
+    # Generate complete HTML documentation (no ERD visualization)
+    html_content = generate_complete_html(
+        db_name=db.name,
+        scope_html=scope_html,
+        tables_html=tables_html,
+        relationships_html=relationships_html,
+        language=language
+    )
+
+    with open(html_filepath, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+
+def generate_db_documentation(modeladmin, request, queryset):
+    """
+    Django admin action: generates documentation for each selected SqlDb instance using AI.
+    """
+    for db in queryset:
+        try:
+            generate_documentation_for_db(db)
+            modeladmin.message_user(
+                request,
+                f"Successfully generated documentation for database '{db.name}'.",
+                level=messages.SUCCESS,
             )
-
-            formatted_prompt = preprocess_template(
-                prompt_template_text, prompt_variables
-            )
-
-            # If template had Jinja2 control structures, it's already rendered
-            # Otherwise, we need to format it
-            if "{% " not in prompt_template_text:
-                formatted_prompt = formatted_prompt.format(**prompt_variables)
-            llm_messages.append({"role": "user", "content": formatted_prompt})
-
-            # Generate using LLM
-            output = llm.generate(llm_messages, max_tokens=3000)
-
-            # Extract Mermaid diagram from LLM output
-            mermaid_diagram = ""
-            if output and hasattr(output, "content"):
-                llm_response = output.content
-                mermaid_diagram = extract_mermaid_diagram(llm_response) or llm_response
-
-                # Save ERD Mermaid diagram to database field
-                db.erd = mermaid_diagram
-                db.save(update_fields=["erd"])
-
-            # Generate HTML components using Python functions
-            scope_html = generate_scope_html(db.scope_json)
-            tables_html = generate_tables_html(db.id, language)
-            relationships_html = generate_relationships_html(db.id, language)
-
-            # Save to file
-            io_dir, error_message = ensure_exports_directory()
-            if error_message:
-                modeladmin.message_user(
-                    request, f"Export failed: {error_message}", messages.ERROR
-                )
-                return
-
-            # Create database-named directory
-            db_dir = get_export_path(db.name)
-            try:
-                os.makedirs(db_dir, exist_ok=True)
-            except (OSError, PermissionError) as e:
-                docker_error = get_docker_friendly_error_message(e)
-                modeladmin.message_user(
-                    request,
-                    f"Failed to create database directory: {docker_error}",
-                    messages.ERROR,
-                )
-                return
-
-            # Create filenames
-            base_filename = f"{db.name}_documentation"
-            html_filename = f"{base_filename}.html"
-
-            html_filepath = os.path.join(db_dir, html_filename)
-
-            try:
-                # Generate complete HTML documentation (no ERD visualization)
-                html_content = generate_complete_html(
-                    db_name=db.name,
-                    scope_html=scope_html,
-                    tables_html=tables_html,
-                    relationships_html=relationships_html,
-                    language=language
-                )
-
-                with open(html_filepath, "w", encoding="utf-8") as f:
-                    f.write(html_content)
-
-                # Success message
-                success_msg = (
-                    f"Successfully generated documentation for database '{db.name}':\n"
-                )
-                success_msg += f"- HTML: data_exchange/{db.name}/{html_filename}\n"
-                success_msg += "- ERD Mermaid diagram saved to database field"
-
-                modeladmin.message_user(request, success_msg, level=messages.SUCCESS)
-
-            except (OSError, PermissionError) as e:
-                docker_error = get_docker_friendly_error_message(e)
-                modeladmin.message_user(
-                    request,
-                    f"Failed to save documentation: {docker_error}",
-                    level=messages.ERROR,
-                )
-
         except Exception as e:
             modeladmin.message_user(
                 request,
@@ -979,16 +939,7 @@ def generate_db_documentation(modeladmin, request, queryset):
                 level=messages.ERROR,
             )
 
-    except FileNotFoundError:
-        modeladmin.message_user(
-            request, "Prompt template file not found.", level=messages.ERROR
-        )
-    except Exception as e:
-        modeladmin.message_user(
-            request, f"An unexpected error occurred: {str(e)}", level=messages.ERROR
-        )
-
 
 generate_db_documentation.short_description = (
-    "Generate database documentation (AI assisted)"
+    "Generate documentation (AI assisted - sync)"
 )
