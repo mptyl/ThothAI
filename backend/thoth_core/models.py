@@ -69,6 +69,7 @@ class TaskStatus(models.TextChoices):
     IDLE = "IDLE", "Idle"
     RUNNING = "RUNNING", "Running"
     COMPLETED = "COMPLETED", "Completed"
+    COMPLETED_WITH_ERRORS = "COMPLETED_WITH_ERRORS", "Completed with errors"
     FAILED = "FAILED", "Failed"
 
 
@@ -372,7 +373,7 @@ class SqlDb(models.Model):
 
     # Async AI comment generation status and logs (moved from Workspace)
     table_comment_status = models.CharField(
-        max_length=20,
+        max_length=25,
         choices=TaskStatus.choices,
         default=TaskStatus.IDLE,
     )
@@ -382,7 +383,7 @@ class SqlDb(models.Model):
     table_comment_end_time = models.DateTimeField(blank=True, null=True)
 
     column_comment_status = models.CharField(
-        max_length=20,
+        max_length=25,
         choices=TaskStatus.choices,
         default=TaskStatus.IDLE,
     )
@@ -393,13 +394,45 @@ class SqlDb(models.Model):
 
     # Async database element creation status and logs
     db_elements_status = models.CharField(
-        max_length=20,
+        max_length=25,
         choices=TaskStatus.choices,
         default=TaskStatus.IDLE,
     )
     db_elements_task_id = models.CharField(max_length=255, blank=True, null=True)
     db_elements_start_time = models.DateTimeField(blank=True, null=True)
     db_elements_end_time = models.DateTimeField(blank=True, null=True)
+
+    # Scope generation status
+    scope_status = models.CharField(
+        max_length=25, choices=TaskStatus.choices, default=TaskStatus.IDLE
+    )
+    scope_task_id = models.CharField(max_length=255, blank=True, null=True)
+    scope_start_time = models.DateTimeField(blank=True, null=True)
+    scope_end_time = models.DateTimeField(blank=True, null=True)
+
+    # ERD generation status
+    erd_status = models.CharField(
+        max_length=25, choices=TaskStatus.choices, default=TaskStatus.IDLE
+    )
+    erd_task_id = models.CharField(max_length=255, blank=True, null=True)
+    erd_start_time = models.DateTimeField(blank=True, null=True)
+    erd_end_time = models.DateTimeField(blank=True, null=True)
+
+    # Documentation generation status
+    documentation_status = models.CharField(
+        max_length=25, choices=TaskStatus.choices, default=TaskStatus.IDLE
+    )
+    documentation_task_id = models.CharField(max_length=255, blank=True, null=True)
+    documentation_start_time = models.DateTimeField(blank=True, null=True)
+    documentation_end_time = models.DateTimeField(blank=True, null=True)
+
+    # GDPR scan status
+    gdpr_status = models.CharField(
+        max_length=25, choices=TaskStatus.choices, default=TaskStatus.IDLE
+    )
+    gdpr_task_id = models.CharField(max_length=255, blank=True, null=True)
+    gdpr_start_time = models.DateTimeField(blank=True, null=True)
+    gdpr_end_time = models.DateTimeField(blank=True, null=True)
 
     def get_collection_name(self):
         if not self.schema or self.schema == "public":
