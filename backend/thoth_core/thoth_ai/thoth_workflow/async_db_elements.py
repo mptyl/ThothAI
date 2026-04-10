@@ -52,6 +52,8 @@ class AsyncDbElementsTask:
             failed_databases = []
 
             for sqldb_id in sqldb_ids:
+                sql_db = None
+                task_logger = None
                 try:
                     sql_db = SqlDb.objects.get(id=sqldb_id)
                     
@@ -248,18 +250,23 @@ class AsyncDbElementsTask:
                     total_success += 1
 
                 except Exception as e:
-                    error_msg = f"Failed to process database '{sql_db.name}': {str(e)}"
-                    task_logger.error(error_msg)
-                    
-                    # Update status to failed
-                    sql_db.db_elements_end_time = timezone.now()
-                    sql_db.db_elements_status = "FAILED"
-                    sql_db.save(update_fields=[
-                        "db_elements_status", "db_elements_end_time"
-                    ])
-                    
-                    failed_databases.append((sql_db.name, str(e)))
                     total_failed += 1
+                    db_name = sql_db.name if sql_db else f"id={sqldb_id}"
+                    error_msg = f"Failed to process database '{db_name}': {str(e)}"
+                    if task_logger:
+                        task_logger.error(error_msg)
+                    else:
+                        logger.error(error_msg)
+
+                    try:
+                        SqlDb.objects.filter(id=sqldb_id, db_elements_status="RUNNING").update(
+                            db_elements_status="FAILED",
+                            db_elements_end_time=timezone.now(),
+                        )
+                    except Exception:
+                        logger.error(f"Failed to reset db_elements_status for DB id={sqldb_id}")
+
+                    failed_databases.append((db_name, str(e)))
 
             logger.info(
                 f"Database elements creation completed: {total_success} successes, "
@@ -276,10 +283,17 @@ class AsyncDbElementsTask:
             
         except Exception as e:
             logger.error(f"Critical error in async database elements creation: {str(e)}")
+            try:
+                SqlDb.objects.filter(id__in=sqldb_ids, db_elements_status="RUNNING").update(
+                    db_elements_status="FAILED",
+                    db_elements_end_time=timezone.now(),
+                )
+            except Exception:
+                logger.error("Failed to reset db_elements_status after critical error")
             return {
-                "status": "error", 
-                "error": str(e), 
-                "processed": 0, 
+                "status": "error",
+                "error": str(e),
+                "processed": 0,
                 "failed": len(sqldb_ids) if sqldb_ids else 0
             }
 

@@ -21,7 +21,7 @@ import threading
 from typing import List, Dict, Any
 from django.utils import timezone
 
-from thoth_core.models import SqlTable, SqlDb
+from thoth_core.models import SqlTable, SqlDb, SqlColumn
 from thoth_core.thoth_ai.thoth_workflow.create_table_comments import (
     create_table_comments_async,
 )
@@ -129,7 +129,12 @@ class AsyncTableCommentTask:
                 # Add summary and finalize per-DB
                 memory_handler.add_summary(processed_count, failed_count, len(db_table_ids))
                 sql_db.table_comment_end_time = timezone.now()
-                sql_db.table_comment_status = "COMPLETED" if failed_count == 0 else "FAILED"
+                if failed_count == 0:
+                    sql_db.table_comment_status = "COMPLETED"
+                elif failed_count == len(db_table_ids):
+                    sql_db.table_comment_status = "FAILED"
+                else:
+                    sql_db.table_comment_status = "COMPLETED_WITH_ERRORS"
                 update_sqldb_log(sql_db, memory_handler, "table_comment_log")
                 sql_db.save(update_fields=[
                     "table_comment_status",
@@ -152,6 +157,14 @@ class AsyncTableCommentTask:
             }
         except Exception as e:
             logger.error(f"Critical error in async table comments: {str(e)}")
+            try:
+                for sqldb_id in {t.sql_db_id for t in SqlTable.objects.filter(id__in=table_ids).select_related("sql_db") if t.sql_db_id}:
+                    SqlDb.objects.filter(id=sqldb_id, table_comment_status="RUNNING").update(
+                        table_comment_status="FAILED",
+                        table_comment_end_time=timezone.now(),
+                    )
+            except Exception:
+                logger.error("Failed to reset table_comment_status after critical error")
             return {"status": "error", "error": str(e), "processed": 0, "failed": len(table_ids) if table_ids else 0}
 
 
@@ -257,7 +270,12 @@ class AsyncColumnCommentTask:
                 # Add summary and finalize per-DB
                 memory_handler.add_summary(processed_count, failed_count, len(db_column_ids))
                 sql_db.column_comment_end_time = timezone.now()
-                sql_db.column_comment_status = "COMPLETED" if failed_count == 0 else "FAILED"
+                if failed_count == 0:
+                    sql_db.column_comment_status = "COMPLETED"
+                elif failed_count == len(db_column_ids):
+                    sql_db.column_comment_status = "FAILED"
+                else:
+                    sql_db.column_comment_status = "COMPLETED_WITH_ERRORS"
                 update_sqldb_log(sql_db, memory_handler, "column_comment_log")
                 sql_db.save(update_fields=[
                     "column_comment_status",
@@ -280,6 +298,14 @@ class AsyncColumnCommentTask:
             }
         except Exception as e:
             logger.error(f"Critical error in async column comments: {str(e)}")
+            try:
+                for sqldb_id in {c.sql_table.sql_db_id for c in SqlColumn.objects.filter(id__in=column_ids).select_related("sql_table__sql_db") if c.sql_table and c.sql_table.sql_db_id}:
+                    SqlDb.objects.filter(id=sqldb_id, column_comment_status="RUNNING").update(
+                        column_comment_status="FAILED",
+                        column_comment_end_time=timezone.now(),
+                    )
+            except Exception:
+                logger.error("Failed to reset column_comment_status after critical error")
             return {"status": "error", "error": str(e), "processed": 0, "failed": len(column_ids) if column_ids else 0}
 
 
