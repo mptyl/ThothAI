@@ -42,7 +42,7 @@ from thoth_core.thoth_ai.thoth_workflow.create_db_scope import generate_scope
 from thoth_core.thoth_ai.thoth_workflow.generate_db_documentation import (
     generate_db_documentation,
 )
-from thoth_core.thoth_ai.thoth_workflow.gdpr_scanner import scan_database_for_gdpr
+from thoth_core.thoth_ai.thoth_workflow.gdpr_scanner import scan_gdpr_for_db
 from thoth_core.thoth_ai.thoth_workflow.async_table_comments import (
     start_async_column_comments,
     start_async_table_comments,
@@ -1247,22 +1247,7 @@ class SqlDbAdmin(admin.ModelAdmin):
                 messages.INFO,
             )
 
-            report = scan_database_for_gdpr(db.id)
-
-            if "error" in report:
-                self.message_user(
-                    request,
-                    f"Error during GDPR scan: {report['error']}",
-                    messages.ERROR,
-                )
-                return
-
-            # Save report to database
-            from django.utils import timezone
-
-            db.gdpr_report = report
-            db.gdpr_scan_date = timezone.now()
-            db.save(update_fields=["gdpr_report", "gdpr_scan_date"])
+            report = scan_gdpr_for_db(db)
 
             # Generate success message with summary
             summary = report["summary"]
@@ -1292,4 +1277,4 @@ class SqlDbAdmin(admin.ModelAdmin):
                 messages.ERROR,
             )
 
-    scan_gdpr_compliance.short_description = "Scan for GDPR-sensitive data"
+    scan_gdpr_compliance.short_description = "Scan GDPR compliance (AI assisted - sync)"

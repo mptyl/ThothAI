@@ -285,6 +285,25 @@ def scan_table_for_gdpr(table: SqlTable) -> Dict[str, Any]:
     }
 
 
+def scan_gdpr_for_db(sql_db) -> Dict[str, Any]:
+    """
+    Run a GDPR scan on a single SqlDb instance.
+
+    Takes a SqlDb instance, performs the scan, saves the result, and returns the report.
+    Returns the report on success, raises on failure.
+    """
+    report = scan_database_for_gdpr(sql_db.id)
+
+    if "error" in report:
+        raise RuntimeError(f"GDPR scan failed for '{sql_db.name}': {report['error']}")
+
+    sql_db.gdpr_report = report
+    sql_db.gdpr_scan_date = timezone.now()
+    sql_db.save(update_fields=["gdpr_report", "gdpr_scan_date"])
+
+    return report
+
+
 def scan_database_for_gdpr(db_id: int) -> Dict[str, Any]:
     """
     Perform a complete GDPR scan on a database.
