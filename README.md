@@ -12,69 +12,32 @@
 
 ## 📚 Official Documentation
 
-Full documentation is available at: [https://thoth-ai.readthedocs.io](https://thoth-ai.readthedocs.io)
+Full documentation is available at: [https://mptyl.github.io/ThothAI/](https://mptyl.github.io/ThothAI/)
 
 ## 🚀 Quick Start
 
-### ⚡ Lightning Quick Start (Recommended - No Repository Clone)
+### 🐳 Supported Installation
 
-Install and run ThothAI in minutes without cloning the repository:
-
-```bash
-# 1. Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 2. Create project directory
-mkdir my-thothai && cd my-thothai
-uv venv && source .venv/bin/activate
-
-# 3. Install thothai-cli
-uv pip install thothai-cli
-
-# 4. Initialize project
-uv run thothai init
-
-# 5. Configure (edit config.yml.local with your API keys)
-nano config.yml.local
-
-# 6. Deploy
-uv run thothai up
-
-# 7. Access the application
-# http://localhost:8040
-```
-
-📖 **Full Guide**: [docs/thothai_install/LIGHTWEIGHT_INSTALLATION.md](docs/thothai_install/LIGHTWEIGHT_INSTALLATION.md)
-
----
-
-### 🐳 Docker Installation (For Developers)
-
-For development or customization, clone the repository:
+The supported public deployment path uses Docker Compose and prebuilt Docker Hub images:
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/mptyl/ThothAI.git
 cd ThothAI
 
-# 2. Copy and configure environment file
-# 2. Configure environment
+# 1. Prepare the runtime files
 cp .env.compose.template .env.docker
-# Edit .env.docker with your API keys and configuration
-# By default uses internal DB (POSTGRES_INTERNAL=true)
-# To use external DB: set POSTGRES_INTERNAL=false and configure DB_* vars
+cp config.yml config.yml.local
 
-# 3. Start all services
-./docker-up.sh
-# Or manually: docker compose up -d
+# 2. Edit .env.docker and config.yml.local
+
+# 3. Start the published stack
+docker compose -f docker-compose-hub.yml up -d
 
 # 4. Access the application
-# Main interface: http://localhost:8040
-# Frontend: http://localhost:3040
-# Backend Admin: http://localhost:8040/admin
+# http://localhost:8040
 ```
 
-
+📖 **Full Guide**: [Docker Compose installation](docs/installation/docker-compose.md)
 
 ## 📋 Prerequisites
 
@@ -150,7 +113,7 @@ backend/
 - **Certificates**: Provide an absolute path to the private key stored on the backend host (recommended: mount inside the `thoth-secrets` volume when running via Docker).
 - **Security**: Strict host key checking is enabled by default—point to a `known_hosts` file if the bastion key is not already trusted. Logs mask all sensitive values.
 - **Connectivity Test**: The existing "Test database connection" admin action now exercises the SSH tunnel before running the probe query.
-- **IBM Informix**: SSH tunnel is **required** for Informix databases (uses SSH + dbaccess, no local drivers needed). See [Informix Configuration Guide](docs/INFORMIX_CONFIGURATION_GUIDE.md) for setup instructions.
+- **IBM Informix**: SSH tunnel is **required** for Informix databases (uses SSH + dbaccess, no local drivers needed). Historical notes are preserved in the [legacy docs archive](legacy-docs/thothai-original/informix_and_olimpix/INFORMIX_CONFIGURATION_GUIDE.md).
 
 ## 📊 Logging
 
@@ -231,49 +194,28 @@ LOGFIRE_TOKEN=your-logfire-token
 
 ### Configuration File Structure
 
-ThothAI uses a simple `.env` file-based configuration system:
+ThothAI uses a Docker-focused configuration system for the published installation path:
 
 #### Configuration Files
 
-1. **`.env.docker`** – Docker configuration (Active)
-   - Copy from `.env.compose.template` (Local) or `.env.swarm.template` (Production)
+1. **`.env.docker`** – Docker runtime configuration
+   - Copy from `.env.compose.template`
    - NOT committed to the repository (gitignored)
 
-2. **`.env.local`** – Local development configuration
-   - Used by `start-all.sh` for native Python/Node.js development
-   - Copy from `.env.local.template` and configure
-   - NOT committed to the repository (gitignored)
+2. **`config.yml.local`** – Application configuration
+   - Copy from `config.yml`
+   - Holds providers, embeddings, admin bootstrap, runtime tuning, and database support
+   - Should not be committed with real credentials
 
 #### Deployment Options
 
-**Option 1: Docker Compose (Local)**
+**Supported option: Docker Compose with Docker Hub images**
 ```bash
 cp .env.compose.template .env.docker
-# Configure keys...
-docker compose up -d
+cp config.yml config.yml.local
+# Configure keys and models...
+docker compose -f docker-compose-hub.yml up -d
 ```
-
-**Option 3: Local Development (Hybrid)**
-```bash
-cp .env.local.template .env.local
-# Configure keys...
-# Start using SQLite (default) or configure DATABASE_URL for PostgreSQL
-./start-all.sh
-```
-
-**Option 2: Docker Swarm (Production / Cluster)**
-```bash
-cp .env.swarm.template .env.swarm
-cp swarm_config.env.template swarm_config.env
-# Configure keys, external DB, and NFS path...
-./docker-swarm-up.sh
-```
-> [!NOTE]
-> Docker Swarm deployment strictly uses PostgreSQL. You can use the internal `db` service (with bind mounts) or a truly external database. Use `./clean-docker-swarm.sh` to reset the swarm environment.
-
-
-
-
 
 ### Python Management with uv
 
@@ -285,9 +227,9 @@ The project uses `uv` to manage Python consistently:
 
 ### Best Practices
 
-1. **Never commit** files containing credentials (`.env.docker`, `.env.local`)
-2. **Use `.env.docker.template`** as starting point for Docker configuration
-3. **Use `.env.local.template`** as starting point for local development
+1. **Never commit** files containing credentials (`.env.docker`, `config.yml.local`)
+2. **Use `.env.compose.template`** as starting point for Docker configuration
+3. **Use `config.yml`** as the starting point for `config.yml.local`
 4. **Back up configurations** before major upgrades
 
 ## 📝 Notes
