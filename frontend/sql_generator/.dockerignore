@@ -68,6 +68,7 @@ test_*.py
 **/*_test.py
 # Don't exclude these files as they're not test files but part of the application
 !agents/validators/test_validators.py
+!agents/test_reducer_agent.py
 !operations/test_generation.py
 conftest.py
 **/conftest.py

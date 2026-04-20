@@ -6,6 +6,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useAthenaOrigin } from '@/lib/hooks/use-athena-origin';
 
 interface SidebarLinksProps {
   backendUrl?: string;
@@ -14,6 +15,7 @@ interface SidebarLinksProps {
 export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProps) {
   // Use runtime value if provided, otherwise fallback to build-time embedded value
   const baseUrl = runtimeBackendUrl || process.env.NEXT_PUBLIC_DJANGO_SERVER || 'http://localhost:8200';
+  const athenaOrigin = useAthenaOrigin();
 
   // Function to handle backend link click with token passing
   const handleBackendClick = (e: React.MouseEvent) => {
@@ -74,9 +76,9 @@ export function SidebarLinks({ backendUrl: runtimeBackendUrl }: SidebarLinksProp
       >
         Backend
       </a>
-      {process.env.NEXT_PUBLIC_ATHENA_ORIGIN && (
+      {athenaOrigin && (
         <a
-          href={process.env.NEXT_PUBLIC_ATHENA_ORIGIN}
+          href={athenaOrigin}
           target="_blank"
           rel="noopener noreferrer"
           className="block text-sm text-gray-300 hover:text-white transition-colors"

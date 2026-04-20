@@ -11,6 +11,7 @@
 # limitations under the License.
 
 import os
+import re
 import time
 import logging
 import requests
@@ -297,6 +298,11 @@ def generate_mermaid_image(
     """
     if not mermaid_content or not mermaid_content.strip():
         return False, None, "Empty Mermaid content provided"
+
+    # Strip markdown fences (```mermaid ... ```) if present —
+    # the DB field may contain them but the mermaid service expects raw definitions.
+    mermaid_content = re.sub(r'^\s*```(?:mermaid)?\s*\n?', '', mermaid_content.strip())
+    mermaid_content = re.sub(r'\n?\s*```\s*$', '', mermaid_content)
 
     try:
         # Choose the appropriate endpoint based on format

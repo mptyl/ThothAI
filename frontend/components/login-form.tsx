@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAthenaOrigin } from '@/lib/hooks/use-athena-origin';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,6 +19,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const { login, isLoading, error, clearError } = useAuth();
+  const athenaOrigin = useAthenaOrigin();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -153,7 +155,7 @@ export function LoginForm() {
           </button>
         </form>
 
-        {process.env.NEXT_PUBLIC_ATHENA_ORIGIN && (
+        {athenaOrigin && (
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -164,7 +166,7 @@ export function LoginForm() {
               </div>
             </div>
             <a
-              href={process.env.NEXT_PUBLIC_ATHENA_ORIGIN}
+              href={athenaOrigin!}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 w-full inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-10 px-4 py-2 border border-[#4a90a4]/40 text-[#4a90a4] hover:bg-[#4a90a4]/10"

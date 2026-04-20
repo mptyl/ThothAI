@@ -200,12 +200,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Configure CORS to support common localhost variants and any port
 # Keeping allow_credentials=True, so we cannot use "*" for allow_origins.
 # Use allow_origin_regex to match localhost and 127.0.0.1 on any port (http/https).
+_extra_origins = [
+    o.strip()
+    for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3200",  # Next.js frontend (local dev)
         "http://localhost:3040",  # Next.js frontend (Docker)
-    ],
+    ] + _extra_origins,
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
     allow_credentials=True,
     allow_methods=["*"],

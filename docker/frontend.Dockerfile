@@ -34,12 +34,10 @@ COPY lib ./lib
 COPY public ./public
 
 # Build arguments for public URLs (defaults for standalone builds)
+# Note: NEXT_PUBLIC_SQL_GENERATOR_URL and NEXT_PUBLIC_ATHENA_ORIGIN are intentionally
+# omitted — they are resolved at runtime via /api/config (RUNTIME_* env vars).
 ARG NEXT_PUBLIC_DJANGO_SERVER=http://localhost:8040
-ARG NEXT_PUBLIC_SQL_GENERATOR_URL=http://localhost:8020
-ARG NEXT_PUBLIC_ATHENA_ORIGIN=
 ENV NEXT_PUBLIC_DJANGO_SERVER=$NEXT_PUBLIC_DJANGO_SERVER
-ENV NEXT_PUBLIC_SQL_GENERATOR_URL=$NEXT_PUBLIC_SQL_GENERATOR_URL
-ENV NEXT_PUBLIC_ATHENA_ORIGIN=$NEXT_PUBLIC_ATHENA_ORIGIN
 
 # Create empty .env.local to prevent dotenv errors
 RUN touch ../.env.local
