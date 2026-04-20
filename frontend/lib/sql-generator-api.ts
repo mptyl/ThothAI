@@ -39,7 +39,7 @@ class SqlGeneratorApiClient {
   private currentRequestId: string | null = null;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_SQL_GENERATOR_URL || 'http://localhost:8001';
+    this.baseURL = process.env.NEXT_PUBLIC_SQL_GENERATOR_URL || '';
     
     this.client = axios.create({
       baseURL: this.baseURL,

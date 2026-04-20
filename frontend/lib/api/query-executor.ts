@@ -52,7 +52,7 @@ async function getRuntimeConfig(): Promise<{ sqlGeneratorUrl: string }> {
   } catch (error) {
     console.error('Failed to load runtime config for SQL Generator:', error);
     // Fallback to default local URL
-    cachedConfig = { sqlGeneratorUrl: 'http://localhost:8180' };
+    cachedConfig = { sqlGeneratorUrl: '' };
     return cachedConfig;
   }
 }

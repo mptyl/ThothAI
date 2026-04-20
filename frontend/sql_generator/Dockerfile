@@ -31,7 +31,8 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
     && apt-get update -qq \
     && ACCEPT_EULA=Y apt-get install -y -qq msodbcsql18 \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/mariadb_config /usr/local/bin/mariadb_config
 
 # Copy uv for fast package installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
