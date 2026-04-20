@@ -2,6 +2,8 @@
 
 In ThothAI, "data linking" is the combined retrieval process that maps a question to the most relevant schema, evidence, and example SQL before generation.
 
+For the module-by-module developer explanation of validation, retrieval, LSH extraction, vector enrichment, schema reduction, and `mschema` generation, see [Preprocessing And Schema Linking](../technical-architecture/developer-pipeline/preprocessing-and-schema-linking.md).
+
 ## Inputs Used For Linking
 
 The current pipeline combines:

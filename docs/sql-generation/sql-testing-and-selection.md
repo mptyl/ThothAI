@@ -2,6 +2,8 @@
 
 ThothAI does not stop at generating candidate SQL. It precomputes tests, validates candidate output, and then selects the best query.
 
+For the detailed developer view of `main_test_generation.py`, `main_evaluation.py`, `sql_selection.py`, and the escalation logic in `main_generation_phases.py`, see [Evaluation And Selection](../technical-architecture/developer-pipeline/evaluation-and-selection.md).
+
 ## Precomputed Tests
 
 The current pipeline runs `_precompute_tests_phase()` before candidate generation.

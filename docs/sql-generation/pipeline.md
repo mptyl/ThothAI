@@ -2,6 +2,8 @@
 
 The current SQL generation pipeline is implemented in `frontend/sql_generator/main.py` and the `helpers/main_helpers/` modules.
 
+For a code-level walkthrough of the orchestration layer, state mutations, and helper boundaries, continue with the developer pages under [Technical Architecture > Developer Pipeline](../technical-architecture/developer-pipeline/runtime-entrypoints.md).
+
 ## Request Contract
 
 The main request model includes:

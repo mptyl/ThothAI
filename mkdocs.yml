@@ -29,6 +29,12 @@ nav:
       - System Overview: technical-architecture/system-overview.md
       - Agents And Services: technical-architecture/agents-and-services.md
       - Developer View: technical-architecture/developer-view.md
+      - Developer Pipeline:
+          - Runtime Entry Points: technical-architecture/developer-pipeline/runtime-entrypoints.md
+          - System State And Contexts: technical-architecture/developer-pipeline/system-state-and-contexts.md
+          - Preprocessing And Schema Linking: technical-architecture/developer-pipeline/preprocessing-and-schema-linking.md
+          - SQL Generation And Escalation: technical-architecture/developer-pipeline/sql-generation-and-escalation.md
+          - Evaluation And Selection: technical-architecture/developer-pipeline/evaluation-and-selection.md
   - SQL Generation:
       - Pipeline: sql-generation/pipeline.md
       - Data Linking: sql-generation/data-linking.md

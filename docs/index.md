@@ -28,6 +28,17 @@ ThothAI is built from these main runtime components:
 3. Follow the [First Workspace](quickstart/getting-started.md) walkthrough.
 4. Use the SQL Generation section to understand the runtime pipeline and evaluation model.
 
+## Developer Reading Order
+
+If you need the code-level architecture instead of the operational overview, read:
+
+1. [Developer View](technical-architecture/developer-view.md)
+2. [Runtime Entry Points](technical-architecture/developer-pipeline/runtime-entrypoints.md)
+3. [System State And Contexts](technical-architecture/developer-pipeline/system-state-and-contexts.md)
+4. [Preprocessing And Schema Linking](technical-architecture/developer-pipeline/preprocessing-and-schema-linking.md)
+5. [SQL Generation And Escalation](technical-architecture/developer-pipeline/sql-generation-and-escalation.md)
+6. [Evaluation And Selection](technical-architecture/developer-pipeline/evaluation-and-selection.md)
+
 ## Scope
 
 The public site intentionally excludes:
@@ -41,4 +52,3 @@ The public site intentionally excludes:
 Those materials are preserved in the repository archive under `legacy-docs/`, but they are not part of the published navigation.
 
  
-
