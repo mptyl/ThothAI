@@ -1,0 +1,68 @@
+site_name: ThothAI Documentation
+site_url: https://mptyl.github.io/ThothAI/
+repo_url: https://github.com/mptyl/ThothAI
+repo_name: mptyl/ThothAI
+docs_dir: docs
+theme:
+  name: material
+  favicon: assets/favicon.ico
+  icon:
+    logo: material/database-search
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+nav:
+  - Home: index.md
+  - Installation:
+      - Docker Compose From Docker Hub: installation/docker-compose.md
+      - Configuration Files: installation/configuration-files.md
+      - First Start And Health Checks: installation/first-start.md
+  - Quick Start:
+      - First Workspace: quickstart/getting-started.md
+  - User Guide:
+      - Admin Setup: user-guide/admin-setup.md
+      - Frontend And Workspaces: user-guide/frontend-and-workspaces.md
+      - Preprocessing Assets: user-guide/preprocessing-assets.md
+  - Technical Architecture:
+      - System Overview: technical-architecture/system-overview.md
+      - Agents And Services: technical-architecture/agents-and-services.md
+  - SQL Generation:
+      - Pipeline: sql-generation/pipeline.md
+      - Data Linking: sql-generation/data-linking.md
+      - SQL Testing And Selection: sql-generation/sql-testing-and-selection.md
+  - Reference:
+      - Configuration Reference: reference/configuration-reference.md
+      - GitHub Pages Publishing: reference/publishing.md
+      - Legacy Content: reference/legacy-content.md
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+  - javascripts/custom.js
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mptyl/ThothAI
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/u/tylconsulting
+copyright: Copyright &copy; 2025 Marco Pancotti

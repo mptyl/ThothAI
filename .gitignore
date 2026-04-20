@@ -39,6 +39,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 .venv/
+.venv-docs/
 venv/
 ENV/
 env/
@@ -156,6 +157,7 @@ backend/tests/reports/
 pip-log.txt
 pip-delete-this-directory.txt
 .webassets-cache
+site/
 
 # === OS Files ===
 .DS_Store
