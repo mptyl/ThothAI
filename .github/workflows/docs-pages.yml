@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - codex-docs-consolidation
     paths:
       - docs/**
       - mkdocs.yml
