@@ -28,6 +28,7 @@ nav:
   - Technical Architecture:
       - System Overview: technical-architecture/system-overview.md
       - Agents And Services: technical-architecture/agents-and-services.md
+      - Developer View: technical-architecture/developer-view.md
   - SQL Generation:
       - Pipeline: sql-generation/pipeline.md
       - Data Linking: sql-generation/data-linking.md

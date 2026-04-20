@@ -21,8 +21,6 @@ The active codebase centers on these roles:
 
 The current public runtime is documented around `Basic`, `Advanced`, and `Expert` functionality levels because that is what the request model exposes.
 
-Older documentation referenced additional modes such as `Titanic`. Those materials were archived because they are not the supported public contract of the current runtime.
-
 ## Service Interaction
 
 ```mermaid
